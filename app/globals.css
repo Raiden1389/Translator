@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(265 60% 12%);
+  --color-foreground: hsl(0 0% 100%);
+
+  --color-card: hsl(265 50% 18%);
+  --color-card-foreground: hsl(0 0% 100%);
+
+  --color-popover: hsl(265 50% 18%);
+  --color-popover-foreground: hsl(0 0% 100%);
+
+  --color-primary: hsl(35 95% 55%);
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  --color-secondary: hsl(270 50% 30%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+
+  --color-muted: hsl(265 20% 30%);
+  --color-muted-foreground: hsl(265 20% 70%);
+
+  --color-accent: hsl(280 60% 45%);
+  --color-accent-foreground: hsl(0 0% 100%);
+
+  --color-destructive: hsl(0 62.8% 30.6%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+
+  --color-border: hsl(265 30% 25%);
+  --color-input: hsl(265 30% 25%);
+  --color-ring: hsl(35 95% 55%);
+
+  --radius: 1rem;
+}
+
+/* Custom Utilities */
+@utility glass {
+  background-color: rgb(0 0 0 / 20%);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgb(255 255 255 / 10%);
+}
+
+@utility glass-card {
+  background-image: linear-gradient(to bottom right, rgb(255 255 255 / 5%), rgb(255 255 255 / 2%));
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 10%);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 10%), 0 8px 10px -6px rgb(0 0 0 / 10%);
+}
+
+/* Global resets and body styles */
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    background-image: linear-gradient(to bottom, #2d1b4e 0%, #1a0b2e 100%);
+    min-height: 100vh;
+  }
+}
