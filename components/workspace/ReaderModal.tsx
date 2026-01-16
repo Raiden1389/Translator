@@ -383,6 +383,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                             variant="ghost"
                             className={cn("text-white/50 hover:text-white border border-transparent hover:border-white/10", isParallel && "bg-white/10 text-white border-white/20")}
                             onClick={() => setIsParallel(!isParallel)}
+                            title="Hiển thị song song bản dịch và bản gốc"
                         >
                             <SplitSquareHorizontal className="w-4 h-4 mr-2" /> Song song
                         </Button>
@@ -395,6 +396,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                             className={cn("text-white/50 hover:text-white border border-transparent hover:border-white/10", isInspecting && "animate-pulse text-amber-500")}
                             onClick={handleInspect}
                             disabled={isInspecting}
+                            title="Soi lỗi bản dịch bằng AI"
                         >
                             {isInspecting ? <Sparkles className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
                             <span className="hidden md:inline">Soi lỗi</span>
@@ -409,6 +411,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                 variant="ghost"
                                 className={cn("text-white/50 hover:text-white", showSettings && "bg-white/10 text-white")}
                                 onClick={() => setShowSettings(!showSettings)}
+                                title="Tùy chỉnh giao diện đọc truyện"
                             >
                                 <Type className="w-5 h-5 mr-2" />
                                 <span className="hidden md:inline">Giao diện</span>
