@@ -13,6 +13,7 @@ import { TextSelectionMenu } from "./TextSelectionMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReaderHeader, ReaderConfig } from "./ReaderHeader";
 
 interface ReaderModalProps {
     chapterId: number;
@@ -81,7 +82,7 @@ const formatReaderText = (text: string, issues: InspectionIssue[] = []) => {
 
 export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNext }: ReaderModalProps) {
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
-    const [activeTab, setActiveTab] = useState<"translated" | "original" | "summary">("translated");
+    const [activeTab, setActiveTab] = useState<"translated" | "original">("translated");
     const [isParallel, setIsParallel] = useState(false);
     const [editContent, setEditContent] = useState("");
 
@@ -97,12 +98,12 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     // Reader Settings
     const [showSettings, setShowSettings] = useState(false);
-    const [readerConfig, setReaderConfig] = useState({
+    const [readerConfig, setReaderConfig] = useState<ReaderConfig>({
         fontFamily: "'Bookerly', serif",
-        fontSize: 19,
+        fontSize: 18,
         lineHeight: 1.8,
-        textAlign: "left" as "left" | "right" | "center" | "justify",
-        color: "#cbd5e1", // slate-300
+        textAlign: "justify",
+        textColor: "#e2e8f0",
     });
     const [configLoaded, setConfigLoaded] = useState(false);
 
@@ -354,224 +355,40 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
+
+            {/* Close Button - Always Visible at Top Right */}
+            <Button
+                size="icon"
+                variant="ghost"
+                onClick={onClose}
+                className="absolute top-4 right-4 z-[200] hover:bg-red-500/30 bg-black/40 backdrop-blur-sm text-white/90 hover:text-white rounded-full w-10 h-10 border border-white/10"
+                title="Đóng cửa sổ (ESC)"
+            >
+                <X className="w-5 h-5" />
+            </Button>
+
             {/* Modal Container: 95% Screen */}
             <div className="w-[95vw] h-[95vh] bg-[#1a0b2e] rounded-xl shadow-2xl border border-white/10 flex flex-col overflow-hidden relative">
 
-                {/* Header */}
-                <header className="h-14 border-b border-white/10 bg-[#1e1e2e] flex items-center justify-between px-4 shrink-0 select-none">
-                    <div className="flex items-center gap-4">
-                        <div className="flex bg-black/20 p-1 rounded-lg">
-                            <button
-                                onClick={() => setActiveTab("translated")}
-                                className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", activeTab === "translated" ? "bg-[#6c5ce7] text-white shadow-md" : "text-white/50 hover:text-white")}
-                            >
-                                <Edit3 className="w-3 h-3 inline-block mr-2" />
-                                Bản dịch (Sửa)
-                            </button>
-                            <button
-                                onClick={() => setActiveTab("original")}
-                                className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", activeTab === "original" ? "bg-[#6c5ce7] text-white shadow-md" : "text-white/50 hover:text-white")}
-                            >
-                                <BookOpen className="w-3 h-3 inline-block mr-2" />
-                                Bản gốc
-                            </button>
-                            <button
-                                onClick={() => setActiveTab("summary")}
-                                className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", activeTab === "summary" ? "bg-[#6c5ce7] text-white shadow-md" : "text-white/50 hover:text-white")}
-                            >
-                                <FileText className="w-3 h-3 inline-block mr-2" />
-                                Tóm tắt
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <h2 className="text-white/70 font-bold max-w-md truncate mr-4" title={chapter.title}>
-                            {chapter.title_translated || chapter.title}
-                        </h2>
-
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className={cn("text-white/50 hover:text-white border border-transparent hover:border-white/10", isParallel && "bg-white/10 text-white border-white/20")}
-                            onClick={() => setIsParallel(!isParallel)}
-                            title="Hiển thị song song bản dịch và bản gốc"
-                        >
-                            <SplitSquareHorizontal className="w-4 h-4 mr-2" /> Song song
-                        </Button>
-
-                        <div className="h-6 w-px bg-white/10 mx-2" />
-
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className={cn("text-white/50 hover:text-white border border-transparent hover:border-white/10", isInspecting && "animate-pulse text-amber-500")}
-                            onClick={handleInspect}
-                            disabled={isInspecting}
-                            title="Soi lỗi bản dịch bằng AI"
-                        >
-                            {isInspecting ? <Sparkles className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
-                            <span className="hidden md:inline">Soi lỗi</span>
-                            {inspectionIssues.length > 0 && (
-                                <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inspectionIssues.length}</span>
-                            )}
-                        </Button>
-
-                        <div className="relative">
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className={cn("text-white/50 hover:text-white", showSettings && "bg-white/10 text-white")}
-                                onClick={() => setShowSettings(!showSettings)}
-                                title="Tùy chỉnh giao diện đọc truyện"
-                            >
-                                <Type className="w-5 h-5 mr-2" />
-                                <span className="hidden md:inline">Giao diện</span>
-                            </Button>
-
-                            {/* Settings Popup */}
-                            {showSettings && (
-                                <div className="absolute top-full right-0 mt-2 w-72 bg-[#1e1e2e] border border-white/10 rounded-xl shadow-2xl p-4 z-[200] space-y-4 animate-in fade-in slide-in-from-top-2">
-                                    {/* Font Family */}
-                                    <div className="space-y-2">
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {[
-                                                { name: "Bookerly", value: "'Bookerly', serif" },
-                                                { name: "Merriweather", value: "'Merriweather', serif" },
-                                                { name: "Georgia", value: "Georgia, serif" },
-                                                { name: "Lora", value: "'Lora', serif" },
-                                            ].map((font) => (
-                                                <button
-                                                    key={font.name}
-                                                    onClick={() => setReaderConfig({ ...readerConfig, fontFamily: font.value })}
-                                                    className={cn(
-                                                        "px-2 py-1.5 rounded text-sm transition-all border",
-                                                        readerConfig.fontFamily === font.value
-                                                            ? "bg-[#6c5ce7] border-[#6c5ce7] text-white"
-                                                            : "bg-white/5 border-transparent text-white/60 hover:bg-white/10"
-                                                    )}
-                                                    style={{ fontFamily: font.value }}
-                                                >
-                                                    {font.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Font Size */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-xs text-white/40 uppercase font-bold tracking-wider">Cỡ chữ ({readerConfig.fontSize}px)</div>
-                                        </div>
-                                        <div className="flex items-center gap-2 bg-white/5 p-1 rounded-lg border border-white/5">
-                                            <button
-                                                onClick={() => setReaderConfig(p => ({ ...p, fontSize: Math.max(14, p.fontSize - 1) }))}
-                                                className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 rounded"
-                                            >
-                                                A-
-                                            </button>
-                                            <input
-                                                type="range" min="14" max="32"
-                                                value={readerConfig.fontSize}
-                                                onChange={(e) => setReaderConfig({ ...readerConfig, fontSize: parseInt(e.target.value) })}
-                                                className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                                            />
-                                            <button
-                                                onClick={() => setReaderConfig(p => ({ ...p, fontSize: Math.min(32, p.fontSize + 1) }))}
-                                                className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 rounded"
-                                            >
-                                                A+
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-xs text-white/40 uppercase font-bold tracking-wider">Dãn dòng & Căn lề</div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {/* Line Height Control */}
-                                            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/5 flex-1">
-                                                <button
-                                                    onClick={() => setReaderConfig(p => ({ ...p, lineHeight: Math.max(1.2, p.lineHeight - 0.1) }))}
-                                                    className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 rounded"
-                                                >
-                                                    -
-                                                </button>
-                                                <div className="flex-1 text-center text-xs text-white/70">{readerConfig.lineHeight.toFixed(1)}</div>
-                                                <button
-                                                    onClick={() => setReaderConfig(p => ({ ...p, lineHeight: Math.min(2.5, p.lineHeight + 0.1) }))}
-                                                    className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 rounded"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
-
-                                            {/* Alignment Control */}
-                                            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/5">
-                                                {[
-                                                    { value: "left", icon: AlignLeft },
-                                                    { value: "center", icon: AlignCenter },
-                                                    { value: "right", icon: AlignRight },
-                                                    { value: "justify", icon: AlignJustify },
-                                                ].map((align) => (
-                                                    <button
-                                                        key={align.value}
-                                                        onClick={() => setReaderConfig({ ...readerConfig, textAlign: align.value as any })}
-                                                        className={cn(
-                                                            "p-1.5 rounded transition-all",
-                                                            readerConfig.textAlign === align.value
-                                                                ? "bg-[#6c5ce7] text-white"
-                                                                : "text-white/40 hover:text-white hover:bg-white/10"
-                                                        )}
-                                                    >
-                                                        <align.icon className="w-4 h-4" />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Color */}
-                                    <div className="space-y-2">
-                                        <div className="text-xs text-white/40 uppercase font-bold tracking-wider">Màu chữ</div>
-                                        <div className="flex items-center gap-3">
-                                            {[
-                                                { color: "#cbd5e1", label: "Mặc định (Xám)" }, // slate-300
-                                                { color: "#ffffff", label: "Trắng" },
-                                                { color: "#e2e8f0", label: "Sáng" },
-                                                { color: "#ddd6fe", label: "Tím nhạt" },
-                                                { color: "#fcd34d", label: "Vàng" }, // amber-300
-                                            ].map((c) => (
-                                                <button
-                                                    key={c.color}
-                                                    onClick={() => setReaderConfig({ ...readerConfig, color: c.color })}
-                                                    className={cn(
-                                                        "w-8 h-8 rounded-full border-2 transition-all",
-                                                        readerConfig.color === c.color ? "border-amber-500 scale-110" : "border-transparent opacity-50 hover:opacity-100 scale-100"
-                                                    )}
-                                                    style={{ backgroundColor: c.color }}
-                                                    title={c.label}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="h-6 w-px bg-white/10 mx-2" />
-
-                        <Button size="icon" variant="ghost" disabled={!hasPrev} onClick={onPrev} className="hover:bg-white/10 text-white/70"><ChevronLeft className="w-5 h-5" /></Button>
-                        <Button size="icon" variant="ghost" disabled={!hasNext} onClick={onNext} className="hover:bg-white/10 text-white/70"><ChevronRight className="w-5 h-5" /></Button>
-
-                        <div className="h-6 w-px bg-white/10 mx-2" />
-
-                        <Button size="icon" variant="destructive" className="bg-red-500/20 text-red-400 hover:bg-red-600 hover:text-white" onClick={onClose}>
-                            <X className="w-5 h-5" />
-                        </Button>
-                    </div>
-                </header>
+                <ReaderHeader
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    chapter={chapter}
+                    isParallel={isParallel}
+                    setIsParallel={setIsParallel}
+                    isInspecting={isInspecting}
+                    handleInspect={handleInspect}
+                    inspectionIssues={inspectionIssues}
+                    showSettings={showSettings}
+                    setShowSettings={setShowSettings}
+                    readerConfig={readerConfig}
+                    setReaderConfig={setReaderConfig}
+                    onPrev={onPrev}
+                    onNext={onNext}
+                    hasPrev={hasPrev}
+                    hasNext={hasNext}
+                    onClose={onClose}
+                />
 
                 {/* Body Content */}
                 <div className="flex-1 overflow-hidden relative flex">
@@ -619,7 +436,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                         fontSize: `${readerConfig.fontSize}px`,
                                         lineHeight: readerConfig.lineHeight,
                                         textAlign: readerConfig.textAlign,
-                                        color: readerConfig.color
+                                        color: readerConfig.textColor
                                     }}
                                     spellCheck={false}
                                     ref={editorRef}
@@ -639,13 +456,6 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                             </div>
                         )}
                     </div>
-
-                    {/* Summary Tab Content */}
-                    {activeTab === 'summary' && !isParallel && (
-                        <div className="min-h-full p-8 md:p-12 flex items-center justify-center text-white/40 italic">
-                            Tính năng tóm tắt đang phát triển...
-                        </div>
-                    )}
 
                 </div>
             </div>
