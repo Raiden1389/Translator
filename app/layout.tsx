@@ -26,10 +26,14 @@ const merriweather = Merriweather({
   display: "swap",
 });
 
+
+
 export const metadata: Metadata = {
-  title: "AI Translator",
+  title: "Raiden AI Translator",
   description: "Advanced AI Novel Translator",
 };
+
+import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
@@ -41,7 +45,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased`}
       >
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
         {children}
+        <Toaster position="bottom-right" richColors theme="dark" />
       </body>
     </html>
   );

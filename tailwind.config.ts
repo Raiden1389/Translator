@@ -55,6 +55,10 @@ const config: Config = {
                 md: "calc(var(--radius) - 2px)",
                 sm: "calc(var(--radius) - 4px)",
             },
+            fontFamily: {
+                serif: ["var(--font-merriweather)", "Bookerly", "Georgia", "serif"],
+                lora: ["var(--font-lora)", "serif"],
+            },
         },
     },
     plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")],

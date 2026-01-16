@@ -24,6 +24,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { translateChapter } from "@/lib/gemini";
+import { ChapterListHeader } from "./ChapterListHeader";
+import { ChapterTable } from "./ChapterTable";
+import { ChapterCardGrid } from "./ChapterCardGrid";
+import { ReaderModal } from "./ReaderModal";
+import { usePersistedState } from "@/lib/hooks/usePersistedState";
+import { LayoutGrid, LayoutList } from "lucide-react";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -35,21 +41,34 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
         , [workspaceId]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const importInputRef = useRef<HTMLInputElement>(null);
     const [importing, setImporting] = useState(false);
     const [progress, setProgress] = useState(0);
     const [importStatus, setImportStatus] = useState("");
     const [search, setSearch] = useState("");
     const [selectedChapters, setSelectedChapters] = useState<number[]>([]);
+    const [readingChapterId, setReadingChapterId] = useState<number | null>(null);
+    const [filterStatus, setFilterStatus] = usePersistedState<"all" | "draft" | "translated">(`workspace-${workspaceId}-filter`, "all");
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 50;
+    const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
+
+    // View Mode State
+    const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(
+        `workspace-${workspaceId}-viewMode`,
+        "grid"
+    );
 
     // Filter Logic
     const filtered = React.useMemo(() => {
         if (!chapters) return [];
-        return chapters.filter(c => c.title.toLowerCase().includes(search.toLowerCase()));
-    }, [chapters, search]);
+        return chapters.filter(c => {
+            const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());
+            const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+            return matchesSearch && matchesStatus;
+        });
+    }, [chapters, search, filterStatus]);
 
     // Pagination Logic
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -65,11 +84,11 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
 
     // Toggle Select All
     const toggleSelectAll = () => {
-        if (!chapters || chapters.length === 0) return;
-        if (selectedChapters.length === chapters.length) {
+        if (filtered.length === 0) return;
+        if (selectedChapters.length === filtered.length) {
             setSelectedChapters([]);
         } else {
-            setSelectedChapters(chapters.map(c => c.id!));
+            setSelectedChapters(filtered.map(c => c.id!));
         }
     };
 
@@ -194,6 +213,62 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
         }
     };
 
+    const handleExport = async () => {
+        const selectedIds = selectedChapters.length > 0
+            ? selectedChapters
+            : filtered.map(c => c.id!);
+
+        if (selectedIds.length === 0) {
+            alert("Không có chương nào để xuất.");
+            return;
+        }
+
+        try {
+            const data = await db.chapters.bulkGet(selectedIds);
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `workspace-${workspaceId}-chapters.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error(err);
+            alert("Lỗi khi xuất dữ liệu.");
+        }
+    };
+
+    const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (Array.isArray(data)) {
+                // Ensure workspaceId is correct and IDs are not clashing
+                const lastOrder = chapters?.length || 0;
+                const chaptersWithWorkspace = data.map((c, index) => {
+                    const { id, ...rest } = c;
+                    return {
+                        ...rest,
+                        workspaceId,
+                        order: (rest.order || lastOrder + index + 1)
+                    };
+                });
+                await db.chapters.bulkAdd(chaptersWithWorkspace);
+                alert(`Đã nhập thành công ${chaptersWithWorkspace.length} chương!`);
+            } else {
+                alert("Định dạng JSON không hợp lệ. Phải là mảng các chương.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Lỗi khi nhập file JSON.");
+        } finally {
+            if (importInputRef.current) importInputRef.current.value = "";
+        }
+    };
+
     const deleteChapter = async (id: number) => {
         if (confirm("Delete this chapter?")) {
             await db.chapters.delete(id);
@@ -249,10 +324,13 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                     translateChapter(
                         chapter.content_original,
                         (log) => console.log(log),
-                        async (translatedText) => {
-                            // Simple Title Translation (Regex-based)
-                            let newTitle = chapter.title;
-                            if (newTitle) {
+                        async (result) => {
+                            const translatedText = result.translatedText;
+                            const aiTranslatedTitle = result.translatedTitle;
+
+                            // Simple Title Translation (Regex-based) if AI didn't provide one
+                            let newTitle = aiTranslatedTitle || chapter.title;
+                            if (!aiTranslatedTitle && newTitle) {
                                 newTitle = newTitle.replace(/Chapter\s+(\d+)/i, "Chương $1")
                                     .replace(/第\s*(\d+)\s*章/, "Chương $1")
                                     .replace(/第\s*([0-9]+)\s*章/, "Chương $1");
@@ -459,190 +537,119 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 </div>
             )}
 
-            {/* Header Title */}
-            <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white">Danh Sách Chương ({filtered.length})</h3>
+            {/* Header Title & Actions */}
+            <ChapterListHeader
+                totalChapters={chapters?.length || 0}
+                searchTerm={search}
+                setSearchTerm={setSearch}
+                filterStatus={filterStatus}
+                setFilterStatus={setFilterStatus}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                setItemsPerPage={setItemsPerPage}
+                selectedChapters={selectedChapters}
+                setSelectedChapters={setSelectedChapters}
+                onExport={handleExport}
+                onImport={handleImportJSON}
+                onTranslate={() => setTranslateDialogOpen(true)}
+                onInspect={() => alert("Chưa triển khai soi lỗi hàng loạt.")}
+                importInputRef={importInputRef}
+                fileInputRef={fileInputRef}
+                onFileUpload={handleFileUpload}
+                importing={importing}
+                onRangeSelect={() => { }} // Optional
+            />
+
+            {/* View Mode Toggle Row */}
+            <div className="flex items-center justify-between mb-4 bg-[#1e1e2e]/50 p-2 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-white/50 px-2">Chế độ xem:</span>
+                    <div className="flex items-center gap-1 bg-[#2b2b40] p-1 rounded-lg border border-white/10">
+                        <Button
+                            size="sm"
+                            variant={viewMode === "grid" ? "default" : "ghost"}
+                            onClick={() => setViewMode("grid")}
+                            className="h-7 px-3"
+                        >
+                            <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
+                            Lưới (Grid)
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={viewMode === "table" ? "default" : "ghost"}
+                            onClick={() => setViewMode("table")}
+                            className="h-7 px-3"
+                        >
+                            <LayoutList className="h-3.5 w-3.5 mr-1.5" />
+                            Bảng (Table)
+                        </Button>
+                    </div>
+                </div>
             </div>
 
-            {/* Bulk Actions Toolbar (Visible when selected > 0) */}
-            {selectedChapters.length > 0 ? (
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-[#6c5ce7]/20 p-4 rounded-xl border border-[#6c5ce7]/50 shadow-lg animate-in slide-in-from-top-2">
-                    <div className="flex items-center gap-4 text-sm font-medium text-white">
-                        <span className="bg-[#6c5ce7] px-2 py-0.5 rounded text-white text-xs">{selectedChapters.length} đã chọn</span>
-                    </div>
-                    <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-                        <Button size="sm" variant="ghost" className="text-white/70 hover:bg-white/10 border border-white/10" onClick={() => setSelectedChapters([])}>
-                            <X className="mr-2 h-3 w-3" /> Bỏ chọn
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 h-9" onClick={() => setTranslateDialogOpen(true)}>
-                            <Sparkles className="mr-2 h-3 w-3" /> Dịch ({selectedChapters.length} chương)
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10 h-9" onClick={() => {
-                            if (confirm(`Xóa ${selectedChapters.length} chương?`)) {
-                                db.chapters.bulkDelete(selectedChapters).then(() => setSelectedChapters([]));
-                            }
-                        }}>
-                            <Trash2 className="mr-2 h-3 w-3" /> Xóa
-                        </Button>
-                    </div>
-                </div>
-            ) : (
-                /* Regular Toolbar */
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-[#1e1e2e] p-4 rounded-xl border border-white/10 shadow-lg">
-                    {/* ... existing toolbar code ... */}
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                        <div className="relative w-full md:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
-                            <Input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Tìm kiếm chương..."
-                                className="pl-9 bg-[#2b2b40] border-transparent text-white focus-visible:ring-primary/50 h-9"
-                            />
-                        </div>
-                        <Button variant="outline" size="sm" className="border-white/10 text-white/70 bg-[#2b2b40] hover:bg-white/10 h-9">
-                            <Filter className="mr-2 h-3 w-3" /> Tất cả trạng thái
-                        </Button>
-                    </div>
-
-                    <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-                        <input
-                            type="file"
-                            accept=".txt,.text,.html,.epub"
-                            ref={fileInputRef}
-                            className="hidden"
-                            onChange={handleFileUpload}
-                        />
-                        <Button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={importing}
-                            size="sm"
-                            className="bg-[#2b2b40] text-white hover:bg-white/10 border border-white/10 h-9"
-                        >
-                            {importing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Upload className="mr-2 h-3 w-3" />}
-                            Tải File Lên
-                        </Button>
-                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-9 shadow-lg shadow-blue-500/20">
-                            <Globe className="mr-2 h-3 w-3" /> Nhập Từ Web
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* List */}
-            {/* ... rest of the component (Table) ... */}
-
-            {/* List */}
+            {/* Chapter List - Conditional View */}
             <div className="bg-[#1e1e2e] rounded-xl border border-white/10 shadow-lg overflow-hidden min-h-[500px]">
                 {filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[400px] text-white/40">
                         <FileUp className="h-16 w-16 mb-4 opacity-30" />
                         <p className="text-lg">Không tìm thấy chương nào</p>
                     </div>
+                ) : viewMode === "grid" ? (
+                    <ChapterCardGrid
+                        chapters={currentChapters}
+                        selectedChapters={selectedChapters}
+                        onToggleSelect={toggleSelect}
+                        onRead={(id) => setReadingChapterId(id)}
+                        onTranslate={(id) => {
+                            setSelectedChapters([id]);
+                            setTranslateDialogOpen(true);
+                        }}
+                        onDelete={deleteChapter}
+                    />
                 ) : (
-                    <>
-                        <Table>
-                            <TableHeader className="bg-[#252538] sticky top-0 z-10">
-                                <TableRow className="border-white/5 hover:bg-transparent">
-                                    <TableHead className="w-[40px] pl-4">
-                                        <Checkbox
-                                            checked={chapters && chapters.length > 0 && selectedChapters.length === chapters.length}
-                                            onCheckedChange={toggleSelectAll}
-                                            className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                        />
-                                    </TableHead>
-                                    <TableHead className="w-[60px] text-center text-white/60">C.#</TableHead>
-                                    <TableHead className="text-white/60">Tiêu đề</TableHead>
-                                    <TableHead className="text-white/60">Tiêu đề dịch</TableHead>
-                                    <TableHead className="w-[120px] text-center text-white/60">Trạng thái</TableHead>
-                                    <TableHead className="w-[100px] text-center text-white/60">Từ gốc</TableHead>
-                                    <TableHead className="w-[100px] text-center text-white/60">Từ dịch</TableHead>
-                                    <TableHead className="w-[80px] text-right text-white/60">Hành động</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {currentChapters.map((chapter) => (
-                                    <TableRow key={chapter.id} className="border-white/5 hover:bg-white/5 transition-colors group">
-                                        <TableCell className="pl-4">
-                                            <Checkbox
-                                                checked={selectedChapters.includes(chapter.id!)}
-                                                onCheckedChange={() => toggleSelect(chapter.id!)}
-                                                className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                            />
-                                        </TableCell>
-                                        <TableCell className="text-center font-mono text-white/50 text-xs">
-                                            {chapter.order}
-                                        </TableCell>
-                                        <TableCell className="font-medium text-white/90">
-                                            <Link href={`/workspace/${workspaceId}/chapter/${chapter.id}`} className="hover:text-primary transition-colors block w-full h-full">
-                                                <div className="line-clamp-1 text-sm font-bold">{chapter.title}</div>
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell className="text-white/70">
-                                            <div className="line-clamp-1 text-sm italic">{chapter.title_translated || "—"}</div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <span className={cn(
-                                                "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider",
-                                                chapter.status === 'translated'
-                                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                                    : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                                            )}>
-                                                {chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-center text-xs text-white/50 font-mono">
-                                            {chapter.wordCountOriginal?.toLocaleString() || 0}
-                                        </TableCell>
-                                        <TableCell className="text-center text-xs text-white/50 font-mono">
-                                            {chapter.wordCountTranslated?.toLocaleString() || 0}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-1 opacity-50 group-hover:opacity-100">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7 text-white/50 hover:text-destructive hover:bg-destructive/10"
-                                                    onClick={() => deleteChapter(chapter.id!)}
-                                                >
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-
-                        {/* Pagination Controls */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-end p-4 gap-2 border-t border-white/5">
-                                <span className="text-xs text-white/50 mr-4">
-                                    Trang {currentPage} / {totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
-                                    className="h-8 w-8 bg-[#2b2b40] border-white/10 hover:bg-white/10 text-white"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className="h-8 w-8 bg-[#2b2b40] border-white/10 hover:bg-white/10 text-white"
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
-                    </>
+                    <ChapterTable
+                        chapters={currentChapters}
+                        selectedChapters={selectedChapters}
+                        onToggleSelect={toggleSelect}
+                        onToggleSelectAll={toggleSelectAll}
+                        onDelete={deleteChapter}
+                        workspaceId={workspaceId}
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                    />
                 )}
             </div>
+
+            {/* Reader Modal */}
+            {readingChapterId && (
+                <ReaderModal
+                    chapterId={readingChapterId}
+                    onClose={() => setReadingChapterId(null)}
+                    onNext={() => {
+                        const currentIndex = chapters?.findIndex(ch => ch.id === readingChapterId);
+                        if (currentIndex !== undefined && currentIndex < (chapters?.length || 0) - 1) {
+                            setReadingChapterId(chapters![currentIndex + 1].id!);
+                        }
+                    }}
+                    onPrev={() => {
+                        const currentIndex = chapters?.findIndex(ch => ch.id === readingChapterId);
+                        if (currentIndex !== undefined && currentIndex > 0) {
+                            setReadingChapterId(chapters![currentIndex - 1].id!);
+                        }
+                    }}
+                    hasNext={(() => {
+                        const currentIndex = chapters?.findIndex(ch => ch.id === readingChapterId);
+                        return currentIndex !== undefined && currentIndex < (chapters?.length || 0) - 1;
+                    })()}
+                    hasPrev={(() => {
+                        const currentIndex = chapters?.findIndex(ch => ch.id === readingChapterId);
+                        return currentIndex !== undefined && currentIndex > 0;
+                    })()}
+                />
+            )}
         </div>
     );
 }

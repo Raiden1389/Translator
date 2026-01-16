@@ -10,6 +10,106 @@ import { BookOpen, Trash2, Search, Clock, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from 'next/link';
 
+const EditableTitle = ({ id, initialTitle }: { id: string, initialTitle: string }) => {
+    const [title, setTitle] = useState(initialTitle);
+
+    // Sync with external changes if needed (optional, keeping it simple for now)
+    // If the DB updates from elsewhere, this local state might be stale, but it prevents cursor jumping.
+
+    const handleBlur = () => {
+        if (title !== initialTitle) {
+            db.workspaces.update(id, { title });
+        }
+    };
+
+    return (
+        <Input
+            className="font-bold text-lg text-white leading-tight bg-transparent border-transparent px-0 h-auto focus-visible:ring-0 focus:border-white/20 hover:border-white/10 transition-all p-1 -ml-1 rounded-sm w-full"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }}
+        />
+    );
+};
+
+const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDelete: (e: React.MouseEvent, id: string) => void }) => {
+    const stats = useLiveQuery(async () => {
+        const total = await db.chapters.where("workspaceId").equals(ws.id).count();
+        const translated = await db.chapters.where("workspaceId").equals(ws.id).and(c => c.status === 'translated').count();
+        return { total, translated };
+    }, [ws.id]);
+
+    const progress = stats ? (stats.total > 0 ? (stats.translated / stats.total) * 100 : 0) : 0;
+
+    return (
+        <Link href={`/workspace/${ws.id}`}>
+            <div className="group relative h-full transition-transform hover:-translate-y-1 duration-300">
+                <Card className="h-full border-0 bg-[#2d1b4e] overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10 hover:ring-primary/50">
+                    <div className={`h-32 p-6 relative flex flex-col justify-between transition-all duration-500 ${!ws.cover && (index % 2 === 0 ? 'bg-gradient-to-r from-orange-500 to-amber-600' : 'bg-gradient-to-r from-purple-600 to-indigo-600')}`}>
+                        {ws.cover && (
+                            <>
+                                <img src={ws.cover} alt={ws.title} className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 group-hover:scale-110" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#2d1b4e] via-[#2d1b4e]/60 to-transparent z-0" />
+                            </>
+                        )}
+
+                        <div className="flex justify-between items-start relative z-10 w-full">
+                            <span className="inline-flex items-center rounded-md bg-black/40 backdrop-blur-md px-2 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/20">
+                                <BookOpen className="mr-1 h-3 w-3" />
+                                {ws.author || "N/A"}
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-white/70 hover:text-white hover:bg-black/40 backdrop-blur-sm -mt-1 -mr-1"
+                                onClick={(e) => onDelete(e, ws.id)}
+                            >
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    </div>
+
+                    <CardContent className="p-5 pt-2 space-y-4 relative z-10 -mt-4">
+                        <div>
+                            <EditableTitle id={ws.id} initialTitle={ws.title} />
+                            <div className="mt-1 flex items-center text-xs text-white/50">
+                                <span>Tiếng Trung (中文)</span>
+                                <span className="mx-2">→</span>
+                                <span>Tiếng Việt</span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between text-xs text-white/50">
+                                <span>Tiến độ</span>
+                                <span>{stats ? `${stats.translated}/${stats.total} chương` : 'Đang tính...'}</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-primary transition-all duration-500"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                            <div className="flex items-center text-[10px] text-white/40 bg-white/5 px-2 py-1 rounded-full">
+                                <Clock className="mr-1 h-3 w-3" />
+                                {ws.updatedAt.toLocaleDateString()}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </Link>
+    );
+};
+
 export function WorkspaceList() {
     const workspaces = useLiveQuery(() => db.workspaces.orderBy("updatedAt").reverse().toArray());
     const [search, setSearch] = useState("");
@@ -60,64 +160,7 @@ export function WorkspaceList() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filtered?.map((ws, i) => (
-                        <Link href={`/workspace/${ws.id}`} key={ws.id}>
-                            {/* Card Design matching screenshot: Solid Header + Info Body */}
-                            <div className="group relative h-full transition-transform hover:-translate-y-1 duration-300">
-                                <Card className="h-full border-0 bg-[#2d1b4e] overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10 hover:ring-primary/50">
-                                    {/* Header Color - Alternating for visual interest or based on status */}
-                                    <div className={`h-24 p-6 relative flex flex-col justify-between ${i % 2 === 0 ? 'bg-gradient-to-r from-orange-500 to-amber-600' : 'bg-gradient-to-r from-purple-600 to-indigo-600'}`}>
-                                        <div className="flex justify-between items-start">
-                                            <span className="inline-flex items-center rounded-md bg-black/20 px-2 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/20">
-                                                <BookOpen className="mr-1 h-3 w-3" />
-                                                {ws.author || "N/A"}
-                                            </span>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-6 w-6 text-white/70 hover:text-white hover:bg-black/20 -mt-1 -mr-1"
-                                                onClick={(e) => deleteWorkspace(e, ws.id)}
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <CardContent className="p-5 pt-4 space-y-4">
-                                        <div>
-                                            <h3 className="font-bold text-lg text-white leading-tight line-clamp-2 min-h-[3.5rem]">
-                                                {ws.title}
-                                            </h3>
-                                            <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                                                <span>Tiếng Trung (中文)</span>
-                                                <span className="mx-2">→</span>
-                                                <span>Tiếng Việt</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Progress Placeholder */}
-                                        <div className="space-y-1.5">
-                                            <div className="flex justify-between text-xs text-white/50">
-                                                <span>Tiến độ</span>
-                                                <span>0 chương</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                                <div className="h-full bg-primary w-[2%]" />
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                                            <div className="flex items-center text-[10px] text-white/40 bg-white/5 px-2 py-1 rounded-full">
-                                                <Clock className="mr-1 h-3 w-3" />
-                                                {ws.updatedAt.toLocaleDateString()}
-                                            </div>
-                                            <span className="text-[10px] text-primary font-medium bg-primary/10 px-2 py-1 rounded-full border border-primary/20">
-                                                Đã đồng bộ
-                                            </span>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </Link>
+                        <WorkspaceCard key={ws.id} ws={ws} index={i} onDelete={deleteWorkspace} />
                     ))}
                 </div>
             )}

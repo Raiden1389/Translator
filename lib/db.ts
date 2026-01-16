@@ -24,16 +24,18 @@ export interface Chapter {
     wordCountTranslated?: number; // Added
     order: number;
     status: 'draft' | 'translated' | 'reviewing'; // Expanded status
+    inspectionResults?: any; // JSON array of issues
 }
 
 export interface DictionaryEntry {
     id?: number;
     original: string;
     translated: string;
-    type: 'name' | 'term' | 'phrase' | 'correction';
-    gender?: 'male' | 'female' | 'unknown'; // Added for Characters
-    role?: 'main' | 'support' | 'villain' | 'mob'; // Added for Characters
-    description?: string; // Added for Characters
+    type: 'name' | 'term' | 'phrase' | 'correction' | string; // Expanded to support AI categories
+    gender?: 'male' | 'female' | 'unknown';
+    role?: 'main' | 'support' | 'villain' | 'mob';
+    description?: string;
+    metadata?: any; // Added for rich data (relations, n-grams, etc.)
     createdAt: Date;
 }
 
@@ -47,6 +49,8 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     chapters: EntityTable<Chapter, 'id'>;
     dictionary: EntityTable<DictionaryEntry, 'id'>;
     settings: EntityTable<Setting, 'key'>;
+    blacklist: EntityTable<BlacklistEntry, 'id'>;
+    corrections: EntityTable<CorrectionEntry, 'id'>;
 };
 
 // Define Schema
@@ -69,5 +73,35 @@ db.version(2).stores({
 db.version(3).stores({
     dictionary: '++id, original, translated, type, gender, role' // Index for filtering
 });
+
+// V4: Add Blacklist
+db.version(4).stores({
+    blacklist: '++id, word'
+});
+
+// V5: Add translated to Blacklist
+db.version(5).stores({
+    blacklist: '++id, word, translated'
+});
+
+// V6: Add Corrections
+db.version(6).stores({
+    corrections: '++id, original'
+});
+
+export interface BlacklistEntry {
+    id?: number;
+    word: string;
+    translated?: string;
+    source?: 'manual' | 'ai';
+    createdAt: Date;
+}
+
+export interface CorrectionEntry {
+    id?: number;
+    original: string; // The wrong phrase (e.g., "Thiên Linh Kiếm")
+    replacement: string; // The correct phrase (e.g., "Thiên Minh Kiếm")
+    createdAt: Date;
+}
 
 export { db };

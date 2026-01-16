@@ -12,12 +12,28 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, Trash2, User, Save, X } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Plus, Trash2, User, Save, X, MoreHorizontal, Info, Check, Sparkles, Filter, FileText, ChevronRight } from "lucide-react";
+import { ReviewDialog } from "./ReviewDialog";
+import { extractGlossary } from "@/lib/gemini";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import * as Popover from "@radix-ui/react-popover";
+import { toast } from "sonner";
 
 const ROLES = [
-    { value: "main", label: "Nhân Vật Chính", color: "bg-amber-600" },
-    { value: "support", label: "Nhân Vật Phụ", color: "bg-blue-600" },
+    { value: "main", label: "Chính", color: "bg-amber-600" },
+    { value: "support", label: "Phụ", color: "bg-blue-600" },
     { value: "villain", label: "Phản Diện", color: "bg-red-600" },
     { value: "mob", label: "Quần Chúng", color: "bg-slate-600" },
 ];
@@ -45,6 +61,16 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         role: "support", // Default to support as main is rare
         description: ""
     });
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [selectionMode, setSelectionMode] = useState<boolean | null>(null); // true = selecting, false = deselecting
+
+    // AI Extraction State
+    const [isExtracting, setIsExtracting] = useState(false);
+    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
+    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [extractDialogOpen, setExtractDialogOpen] = useState(false);
 
     const filteredChars = dictionary
         .filter(d => filterRole === "all" || d.role === filterRole)
@@ -52,6 +78,154 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
             d.original.toLowerCase().includes(search.toLowerCase()) ||
             d.translated.toLowerCase().includes(search.toLowerCase())
         );
+
+    // Sort by ID ascending (Default)
+    filteredChars.sort((a, b) => (a.id || 0) - (b.id || 0));
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredChars.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredChars.map(c => c.id!));
+        }
+    };
+
+    const handleSelect = (id: number, checked: boolean, shiftKey?: boolean) => {
+        if (shiftKey && selectedIds.length > 0) {
+            const lastId = selectedIds[selectedIds.length - 1];
+            const lastIndex = filteredChars.findIndex(c => c.id === lastId);
+            const currentIndex = filteredChars.findIndex(c => c.id === id);
+
+            if (lastIndex !== -1 && currentIndex !== -1) {
+                const start = Math.min(lastIndex, currentIndex);
+                const end = Math.max(lastIndex, currentIndex);
+                const rangeIds = filteredChars.slice(start, end + 1).map(c => c.id!);
+
+                const newSelected = Array.from(new Set([...selectedIds, ...rangeIds]));
+                setSelectedIds(newSelected);
+                return;
+            }
+        }
+
+        if (checked) {
+            setSelectedIds(prev => [...prev, id]);
+        } else {
+            setSelectedIds(prev => prev.filter(i => i !== id));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        if (confirm(`Xóa ${selectedIds.length} nhân vật đã chọn?`)) {
+            await db.dictionary.bulkDelete(selectedIds);
+            setSelectedIds([]);
+        }
+    };
+
+    const handleBulkUpdateRole = async (role: string) => {
+        if (selectedIds.length === 0) return;
+        await db.dictionary.where('id').anyOf(selectedIds).modify({ role: role as any });
+    };
+
+    const handleAIExtract = async (source: "latest" | "current" | "select") => {
+        if (!workspaceId) return;
+        setIsExtracting(true);
+        try {
+            const chapters = await db.chapters.where("workspaceId").equals(workspaceId).toArray();
+            if (chapters.length === 0) {
+                toast.warning("Chưa có chương nào để phân tích!");
+                setIsExtracting(false);
+                return;
+            }
+
+            let targetChapter: any;
+            if (source === "latest") {
+                chapters.sort((a, b) => b.order - a.order);
+                targetChapter = chapters[0];
+            } else if (source === "current") {
+                chapters.sort((a, b) => b.id! - a.id!);
+                targetChapter = chapters[0];
+            }
+
+            if (!targetChapter) {
+                toast.error("Không tìm thấy chương để quét.");
+                setIsExtracting(false);
+                return;
+            }
+
+            toast.info(`Đang quét: ${targetChapter.title}...`);
+            const result = await extractGlossary(targetChapter.content_original);
+
+            if (result) {
+                const existingOriginals = new Set(dictionary.map(d => d.original));
+                const newChars = result.characters.map((c: any) => ({
+                    ...c,
+                    isExisting: existingOriginals.has(c.original)
+                }));
+                const newTerms = result.terms.map((t: any) => ({
+                    ...t,
+                    isExisting: existingOriginals.has(t.original)
+                }));
+                setPendingCharacters(newChars);
+                setPendingTerms(newTerms);
+                setIsReviewOpen(true);
+            }
+        } catch (e: any) {
+            console.error(e);
+            toast.error("Lỗi khi trích xuất: " + e.message);
+        } finally {
+            setIsExtracting(false);
+            setExtractDialogOpen(false);
+        }
+    };
+
+    const handleConfirmSave = async (selectedChars: any[], selectedTerms: any[]) => {
+        try {
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            for (const char of selectedChars) {
+                const existing = await db.dictionary.where("original").equals(char.original).first();
+                if (existing) {
+                    await db.dictionary.update(existing.id!, {
+                        translated: char.translated,
+                        gender: char.gender,
+                        role: char.role,
+                        description: char.description,
+                        createdAt: new Date()
+                    });
+                    updatedCount++;
+                } else {
+                    await db.dictionary.add({
+                        original: char.original,
+                        translated: char.translated,
+                        type: 'name',
+                        gender: char.gender,
+                        role: char.role,
+                        description: char.description,
+                        createdAt: new Date()
+                    });
+                    addedCount++;
+                }
+            }
+
+            for (const term of selectedTerms) {
+                const existing = await db.dictionary.where("original").equals(term.original).first();
+                if (existing) {
+                    await db.dictionary.update(existing.id!, { translated: term.translated, type: term.type as any });
+                    updatedCount++;
+                } else {
+                    await db.dictionary.add({ original: term.original, translated: term.translated, type: term.type as any, createdAt: new Date() });
+                    addedCount++;
+                }
+            }
+            toast.success(`Đã lưu ${addedCount + updatedCount} mục! (Thêm mới: ${addedCount}, Cập nhật: ${updatedCount})`);
+            setIsReviewOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Lỗi khi lưu kết quả");
+        }
+    };
 
     const handleAdd = async () => {
         if (!newChar.original || !newChar.translated) return;
@@ -69,7 +243,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
             setNewChar({ original: "", translated: "", gender: "male", role: "support", description: "" });
         } catch (e) {
             console.error(e);
-            alert("Lỗi khi thêm nhân vật");
+            toast.error("Lỗi khi thêm nhân vật");
         }
     };
 
@@ -110,12 +284,87 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                     </Select>
                 </div>
 
-                <Button
-                    className="bg-[#6c5ce7] hover:bg-[#5b4cc4] text-white"
-                    onClick={() => setIsAdding(!isAdding)}
-                >
-                    <Plus className="mr-2 h-4 w-4" /> Thêm Nhân Vật
-                </Button>
+                <div className="flex gap-2">
+                    <Dialog open={extractDialogOpen} onOpenChange={setExtractDialogOpen}>
+                        <Button
+                            onClick={() => setExtractDialogOpen(true)}
+                            className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
+                        >
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Quét AI
+                        </Button>
+                        <DialogContent className="sm:max-w-[400px] bg-[#1e1e2e] border-white/10 text-white">
+                            <DialogHeader>
+                                <DialogTitle>Chọn nguồn quét AI</DialogTitle>
+                                <DialogDescription className="text-white/40">
+                                    Mày muốn AI quét dữ liệu từ đâu để trích xuất nhân vật?
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <Button
+                                    variant="outline"
+                                    className="justify-start h-16 border-white/5 hover:bg-white/5 bg-transparent group"
+                                    onClick={() => handleAIExtract("current")}
+                                    disabled={isExtracting}
+                                >
+                                    <div className="flex items-center gap-3 text-left">
+                                        <div className="p-2 rounded bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20">
+                                            <FileText className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold">Chương đang đọc</div>
+                                            <div className="text-xs text-white/30">Quét chương mày vừa mở gần đây nhất.</div>
+                                        </div>
+                                    </div>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="justify-start h-16 border-white/5 hover:bg-white/5 bg-transparent group"
+                                    onClick={() => handleAIExtract("latest")}
+                                    disabled={isExtracting}
+                                >
+                                    <div className="flex items-center gap-3 text-left">
+                                        <div className="p-2 rounded bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20">
+                                            <Sparkles className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold">Chương mới nhất</div>
+                                            <div className="text-xs text-white/30">Quét chương cuối cùng vừa đăng.</div>
+                                        </div>
+                                    </div>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="justify-start h-16 border-white/5 hover:bg-white/5 bg-transparent group"
+                                    onClick={() => {
+                                        setExtractDialogOpen(false);
+                                        // Since we don't have tab switching here easily without passing props, 
+                                        // we'll just show a toast or rely on the user knowing.
+                                        // Actually CharacterTab is usually inside a Tabs parent.
+                                        toast.info("Mày hãy sang tab Chương, chọn các chương muốn quét rồi bấm Quét nhé!");
+                                    }}
+                                    disabled={isExtracting}
+                                >
+                                    <div className="flex items-center gap-3 text-left">
+                                        <div className="p-2 rounded bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20">
+                                            <MoreHorizontal className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold">Chọn từ danh sách</div>
+                                            <div className="text-xs text-white/30">Mày sang tab Chương để chọn nhiều chương.</div>
+                                        </div>
+                                    </div>
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                    <Button
+                        className="bg-[#6c5ce7] hover:bg-[#5b4cc4] text-white"
+                        onClick={() => setIsAdding(!isAdding)}
+                    >
+                        <Plus className="mr-2 h-4 w-4" /> Thêm Nhân Vật
+                    </Button>
+                </div>
             </div>
 
             {/* Quick Add Form */}
@@ -176,15 +425,52 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                 </div>
             )}
 
+            {/* Bulk Actions Toolbar */}
+            {selectedIds.length > 0 && (
+                <div className="flex items-center gap-4 bg-[#6c5ce7]/20 p-2 px-4 rounded-lg border border-[#6c5ce7]/50 mb-4 animate-in slide-in-from-top-2">
+                    <span className="text-sm font-medium text-white">{selectedIds.length} đã chọn</span>
+                    <Button size="sm" variant="destructive" className="h-8 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50" onClick={handleBulkDelete}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Xóa hàng loạt
+                    </Button>
+                    <div className="h-6 w-px bg-white/10 mx-2" />
+                    <Select onValueChange={handleBulkUpdateRole}>
+                        <SelectTrigger className="h-8 w-[180px] bg-[#2b2b40] border-white/10 text-white text-xs">
+                            <SelectValue placeholder="Đổi vai trò..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                            {ROLES.map(r => (
+                                <SelectItem key={r.value} value={r.value}>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${r.color}`} />
+                                        {r.label}
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button variant="ghost" size="sm" className="h-8 text-white/40 hover:text-white" onClick={() => setSelectedIds([])}>
+                        Hủy chọn
+                    </Button>
+                </div>
+            )}
+
             {/* Table */}
-            <div className="rounded-md border border-white/10 bg-[#1e1e2e] overflow-hidden">
+            <div className="rounded-md border border-white/10 bg-[#1e1e2e] overflow-hidden"
+                onMouseUp={() => { setIsSelecting(false); setSelectionMode(null); }}>
                 <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-[#2b2b40]/50 text-xs font-bold text-white/40 uppercase tracking-widest">
-                    <div className="col-span-1 text-center">#</div>
+                    <div className="col-span-1 flex justify-center items-center gap-2">
+                        <Checkbox
+                            checked={filteredChars.length > 0 && selectedIds.length === filteredChars.length}
+                            onCheckedChange={toggleSelectAll}
+                            className="border-white/20 data-[state=checked]:bg-[#6c5ce7] data-[state=checked]:border-[#6c5ce7]"
+                        />
+                        <span className="text-[10px]">#</span>
+                    </div>
                     <div className="col-span-2">Tên Gốc</div>
                     <div className="col-span-3">Tên Dịch</div>
-                    <div className="col-span-2">Giới Tính</div>
+                    <div className="col-span-1 text-center">Phái</div>
                     <div className="col-span-2">Vai Trò</div>
-                    <div className="col-span-2 text-right">Mô Tả / Action</div>
+                    <div className="col-span-3 text-right pr-10">Mô Tả / Action</div>
                 </div>
 
                 <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto custom-scrollbar">
@@ -196,19 +482,45 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                         filteredChars.map((char, index) => {
                             const roleInfo = ROLES.find(r => r.value === char.role) || ROLES[3];
                             const genderInfo = GENDERS.find(g => g.value === char.gender) || GENDERS[2];
+                            const isSelected = selectedIds.includes(char.id!);
 
                             return (
-                                <div key={char.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors group">
-                                    <div className="col-span-1 text-center text-white/30 text-xs font-mono">{filteredChars.length - index}</div>
+                                <div
+                                    key={char.id}
+                                    className={cn(
+                                        "grid grid-cols-12 gap-4 p-4 items-center transition-colors group",
+                                        isSelected ? "bg-[#6c5ce7]/10" : "hover:bg-white/5"
+                                    )}
+                                >
+                                    <div className="col-span-1 flex justify-center items-center gap-2">
+                                        <Checkbox
+                                            checked={isSelected}
+                                            onCheckedChange={(checked) => handleSelect(char.id!, !!checked)}
+                                            onMouseDown={(e: any) => {
+                                                if (e.button !== 0) return; // Only left click
+                                                setIsSelecting(true);
+                                                const nextMode = !isSelected;
+                                                setSelectionMode(nextMode);
+                                                handleSelect(char.id!, nextMode, e.shiftKey);
+                                            }}
+                                            onMouseEnter={() => {
+                                                if (isSelecting && selectionMode !== null) {
+                                                    handleSelect(char.id!, selectionMode);
+                                                }
+                                            }}
+                                            className="border-white/20 data-[state=checked]:bg-[#6c5ce7] data-[state=checked]:border-[#6c5ce7]"
+                                        />
+                                        <span className="text-white/30 text-[10px] font-mono w-4 text-center">{index + 1}</span>
+                                    </div>
                                     <div className="col-span-2 text-white/90 font-serif select-all">{char.original}</div>
                                     <div className="col-span-3 text-emerald-400 font-bold select-all">{char.translated}</div>
-                                    <div className="col-span-2">
+                                    <div className="col-span-1 text-center font-mono">
                                         <Select
                                             value={char.gender || 'unknown'}
                                             onValueChange={v => handleUpdate(char.id!, { gender: v as any })}
                                         >
-                                            <SelectTrigger className="h-7 text-xs w-[100px] border-white/5 bg-white/5 text-white/70">
-                                                <span>{genderInfo.icon} {genderInfo.label}</span>
+                                            <SelectTrigger className="h-7 text-xs w-full max-w-[45px] mx-auto border-white/5 bg-white/5 text-white/70 p-0 justify-center">
+                                                <span title={genderInfo.label}>{genderInfo.icon}</span>
                                             </SelectTrigger>
                                             <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
                                                 {GENDERS.map(g => <SelectItem key={g.value} value={g.value}>{g.icon} {g.label}</SelectItem>)}
@@ -220,10 +532,10 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                             value={char.role || 'mob'}
                                             onValueChange={v => handleUpdate(char.id!, { role: v as any })}
                                         >
-                                            <SelectTrigger className="h-7 text-xs w-[130px] border-white/5 bg-white/5 text-white/70">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${roleInfo.color}`} />
-                                                    <span>{roleInfo.label}</span>
+                                            <SelectTrigger className="h-7 text-xs w-full max-w-[120px] border-white/5 bg-white/5 text-white/70">
+                                                <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${roleInfo.color}`} />
+                                                    <span className="truncate">{roleInfo.label}</span>
                                                 </div>
                                             </SelectTrigger>
                                             <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
@@ -231,17 +543,61 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="col-span-2 flex items-center justify-end gap-2">
-                                        <Input
-                                            className="h-7 text-xs bg-transparent border-transparent hover:border-white/10 focus:border-white/30 text-right text-white/50 focus:text-white"
-                                            placeholder="Mô tả..."
-                                            value={char.description || ""}
-                                            onChange={e => handleUpdate(char.id!, { description: e.target.value })}
-                                        />
+                                    <div className="col-span-3 flex items-center justify-end gap-2 pr-2">
+                                        <div className="flex-1 overflow-hidden">
+                                            <Tooltip.Provider delayDuration={200}>
+                                                <Tooltip.Root>
+                                                    <Tooltip.Trigger asChild>
+                                                        <div className="w-full">
+                                                            <Popover.Root>
+                                                                <Popover.Trigger asChild>
+                                                                    <div className="text-xs text-white/50 truncate cursor-pointer hover:text-white transition-colors text-left px-2 py-1 rounded hover:bg-white/5">
+                                                                        {char.description || "Thêm mô tả..."}
+                                                                    </div>
+                                                                </Popover.Trigger>
+                                                                <Popover.Content
+                                                                    className="bg-[#2b2b40] border border-white/10 p-3 rounded-md shadow-2xl w-[300px] z-50 animate-in fade-in zoom-in-95 duration-200"
+                                                                    side="left"
+                                                                    align="center"
+                                                                >
+                                                                    <div className="space-y-2">
+                                                                        <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Mô tả nhân vật</h4>
+                                                                        <Textarea
+                                                                            className="min-h-[100px] bg-[#1e1e2e] border-white/5 text-xs text-white/80 focus:border-[#6c5ce7]/50 resize-none"
+                                                                            value={char.description || ""}
+                                                                            onChange={e => handleUpdate(char.id!, { description: e.target.value })}
+                                                                            placeholder="Nhập mô tả chi tiết..."
+                                                                        />
+                                                                        <div className="flex justify-end pt-1">
+                                                                            <Popover.Close asChild>
+                                                                                <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/5 text-white/30 hover:text-white">Đóng</Button>
+                                                                            </Popover.Close>
+                                                                        </div>
+                                                                    </div>
+                                                                    <Popover.Arrow className="fill-white/10" />
+                                                                </Popover.Content>
+                                                            </Popover.Root>
+                                                        </div>
+                                                    </Tooltip.Trigger>
+                                                    {char.description && (
+                                                        <Tooltip.Portal>
+                                                            <Tooltip.Content
+                                                                className="max-w-[400px] bg-slate-900 text-white p-2 rounded text-[11px] shadow-xl border border-white/10 z-[100] animate-in fade-in zoom-in-95"
+                                                                sideOffset={5}
+                                                            >
+                                                                {char.description}
+                                                                <Tooltip.Arrow className="fill-slate-900" />
+                                                            </Tooltip.Content>
+                                                        </Tooltip.Portal>
+                                                    )}
+                                                </Tooltip.Root>
+                                            </Tooltip.Provider>
+                                        </div>
+
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-7 w-7 text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="h-7 w-7 text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                             onClick={() => handleDelete(char.id!)}
                                         >
                                             <Trash2 className="h-3 w-3" />
@@ -253,6 +609,15 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                     )}
                 </div>
             </div>
+
+            {/* Review Dialog */}
+            <ReviewDialog
+                open={isReviewOpen}
+                onOpenChange={setIsReviewOpen}
+                characters={pendingCharacters}
+                terms={pendingTerms}
+                onSave={handleConfirmSave}
+            />
         </div>
     );
 }

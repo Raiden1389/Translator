@@ -18,8 +18,10 @@ import {
 } from "@/components/ui/context-menu";
 
 // ... imports
-import { translateChapter, TranslationLog } from "@/lib/gemini";
-import { Loader2, Terminal, X, CheckCircle2, AlertCircle, Copy } from "lucide-react";
+import { translateChapter, TranslationLog, extractGlossary } from "@/lib/gemini";
+import { Loader2, Terminal, X, CheckCircle2, AlertCircle, Copy, FileSearch } from "lucide-react";
+import { ReviewDialog } from "@/components/workspace/ReviewDialog";
+import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -32,7 +34,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DictionaryManager } from "@/lib/dictionary-manager";
 
 // ... ChapterEditor Component ...
+import { CharacterSidebar } from "@/components/workspace/CharacterSidebar";
+import { Users } from "lucide-react";
+
+// ... imports
+
+// ... ChapterEditor Component ...
 export default function ChapterEditor({ params }: { params: Promise<{ id: string; chapterId: string }> }) {
+    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     // ... existing state ...
     const { id, chapterId } = use(params);
     const router = useRouter();
@@ -40,18 +49,46 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
     const workspace = useLiveQuery(() => db.workspaces.get(id), [id]);
     const chapter = useLiveQuery(() => db.chapters.get(parseInt(chapterId)), [chapterId]);
     const dictEntries = useLiveQuery(() => db.dictionary.toArray());
+    const allChapters = useLiveQuery(() => db.chapters.where("workspaceId").equals(id).sortBy("order"), [id]);
+
+    const currentIndex = allChapters?.findIndex(c => c.id === parseInt(chapterId)) ?? -1;
+    const prevChapterId = currentIndex > 0 ? allChapters?.[currentIndex - 1]?.id : null;
+    const nextChapterId = (allChapters && currentIndex < allChapters.length - 1) ? allChapters?.[currentIndex + 1]?.id : null;
+
+    // Layout State
+    const [viewMode, setViewMode] = useState<'vi' | 'zh' | 'parallel'>('parallel');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [highlightedChar, setHighlightedChar] = useState<string>("");
 
     // State for content
     const [translatedContent, setTranslatedContent] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+
+    // Auto-resize textarea
+    useEffect(() => {
+        const resize = () => {
+            if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto';
+                textareaRef.current.style.height = `${Math.max(textareaRef.current.scrollHeight, 500)}px`;
+            }
+        };
+        resize();
+        window.addEventListener('resize', resize);
+        return () => window.removeEventListener('resize', resize);
+    }, [translatedContent, viewMode, sidebarOpen]);
 
     // Dictionary State
     const [dicOpen, setDicOpen] = useState(false);
     const [selectedText, setSelectedText] = useState("");
     const [selectedTranslatedText, setSelectedTranslatedText] = useState("");
 
+    // Reader Mode
+    const [isReaderMode, setIsReaderMode] = useState(false);
+
     // Manager
     const [dictManager, setDictManager] = useState<DictionaryManager | null>(null);
+
+    // ... useEffects ...
 
     // Initialize Manager when dictionary loads
     useEffect(() => {
@@ -64,6 +101,12 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
     const [isTranslating, setIsTranslating] = useState(false);
     const [statusOpen, setStatusOpen] = useState(false);
     const [logs, setLogs] = useState<TranslationLog[]>([]);
+
+    // AI Extraction State
+    const [isAIExtracting, setIsAIExtracting] = useState(false);
+    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
+    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
 
 
 
@@ -213,6 +256,82 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
 
     const normalizedTranslatedContent = (s: string) => s || "";
 
+    const handleAIExtractChapter = async () => {
+        if (!chapter?.content_original) return;
+        setIsAIExtracting(true);
+        try {
+            toast.info("Đang quét chương này...");
+            const result = await extractGlossary(chapter.content_original);
+            if (result) {
+                const existingOriginals = new Set(dictEntries?.map(d => d.original) || []);
+                const newChars = result.characters.map((c: any) => ({
+                    ...c,
+                    isExisting: existingOriginals.has(c.original)
+                }));
+                const newTerms = result.terms.map((t: any) => ({
+                    ...t,
+                    isExisting: existingOriginals.has(t.original)
+                }));
+                setPendingCharacters(newChars);
+                setPendingTerms(newTerms);
+                setIsReviewOpen(true);
+            }
+        } catch (e: any) {
+            console.error(e);
+            toast.error("Lỗi khi quét AI: " + e.message);
+        } finally {
+            setIsAIExtracting(false);
+        }
+    };
+
+    const handleConfirmSaveAI = async (selectedChars: any[], selectedTerms: any[]) => {
+        try {
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            for (const char of selectedChars) {
+                const existing = await db.dictionary.where("original").equals(char.original).first();
+                if (existing) {
+                    await db.dictionary.update(existing.id!, {
+                        translated: char.translated,
+                        gender: char.gender,
+                        role: char.role,
+                        description: char.description,
+                        createdAt: new Date()
+                    });
+                    updatedCount++;
+                } else {
+                    await db.dictionary.add({
+                        original: char.original,
+                        translated: char.translated,
+                        type: 'name',
+                        gender: char.gender,
+                        role: char.role,
+                        description: char.description,
+                        createdAt: new Date()
+                    });
+                    addedCount++;
+                }
+            }
+
+            for (const term of selectedTerms) {
+                const existing = await db.dictionary.where("original").equals(term.original).first();
+                if (existing) {
+                    await db.dictionary.update(existing.id!, { translated: term.translated, type: term.type as any });
+                    updatedCount++;
+                } else {
+                    await db.dictionary.add({ original: term.original, translated: term.translated, type: term.type as any, createdAt: new Date() });
+                    addedCount++;
+                }
+            }
+            toast.success(`Đã lưu ${addedCount + updatedCount} mục! (Thêm mới: ${addedCount}, Cập nhật: ${updatedCount})`);
+            setIsReviewOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Lỗi khi lưu kết quả");
+        }
+    };
+
     const handleTranslate = async () => {
         if (!chapter.content_original) return;
 
@@ -228,11 +347,12 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
             chapter.content_original,
             addLog,
             (result) => {
-                setTranslatedContent(result);
+                const text = result.translatedText;
+                setTranslatedContent(text);
                 // Auto-save after translation
                 db.chapters.update(parseInt(chapterId), {
-                    content_translated: result,
-                    wordCountTranslated: result.length,
+                    content_translated: text,
+                    wordCountTranslated: text.length,
                     status: 'translated'
                 });
             }
@@ -247,22 +367,26 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
 
         const tokens = dictManager.tokenize(chapter.content_original);
         return tokens.map((token, idx) => {
+            const isHighlighted = highlightedChar && token.text === highlightedChar;
+
             if (token.isEntry) {
                 return (
                     <span
                         key={idx}
-                        className="text-amber-400 font-medium cursor-pointer hover:bg-white/10 rounded px-0.5 border-b border-dashed border-amber-400/50"
+                        className={cn(
+                            "cursor-pointer rounded px-0.5 border-b border-dashed transition-all",
+                            isHighlighted
+                                ? "bg-purple-500 text-white border-white animate-pulse font-bold"
+                                : "text-amber-400 border-amber-400/50 hover:bg-white/10"
+                        )}
                         title={`Nghĩa: ${token.translation}`}
                         onContextMenu={(e) => {
-                            // Don't prevent default completely, allow native context trigger but pre-select?
-                            // Actually custom ContextMenu wraps this.
-                            // We just ensure selecText is set.
                             setSelectedText(token.text);
-                            setSelectedTranslatedText(""); // Reset
+                            setSelectedTranslatedText("");
                         }}
                         onClick={() => {
                             setSelectedText(token.text);
-                            setSelectedTranslatedText(""); // Reset
+                            setSelectedTranslatedText("");
                             setDicOpen(true);
                         }}
                     >
@@ -270,24 +394,104 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                     </span>
                 );
             }
-            return <span key={idx}>{token.text}</span>;
+
+            // Allow highlighting non-entry text if matched (unlikely for dictionary enties but possible for raw text search?) 
+            // Currently dictionary manager only marks entries. 
+            // If highlightedChar is just text, we might want to highlight plain text too?
+            // User requirement: "highlight tất cả từ 'Tần Minh'...". If 'Tan Minh' is in sidebar, it IS in dictionary.
+            // So checking token.isEntry is fine usually.
+
+            return <span key={idx} className={isHighlighted ? "bg-purple-500 text-white" : ""}>{token.text}</span>;
         });
     };
 
     return (
-        <main className="h-screen flex flex-col bg-[#1a0b2e] overflow-hidden">
+        <main className="fixed inset-0 flex flex-col bg-[#1a0b2e] overflow-hidden selection:bg-primary/30">
             {/* Top Bar */}
-            <header className="h-14 border-b border-white/10 bg-[#1e1e2e] flex items-center justify-between px-4 shrink-0">
+            <header className="h-14 border-b border-white/10 bg-[#1e1e2e] flex items-center justify-between px-4 shrink-0 transition-all">
                 <div className="flex items-center gap-4">
                     <Link href={`/workspace/${id}?tab=chapters`}>
-                        <Button variant="ghost" size="icon" className="text-white/60 hover:text-white hover:bg-white/10">
-                            <ArrowLeft className="h-5 w-5" />
+                        <Button variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-white/10 px-2 h-9">
+                            <ArrowLeft className="h-4 w-4 mr-1" />
+                            <span className="hidden sm:inline">Trở lại</span>
                         </Button>
                     </Link>
-                    <div>
-                        <h1 className="text-sm font-bold text-white max-w-[300px] truncate">{chapter.title}</h1>
-                        <p className="text-xs text-white/50">{workspace.title}</p>
+                    <div className="flex items-center bg-[#2b2b40] rounded-lg p-0.5 border border-white/5">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-white/60 hover:text-white disabled:opacity-30"
+                            disabled={!prevChapterId}
+                            onClick={() => router.push(`/workspace/${id}/chapter/${prevChapterId}`)}
+                        >
+                            <ArrowPrev className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-white/60 hover:text-white disabled:opacity-30"
+                            disabled={!nextChapterId}
+                            onClick={() => router.push(`/workspace/${id}/chapter/${nextChapterId}`)}
+                        >
+                            <ArrowRight className="h-4 w-4" />
+                        </Button>
                     </div>
+                    <div>
+                        <h1 className="text-sm font-bold text-white max-w-[200px] md:max-w-[300px] truncate">{chapter.title}</h1>
+                        <div className="flex items-center gap-2 text-[10px] text-white/40">
+                            <span>{workspace.title}</span>
+                            <span>•</span>
+                            <span>Chương {currentIndex + 1}/{allChapters?.length || 0}</span>
+                            <span className="hidden md:inline text-white/20">|</span>
+                            <span className="hidden md:inline" title="Từ gốc / Từ dịch">
+                                {chapter.wordCountOriginal?.toLocaleString()} / {translatedContent.length.toLocaleString()} từ
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Center: View Mode Switcher */}
+                <div className="flex bg-[#2b2b40] rounded-lg p-1 gap-1 border border-white/5">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className={cn("h-7 px-2 text-xs hover:bg-white/10", viewMode === 'zh' && "bg-primary/20 text-primary")}
+                        onClick={() => setViewMode('zh')}
+                    >
+                        Trung
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className={cn("h-7 px-2 text-xs hover:bg-white/10", viewMode === 'parallel' && "bg-primary/20 text-primary")}
+                        onClick={() => setViewMode('parallel')}
+                    >
+                        Song Song
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className={cn("h-7 px-2 text-xs hover:bg-white/10", viewMode === 'vi' && "bg-primary/20 text-primary")}
+                        onClick={() => setViewMode('vi')}
+                    >
+                        Việt
+                    </Button>
+                    <div className="w-px h-4 bg-white/10 mx-1" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className={cn("h-7 px-2 text-xs hover:bg-white/10", isReaderMode && "bg-emerald-500/20 text-emerald-400")}
+                        onClick={() => {
+                            const nextState = !isReaderMode;
+                            setIsReaderMode(nextState);
+                            if (nextState) {
+                                setViewMode('vi');
+                            }
+                        }}
+                        title="Reader Mode"
+                    >
+                        <BookOpen className="h-4 w-4 mr-1" /> Reader
+                    </Button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -299,108 +503,203 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                         className={cn("text-white/70 hover:text-white", isSaving && "opacity-50")}
                     >
                         <Save className="mr-2 h-4 w-4" />
-                        {isSaving ? "Saving..." : "Lưu (Ctrl+S)"}
+                        <span className="hidden sm:inline">{isSaving ? "Saving..." : "Lưu"}</span>
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={handleAIExtractChapter}
+                        disabled={isAIExtracting || isTranslating}
+                        variant="outline"
+                        className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 transition-all"
+                    >
+                        {isAIExtracting ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                            <FileSearch className="mr-2 h-4 w-4" />
+                        )}
+                        <span className="hidden sm:inline">Quét AI chương này</span>
                     </Button>
                     <Button
                         size="sm"
                         onClick={handleTranslate}
-                        disabled={isTranslating}
+                        disabled={isTranslating || isAIExtracting}
                         className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white border-0 transition-all"
                     >
                         {isTranslating ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Translating...
-                            </>
+                            <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <>
-                                <Sparkles className="mr-2 h-4 w-4" /> AI Translate
+                                <Sparkles className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Dịch AI</span>
                             </>
                         )}
                     </Button>
-                    <Link href={`/workspace/${id}?tab=dictionary`}>
-                        <Button variant="ghost" size="icon" className="text-white/60 hover:text-white hover:bg-white/10" title="Từ điển (Full)">
-                            <BookOpen className="h-5 w-5" />
-                        </Button>
-                    </Link>
+
+                    {/* Sidebar Toggle */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("text-white/60 hover:text-white hover:bg-white/10", sidebarOpen && "text-primary bg-primary/10")}
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        title="Nhân vật"
+                    >
+                        <Users className="h-5 w-5" />
+                    </Button>
+
                     <SettingsDialog defaultTab="ai" />
                 </div>
             </header>
 
-            {/* Split Editor Area */}
-            <div className="flex-1 flex overflow-hidden">
+            {/* Editor Area (Grid Layout) OR User Custom Reader Layout */}
+            <div
+                className={cn(
+                    "flex-1 min-h-0 overflow-hidden bg-[#1a0b2e] transition-all duration-300 ease-in-out",
+                    // If using reader CSS, we override grid with flex via class
+                    "reader-container" // Always apply the base logic which sorts out width
+                )}
+                style={{
+                    // We keep the grid logic for sidebar support, but override it via CSS if needed
+                    // The user CSS has !important.
+                    // The issue is sidebar. If we use reader-container, it sets width 100vw.
+                    // The sidebar must be absolute or overlay if we use this.
+                    // But let's try to mix them.
+                    // Actually, let's just REPLACE the class logic.
+                    // User wants to TRY swapping this.
+                    display: 'grid', // Default
+                    gridTemplateColumns: sidebarOpen
+                        ? (viewMode === 'parallel' ? "1fr 1fr 250px" : "1fr 300px")
+                        : (viewMode === 'parallel' ? "1fr 1fr" : "1fr")
+                }}
+            >
                 {/* Left: Original */}
-                <div className="flex-1 flex flex-col border-r border-white/10 bg-[#1a0b2e]">
-                    <div className="h-10 border-b border-white/5 flex items-center px-4 bg-[#1e1e2e]/50">
-                        <span className="text-xs font-bold text-white/50 uppercase tracking-wider">Original ({workspace.sourceLang})</span>
-                    </div>
+                {(viewMode === 'zh' || viewMode === 'parallel') && (
+                    <div className={cn("flex flex-col border-r border-white/10 min-h-0", "reader-column")}>
+                        <div className="h-10 border-b border-white/5 flex items-center px-4 bg-[#1e1e2e]/50 shrink-0">
+                            <span className="text-xs font-bold text-white/50 uppercase tracking-wider">Original ({workspace.sourceLang})</span>
+                        </div>
 
-                    <ContextMenu>
-                        <ContextMenuTrigger className="flex-1 overflow-hidden flex flex-col">
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar" onContextMenu={handleContextMenu}>
-                                <div className="max-w-2xl mx-auto text-lg leading-relaxed text-white/90 font-lora whitespace-pre-wrap">
-                                    {renderOriginalText()}
-                                </div>
-                            </div>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent className="bg-[#2b2b40] border-white/10 text-white">
-                            <ContextMenuItem
-                                className="focus:bg-primary focus:text-white cursor-pointer"
-                                onSelect={() => {
-                                    // Handle right click with selection already set by handleContextMenu or span click
-                                    setSelectedTranslatedText(""); // Clear translated selection
-                                    setDicOpen(true);
-                                }}
-                            >
-                                Sửa nghĩa (Vietphrase)
-                            </ContextMenuItem>
-                        </ContextMenuContent>
-                    </ContextMenu>
-                </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            <ContextMenu>
+                                <ContextMenuTrigger asChild>
+                                    <div className={cn("w-full min-h-full p-6 md:p-10 pb-0 text-lg leading-loose tracking-wide text-white/90 font-lora whitespace-pre-wrap", "reader-text")}>
+                                        {renderOriginalText()}
+                                    </div>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent className="bg-[#2b2b40] border-white/10 text-white">
+                                    <ContextMenuItem
+                                        className="focus:bg-primary focus:text-white cursor-pointer"
+                                        onSelect={() => {
+                                            setSelectedTranslatedText("");
+                                            setDicOpen(true);
+                                        }}
+                                    >
+                                        Sửa nghĩa (Vietphrase)
+                                    </ContextMenuItem>
+                                </ContextMenuContent>
+                            </ContextMenu>
+                        </div>
+                    </div>
+                )}
 
                 {/* Right: Translated */}
-                <div className="flex-1 flex flex-col bg-[#1a0b2e]">
-                    <div className="h-10 border-b border-white/5 flex items-center px-4 bg-[#1e1e2e]/50">
-                        <span className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Translation ({workspace.targetLang})</span>
+                {(viewMode === 'vi' || viewMode === 'parallel') && (
+                    <div className={cn("flex flex-col min-h-0", "reader-column")}>
+                        <div className="h-10 border-b border-white/5 flex items-center px-4 bg-[#1e1e2e]/50 shrink-0">
+                            <span className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Translation ({workspace.targetLang})</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            <ContextMenu>
+                                <ContextMenuTrigger asChild>
+                                    <div className="w-full min-h-full p-6 md:p-10 pb-0">
+                                        {isReaderMode ? (
+                                            <div className={cn("max-w-7xl mx-auto w-full min-h-full text-lg leading-loose tracking-wide text-white/90 font-lora pb-0", "reader-text")}>
+                                                <div className="mb-8 text-center">
+                                                    <h2 className="text-3xl font-bold text-white mb-2">{chapter.title}</h2>
+                                                    <div className="w-16 h-1 bg-primary/30 mx-auto" />
+                                                </div>
+                                                {translatedContent.split('\n').map((line, idx) => {
+                                                    const isDialogLine = line.trim().startsWith("-");
+                                                    return (
+                                                        <p key={idx} className={cn(
+                                                            "mb-6 min-h-[1em]",
+                                                            isDialogLine && "italic text-white/80 font-serif"
+                                                        )}>
+                                                            {line.split(/(".*?")/g).map((part, i) => (
+                                                                part.startsWith('"') && part.endsWith('"')
+                                                                    ? <span key={i} className="italic text-white/80 font-serif">{part}</span>
+                                                                    : <span key={i}>{part}</span>
+                                                            ))}
+                                                        </p>
+                                                    );
+                                                })}
+                                                <div className="h-20" /> {/* Extra spacer */}
+
+                                                <div className="mt-20 flex flex-col items-center gap-6 pb-20 border-t border-white/5 pt-12">
+                                                    <p className="text-white/30 text-sm">Hết chương {currentIndex + 1}</p>
+                                                    <div className="flex gap-4">
+                                                        <Button
+                                                            variant="outline"
+                                                            disabled={!prevChapterId}
+                                                            onClick={() => router.push(`/workspace/${id}/chapter/${prevChapterId}`)}
+                                                            className="border-white/10 bg-white/5"
+                                                        >
+                                                            Chương trước
+                                                        </Button>
+                                                        <Button
+                                                            variant="default"
+                                                            disabled={!nextChapterId}
+                                                            onClick={() => router.push(`/workspace/${id}/chapter/${nextChapterId}`)}
+                                                            className="bg-primary hover:bg-primary/80"
+                                                        >
+                                                            Chương sau
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full min-h-full flex-1 pb-0">
+                                                <textarea
+                                                    ref={textareaRef}
+                                                    className="w-full h-auto bg-transparent text-lg leading-loose tracking-wide text-white/90 font-lora focus:outline-none resize-none overflow-hidden"
+                                                    placeholder="Bản dịch sẽ hiện ở đây..."
+                                                    value={translatedContent}
+                                                    onChange={(e) => setTranslatedContent(e.target.value)}
+                                                    onContextMenu={handleContextMenu}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent className="bg-[#2b2b40] border-white/10 text-white">
+                                    <ContextMenuItem
+                                        className="focus:bg-primary focus:text-white cursor-pointer"
+                                        onSelect={() => {
+                                            setSelectedTranslatedText(selectedText);
+                                            setSelectedText("");
+                                            setDicOpen(true);
+                                        }}
+                                    >
+                                        Thêm vào Từ điển
+                                    </ContextMenuItem>
+                                </ContextMenuContent>
+                            </ContextMenu>
+                        </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto flex">
-                        <ContextMenu>
-                            <ContextMenuTrigger className="flex-1 flex">
-                                <textarea
-                                    className="flex-1 bg-transparent text-lg leading-relaxed text-white/90 font-lora p-8 focus:outline-none resize-none custom-scrollbar selection:bg-primary/30"
-                                    placeholder="Bản dịch sẽ hiện ở đây..."
-                                    value={translatedContent}
-                                    onChange={(e) => setTranslatedContent(e.target.value)}
-                                    // onContextMenu handled by ContextMenuTrigger wrapper mostly, but we trigger selection logic
-                                    onContextMenu={handleContextMenu}
-                                />
-                            </ContextMenuTrigger>
-                            <ContextMenuContent className="bg-[#2b2b40] border-white/10 text-white">
-                                <ContextMenuItem
-                                    className="focus:bg-primary focus:text-white cursor-pointer"
-                                    onSelect={() => {
-                                        setSelectedTranslatedText(selectedText);
-                                        setSelectedText(""); // Clear original
-                                        setDicOpen(true);
-                                    }}
-                                >
-                                    Thêm vào Từ điển
-                                </ContextMenuItem>
-                            </ContextMenuContent>
-                        </ContextMenu>
-                    </div>
-                </div>
+                )}
+
+                {/* Sidebar */}
+                <CharacterSidebar
+                    workspaceId={id}
+                    chapterId={chapterId}
+                    chapterContent={chapter.content_original}
+                    isOpen={sidebarOpen}
+                    onToggle={() => setSidebarOpen(!sidebarOpen)}
+                    onHighlight={(name) => setHighlightedChar(prev => prev === name ? "" : name)}
+                    currentHighlight={highlightedChar}
+                />
             </div>
 
             {/* Bottom Status Bar */}
-            <div className="h-8 border-t border-white/5 bg-[#1e1e2e] flex items-center justify-between px-4 text-xs text-white/40">
-                <div className="flex gap-4">
-                    <span>Từ gốc: {chapter.wordCountOriginal?.toLocaleString()}</span>
-                    <span>Từ dịch: {translatedContent.length.toLocaleString()}</span>
-                </div>
-                <div>
-                    {isSaving ? "Saving..." : "Ready"}
-                </div>
-            </div>
+            {/* Bottom Status Bar Removed for Full Screen */}
 
             <DictionaryEditDialog
                 open={dicOpen}
@@ -434,6 +733,13 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
+            <ReviewDialog
+                open={isReviewOpen}
+                onOpenChange={setIsReviewOpen}
+                characters={pendingCharacters}
+                terms={pendingTerms}
+                onSave={handleConfirmSaveAI}
+            />
         </main>
     );
 }

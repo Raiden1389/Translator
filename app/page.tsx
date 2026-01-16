@@ -12,14 +12,10 @@ export default function Home() {
               <Zap className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Antigravity AI</h1>
+              <h1 className="text-2xl font-bold text-white">Raiden AI Translator</h1>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="border-white/10 text-white hover:bg-white/10 bg-transparent rounded-full px-4">Đăng nhập</Button>
-            <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 rounded-full px-4 shadow-lg shadow-orange-500/20">
-              <Zap className="mr-1 h-3 w-3" /> Nâng cấp ngay
-            </Button>
+          <div>
           </div>
         </header>
 
