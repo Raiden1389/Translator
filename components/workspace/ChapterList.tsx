@@ -340,13 +340,20 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
 
         try {
             const chaptersToTranslate = chapters?.filter(c => selectedChapters.includes(c.id!)) || [];
+            if (chaptersToTranslate.length === 0) return;
+
             let processed = 0;
             setBatchProgress({ current: 0, total: chaptersToTranslate.length, currentTitle: "" });
 
-            for (const chapter of chaptersToTranslate) {
-                setBatchProgress(prev => ({ ...prev, currentTitle: chapter.title }));
+            // CONCURRENCY LIMIT (Boost speed)
+            const CONCURRENT_LIMIT = 3;
+            const activePromises: Promise<void>[] = [];
 
-                await new Promise<void>((resolve) => {
+            const processChapter = async (chapter: any) => {
+                setBatchProgress(prev => ({ ...prev, currentTitle: `Đang dịch: ${chapter.title}` }));
+
+                // 1. Translation Task
+                const translationTask = new Promise<void>((resolve) => {
                     translateChapter(
                         chapter.content_original,
                         (log) => console.log(log),
@@ -369,44 +376,66 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                                 wordCountTranslated: translatedText.length,
                                 status: 'translated'
                             });
-
-                            // 3. Auto Extract (If enabled)
-                            if (translateConfig.autoExtract) {
-                                // eslint-disable-next-line @typescript-eslint/no-var-requires
-                                const { extractGlossary } = require("@/lib/gemini");
-                                const result = await extractGlossary(chapter.content_original, (l: any) => console.log(l));
-                                if (result) {
-                                    // Add to dictionary silently
-                                    for (const char of result.characters) {
-                                        if (!(await db.dictionary.where("original").equals(char.original).first())) {
-                                            await db.dictionary.add({ ...char, type: 'name', createdAt: new Date() });
-                                        }
-                                    }
-                                    for (const term of result.terms) {
-                                        if (!(await db.dictionary.where("original").equals(term.original).first())) {
-                                            await db.dictionary.add({ ...term, type: term.type as any, createdAt: new Date() });
-                                        }
-                                    }
-                                }
-                            }
                             resolve();
                         },
-                        translateConfig.customPrompt // Pass custom prompt
+                        translateConfig.customPrompt
                     );
                 });
+
+                // 2. Extraction Task (Parallel) - Only runs if enabled
+                const extractionTask = translateConfig.autoExtract ? (async () => {
+                    try {
+                        // eslint-disable-next-line @typescript-eslint/no-var-requires
+                        const { extractGlossary } = require("@/lib/gemini");
+                        const result = await extractGlossary(chapter.content_original, (l: any) => console.log(l));
+                        if (result) {
+                            // Add to dictionary silently
+                            for (const char of result.characters) {
+                                if (!(await db.dictionary.where("original").equals(char.original).first())) {
+                                    await db.dictionary.add({ ...char, type: 'name', createdAt: new Date() });
+                                }
+                            }
+                            for (const term of result.terms) {
+                                if (!(await db.dictionary.where("original").equals(term.original).first())) {
+                                    await db.dictionary.add({ ...term, type: term.type as any, createdAt: new Date() });
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Auto extract failed", e);
+                    }
+                })() : Promise.resolve();
+
+                // Wait for BOTH tasks (Parallel Execution)
+                await Promise.all([translationTask, extractionTask]);
+
                 processed++;
                 setBatchProgress(prev => ({ ...prev, current: processed }));
+            };
+
+            // Execute Batch with Concurrency
+            for (const chapter of chaptersToTranslate) {
+                const p = processChapter(chapter);
+                activePromises.push(p);
+                p.then(() => activePromises.splice(activePromises.indexOf(p), 1));
+
+                if (activePromises.length >= CONCURRENT_LIMIT) {
+                    await Promise.race(activePromises);
+                }
             }
+
+            // Wait for remaining tasks
+            await Promise.all(activePromises);
+
             toast.success(`Dịch hoàn tất ${processed} chương!`);
         } catch (e) {
             console.error(e);
             toast.error("Lỗi khi dịch hàng loạt: " + e);
         } finally {
             setIsTranslating(false);
-            setTranslateDialogOpen(false);
-            setBatchProgress({ current: 0, total: 0, currentTitle: "" });
+            setBatchProgress(prev => ({ ...prev, currentTitle: "Hoàn tất" }));
         }
-    }
+    };
 
 
     if (!chapters) return <div className="p-10 text-center text-white/50">Loading chapters...</div>;
