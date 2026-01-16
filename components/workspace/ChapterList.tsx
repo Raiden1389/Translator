@@ -350,6 +350,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
             const activePromises: Promise<void>[] = [];
 
             const processChapter = async (chapter: any) => {
+                const startTime = Date.now();
                 setBatchProgress(prev => ({ ...prev, currentTitle: `Đang dịch: ${chapter.title}` }));
 
                 // 1. Translation Task
@@ -360,6 +361,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                         async (result) => {
                             const translatedText = result.translatedText;
                             const aiTranslatedTitle = result.translatedTitle;
+                            const duration = Date.now() - startTime;
 
                             // Simple Title Translation (Regex-based) if AI didn't provide one
                             let newTitle = aiTranslatedTitle || chapter.title;
@@ -374,7 +376,10 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                                 content_translated: translatedText,
                                 title_translated: newTitle,
                                 wordCountTranslated: translatedText.length,
-                                status: 'translated'
+                                status: 'translated',
+                                lastTranslatedAt: new Date(),
+                                translationModel: currentSettings.model,
+                                translationDurationMs: duration
                             });
                             resolve();
                         },

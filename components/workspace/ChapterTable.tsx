@@ -80,12 +80,18 @@ export function ChapterTable({
                                 <div className="line-clamp-1 text-sm italic">{chapter.title_translated || "—"}</div>
                             </TableCell>
                             <TableCell className="text-center">
-                                <span className={cn(
-                                    "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider",
-                                    chapter.status === 'translated'
-                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                        : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                                )}>
+                                <span
+                                    className={cn(
+                                        "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider cursor-help",
+                                        chapter.status === 'translated'
+                                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                            : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                    )}
+                                    title={chapter.status === 'translated'
+                                        ? `Model: ${chapter.translationModel || 'N/A'}\nTime: ${chapter.translationDurationMs ? (chapter.translationDurationMs / 1000).toFixed(1) + 's' : 'N/A'}\nDate: ${chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).toLocaleString() : 'N/A'}`
+                                        : 'Chưa dịch'
+                                    }
+                                >
                                     {chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
                                 </span>
                             </TableCell>
@@ -93,7 +99,7 @@ export function ChapterTable({
                                 {chapter.wordCountOriginal?.toLocaleString() || 0}
                             </TableCell>
                             <TableCell className="text-center text-xs text-white/50 font-mono">
-                                {chapter.wordCountTranslated?.toLocaleString() || 0}
+                                {(chapter.wordCountTranslated || (chapter.content_translated ? chapter.content_translated.length : 0))?.toLocaleString()}
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-50 group-hover:opacity-100">

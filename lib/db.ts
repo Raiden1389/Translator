@@ -26,6 +26,9 @@ export interface Chapter {
     order: number;
     status: 'draft' | 'translated' | 'reviewing'; // Expanded status
     inspectionResults?: any; // JSON array of issues
+    lastTranslatedAt?: Date;
+    translationModel?: string; // e.g. "gemini-1.5-pro"
+    translationDurationMs?: number; // e.g. 5000
 }
 
 export interface DictionaryEntry {

@@ -87,112 +87,139 @@ QUY TẮC:
 3. Cấm: giải thích, phóng tác, lặp lại, bình luận
 4. Chỉ trả JSON theo schema`;
 
-    onLog({ timestamp: new Date(), message: `Đang dịch với model: ${aiModel}...`, type: 'info' });
-
-    try {
-        const result = await withKeyRotation(async (ai) => {
-            const response = await ai.models.generateContent({
-                model: aiModel,
-                contents: text, // Removed redundant prefix to save tokens
-                config: {
-                    systemInstruction: fullInstruction,
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            translatedTitle: { type: Type.STRING },
-                            translatedText: { type: Type.STRING }
-                        },
-                        required: ["translatedTitle", "translatedText"]
-                    }
-                }
-            });
-
-            const rawResponse = response as any;
-            let jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
-            if (!jsonText) jsonText = rawResponse.candidates?.[0]?.content?.parts?.[0]?.text;
-
-            return JSON.parse(jsonText) as TranslationResult;
-        }, (msg) => onLog({ timestamp: new Date(), message: msg, type: 'info' }));
-
-        // 3. Stats & Success
-        let termUsage = 0;
-        let charUsage = 0;
-        if (result.translatedText) {
-            const lowerText = result.translatedText.toLowerCase();
-            relevantDict.forEach(d => {
-                if (lowerText.includes(d.translated.toLowerCase())) {
-                    if (d.type === 'character' || d.type === 'name') charUsage++;
-                    else termUsage++;
-                }
-            });
-        }
-
-        result.stats = { terms: termUsage, characters: charUsage };
-        onLog({ timestamp: new Date(), message: "Dịch xong!", type: 'success' });
-        onSuccess(result);
-
-    } catch (e: any) {
-        onLog({ timestamp: new Date(), message: `Lỗi: ${e.message}`, type: 'error' });
-        throw e;
+    const modelsToTry = [aiModel];
+    // Fallback to DEFAULT_MODEL if the chosen model fails with 404 and it's not already the default
+    if (aiModel !== DEFAULT_MODEL && aiModel !== "gemini-1.5-flash") {
+        modelsToTry.push(DEFAULT_MODEL);
     }
-};
 
-// --- Extract Glossary (Giữ nguyên cấu trúc xịn để mày dùng sau) ---
-export const extractGlossary = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL) => {
-    return withKeyRotation(async (ai) => {
-        const prompt = `Trích xuất thực thể từ văn bản truyện để làm từ điển:
+    let lastError: any;
+
+    for (const currentModel of modelsToTry) {
+        try {
+            onLog({ timestamp: new Date(), message: `Đang dịch với model: ${currentModel}...`, type: 'info' });
+
+            const result = await withKeyRotation(async (ai) => {
+                const response = await ai.models.generateContent({
+                    model: currentModel,
+                    contents: text,
+                    config: {
+                        systemInstruction: fullInstruction,
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: Type.OBJECT,
+                            properties: {
+                                translatedTitle: { type: Type.STRING },
+                                translatedText: { type: Type.STRING }
+                            },
+                            required: ["translatedTitle", "translatedText"]
+                        }
+                    }
+                });
+
+                const rawResponse = response as any;
+                let jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
+                if (!jsonText) jsonText = rawResponse.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                return JSON.parse(jsonText) as TranslationResult;
+            }, (msg) => onLog({ timestamp: new Date(), message: msg, type: 'info' }));
+
+            // 3. Stats & Success
+            let termUsage = 0;
+            let charUsage = 0;
+            if (result.translatedText) {
+                const lowerText = result.translatedText.toLowerCase();
+                relevantDict.forEach(d => {
+                    if (lowerText.includes(d.translated.toLowerCase())) {
+                        if (d.type === 'character' || d.type === 'name') charUsage++;
+                        else termUsage++;
+                    }
+                });
+            }
+
+            result.stats = { terms: termUsage, characters: charUsage };
+
+            // If we fell back to a different model, log it clearly
+            if (currentModel !== aiModel) {
+                onLog({ timestamp: new Date(), message: `Dịch thành công với model dự phòng: ${currentModel}`, type: 'success' });
+                // Optional: save back to settings to avoid future errors? User choice.
+            } else {
+                onLog({ timestamp: new Date(), message: "Dịch xong!", type: 'success' });
+            }
+
+            onSuccess(result);
+            return; // Exit function on success
+
+        } catch (e: any) {
+            lastError = e;
+            const isNotFound = e.status === 404 || e.code === 404 || (e.message && (e.message.includes("not found") || e.message.includes("not supported")));
+
+            if (isNotFound && currentModel !== modelsToTry[modelsToTry.length - 1]) {
+                onLog({ timestamp: new Date(), message: `Lỗi: Model ${currentModel} không khả dụng (404). Đang thử model khác...`, type: 'error' });
+                continue; // Retry with next model
+            }
+
+            // If strict error or last model failed
+            onLog({ timestamp: new Date(), message: `Lỗi: ${e.message}`, type: 'error' });
+            throw e;
+        }
+    }
+
+    // --- Extract Glossary (Giữ nguyên cấu trúc xịn để mày dùng sau) ---
+    export const extractGlossary = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL) => {
+        return withKeyRotation(async (ai) => {
+            const prompt = `Trích xuất thực thể từ văn bản truyện để làm từ điển:
 - Characters: Tên người (xác định Nam/Nữ, Vai trò).
 - Terms: Chiêu thức, địa danh, vật phẩm đặc biệt.
 - Yêu cầu: Trả về tên Hán Việt chuẩn.`;
 
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: text.substring(0, 30000),
-            config: {
-                systemInstruction: prompt,
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        characters: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    original: { type: Type.STRING },
-                                    translated: { type: Type.STRING },
-                                    gender: { type: Type.STRING },
-                                    description: { type: Type.STRING }
-                                },
-                                required: ["original", "translated"]
-                            }
-                        },
-                        terms: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    original: { type: Type.STRING },
-                                    translated: { type: Type.STRING },
-                                    type: { type: Type.STRING }
-                                },
-                                required: ["original", "translated"]
+            const response = await ai.models.generateContent({
+                model: model,
+                contents: text.substring(0, 30000),
+                config: {
+                    systemInstruction: prompt,
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            characters: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        original: { type: Type.STRING },
+                                        translated: { type: Type.STRING },
+                                        gender: { type: Type.STRING },
+                                        description: { type: Type.STRING }
+                                    },
+                                    required: ["original", "translated"]
+                                }
+                            },
+                            terms: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        original: { type: Type.STRING },
+                                        translated: { type: Type.STRING },
+                                        type: { type: Type.STRING }
+                                    },
+                                    required: ["original", "translated"]
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
-        const jsonText = typeof (response as any).text === 'function' ? (response as any).text() : (response as any).text;
-        return JSON.parse(jsonText);
-    }, onLog);
-};
+            });
+            const jsonText = typeof (response as any).text === 'function' ? (response as any).text() : (response as any).text;
+            return JSON.parse(jsonText);
+        }, onLog);
+    };
 
-// --- Missing Exports for DictionaryTab ---
-export const categorizeTerms = async (terms: string[], onLog?: (msg: string) => void): Promise<{ original: string, category: string }[]> => {
-    return withKeyRotation(async (ai) => {
-        const prompt = `Classify terms:
+    // --- Missing Exports for DictionaryTab ---
+    export const categorizeTerms = async (terms: string[], onLog?: (msg: string) => void): Promise<{ original: string, category: string }[]> => {
+        return withKeyRotation(async (ai) => {
+            const prompt = `Classify terms:
 - character (Tên người)
 - location (Địa danh)
 - organization (Tổ chức)
@@ -209,134 +236,134 @@ ${terms.join('\n')}
 
 Output: JSON array { "original", "category" }`;
 
-        const response = await ai.models.generateContent({
-            model: DEFAULT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            original: { type: Type.STRING },
-                            category: { type: Type.STRING }
-                        },
-                        required: ["original", "category"]
+            const response = await ai.models.generateContent({
+                model: DEFAULT_MODEL,
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                original: { type: Type.STRING },
+                                category: { type: Type.STRING }
+                            },
+                            required: ["original", "category"]
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        const rawResponse = response as any;
-        const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
-        return JSON.parse(jsonText || "[]");
-    }, onLog);
-};
+            const rawResponse = response as any;
+            const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
+            return JSON.parse(jsonText || "[]");
+        }, onLog);
+    };
 
-export const translateTerms = async (terms: string[], onLog?: (msg: string) => void): Promise<{ original: string, translated: string }[]> => {
-    return withKeyRotation(async (ai) => {
-        const prompt = `Translate terms to Vietnamese Hán Việt:
+    export const translateTerms = async (terms: string[], onLog?: (msg: string) => void): Promise<{ original: string, translated: string }[]> => {
+        return withKeyRotation(async (ai) => {
+            const prompt = `Translate terms to Vietnamese Hán Việt:
 ${terms.join('\n')}
 
 Output: JSON array { "original", "translated" }`;
 
-        const response = await ai.models.generateContent({
-            model: DEFAULT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            original: { type: Type.STRING },
-                            translated: { type: Type.STRING }
-                        },
-                        required: ["original", "translated"]
+            const response = await ai.models.generateContent({
+                model: DEFAULT_MODEL,
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                original: { type: Type.STRING },
+                                translated: { type: Type.STRING }
+                            },
+                            required: ["original", "translated"]
+                        }
                     }
                 }
-            }
-        });
-
-        const rawResponse = response as any;
-        const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
-        return JSON.parse(jsonText || "[]");
-    }, onLog);
-};
-
-// --- Missing Exports for CharacterSidebar ---
-export interface AnalyzedEntity {
-    src: string;
-    dest: string;
-    category: 'character' | 'weapon' | 'item' | 'location' | 'organization' | 'ability' | 'plant' | 'beast' | 'phenomenon' | 'honorific' | 'phrase' | 'idiom' | 'other';
-    contextLabel?: string;
-    reason: string;
-    metadata?: any;
-}
-
-export const analyzeEntities = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL): Promise<AnalyzedEntity[]> => {
-    const raw = await extractGlossary(text, onLog, model);
-    const entities: AnalyzedEntity[] = [];
-
-    if (raw?.characters) {
-        raw.characters.forEach((char: any) => {
-            entities.push({
-                src: char.original,
-                dest: char.translated,
-                category: 'character',
-                reason: char.description || '',
-                metadata: char
             });
-        });
+
+            const rawResponse = response as any;
+            const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
+            return JSON.parse(jsonText || "[]");
+        }, onLog);
+    };
+
+    // --- Missing Exports for CharacterSidebar ---
+    export interface AnalyzedEntity {
+        src: string;
+        dest: string;
+        category: 'character' | 'weapon' | 'item' | 'location' | 'organization' | 'ability' | 'plant' | 'beast' | 'phenomenon' | 'honorific' | 'phrase' | 'idiom' | 'other';
+        contextLabel?: string;
+        reason: string;
+        metadata?: any;
     }
 
-    if (raw?.terms) {
-        raw.terms.forEach((term: any) => {
-            entities.push({
-                src: term.original,
-                dest: term.translated,
-                category: (term.type as any) || 'other',
-                reason: 'Thuật ngữ',
-                metadata: term
+    export const analyzeEntities = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL): Promise<AnalyzedEntity[]> => {
+        const raw = await extractGlossary(text, onLog, model);
+        const entities: AnalyzedEntity[] = [];
+
+        if (raw?.characters) {
+            raw.characters.forEach((char: any) => {
+                entities.push({
+                    src: char.original,
+                    dest: char.translated,
+                    category: 'character',
+                    reason: char.description || '',
+                    metadata: char
+                });
             });
-        });
+        }
+
+        if (raw?.terms) {
+            raw.terms.forEach((term: any) => {
+                entities.push({
+                    src: term.original,
+                    dest: term.translated,
+                    category: (term.type as any) || 'other',
+                    reason: 'Thuật ngữ',
+                    metadata: term
+                });
+            });
+        }
+
+        // Filter against blacklist
+        const blacklist = await db.blacklist.toArray();
+        const blockedSet = new Set(blacklist.map(b => b.word.toLowerCase()));
+        return entities.filter(e => !blockedSet.has(e.src.toLowerCase()));
+    };
+
+    // --- AI Inspector (Quality Control) ---
+    export interface InspectionIssue {
+        original: string;
+        suggestion: string;
+        type: 'untranslated' | 'pronoun' | 'grammar' | 'spelling' | 'other';
+        reason: string;
     }
 
-    // Filter against blacklist
-    const blacklist = await db.blacklist.toArray();
-    const blockedSet = new Set(blacklist.map(b => b.word.toLowerCase()));
-    return entities.filter(e => !blockedSet.has(e.src.toLowerCase()));
-};
+    export const inspectChapter = async (text: string, onLog?: (msg: string) => void): Promise<InspectionIssue[]> => {
+        // 1. Get Glossary to avoid false positives
+        const dict = await db.dictionary.toArray();
+        const blacklist = await db.blacklist.toArray();
+        const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
-// --- AI Inspector (Quality Control) ---
-export interface InspectionIssue {
-    original: string;
-    suggestion: string;
-    type: 'untranslated' | 'pronoun' | 'grammar' | 'spelling' | 'other';
-    reason: string;
-}
+        // Filter relevant terms present in text
+        const relevantDict = dict.filter(d =>
+            !blockedWords.has(d.original.toLowerCase()) &&
+            text.includes(d.translated) // Check if the TRANSLATED term is in the text (since input is translated text)
+        );
 
-export const inspectChapter = async (text: string, onLog?: (msg: string) => void): Promise<InspectionIssue[]> => {
-    // 1. Get Glossary to avoid false positives
-    const dict = await db.dictionary.toArray();
-    const blacklist = await db.blacklist.toArray();
-    const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
+        // Create Context String
+        const glossaryContext = relevantDict.length > 0
+            ? `\n\nDANH SÁCH THUẬT NGỮ ĐÚNG (KHÔNG BÁO LỖI): \n${relevantDict.map(d => `- "${d.translated}" (Gốc: ${d.original})`).join('\n')}`
+            : '';
 
-    // Filter relevant terms present in text
-    const relevantDict = dict.filter(d =>
-        !blockedWords.has(d.original.toLowerCase()) &&
-        text.includes(d.translated) // Check if the TRANSLATED term is in the text (since input is translated text)
-    );
-
-    // Create Context String
-    const glossaryContext = relevantDict.length > 0
-        ? `\n\nDANH SÁCH THUẬT NGỮ ĐÚNG (KHÔNG BÁO LỖI): \n${relevantDict.map(d => `- "${d.translated}" (Gốc: ${d.original})`).join('\n')}`
-        : '';
-
-    return withKeyRotation(async (ai) => {
-        const prompt = `Bạn là biên tập viên khó tính (Strict Editor). Hãy rà soát văn bản dịch này và tìm lỗi:
+        return withKeyRotation(async (ai) => {
+            const prompt = `Bạn là biên tập viên khó tính (Strict Editor). Hãy rà soát văn bản dịch này và tìm lỗi:
 - Untranslated: Những chữ Hán hoặc cụm từ chưa được dịch (tuyệt đối ưu tiên).
 - Pronoun: Xưng hô bất nhất (đang huynh đệ chuyển sang anh em, hoặc ngôi thứ loạn).
 - Grammar: Lỗi ngữ pháp nghiêm trọng khiến câu vô nghĩa.
@@ -356,29 +383,29 @@ Output JSON:
   { "original": "text lỗi", "suggestion": "đề xuất sửa", "type": "untranslated", "reason": "chưa dịch" }
 ]`;
 
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            original: { type: Type.STRING },
-                            suggestion: { type: Type.STRING },
-                            type: { type: Type.STRING },
-                            reason: { type: Type.STRING }
-                        },
-                        required: ["original", "suggestion", "type", "reason"]
+            const response = await ai.models.generateContent({
+                model: "gemini-2.0-flash-exp",
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                original: { type: Type.STRING },
+                                suggestion: { type: Type.STRING },
+                                type: { type: Type.STRING },
+                                reason: { type: Type.STRING }
+                            },
+                            required: ["original", "suggestion", "type", "reason"]
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        const rawResponse = response as any;
-        const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
-        return JSON.parse(jsonText || "[]");
-    }, onLog);
-};
+            const rawResponse = response as any;
+            const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
+            return JSON.parse(jsonText || "[]");
+        }, onLog);
+    };
