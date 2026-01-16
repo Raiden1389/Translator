@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Key, Database, Sparkles, Loader2, RefreshCw, Settings, CheckCircle, XCircle, AlertTriangle, Calculator } from "lucide-react";
+import { Key, Database, Sparkles, Loader2, RefreshCw, Settings, CheckCircle, XCircle, AlertTriangle, Calculator, Save } from "lucide-react";
 import { AI_MODELS } from "@/lib/ai-models";
 import { GoogleGenAI } from "@google/genai";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function AISettingsTab() {
     const [primaryKey, setPrimaryKey] = useState("");
@@ -42,19 +43,31 @@ export function AISettingsTab() {
         if (m) setModel(m.value);
     };
 
-    const handleSavePrimary = async (val: string) => {
+    const handleSavePrimary = (val: string) => {
         setPrimaryKey(val);
-        await db.settings.put({ key: "apiKeyPrimary", value: val });
     };
 
-    const handleSavePool = async (val: string) => {
+    const handleSavePool = (val: string) => {
         setPoolKeys(val);
-        await db.settings.put({ key: "apiKeyPool", value: val });
     };
 
-    const handleSaveModel = async (val: string) => {
+    const handleSaveModel = (val: string) => {
         setModel(val);
-        await db.settings.put({ key: "aiModel", value: val });
+    };
+
+    const handleSaveAll = async () => {
+        setIsSaving(true);
+        try {
+            await db.settings.put({ key: "apiKeyPrimary", value: primaryKey });
+            await db.settings.put({ key: "apiKeyPool", value: poolKeys });
+            await db.settings.put({ key: "aiModel", value: model });
+            toast.success("Đã lưu cấu hình thành công!");
+        } catch (e) {
+            console.error(e);
+            toast.error("Lỗi khi lưu cấu hình.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const fetchModels = async () => {
@@ -305,6 +318,15 @@ AIzaSy...`}
                         )}
                     </div>
                 </div>
+
+                <Button
+                    onClick={handleSaveAll}
+                    disabled={isSaving}
+                    className="w-full bg-[#6c5ce7] hover:bg-[#5b4cc4] text-white font-bold py-6 text-lg shadow-lg hover:shadow-[#6c5ce7]/25 transition-all mb-6"
+                >
+                    {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+                    Lưu Thay Đổi
+                </Button>
 
                 {/* Word Count Fix */}
                 <div className="space-y-2 pt-4 border-t border-white/10">

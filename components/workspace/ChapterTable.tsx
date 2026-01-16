@@ -15,6 +15,7 @@ interface ChapterTableProps {
     onToggleSelect: (id: number) => void;
     onToggleSelectAll: () => void;
     onDelete: (id: number) => void;
+    onRead: (id: number) => void;
     workspaceId: string;
     currentPage: number;
     totalPages: number;
@@ -27,6 +28,7 @@ export function ChapterTable({
     onToggleSelect,
     onToggleSelectAll,
     onDelete,
+    onRead,
     workspaceId,
     currentPage,
     totalPages,
@@ -67,9 +69,12 @@ export function ChapterTable({
                                 {chapter.order}
                             </TableCell>
                             <TableCell className="font-medium text-white/90">
-                                <Link href={`/workspace/${workspaceId}/chapter/${chapter.id}`} className="hover:text-primary transition-colors block w-full h-full">
+                                <button
+                                    onClick={() => onRead(chapter.id!)}
+                                    className="hover:text-primary transition-colors block w-full h-full text-left"
+                                >
                                     <div className="line-clamp-1 text-sm font-bold">{chapter.title}</div>
-                                </Link>
+                                </button>
                             </TableCell>
                             <TableCell className="text-white/70">
                                 <div className="line-clamp-1 text-sm italic">{chapter.title_translated || "—"}</div>

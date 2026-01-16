@@ -1,13 +1,14 @@
-import { invoke } from "@tauri-apps/api/tauri";
-import { appDataDir, join } from "@tauri-apps/api/path";
-import { writeTextFile, readTextFile, exists, createDir, BaseDirectory } from "@tauri-apps/api/fs";
+import { invoke } from "@tauri-apps/api/core";
+import { writeTextFile, readTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 
 export class StorageBridge {
     private static instance: StorageBridge;
     private isTauri: boolean = false;
 
     private constructor() {
-        this.isTauri = !!(window as any).__TAURI__;
+        if (typeof window !== 'undefined') {
+            this.isTauri = !!(window as any).__TAURI__;
+        }
     }
 
     static getInstance() {
@@ -21,13 +22,10 @@ export class StorageBridge {
         if (!this.isTauri) return;
 
         try {
-            const dataPath = await appDataDir();
-            const workspacesPath = await join(dataPath, "workspaces");
-
-            if (!(await exists(workspacesPath))) {
-                await createDir(workspacesPath, { recursive: true });
+            // In Tauri v2, we check/create relative to AppData base directory
+            if (!(await exists("workspaces", { baseDir: BaseDirectory.AppData }))) {
+                await mkdir("workspaces", { baseDir: BaseDirectory.AppData, recursive: true });
             }
-            return workspacesPath;
         } catch (e) {
             console.error("Failed to ensure data dir", e);
         }
@@ -36,24 +34,35 @@ export class StorageBridge {
     async saveWorkspace(workspaceId: string, data: any) {
         if (!this.isTauri) return;
 
-        const dataPath = await this.ensureDataDir();
-        if (!dataPath) return;
+        await this.ensureDataDir();
 
-        const filePath = await join(dataPath, `${workspaceId}.json`);
-        await writeTextFile(filePath, JSON.stringify(data, null, 2));
+        try {
+            const fileName = `workspaces/${workspaceId}.json`;
+            await writeTextFile(fileName, JSON.stringify(data, null, 2), {
+                baseDir: BaseDirectory.AppData
+            });
+        } catch (e) {
+            console.error("Failed to save workspace", e);
+        }
     }
 
     async loadWorkspace(workspaceId: string) {
         if (!this.isTauri) return null;
 
-        const dataPath = await this.ensureDataDir();
-        if (!dataPath) return null;
+        await this.ensureDataDir();
 
-        const filePath = await join(dataPath, `${workspaceId}.json`);
-        if (!(await exists(filePath))) return null;
+        try {
+            const fileName = `workspaces/${workspaceId}.json`;
+            if (!(await exists(fileName, { baseDir: BaseDirectory.AppData }))) return null;
 
-        const content = await readTextFile(filePath);
-        return JSON.parse(content);
+            const content = await readTextFile(fileName, {
+                baseDir: BaseDirectory.AppData
+            });
+            return JSON.parse(content);
+        } catch (e) {
+            console.error("Failed to load workspace", e);
+            return null;
+        }
     }
 
     // Helper to check if running in Tauri environment

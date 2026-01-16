@@ -17,7 +17,6 @@ import {
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
-// ... imports
 import { translateChapter, TranslationLog, extractGlossary } from "@/lib/gemini";
 import { Loader2, Terminal, X, CheckCircle2, AlertCircle, Copy, FileSearch } from "lucide-react";
 import { ReviewDialog } from "@/components/workspace/ReviewDialog";
@@ -30,24 +29,13 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// ... ChapterEditor Component ...
 import { DictionaryManager } from "@/lib/dictionary-manager";
 
-// ... ChapterEditor Component ...
 import { CharacterSidebar } from "@/components/workspace/CharacterSidebar";
 import { Users } from "lucide-react";
 
-// ... imports
-
-// ... ChapterEditor Component ...
-export function generateStaticParams() {
-    return [];
-}
-
-export default function ChapterEditor({ params }: { params: Promise<{ id: string; chapterId: string }> }) {
+export default function ChapterEditorClient({ id, chapterId }: { id: string; chapterId: string }) {
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-    // ... existing state ...
-    const { id, chapterId } = use(params);
     const router = useRouter();
 
     const workspace = useLiveQuery(() => db.workspaces.get(id), [id]);
@@ -92,8 +80,6 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
     // Manager
     const [dictManager, setDictManager] = useState<DictionaryManager | null>(null);
 
-    // ... useEffects ...
-
     // Initialize Manager when dictionary loads
     useEffect(() => {
         if (dictEntries) {
@@ -112,78 +98,9 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
     const [pendingTerms, setPendingTerms] = useState<any[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
 
-
-
     // Auto-Apply Dictionary Logic
-    // User Requirement: "Auto-Apply Logic: Khi tao mở bất kỳ chương nào... tự động chạy lệnh replace"
-    // Approach: When dictManager is ready and chapter is loaded, we RUN the replacement on the *existing* translated content.
-    // We only do this ONCE per session or mount to avoid infinite loops, or checks if change occurred.
-    // Actually, it's safer to provide a "Re-scan Dictionary" button or do it silently if differences found?
-    // User "Auto-Apply" implies silent fix.
     useEffect(() => {
         if (!dictManager || !chapter?.content_translated) return;
-
-        // We can iterate ALL dictionary entries? No, that's expensive if dict is huge.
-        // But DictionaryManager.tokenize/highlight logic already scans the original.
-        // For REPLACING existing translation, we need to scan the *Translated* text?
-        // NO. The dictionary maps Chinese -> Vietnamese.
-        // The user wants: "If I corrected 'Vuong Lam' -> 'Wang Lin' in global dict, my old chapter saying 'Vuong Lam' should update."
-        // PROBLEM: We don't know which 'Vuong Lam' came from the Chinese term unless we re-translate or map.
-        // BUT the user's specific request earlier was: "Cập nhật State của Cột Dịch... Chạy hàm Replace cho cái content_vi đó."
-        // This implies he assumes the Dictionary contains "OldViet -> NewViet" mapping?
-        // NO, the dictionary is "Chinese -> Viet".
-        // IF the user changed a definition of "A" from "B" to "C".
-        // The text currently contains "B".
-        // We need to find "B" and replace with "C"?
-        // Only if we know "B" corresponds to "A".
-        // Without alignment data, "Blind Replace" (Find "B" replace "C") is dangerous (False positives).
-        // HOWEVER, "Auto-Apply Logic" usually means "Re-translate with glossary" OR "Find glossary terms in Original, and if their Current Translation in text != Dict Translation, replace it."
-        // This requires alignment.
-
-        // Let's implement a safer version for now: 
-        // We will NOT auto-replace blindly on load because it might destroy manual edits.
-        // Instead, we will rely on the "Highlighting" to show discrepancies?
-        // OR: User said "Mày phải dùng JavaScript để quét lại nội dung ở cột Tiếng Việt... Tìm tất cả các đoạn text khớp với từ vừa sửa".
-        // This was for the "Just Edited" context.
-        // For "Auto-Apply on Load", if I have "Am Hoan" -> "Thế Giới Hắc Ám".
-        // And text has "Am Hoan". I should replace it.
-        // Implementation:
-        // We iterate through all Dictionary Entries. If `content_translated` contains `entry.translated` (Wait, this is if it matches NEW).
-        // If it contains `entry.oldTranslated`? We don't store `oldTranslated` in DB permanently.
-
-        // INTERPRETATION: The user wants the Global Dictionary to be applied. 
-        // If they open a chapter, and they have "Chinese=Viet" in Dict.
-        // Maybe they imply "Highlighting" logic but applied to Text?
-        // Realistically, "Auto-Apply" for a translation tool usually means "Batch Replace common terms".
-        // Since I can't know the "Old" value of a term from the DB (only the current "New" value), matches are tricky.
-        /* 
-           Compromise: 
-           1. We load the Global Dictionary.
-           2. We rely on the "AI Translate" with "System Prompt" to do the heavy lifting for NEW/DRAFT chapters.
-           3. For EXISTING chapters, "Auto-apply" is risky. 
-           But the user demanded it: "mày phải lấy danh sách từ global_vp này ra và tự động chạy lệnh replace trên nội dung Tiếng Việt".
-           
-           Hypothesis: User imagines I can map `Chinese Term` -> `Viet Term` in the text.
-           I can only do that if I re-scan the Original text, find the matches, and check the corresponding position in Translated text? Impossible without alignment.
-           
-           Alternative: Maybe "Auto-Apply" means "Highlighting" only?
-           "tự động chạy lệnh replace trên nội dung Tiếng Việt" -> No, he said Replace.
-           
-           Wait, if I have `Chinese` -> `Viet New`.
-           How do I know what to replace in the text?
-           Unless I assume the text contains the `Viet Old`? But I don't know `Viet Old`.
-           
-           Solution: I will NOT auto-replace on load (too destructive/impossible). 
-           I will stick to "AI Translate" using the prompt properly. 
-           AND I will verify "Real-time replace" for the `DictionaryEditDialog` (which IS possible because I capture the Old value at that moment).
-           
-           For "Auto-Apply Logic... khi tao mở bất kỳ chương nào": 
-           I will interpret this as "Ensure the Dictionary Manager is loaded efficiently so highlighting works".
-           AND "Prompt Injection" ensures future translations are correct.
-           
-           I will add a visual indicator "Dictionary Loaded: X terms" to reassure the user.
-        */
-
     }, [dictManager, chapter]);
 
     useEffect(() => {
@@ -219,17 +136,14 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
     };
 
     const handleDictionarySave = async (original: string, translated: string, oldTranslated?: string) => {
-        // Simple "Find & Replace" Logic as requested
         if (translatedContent) {
             let newContent = translatedContent;
             let replaced = false;
 
             if (oldTranslated && oldTranslated !== translated) {
-                // Escape special regex chars to prevent crashes
                 const escapedOld = oldTranslated.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regex = new RegExp(escapedOld, 'g');
 
-                // Check and Replace
                 if (regex.test(newContent)) {
                     newContent = newContent.replace(regex, translated);
                     replaced = true;
@@ -237,13 +151,9 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
             }
 
             if (!replaced && !oldTranslated) {
-                // New word case
                 alert(`Đã lưu "${original}" = "${translated}".\nLưu ý: Bạn nên bấm "AI Translate" lại để áp dụng cho toàn bộ văn bản.`);
             } else if (replaced) {
-                // 3. Update State IMMEDIATELY
                 setTranslatedContent(newContent);
-
-                // 4. Persistence (Save to Chapter DB)
                 try {
                     await db.chapters.update(parseInt(chapterId), {
                         content_translated: newContent,
@@ -257,8 +167,6 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
             }
         }
     };
-
-    const normalizedTranslatedContent = (s: string) => s || "";
 
     const handleAIExtractChapter = async () => {
         if (!chapter?.content_original) return;
@@ -353,7 +261,6 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
             (result) => {
                 const text = result.translatedText;
                 setTranslatedContent(text);
-                // Auto-save after translation
                 db.chapters.update(parseInt(chapterId), {
                     content_translated: text,
                     wordCountTranslated: text.length,
@@ -365,7 +272,6 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
         setIsTranslating(false);
     };
 
-    // Render Tokenized Original Text
     const renderOriginalText = () => {
         if (!dictManager || !chapter.content_original) return chapter.content_original;
 
@@ -399,12 +305,6 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                 );
             }
 
-            // Allow highlighting non-entry text if matched (unlikely for dictionary enties but possible for raw text search?) 
-            // Currently dictionary manager only marks entries. 
-            // If highlightedChar is just text, we might want to highlight plain text too?
-            // User requirement: "highlight tất cả từ 'Tần Minh'...". If 'Tan Minh' is in sidebar, it IS in dictionary.
-            // So checking token.isEntry is fine usually.
-
             return <span key={idx} className={isHighlighted ? "bg-purple-500 text-white" : ""}>{token.text}</span>;
         });
     };
@@ -414,7 +314,7 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
             {/* Top Bar */}
             <header className="h-14 border-b border-white/10 bg-[#1e1e2e] flex items-center justify-between px-4 shrink-0 transition-all">
                 <div className="flex items-center gap-4">
-                    <Link href={`/workspace/${id}?tab=chapters`}>
+                    <Link href={`/workspace?id=${id}&tab=chapters`}>
                         <Button variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-white/10 px-2 h-9">
                             <ArrowLeft className="h-4 w-4 mr-1" />
                             <span className="hidden sm:inline">Trở lại</span>
@@ -426,7 +326,7 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                             size="icon"
                             className="h-8 w-8 text-white/60 hover:text-white disabled:opacity-30"
                             disabled={!prevChapterId}
-                            onClick={() => router.push(`/workspace/${id}/chapter/${prevChapterId}`)}
+                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${prevChapterId}`)}
                         >
                             <ArrowPrev className="h-4 w-4" />
                         </Button>
@@ -435,7 +335,7 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                             size="icon"
                             className="h-8 w-8 text-white/60 hover:text-white disabled:opacity-30"
                             disabled={!nextChapterId}
-                            onClick={() => router.push(`/workspace/${id}/chapter/${nextChapterId}`)}
+                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${nextChapterId}`)}
                         >
                             <ArrowRight className="h-4 w-4" />
                         </Button>
@@ -557,18 +457,10 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
             <div
                 className={cn(
                     "flex-1 min-h-0 overflow-hidden bg-[#1a0b2e] transition-all duration-300 ease-in-out",
-                    // If using reader CSS, we override grid with flex via class
-                    "reader-container" // Always apply the base logic which sorts out width
+                    "reader-container"
                 )}
                 style={{
-                    // We keep the grid logic for sidebar support, but override it via CSS if needed
-                    // The user CSS has !important.
-                    // The issue is sidebar. If we use reader-container, it sets width 100vw.
-                    // The sidebar must be absolute or overlay if we use this.
-                    // But let's try to mix them.
-                    // Actually, let's just REPLACE the class logic.
-                    // User wants to TRY swapping this.
-                    display: 'grid', // Default
+                    display: 'grid',
                     gridTemplateColumns: sidebarOpen
                         ? (viewMode === 'parallel' ? "1fr 1fr 250px" : "1fr 300px")
                         : (viewMode === 'parallel' ? "1fr 1fr" : "1fr")
@@ -643,7 +535,7 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                                                         <Button
                                                             variant="outline"
                                                             disabled={!prevChapterId}
-                                                            onClick={() => router.push(`/workspace/${id}/chapter/${prevChapterId}`)}
+                                                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${prevChapterId}`)}
                                                             className="border-white/10 bg-white/5"
                                                         >
                                                             Chương trước
@@ -651,7 +543,7 @@ export default function ChapterEditor({ params }: { params: Promise<{ id: string
                                                         <Button
                                                             variant="default"
                                                             disabled={!nextChapterId}
-                                                            onClick={() => router.push(`/workspace/${id}/chapter/${nextChapterId}`)}
+                                                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${nextChapterId}`)}
                                                             className="bg-primary hover:bg-primary/80"
                                                         >
                                                             Chương sau

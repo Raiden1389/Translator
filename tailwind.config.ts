@@ -59,6 +59,15 @@ const config: Config = {
                 serif: ["var(--font-merriweather)", "Bookerly", "Georgia", "serif"],
                 lora: ["var(--font-lora)", "serif"],
             },
+            keyframes: {
+                shimmer: {
+                    '0%': { transform: 'translateX(-100%)' },
+                    '100%': { transform: 'translateX(100%)' },
+                },
+            },
+            animation: {
+                shimmer: 'shimmer 2s infinite',
+            },
         },
     },
     plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")],

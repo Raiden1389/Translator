@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "tauri": "tauri",
+    "build:static": "next build && next export"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
@@ -17,6 +19,7 @@
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slider": "^1.3.6",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
@@ -25,6 +28,7 @@
     "clsx": "^2.1.1",
     "dexie": "^4.2.1",
     "dexie-react-hooks": "^4.2.0",
+    "edge-tts-client": "^1.0.2",
     "epubjs": "^0.3.93",
     "jszip": "^3.10.1",
     "lucide-react": "^0.562.0",
@@ -36,8 +40,9 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@tauri-apps/api": "^2.9.1",
-    "@tauri-apps/cli": "^2.9.6",
+    "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/cli": "^2.2.7",
+    "@tauri-apps/plugin-fs": "2.2.0",
     "@types/node": "^20",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19",

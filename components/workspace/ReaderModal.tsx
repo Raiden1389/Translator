@@ -143,6 +143,18 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         };
     }, [chapter]);
 
+    // ESC key to close modal
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [onClose]);
+
     const handleTextSelection = () => {
         const selection = window.getSelection();
         if (selection && selection.toString().trim().length > 0 && editorRef.current?.contains(selection.anchorNode)) {

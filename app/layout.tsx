@@ -34,6 +34,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from "sonner";
+import { TitleBar } from "@/components/layout/TitleBar";
 
 export default function RootLayout({
   children,
@@ -43,10 +44,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-[#0a0514] text-white overflow-hidden`}
       >
         <script src="https://accounts.google.com/gsi/client" async defer></script>
-        {children}
+        <TitleBar />
+        <main className="flex flex-col h-screen overflow-hidden relative">
+          {children}
+        </main>
         <Toaster position="bottom-right" richColors theme="dark" />
       </body>
     </html>

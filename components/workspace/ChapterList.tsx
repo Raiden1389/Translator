@@ -12,17 +12,22 @@ import { Input } from "@/components/ui/input";
 import {
     Upload, Globe, Trash2, Edit, X, Sparkles,
     Circle, Loader2, Search, Filter, RefreshCw, Type, FileUp,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, Save, AlertTriangle, ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AI_MODELS } from "@/lib/ai-models";
 import ePub from "epubjs";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+    Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
 import { translateChapter } from "@/lib/gemini";
 import { ChapterListHeader } from "./ChapterListHeader";
 import { ChapterTable } from "./ChapterTable";
@@ -197,14 +202,14 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 setImportStatus(`Đang lưu ${newChapters.length} chương vào DB...`);
                 await db.chapters.bulkAdd(newChapters);
                 await db.workspaces.update(workspaceId, { updatedAt: new Date() });
-                alert(`Import thành công ${newChapters.length} chương!`);
+                toast.success(`Import thành công ${newChapters.length} chương!`);
             } else {
-                alert("Không tìm thấy chương nào hợp lệ.");
+                toast.error("Không tìm thấy chương nào hợp lệ.");
             }
 
         } catch (err) {
             console.error(err);
-            alert("Lỗi khi import file.");
+            toast.error("Lỗi khi import file.");
         } finally {
             setImporting(false);
             setProgress(0);
@@ -219,7 +224,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
             : filtered.map(c => c.id!);
 
         if (selectedIds.length === 0) {
-            alert("Không có chương nào để xuất.");
+            toast.error("Không có chương nào để xuất.");
             return;
         }
 
@@ -234,7 +239,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
             URL.revokeObjectURL(url);
         } catch (err) {
             console.error(err);
-            alert("Lỗi khi xuất dữ liệu.");
+            toast.error("Lỗi khi xuất dữ liệu.");
         }
     };
 
@@ -257,13 +262,13 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                     };
                 });
                 await db.chapters.bulkAdd(chaptersWithWorkspace);
-                alert(`Đã nhập thành công ${chaptersWithWorkspace.length} chương!`);
+                toast.success(`Đã nhập thành công ${chaptersWithWorkspace.length} chương!`);
             } else {
-                alert("Định dạng JSON không hợp lệ. Phải là mảng các chương.");
+                toast.error("Định dạng JSON không hợp lệ. Phải là mảng các chương.");
             }
         } catch (err) {
             console.error(err);
-            alert("Lỗi khi nhập file JSON.");
+            toast.error("Lỗi khi nhập file JSON.");
         } finally {
             if (importInputRef.current) importInputRef.current.value = "";
         }
@@ -282,8 +287,29 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
         customPrompt: "",
         summary: false,
         summaryBefore: false,
-        autoExtract: false // New feature
+        autoExtract: false
     });
+
+    // Prompts
+    const savedPrompts = useLiveQuery(() => db.prompts.toArray());
+
+    // Load Last Used Prompt
+    React.useEffect(() => {
+        const loadPrompt = async () => {
+            const last = await db.settings.get("lastCustomPrompt");
+            if (last?.value) {
+                setTranslateConfig(prev => ({ ...prev, customPrompt: last.value }));
+            }
+        };
+        loadPrompt();
+    }, []);
+
+    // Load Settings when dialog opens
+    React.useEffect(() => {
+        if (translateDialogOpen) {
+            loadSettings();
+        }
+    }, [translateDialogOpen]);
     const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentTitle: "" });
 
     // Settings State
@@ -371,10 +397,10 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 processed++;
                 setBatchProgress(prev => ({ ...prev, current: processed }));
             }
-            alert(`Dịch hoàn tất ${processed} chương!`);
+            toast.success(`Dịch hoàn tất ${processed} chương!`);
         } catch (e) {
             console.error(e);
-            alert("Lỗi khi dịch hàng loạt: " + e);
+            toast.error("Lỗi khi dịch hàng loạt: " + e);
         } finally {
             setIsTranslating(false);
             setTranslateDialogOpen(false);
@@ -387,20 +413,61 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 relative pb-10">
-            {/* Translation Progress Overlay */}
+            {/* Translation Progress Overlay - Sleek Material Design */}
             {isTranslating && (
-                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-xl h-[500px] sticky top-20">
-                    <div className="bg-[#2b2b40] p-8 rounded-2xl shadow-2xl border border-white/10 max-w-sm w-full text-center space-y-4">
-                        <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto" />
-                        <div>
-                            <h4 className="text-white font-bold text-lg">Đang dịch {batchProgress.current}/{batchProgress.total}</h4>
-                            <p className="text-white/50 text-sm truncate">{batchProgress.currentTitle}</p>
+                <div className="fixed inset-0 z-50 flex items-center justify-center animate-in fade-in duration-300">
+                    {/* Backdrop with blur */}
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={(e) => e.stopPropagation()} />
+
+                    {/* Progress Card */}
+                    <div className="relative bg-gradient-to-br from-[#2b2b40]/95 to-[#1e1e2e]/95 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/10 max-w-md w-full mx-4 animate-in zoom-in-95 duration-300">
+                        {/* Shimmer Effect */}
+                        <div className="absolute inset-0 rounded-3xl overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"
+                                style={{ animation: 'shimmer 2s infinite' }} />
                         </div>
-                        <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
-                            <div
-                                className="bg-primary h-full transition-all duration-300 ease-out"
-                                style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
-                            />
+
+                        {/* Content */}
+                        <div className="relative space-y-6">
+                            {/* Icon */}
+                            <div className="flex justify-center">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+                                    <Loader2 className="h-16 w-16 text-primary animate-spin relative" />
+                                </div>
+                            </div>
+
+                            {/* Title & Status */}
+                            <div className="text-center space-y-2">
+                                <h4 className="text-white font-bold text-2xl bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                                    Đang dịch {batchProgress.current}/{batchProgress.total}
+                                </h4>
+                                <p className="text-white/60 text-sm font-medium truncate px-4">
+                                    {batchProgress.currentTitle}
+                                </p>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs text-white/40 font-mono">
+                                    <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
+                                    <span>{batchProgress.current} / {batchProgress.total}</span>
+                                </div>
+                                <div className="w-full bg-white/5 rounded-full h-3 overflow-hidden border border-white/10 shadow-inner">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out relative overflow-hidden"
+                                        style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                                    >
+                                        {/* Animated shine effect */}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Hint */}
+                            <p className="text-center text-xs text-white/30 italic">
+                                Đang xử lý... Vui lòng chờ
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -410,9 +477,23 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
             <Dialog open={translateDialogOpen} onOpenChange={setTranslateDialogOpen}>
                 <DialogContent className="sm:max-w-[500px] bg-[#1a0b2e] border-white/10 text-white">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <div className="p-2 rounded bg-primary/20 text-primary"><RefreshCw className="h-4 w-4" /></div>
-                            Cấu Hình Dịch
+                        <DialogTitle className="flex items-center gap-2 justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 rounded bg-primary/20 text-primary"><RefreshCw className="h-4 w-4" /></div>
+                                Cấu Hình Dịch
+                            </div>
+                            <Button size="sm" variant="ghost" className="h-6 px-2 text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20" title="Debug DB" onClick={async () => {
+                                try {
+                                    if (!db.isOpen()) await db.open();
+                                    const count = await db.prompts.count();
+                                    const list = await db.prompts.toArray();
+                                    alert(`Debug Prompts: ${count} items.\nIDs: ${list.map(p => p.id).join(', ')}\nTitles: ${list.map(p => p.title).join(', ')}`);
+                                } catch (e: any) {
+                                    alert("DB Error: " + e.message + "\nStack: " + e.stack);
+                                }
+                            }}>
+                                <AlertTriangle className="h-3 w-3 mr-1" /> Check DB ({savedPrompts?.length || 0})
+                            </Button>
                         </DialogTitle>
                         <DialogDescription className="text-white/50">
                             Thiết lập tùy chọn cho tiến trình dịch {selectedChapters.length} chương đã chọn.
@@ -459,11 +540,12 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                                             onChange={(e) => setCurrentSettings({ ...currentSettings, model: e.target.value })}
                                             className="w-full h-10 px-3 rounded-md bg-[#1a0b2e] border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                         >
-                                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (Newest/Fast)</option>
-                                            <option value="gemini-1.5-pro-002">Gemini 1.5 Pro 002 (Best Quality)</option>
-                                            <option value="gemini-1.5-flash-002">Gemini 1.5 Flash 002 (Balanced)</option>
-                                            <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash 8B (Fastest)</option>
-                                            <option value="gemini-exp-1206">Gemini Exp 1206 (Experimental)</option>
+                                            {!AI_MODELS.some(m => m.value === currentSettings.model) && (
+                                                <option value={currentSettings.model}>{currentSettings.model} (Custom)</option>
+                                            )}
+                                            {AI_MODELS.map(m => (
+                                                <option key={m.value} value={m.value}>{m.label}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <Button className="w-full bg-primary hover:bg-primary/90" onClick={saveSettings}>Lưu Cấu Hình</Button>
@@ -474,25 +556,121 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
 
                         {/* Custom Prompt */}
                         <div className="space-y-2">
-                            <Label className="text-white/70">Prompt Tùy Chỉnh</Label>
+                            <div className="flex items-center justify-between">
+                                <Label className="text-white/70">Prompt Tùy Chỉnh</Label>
+                                <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-7 text-xs bg-white/5 border-white/10 hover:bg-white/10 text-white/70 hover:text-white w-[200px] justify-between"
+                                            onClick={() => {
+                                                const menu = document.getElementById('prompt-menu');
+                                                if (menu) menu.classList.toggle('hidden');
+                                            }}
+                                        >
+                                            <span>Chọn mẫu prompt...</span>
+                                            <ChevronDown className="h-3 w-3 ml-2" />
+                                        </Button>
+
+                                        {/* Custom Dropdown Menu */}
+                                        <div
+                                            id="prompt-menu"
+                                            className="hidden absolute top-full left-0 mt-1 w-[280px] bg-[#2b2b40] border border-white/10 rounded-lg shadow-2xl z-[200] max-h-[300px] overflow-y-auto"
+                                        >
+                                            {savedPrompts && savedPrompts.length > 0 ? (
+                                                <div className="p-1">
+                                                    {savedPrompts.map(p => (
+                                                        <div
+                                                            key={p.id}
+                                                            className="group flex items-center justify-between px-3 py-2 rounded hover:bg-white/10 transition-colors"
+                                                        >
+                                                            <button
+                                                                className="flex-1 text-left text-sm text-white/90 hover:text-white truncate"
+                                                                onClick={() => {
+                                                                    setTranslateConfig({ ...translateConfig, customPrompt: p.content });
+                                                                    toast.success("Đã load: " + p.title);
+                                                                    document.getElementById('prompt-menu')?.classList.add('hidden');
+                                                                }}
+                                                            >
+                                                                {p.title}
+                                                            </button>
+                                                            <button
+                                                                className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-red-500/20 rounded transition-all"
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm(`Xóa prompt "${p.title}"?`)) {
+                                                                        await db.prompts.delete(p.id!);
+                                                                        toast.success("Đã xóa!");
+                                                                    }
+                                                                }}
+                                                                title="Xóa prompt này"
+                                                            >
+                                                                <X className="h-3 w-3 text-red-400" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="p-4 text-center text-xs text-white/30">
+                                                    Chưa có mẫu nào
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-white/50 hover:text-white"
+                                        title="Lưu prompt này làm mẫu"
+                                        onClick={async () => {
+                                            if (!translateConfig.customPrompt.trim()) {
+                                                toast.error("Nội dung prompt đang trống!");
+                                                return;
+                                            }
+                                            const name = prompt("Đặt tên cho Prompt này:", "Prompt " + new Date().toLocaleTimeString());
+                                            if (name) {
+                                                try {
+                                                    await db.prompts.add({
+                                                        title: name,
+                                                        content: translateConfig.customPrompt,
+                                                        createdAt: new Date()
+                                                    });
+                                                    toast.success("Đã lưu prompt mới!");
+                                                } catch (e: any) {
+                                                    console.error("Save Prompt Error:", e);
+                                                    if (e.name === 'NotFoundError' || e.message?.includes("prompts")) {
+                                                        toast.error("Lỗi Database! Hãy F5 (Refresh) lại ứng dụng để cập nhật.");
+                                                    } else {
+                                                        toast.error("Lỗi khi lưu: " + e.message);
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <Save className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
                             <Textarea
                                 className="bg-[#2b2b40] border-white/10 text-white min-h-[100px]"
                                 placeholder="Gợi ý văn phong, cách xưng hô...(VD: Văn phong cổ trang, nam chính xưng tại hạ...)"
                                 value={translateConfig.customPrompt}
-                                onChange={(e) => setTranslateConfig({ ...translateConfig, customPrompt: e.target.value })}
+                                onChange={(e) => {
+                                    setTranslateConfig({ ...translateConfig, customPrompt: e.target.value });
+                                    // Debounce save last used
+                                    const val = e.target.value;
+                                    clearTimeout((window as any)._savePromptTimeout);
+                                    (window as any)._savePromptTimeout = setTimeout(() => {
+                                        db.settings.put({ key: "lastCustomPrompt", value: val });
+                                    }, 1000);
+                                }}
                             />
                         </div>
 
                         {/* Options */}
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="summary" className="text-white/70">Tạo tóm tắt chương</Label>
-                                <Switch id="summary" checked={translateConfig.summary} onCheckedChange={(c: boolean) => setTranslateConfig({ ...translateConfig, summary: c })} />
-                            </div>
-                            <div className="flex items-center justify-between opacity-50 pointer-events-none">
-                                <Label htmlFor="summaryBefore" className="text-white/70">Gửi tóm tắt chương trước (Context)</Label>
-                                <Switch id="summaryBefore" checked={translateConfig.summaryBefore} onCheckedChange={(c: boolean) => setTranslateConfig({ ...translateConfig, summaryBefore: c })} />
-                            </div>
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="autoExtract" className="text-white/70">Tự động trích xuất (Sau khi dịch)</Label>
                                 <Switch id="autoExtract" checked={translateConfig.autoExtract} onCheckedChange={(c: boolean) => setTranslateConfig({ ...translateConfig, autoExtract: c })} />
@@ -554,7 +732,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 onExport={handleExport}
                 onImport={handleImportJSON}
                 onTranslate={() => setTranslateDialogOpen(true)}
-                onInspect={() => alert("Chưa triển khai soi lỗi hàng loạt.")}
+                onInspect={() => toast.info("Tính năng đang phát triển.")}
                 importInputRef={importInputRef}
                 fileInputRef={fileInputRef}
                 onFileUpload={handleFileUpload}
@@ -615,6 +793,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                         onToggleSelect={toggleSelect}
                         onToggleSelectAll={toggleSelectAll}
                         onDelete={deleteChapter}
+                        onRead={(id) => setReadingChapterId(id)}
                         workspaceId={workspaceId}
                         currentPage={currentPage}
                         totalPages={totalPages}

@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { storage } from './storageBridge';
 
 export interface Workspace {
     id: string; // UUID
@@ -51,6 +52,7 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     settings: EntityTable<Setting, 'key'>;
     blacklist: EntityTable<BlacklistEntry, 'id'>;
     corrections: EntityTable<CorrectionEntry, 'id'>;
+    prompts: EntityTable<PromptEntry, 'id'>;
 };
 
 // Define Schema
@@ -89,6 +91,46 @@ db.version(6).stores({
     corrections: '++id, original'
 });
 
+// V7: Add Prompts
+db.version(7).stores({
+    prompts: '++id, title'
+});
+
+// Tauri Hook: Sync to local files on change
+if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    const syncWorkspace = async (workspaceId: string) => {
+        const workspace = await db.workspaces.get(workspaceId);
+        if (!workspace) return;
+
+        const chapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
+        const dictionary = await db.dictionary.toArray(); // Global for now
+
+        // Note: Prompts are global, not synced per workspace yet, but could be added if needed.
+
+        await storage.saveWorkspace(workspaceId, {
+            workspace,
+            chapters,
+            dictionary
+        });
+    };
+
+    db.workspaces.hook('updating', (mods, prim, obj) => {
+        setTimeout(() => syncWorkspace(obj.id), 100);
+    });
+
+    db.chapters.hook('creating', (prim, obj) => {
+        setTimeout(() => syncWorkspace(obj.workspaceId), 100);
+    });
+
+    db.chapters.hook('updating', (mods, prim, obj) => {
+        setTimeout(() => syncWorkspace(obj.workspaceId), 100);
+    });
+
+    db.chapters.hook('deleting', (prim, obj) => {
+        setTimeout(() => syncWorkspace(obj.workspaceId), 100);
+    });
+}
+
 export interface BlacklistEntry {
     id?: number;
     word: string;
@@ -101,6 +143,13 @@ export interface CorrectionEntry {
     id?: number;
     original: string; // The wrong phrase (e.g., "Thiên Linh Kiếm")
     replacement: string; // The correct phrase (e.g., "Thiên Minh Kiếm")
+    createdAt: Date;
+}
+
+export interface PromptEntry {
+    id?: number;
+    title: string;
+    content: string;
     createdAt: Date;
 }
 

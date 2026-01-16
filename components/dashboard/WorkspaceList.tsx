@@ -47,9 +47,9 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
     const progress = stats ? (stats.total > 0 ? (stats.translated / stats.total) * 100 : 0) : 0;
 
     return (
-        <Link href={`/workspace/${ws.id}`}>
-            <div className="group relative h-full transition-transform hover:-translate-y-1 duration-300">
-                <Card className="h-full border-0 bg-[#2d1b4e] overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10 hover:ring-primary/50">
+        <Link href={`/workspace?id=${ws.id}`}>
+            <div className="group relative h-full transition-all hover:-translate-y-2 duration-500 active:scale-[0.98]">
+                <Card className="h-full border-white/5 bg-[#1a0f2e]/80 backdrop-blur-md overflow-hidden rounded-3xl shadow-2xl transition-all group-hover:border-[#6c5ce7]/30 group-hover:shadow-[#6c5ce7]/10">
                     <div className={`h-32 p-6 relative flex flex-col justify-between transition-all duration-500 ${!ws.cover && (index % 2 === 0 ? 'bg-gradient-to-r from-orange-500 to-amber-600' : 'bg-gradient-to-r from-purple-600 to-indigo-600')}`}>
                         {ws.cover && (
                             <>
