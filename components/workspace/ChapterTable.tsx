@@ -164,7 +164,12 @@ export function ChapterTable({
                                     </button>
                                 </TableCell>
                                 <TableCell className="text-white/70">
-                                    <div className="line-clamp-1 text-sm italic">{chapter.title_translated || "—"}</div>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onRead(chapter.id!); }}
+                                        className="hover:text-primary transition-colors block w-full h-full text-left"
+                                    >
+                                        <div className="line-clamp-1 text-sm italic">{chapter.title_translated || "—"}</div>
+                                    </button>
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <span

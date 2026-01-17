@@ -18,7 +18,7 @@ export interface ReaderConfig {
 interface ReaderHeaderProps {
     activeTab: "translated" | "original";
     setActiveTab: (tab: "translated" | "original") => void;
-    chapter: any; // Using any for simplicity as referencing Dexie types might be complex here, referring to chapter object from db
+    chapter: any;
     isParallel: boolean;
     setIsParallel: (v: boolean) => void;
     isInspecting: boolean;
@@ -33,6 +33,13 @@ interface ReaderHeaderProps {
     hasPrev?: boolean;
     hasNext?: boolean;
     onClose: () => void;
+    // TTS Props
+    isTTSPlaying: boolean;
+    isTTSLoading: boolean;
+    handleTTSPlay: () => void;
+    handleTTSStop: () => void;
+    selectedVoice: string;
+    setSelectedVoice: (v: string) => void;
 }
 
 export function ReaderHeader({
@@ -52,79 +59,18 @@ export function ReaderHeader({
     onNext,
     hasPrev,
     hasNext,
-    onClose
+    onClose,
+    isTTSPlaying,
+    isTTSLoading,
+    handleTTSPlay,
+    handleTTSStop,
+    selectedVoice,
+    setSelectedVoice
 }: ReaderHeaderProps) {
     if (!chapter) return null;
 
-    // TTS State
-    const [isTTSPlaying, setIsTTSPlaying] = useState(false);
-    const [isTTSLoading, setIsTTSLoading] = useState(false);
+    // TTS Local UI State
     const [showTTSSettings, setShowTTSSettings] = useState(false);
-    const [selectedVoice, setSelectedVoice] = useState(VIETNAMESE_VOICES[0].value);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-
-    const handleTTSPlay = async () => {
-        if (isTTSPlaying && audioRef.current) {
-            audioRef.current.pause();
-            setIsTTSPlaying(false);
-            return;
-        }
-
-        try {
-            const text = chapter.content_translated || "";
-            if (!text.trim()) {
-                toast.error("Không có nội dung để đọc!");
-                return;
-            }
-
-            setIsTTSLoading(true);
-            const audioUrl = await speak(chapter.id, text, selectedVoice);
-
-            const audio = new Audio(audioUrl);
-            audioRef.current = audio;
-
-            audio.onended = () => setIsTTSPlaying(false);
-            audio.onerror = (e) => {
-                console.error("Audio Error:", e);
-                setIsTTSPlaying(false);
-                toast.error("Lỗi khi phát âm thanh!");
-            };
-
-            await audio.play();
-            setIsTTSPlaying(true);
-
-            // Prefetch next chapter audio
-            if (hasNext) {
-                // Find next chapter logic - simplified assumption: next ID or order
-                // Better: query DB for next chapter in sequence
-                const nextChapter = await db.chapters
-                    .where('workspaceId').equals(chapter.workspaceId)
-                    .and(c => c.order > chapter.order)
-                    .sortBy('order')
-                    .then(list => list[0]);
-
-                if (nextChapter && nextChapter.content_translated) {
-                    console.log("Prefetching next chapter TTS...", nextChapter.id);
-                    prefetchTTS(nextChapter.id, nextChapter.content_translated, selectedVoice);
-                }
-            }
-        } catch (error) {
-            console.error("TTS Error:", error);
-            toast.error("Lỗi tạo giọng đọc: " + (error as any).message);
-            setIsTTSPlaying(false);
-        } finally {
-            setIsTTSLoading(false);
-        }
-    };
-
-    const handleTTSStop = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            audioRef.current = null;
-        }
-        setIsTTSPlaying(false);
-    };
 
     return (
         <header className="h-16 border-b border-white/10 bg-gradient-to-b from-[#1e1e2e] to-[#1a1a2e] flex items-center justify-between px-6 shrink-0 select-none">

@@ -144,6 +144,26 @@ export const translateChapter = async (
             const parsed = JSON.parse(jsonText);
             if (!parsed.translatedText) throw new Error("Invalid JSON structure: missing translatedText");
 
+            // 4. Apply Auto-Corrections (Hard overrides)
+            const corrections = await db.corrections.toArray();
+            if (corrections.length > 0) {
+                let finalContent = parsed.translatedText;
+                let finalTitle = parsed.translatedTitle || "";
+
+                // Sort by length descending to avoid partial replacements of longer phrases
+                corrections.sort((a, b) => b.original.length - a.original.length).forEach(c => {
+                    if (finalContent.includes(c.original)) {
+                        finalContent = finalContent.split(c.original).join(c.replacement);
+                    }
+                    if (finalTitle.includes(c.original)) {
+                        finalTitle = finalTitle.split(c.original).join(c.replacement);
+                    }
+                });
+
+                parsed.translatedText = finalContent;
+                if (parsed.translatedTitle) parsed.translatedTitle = finalTitle;
+            }
+
             return parsed as TranslationResult;
         }, (msg) => onLog({ timestamp: new Date(), message: msg, type: 'info' }));
 

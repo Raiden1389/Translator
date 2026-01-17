@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
-import { X, ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, FileText, Settings, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, Search, ShieldCheck, Sparkles, AlertTriangle } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, FileText, Settings, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, ShieldCheck, Sparkles, AlertTriangle } from "lucide-react";
 import { inspectChapter, InspectionIssue } from "@/lib/gemini";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { TextSelectionMenu } from "./TextSelectionMenu";
+import { speak, prefetchTTS, VIETNAMESE_VOICES } from "@/lib/tts";
+
+import { ReaderContextMenu } from "./ReaderContextMenu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,24 +29,24 @@ interface ReaderModalProps {
     workspaceChapters?: any[];
 }
 
-const formatReaderText = (text: string, issues: InspectionIssue[] = []) => {
-    if (!text) return "";
+// Shared logic for both UI rendering and TTS segmenting
+const splitIntoParagraphs = (text: string): string[] => {
+    if (!text) return [];
 
-    let paragraphs = text.split('\n');
+    // 1. Initial split by newlines
+    let paragraphs = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
 
-    // Smart paragraph splitting: If a paragraph is too long (>500 chars) and has no breaks,
-    // split it at sentence boundaries
-    paragraphs = paragraphs.flatMap(para => {
-        if (para.length > 500 && !para.includes('\n')) {
+    // 2. Smart splitting for very long blocks (often happens in AI translations)
+    return paragraphs.flatMap(para => {
+        if (para.length > 600) {
             // Split at sentence endings followed by space
-            const sentences = para.split(/([.!?。！？]\s+)/);
+            const sentences = para.split(/([.!?。！？]\s*)/);
             const smartParas: string[] = [];
             let currentPara = '';
 
             for (let i = 0; i < sentences.length; i++) {
                 currentPara += sentences[i];
-                // If we hit a sentence ending and current para is long enough, break
-                if (sentences[i].match(/[.!?。！？]\s+/) && currentPara.length > 200) {
+                if (sentences[i].match(/[.!?。！？]\s*/) && currentPara.length > 300) {
                     smartParas.push(currentPara.trim());
                     currentPara = '';
                 }
@@ -53,9 +56,14 @@ const formatReaderText = (text: string, issues: InspectionIssue[] = []) => {
         }
         return [para];
     });
+};
 
-    return paragraphs.map((para) => {
-        if (!para.trim()) return "";
+const formatReaderText = (text: string, issues: InspectionIssue[] = [], activeTTSIndex: number | null = null) => {
+    if (!text) return "";
+
+    const paragraphs = splitIntoParagraphs(text);
+
+    return paragraphs.map((para, index) => {
         let formattedPara = para;
 
         // 1. Quotes: "Hello" -> <i>"Hello"</i>
@@ -66,10 +74,9 @@ const formatReaderText = (text: string, issues: InspectionIssue[] = []) => {
             formattedPara = formattedPara.replace(/^([-—])\s*(.*)/, '$1 <i>$2</i>');
         }
 
-        // 3. Apply Issues Highlighting (AFTER other formatting to avoid breaking HTML)
+        // 3. Apply Issues Highlighting
         issues.sort((a, b) => b.original.length - a.original.length).forEach(issue => {
             if (formattedPara.includes(issue.original)) {
-                // We wrap it in a custom span that we can target with clicks
                 formattedPara = formattedPara.split(issue.original).join(
                     `<span class="bg-yellow-500/20 underline decoration-yellow-500 decoration-wavy cursor-pointer hover:bg-yellow-500/30 transition-colors" data-issue-original="${issue.original}">
                         ${issue.original}
@@ -78,7 +85,13 @@ const formatReaderText = (text: string, issues: InspectionIssue[] = []) => {
             }
         });
 
-        return `<p class="mb-6">${formattedPara}</p>`;
+        const isHighlighted = activeTTSIndex === index;
+        const isTTSMode = activeTTSIndex !== null;
+
+        const highlightClass = isHighlighted
+            ? "opacity-100 bg-white/[0.04] px-6 -mx-6 py-4 rounded-xl border-l-2 border-emerald-400 mb-8 transition-all duration-300 ease-out"
+            : `mb-8 transition-all duration-500 ${isTTSMode ? "opacity-50 hover:opacity-100" : "opacity-100"}`;
+        return `<p id="tts-para-${index}" class="${highlightClass}">${formattedPara}</p>`;
     }).join('');
 };
 
@@ -90,13 +103,19 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     // Selection Menu State
     const [menuPosition, setMenuPosition] = useState<{ x: number, y: number } | null>(null);
+    const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
     const [selectedText, setSelectedText] = useState("");
     const editorRef = useRef<HTMLDivElement>(null);
 
-    // Correction Dialog State
     const [correctionOpen, setCorrectionOpen] = useState(false);
     const [correctionOriginal, setCorrectionOriginal] = useState("");
     const [correctionReplacement, setCorrectionReplacement] = useState("");
+
+    // Quick Dictionary Dialog State
+    const [dictDialogOpen, setDictDialogOpen] = useState(false);
+    const [dictOriginal, setDictOriginal] = useState("");
+    const [dictTranslated, setDictTranslated] = useState("");
+
 
     // Reader Settings
     const [showSettings, setShowSettings] = useState(false);
@@ -136,6 +155,22 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         }
     }, [readerConfig, configLoaded]);
 
+    // TTS State
+    const [isTTSPlaying, setIsTTSPlaying] = useState(false);
+    const [isTTSLoading, setIsTTSLoading] = useState(false);
+    const [activeTTSIndex, setActiveTTSIndex] = useState<number | null>(null);
+    const [selectedVoice, setSelectedVoice] = useState(VIETNAMESE_VOICES[0].value);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const ttsSegments = useMemo(() => {
+        const text = (chapter?.content_translated || "").normalize('NFC');
+        return splitIntoParagraphs(text);
+    }, [chapter?.content_translated]);
+
+    const htmlContent = useMemo(() => ({
+        __html: formatReaderText((chapter?.content_translated || "").normalize('NFC'), inspectionIssues, activeTTSIndex)
+    }), [chapter?.content_translated, inspectionIssues, activeTTSIndex]);
+
     // Sync inspection issues from DB on load
     useEffect(() => {
         if (chapter?.inspectionResults) {
@@ -153,7 +188,38 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         if (scrollViewportRef.current) {
             scrollViewportRef.current.scrollTo(0, 0);
         }
+        // Reset TTS on chapter change
+        handleTTSStop();
     }, [chapterId]);
+
+    // Warm up TTS cache for the first 3 segments of this chapter
+    useEffect(() => {
+        if (chapterId && ttsSegments.length > 0) {
+            ttsSegments.slice(0, 3).forEach(seg => {
+                prefetchTTS(chapterId, seg, selectedVoice);
+            });
+        }
+    }, [chapterId, ttsSegments]);
+
+    // Auto-scroll to highlighted TTS paragraph
+    useEffect(() => {
+        if (activeTTSIndex !== null) {
+            const element = document.getElementById(`tts-para-${activeTTSIndex}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [activeTTSIndex]);
+
+    // Cleanup TTS on unmount
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
 
     // Keyboard Navigation
     useEffect(() => {
@@ -192,6 +258,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     useEffect(() => {
         const handleScroll = () => {
             if (menuPosition) setMenuPosition(null);
+            if (contextMenuPosition) setContextMenuPosition(null);
         };
         window.addEventListener("scroll", handleScroll, true);
         window.addEventListener("resize", handleScroll);
@@ -199,26 +266,133 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             window.removeEventListener("scroll", handleScroll, true);
             window.removeEventListener("resize", handleScroll);
         };
-    }, [menuPosition]);
+    }, [menuPosition, contextMenuPosition]);
 
-    const handleMenuAction = async (action: "dictionary" | "blacklist" | "correction") => {
+    const handleContextMenu = (e: React.MouseEvent) => {
+        const selection = window.getSelection();
+        console.log("Context Menu Triggered", selection?.toString());
+        if (selection && selection.toString().trim().length > 0) {
+            e.preventDefault();
+            setSelectedText(selection.toString().trim());
+            setContextMenuPosition({ x: e.clientX, y: e.clientY });
+            setMenuPosition(null); // Hide standard selection menu if showing
+        } else {
+            console.log("No selection found for context menu");
+        }
+    };
+
+    const handleTTSPlay = async () => {
+        if (isTTSPlaying && audioRef.current) {
+            audioRef.current.pause();
+            setIsTTSPlaying(false);
+            return;
+        }
+
+        if (activeTTSIndex === null) {
+            setActiveTTSIndex(0);
+            playSegment(0);
+        } else {
+            if (audioRef.current) {
+                audioRef.current.play();
+                setIsTTSPlaying(true);
+            } else {
+                playSegment(activeTTSIndex);
+            }
+        }
+    };
+
+    const handleTTSStop = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+        setIsTTSPlaying(false);
+        setActiveTTSIndex(null);
+    };
+
+    const playSegment = async (index: number) => {
+        if (index >= ttsSegments.length) {
+            handleTTSStop();
+            return;
+        }
+
+        // Prefetch logic for next chapter when starting current chapter
+        if (index === 0 && hasNext && chapter?.workspaceId && chapter?.order !== undefined) {
+            db.chapters
+                .where('workspaceId').equals(chapter.workspaceId)
+                .and(c => c.order > chapter.order)
+                .sortBy('order')
+                .then(list => {
+                    const next = list[0];
+                    if (next && next.content_translated) {
+                        const segments = splitIntoParagraphs(next.content_translated);
+                        if (segments.length > 0) {
+                            prefetchTTS(next.id, segments[0], selectedVoice);
+                        }
+                    }
+                });
+        }
+
+        try {
+            setIsTTSLoading(true);
+            const text = ttsSegments[index];
+            const audioUrl = await speak(chapterId, text, selectedVoice);
+
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+
+            // Trigger proactive pre-fetching for the next 2 segments
+            [index + 1, index + 2].forEach(nextIdx => {
+                if (nextIdx < ttsSegments.length) {
+                    prefetchTTS(chapterId, ttsSegments[nextIdx], selectedVoice);
+                }
+            });
+
+            audio.onended = () => {
+                const nextIndex = index + 1;
+                setActiveTTSIndex(nextIndex);
+                playSegment(nextIndex);
+            };
+
+            audio.onerror = (e) => {
+                console.error("Audio Error:", e);
+                setIsTTSPlaying(false);
+                toast.error("Lỗi khi phát âm thanh!");
+            };
+
+            await audio.play();
+            setIsTTSPlaying(true);
+            setIsTTSLoading(false);
+
+        } catch (error) {
+            console.error("TTS Error:", error);
+            toast.error("Lỗi tạo giọng đọc");
+            setIsTTSLoading(false);
+            setIsTTSPlaying(false);
+        }
+    };
+
+    const handleMenuAction = async (action: "dictionary" | "blacklist" | "correction" | "copy") => {
         if (!selectedText) return;
 
-        if (action === "dictionary") {
-            // Quick add to dictionary (defaults)
-            const existing = await db.dictionary.where("original").equals(selectedText).first();
-            if (!existing) {
-                await db.dictionary.add({
-                    original: selectedText,
-                    translated: selectedText, // Default to same, user can edit later
-                    type: 'general',
-                    createdAt: new Date()
-                });
-                toast.success(`Đã thêm "${selectedText}" vào từ điển`);
-            } else {
-                toast.info(`"${selectedText}" đã có trong từ điển`);
-            }
+        if (action === "copy") {
+            navigator.clipboard.writeText(selectedText);
+            toast.success("Đã sao chép!");
+            setContextMenuPosition(null);
             setMenuPosition(null);
+            return;
+        }
+
+
+
+        if (action === "dictionary") {
+            // Quick add to dictionary - Open Dialog instead of instant save
+            setDictOriginal(selectedText);
+            setDictTranslated(selectedText); // Default to selected text
+            setDictDialogOpen(true);
+            setMenuPosition(null);
+            setContextMenuPosition(null);
+
         } else if (action === "blacklist") {
             const existing = await db.blacklist.where("word").equals(selectedText).first();
             if (!existing) {
@@ -231,11 +405,13 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                 toast.success(`Đã thêm "${selectedText}" vào Blacklist`);
             }
             setMenuPosition(null);
+            setContextMenuPosition(null);
         } else if (action === "correction") {
             setCorrectionOriginal(selectedText);
             setCorrectionReplacement(selectedText); // Pre-fill with original
             setCorrectionOpen(true);
-            setMenuPosition(null); // Hide menu but keep selection if possible (or just logic state)
+            setMenuPosition(null);
+            setContextMenuPosition(null);
         }
     };
 
@@ -403,6 +579,12 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     hasPrev={hasPrev}
                     hasNext={hasNext}
                     onClose={onClose}
+                    isTTSPlaying={isTTSPlaying}
+                    isTTSLoading={isTTSLoading}
+                    handleTTSPlay={handleTTSPlay}
+                    handleTTSStop={handleTTSStop}
+                    selectedVoice={selectedVoice}
+                    setSelectedVoice={setSelectedVoice}
                 />
 
                 {/* Body Content */}
@@ -443,8 +625,8 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                     contentEditable
                                     suppressContentEditableWarning
                                     onInput={(e) => setEditContent(e.currentTarget.innerText)}
-                                    onMouseUp={handleTextSelection}
-                                    onKeyUp={handleTextSelection}
+                                    onSelect={handleTextSelection}
+                                    onContextMenu={handleContextMenu}
                                     className={cn(
                                         "w-full h-full flex-1 bg-transparent focus:outline-none outline-none font-serif",
                                         "max-w-[850px] mx-auto px-6 pb-24"
@@ -467,9 +649,8 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                             if (issue) setActiveIssue(issue);
                                         }
                                     }}
-                                    dangerouslySetInnerHTML={{
-                                        __html: formatReaderText((chapter.content_translated || "").normalize('NFC'), inspectionIssues)
-                                    }}
+                                    dangerouslySetInnerHTML={htmlContent}
+
                                 />
                             </div>
                         )}
@@ -486,12 +667,19 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                 onClose={() => setMenuPosition(null)}
             />
 
+            <ReaderContextMenu
+                position={contextMenuPosition}
+                selectedText={selectedText}
+                onAction={handleMenuAction}
+                onClose={() => setContextMenuPosition(null)}
+            />
+
             <Dialog open={correctionOpen} onOpenChange={setCorrectionOpen}>
                 <DialogContent className="bg-[#1e1e2e] border-white/10 text-white sm:max-w-[400px]">
                     <DialogHeader>
                         <DialogTitle>Sửa lỗi & Tự động thay thế</DialogTitle>
                         <DialogDescription className="text-white/50">
-                            Quy tắc này sẽ được lưu lại và tự động áp dụng cho các chương sau.
+                            Quy tắc này sẽ được lưu lại để dùng cho tính năng sửa lỗi tự động sau này.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -516,6 +704,68 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Quick Dictionary Dialog */}
+            <Dialog open={dictDialogOpen} onOpenChange={setDictDialogOpen}>
+                <DialogContent className="bg-[#1e1e2e] border-white/10 text-white sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <BookOpen className="w-5 h-5 text-blue-400" />
+                            Thêm vào Từ điển
+                        </DialogTitle>
+                        <DialogDescription className="text-white/50">
+                            Thêm từ mới để AI dịch chuẩn hơn trong tương lai.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Từ gốc (Trung/Việt)</Label>
+                            <Input
+                                value={dictOriginal}
+                                onChange={(e) => setDictOriginal(e.target.value)}
+                                className="bg-[#2b2b40] border-white/10"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Nghĩa (Dịch)</Label>
+                            <Input
+                                value={dictTranslated}
+                                onChange={(e) => setDictTranslated(e.target.value)}
+                                className="bg-[#2b2b40] border-white/10"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setDictDialogOpen(false)}>Hủy</Button>
+                        <Button
+                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={async () => {
+                                if (!dictOriginal || !dictTranslated) return;
+                                const existing = await db.dictionary.where("original").equals(dictOriginal).first();
+                                if (!existing) {
+                                    await db.dictionary.add({
+                                        original: dictOriginal,
+                                        translated: dictTranslated,
+                                        type: 'general',
+                                        createdAt: new Date()
+                                    });
+                                    toast.success(`Đã thêm "${dictOriginal}" = "${dictTranslated}"`);
+                                } else {
+                                    // Update existing?
+                                    if (confirm(`"${dictOriginal}" đã có nghĩa là "${existing.translated}". Bạn có muốn cập nhật thành "${dictTranslated}" không?`)) {
+                                        await db.dictionary.update(existing.id!, { translated: dictTranslated });
+                                        toast.success("Đã cập nhật từ điển!");
+                                    }
+                                }
+                                setDictDialogOpen(false);
+                            }}
+                        >
+                            Lưu từ
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
 
             <Dialog open={!!activeIssue} onOpenChange={(v) => !v && setActiveIssue(null)}>
                 <DialogContent className="bg-[#1e1e2e] border-white/10 text-white sm:max-w-[400px]">

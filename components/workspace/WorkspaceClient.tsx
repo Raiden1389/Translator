@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     ArrowLeft, Save, Upload, BookOpen,
     Zap, Settings, Users, FileText,
-    Share2, Database, LayoutDashboard
+    Database, LayoutDashboard
 } from "lucide-react";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
@@ -378,7 +378,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
         { id: "chapters", label: "Chương", icon: FileText },
         { id: "dictionary", label: "Từ Điển", icon: BookOpen },
         { id: "characters", label: "Nhân Vật", icon: Users },
-        { id: "relations", label: "Quan Hệ", icon: Share2 },
+
         { id: "settings", label: "Cài Đặt", icon: Settings },
         { id: "export", label: "Xuất File", icon: Database },
     ];
@@ -482,7 +482,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         {activeTab === "chapters" && <ChapterList workspaceId={id} />}
                         {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
                         {activeTab === "characters" && <CharacterTab workspaceId={id} />}
-                        {activeTab === "relations" && <div className="text-center text-white/30 pt-10">Tính năng Quan hệ đang phát triển...</div>}
+
                         {activeTab === "settings" && (
                             <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-2">
                                 <AISettingsTab />
