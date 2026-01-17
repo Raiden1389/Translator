@@ -136,10 +136,10 @@ export function WorkspaceList() {
 
                 <div className="flex items-center gap-2 bg-[#1a0f2e] p-1.5 pl-4 rounded-full border border-white/10 shadow-lg shadow-black/20 hover:border-white/20 transition-all">
                     <div className="relative group w-64">
-                        <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 group-focus-within:text-white/70 transition-colors" />
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 group-focus-within:text-white/70 transition-colors" />
                         <Input
                             placeholder="Tìm kiếm workspace..."
-                            className="pl-10 bg-transparent border-none text-white placeholder:text-white/30 focus-visible:ring-0 px-0 h-9"
+                            className="pl-8 bg-transparent border-none text-white placeholder:text-white/30 focus-visible:ring-0 pr-0 h-9"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
