@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { RefreshCw, AlertTriangle, Edit, X, Save, ChevronDown } from "lucide-react";
+import { RefreshCw, AlertTriangle, Edit, X, Save, ChevronDown, Trash2 } from "lucide-react";
 import { db } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
 import { toast } from "sonner";
@@ -64,6 +64,25 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
             await db.prompts.add({ title, content: translateConfig.customPrompt, createdAt: new Date() });
             setSavedPrompts(await db.prompts.toArray());
             toast.success("Đã lưu prompt thành công!");
+        }
+    };
+
+    const handleDeletePrompt = async (id: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (confirm("Bạn có chắc muốn xóa prompt này?")) {
+            await db.prompts.delete(id);
+            setSavedPrompts(await db.prompts.toArray());
+            toast.success("Đã xóa prompt!");
+        }
+    };
+
+    const handleRenamePrompt = async (id: number, currentTitle: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newTitle = prompt("Nhập tên mới:", currentTitle);
+        if (newTitle && newTitle.trim() !== currentTitle) {
+            await db.prompts.update(id, { title: newTitle.trim() });
+            setSavedPrompts(await db.prompts.toArray());
+            toast.success("Đã đổi tên prompt!");
         }
     };
 
@@ -140,12 +159,32 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                     {dropdownOpen && (
                                         <div className="absolute top-8 right-0 w-full z-10 bg-[#2b2b40] border border-white/10 rounded-md shadow-lg py-1">
                                             {savedPrompts.map(p => (
-                                                <button key={p.id} className="w-full text-left px-3 py-2 text-xs hover:bg-primary/20" onClick={() => {
-                                                    setTranslateConfig({ ...translateConfig, customPrompt: p.content });
-                                                    setDropdownOpen(false);
-                                                }}>
-                                                    {p.title}
-                                                </button>
+                                                <div key={p.id} className="w-full flex items-center justify-between hover:bg-primary/20 group px-1">
+                                                    <button className="flex-1 text-left px-2 py-2 text-xs truncate" onClick={() => {
+                                                        setTranslateConfig({ ...translateConfig, customPrompt: p.content });
+                                                        setDropdownOpen(false);
+                                                    }}>
+                                                        {p.title}
+                                                    </button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-white/30 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={(e) => handleRenamePrompt(p.id, p.title, e)}
+                                                        title="Đổi tên"
+                                                    >
+                                                        <Edit className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={(e) => handleDeletePrompt(p.id, e)}
+                                                        title="Xóa prompt này"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                             ))}
                                             {savedPrompts.length === 0 && <div className="px-3 py-2 text-[10px] text-white/30 text-center">Chưa có mẫu nào</div>}
                                         </div>

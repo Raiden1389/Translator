@@ -23,6 +23,10 @@ export async function speak(
     pitch: string = "+0Hz",
     rate: string = "+0%"
 ): Promise<string> {
+    // Validation / Fallback
+    if (!pitch || pitch === 'undefined' || pitch === 'undefinedHz') pitch = "+0Hz";
+    if (!rate || rate === 'undefined' || rate === 'undefined%') rate = "+0%";
+
     const textHash = getTextHash(text);
 
     // 1. Check Cache

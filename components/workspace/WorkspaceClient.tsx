@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     ArrowLeft, Save, Upload, BookOpen,
     Zap, Settings, Users, FileText,
-    Database, LayoutDashboard
+    Database, LayoutDashboard, Swords
 } from "lucide-react";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
@@ -17,6 +17,7 @@ import { DictionaryTab } from "@/components/workspace/DictionaryTab";
 import { CharacterTab } from "@/components/workspace/CharacterTab";
 import { AISettingsTab } from "@/components/workspace/AISettingsTab";
 import { ExportTab } from "@/components/workspace/ExportTab";
+import { PromptLab } from "@/components/workspace/PromptLab";
 import { cn } from "@/lib/utils";
 
 const AutoResizeTextarea = ({ defaultValue, placeholder, onSave }: { defaultValue: string, placeholder: string, onSave: (value: string) => void }) => {
@@ -161,11 +162,13 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
     ) || 0;
 
     const termCount = useLiveQuery(
-        () => db.dictionary.filter(d => d.type !== 'name').count()
+        () => db.dictionary.where("workspaceId").equals(workspace.id).filter(d => d.type !== 'name').count(),
+        [workspace.id]
     ) || 0;
 
     const charCount = useLiveQuery(
-        () => db.dictionary.where("type").equals("name").count()
+        () => db.dictionary.where("workspaceId").equals(workspace.id).filter(d => d.type === 'name').count(),
+        [workspace.id]
     ) || 0;
 
     return (
@@ -380,15 +383,16 @@ export default function WorkspaceClient({ id }: { id: string }) {
         { id: "chapters", label: "Chương", icon: FileText },
         { id: "dictionary", label: "Từ Điển", icon: BookOpen },
         { id: "characters", label: "Nhân Vật", icon: Users },
+        { id: "promptLab", label: "Prompt Lab", icon: Swords },
 
         { id: "settings", label: "Cài Đặt", icon: Settings },
         { id: "export", label: "Xuất File", icon: Database },
     ];
 
     return (
-        <div className="flex h-screen bg-[#0a0514] text-white">
+        <div className="flex h-full w-full bg-[#0a0514] text-white overflow-hidden">
             {/* Desktop Sidebar */}
-            <aside className="w-64 border-r border-white/5 bg-[#0d0617]/50 backdrop-blur-xl flex flex-col pt-10 shrink-0 transition-all duration-300">
+            <aside className="w-64 border-r border-white/5 bg-[#0d0617]/50 backdrop-blur-xl flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300">
                 <div className="px-6 mb-6">
                     <Link href="/">
                         <Button variant="ghost" size="sm" className="w-full justify-start text-white/40 hover:text-white hover:bg-white/5 -ml-2 gap-2 text-[10px] uppercase font-bold tracking-widest transition-colors group">
@@ -461,7 +465,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
             </aside>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-hidden flex flex-col relative">
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative h-full">
                 {/* Internal Header for Content - useful for context */}
                 <header className="h-20 flex items-center justify-between px-8 pt-4 border-b border-white/5 bg-[#0a0514]/30 backdrop-blur-sm shrink-0">
                     <h2 className="text-sm font-bold text-white/80 capitalize flex items-center gap-2">
@@ -470,10 +474,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                     </h2>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="h-8 text-[10px] hover:bg-white/5 text-white/40">Docs</Button>
-                        <Button variant="ghost" size="sm" className="h-8 text-[10px] hover:bg-white/5 text-white/40">Support</Button>
-                        <div className="h-4 w-px bg-white/5 mx-2" />
-                        <Button size="sm" className="h-8 text-[10px] bg-white/5 hover:bg-white/10 text-white border border-white/10">Quick Sync</Button>
+                        {/* Placeholder buttons removed based on user feedback */}
                     </div>
                 </header>
 
@@ -483,6 +484,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         {activeTab === "chapters" && <ChapterList workspaceId={id} />}
                         {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
                         {activeTab === "characters" && <CharacterTab workspaceId={id} />}
+                        {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
 
                         {activeTab === "settings" && (
                             <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-2">

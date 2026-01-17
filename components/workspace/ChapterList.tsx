@@ -162,7 +162,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 const uniqueTerms = Array.from(new Map(allTerms.map(item => [item.original, item])).values());
 
                 // Get existing dictionary to exclude existing items
-                const dictionary = await db.dictionary.toArray();
+                const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
                 const existingOriginals = new Set(dictionary.map(d => d.original.toLowerCase().trim()));
 
                 const finalChars = uniqueChars.filter((c: any) => !existingOriginals.has(c.original.toLowerCase().trim()));
@@ -200,6 +200,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 onStart={(config, settings) => {
                     setTranslateDialogOpen(false);
                     handleBatchTranslate({
+                        workspaceId,
                         chapters: filtered,
                         selectedChapters,
                         currentSettings: settings,
@@ -242,6 +243,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                     selectedChapters={selectedChapters}
                     toggleSelect={toggleSingleSelection}
                     onRead={setReadingChapterId}
+                    onImport={() => fileInputRef.current?.click()}
                 />
             ) : (
                 <ChapterTable
@@ -281,7 +283,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 terms={reviewData?.terms || []}
                 onSave={async (saveChars, saveTerms, blacklistChars, blacklistTerms) => {
                     // Save to Dictionary
-                    const allSave = [...saveChars, ...saveTerms];
+                    const allSave = [...saveChars, ...saveTerms].map(item => ({ ...item, workspaceId }));
                     if (allSave.length > 0) {
                         await db.dictionary.bulkAdd(allSave);
                     }
@@ -290,12 +292,13 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                     const allBlacklist = [...blacklistChars, ...blacklistTerms];
                     for (const item of allBlacklist) {
                         // Check existing before adding to avoid key constraint errors
-                        const existing = await db.blacklist.where("word").equals(item.original).first();
+                        const existing = await db.blacklist.where({ word: item.original, workspaceId }).first();
                         if (!existing) {
                             await db.blacklist.add({
+                                workspaceId,
                                 word: item.original,
                                 translated: item.translated,
-                                source: 'manual-scan',
+                                source: 'manual',
                                 createdAt: new Date()
                             });
                         }

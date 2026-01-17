@@ -46,7 +46,7 @@ const GENDERS = [
 
 export function CharacterTab({ workspaceId }: { workspaceId: string }) {
     const dictionary = useLiveQuery(() =>
-        db.dictionary.where("type").equals("name").toArray()
+        db.dictionary.where({ type: "name", workspaceId }).toArray(), [workspaceId]
     ) || [];
 
     const [search, setSearch] = useState("");
@@ -185,7 +185,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
             let updatedCount = 0;
 
             for (const char of selectedChars) {
-                const existing = await db.dictionary.where("original").equals(char.original).first();
+                const existing = await db.dictionary.where({ original: char.original, workspaceId }).first();
                 if (existing) {
                     await db.dictionary.update(existing.id!, {
                         translated: char.translated,
@@ -197,6 +197,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                     updatedCount++;
                 } else {
                     await db.dictionary.add({
+                        workspaceId,
                         original: char.original,
                         translated: char.translated,
                         type: 'name',
@@ -210,12 +211,12 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
             }
 
             for (const term of selectedTerms) {
-                const existing = await db.dictionary.where("original").equals(term.original).first();
+                const existing = await db.dictionary.where({ original: term.original, workspaceId }).first();
                 if (existing) {
                     await db.dictionary.update(existing.id!, { translated: term.translated, type: term.type as any });
                     updatedCount++;
                 } else {
-                    await db.dictionary.add({ original: term.original, translated: term.translated, type: term.type as any, createdAt: new Date() });
+                    await db.dictionary.add({ workspaceId, original: term.original, translated: term.translated, type: term.type as any, createdAt: new Date() });
                     addedCount++;
                 }
             }
@@ -231,6 +232,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         if (!newChar.original || !newChar.translated) return;
         try {
             await db.dictionary.add({
+                workspaceId,
                 original: newChar.original,
                 translated: newChar.translated,
                 type: 'name',

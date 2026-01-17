@@ -38,8 +38,8 @@
 
 /* --- STYLED SCROLLBARS (GLOBAL) --- */
 *::-webkit-scrollbar {
-  width: 6px !important;
-  height: 6px !important;
+  width: 4px !important;
+  height: 4px !important;
 }
 
 *::-webkit-scrollbar-track {
@@ -47,19 +47,23 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-radius: 10px !important;
-  transition: background 0.2s ease;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-radius: 20px !important;
+  transition: all 0.3s ease;
+}
+
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.2) !important;
 }
 
 /* Firefox */
 * {
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent !important;
+  scrollbar-color: rgba(255, 255, 255, 0.05) transparent !important;
 }
 
 @font-face {
@@ -148,7 +152,7 @@ textarea {
 }
 
 .custom-scrollbar {
-  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 html {

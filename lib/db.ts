@@ -27,12 +27,14 @@ export interface Chapter {
     status: 'draft' | 'translated' | 'reviewing'; // Expanded status
     inspectionResults?: any; // JSON array of issues
     lastTranslatedAt?: Date;
+    glossaryExtractedAt?: Date; // Added: Track when glossary was extracted
     translationModel?: string; // e.g. "gemini-1.5-pro"
     translationDurationMs?: number; // e.g. 5000
 }
 
 export interface DictionaryEntry {
     id?: number;
+    workspaceId: string; // Added for isolation
     original: string;
     translated: string;
     type: 'name' | 'term' | 'phrase' | 'correction' | string; // Expanded to support AI categories
@@ -126,6 +128,30 @@ db.version(10).stores({
     ttsCache: '++id, chapterId, voice, textHash, pitch, rate'
 });
 
+// V11: Workspace Isolation for Dictionary, Blacklist and Corrections
+db.version(11).stores({
+    dictionary: '++id, workspaceId, original, translated, type, gender, role',
+    blacklist: '++id, workspaceId, word, translated',
+    corrections: '++id, workspaceId, original'
+}).upgrade(async (trans) => {
+    // Migration: Assign existing global data to the first workspace (usually "Dạ Vô Cương")
+    const workspaces = await trans.table('workspaces').toArray();
+    if (workspaces.length > 0) {
+        // Heuristic: Try to find "Dạ Vô Cương" or just take the most recent one
+        const targetWs = workspaces.find(w => w.title.includes("Dạ Vô Cương")) || workspaces[0];
+        const wsId = targetWs.id;
+
+        await trans.table('dictionary').toCollection().modify({ workspaceId: wsId });
+        await trans.table('blacklist').toCollection().modify({ workspaceId: wsId });
+        await trans.table('corrections').toCollection().modify({ workspaceId: wsId });
+    }
+});
+
+// V12: Add glossaryExtractedAt for tracking extraction status
+db.version(12).stores({
+    chapters: '++id, workspaceId, order' // update schema if necessary, though no index change needed for this field
+});
+
 // Tauri Hook: Sync to local files on change
 if (typeof window !== 'undefined' && (window as any).__TAURI__) {
     const syncWorkspace = async (workspaceId: string) => {
@@ -133,7 +159,7 @@ if (typeof window !== 'undefined' && (window as any).__TAURI__) {
         if (!workspace) return;
 
         const chapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
-        const dictionary = await db.dictionary.toArray(); // Global for now
+        const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray(); // Filtered by workspaceId
 
         // Note: Prompts are global, not synced per workspace yet, but could be added if needed.
 
@@ -163,6 +189,7 @@ if (typeof window !== 'undefined' && (window as any).__TAURI__) {
 
 export interface BlacklistEntry {
     id?: number;
+    workspaceId: string; // Added for isolation
     word: string;
     translated?: string;
     source?: 'manual' | 'ai';
@@ -171,6 +198,7 @@ export interface BlacklistEntry {
 
 export interface CorrectionEntry {
     id?: number;
+    workspaceId: string; // Added for isolation
     original: string; // The wrong phrase (e.g., "Thiên Linh Kiếm")
     replacement: string; // The correct phrase (e.g., "Thiên Minh Kiếm")
     createdAt: Date;

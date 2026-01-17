@@ -89,8 +89,8 @@ const formatReaderText = (text: string, issues: InspectionIssue[] = [], activeTT
         const isTTSMode = activeTTSIndex !== null;
 
         const highlightClass = isHighlighted
-            ? "opacity-100 bg-white/[0.04] px-6 -mx-6 py-4 rounded-xl border-l-2 border-emerald-400 mb-8 transition-all duration-300 ease-out"
-            : `mb-8 transition-all duration-500 ${isTTSMode ? "opacity-50 hover:opacity-100" : "opacity-100"}`;
+            ? "opacity-100 bg-white/[0.04] px-6 -mx-6 py-4 rounded-xl border-l-2 border-emerald-400 mb-6 transition-all duration-300 ease-out"
+            : `mb-5 leading-loose text-justify transition-all duration-500 ${isTTSMode ? "opacity-50 hover:opacity-100" : "opacity-100"}`;
         return `<p id="tts-para-${index}" class="${highlightClass}">${formattedPara}</p>`;
     }).join('');
 };
@@ -384,7 +384,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     };
 
     const handleMenuAction = async (action: "dictionary" | "blacklist" | "correction" | "copy") => {
-        if (!selectedText) return;
+        if (!selectedText || !chapter) return;
 
         if (action === "copy") {
             navigator.clipboard.writeText(selectedText);
@@ -405,9 +405,11 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             setContextMenuPosition(null);
 
         } else if (action === "blacklist") {
-            const existing = await db.blacklist.where("word").equals(selectedText).first();
+            if (!chapter.workspaceId) return;
+            const existing = await db.blacklist.where({ word: selectedText, workspaceId: chapter.workspaceId }).first();
             if (!existing) {
                 await db.blacklist.add({
+                    workspaceId: chapter.workspaceId,
                     word: selectedText,
                     translated: selectedText,
                     source: 'manual',
@@ -427,10 +429,11 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     };
 
     const handleSaveCorrection = async () => {
-        if (!correctionOriginal || !correctionReplacement) return;
+        if (!correctionOriginal || !correctionReplacement || !chapter) return;
 
         // 1. Save to DB
         await db.corrections.add({
+            workspaceId: chapter.workspaceId,
             original: correctionOriginal,
             replacement: correctionReplacement,
             createdAt: new Date()
@@ -493,10 +496,10 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     // Inspector Logic
     const handleInspect = async () => {
-        if (!editContent || isInspecting) return;
+        if (!editContent || isInspecting || !chapter) return;
         setIsInspecting(true);
         try {
-            const issues = await inspectChapter(editContent);
+            const issues = await inspectChapter(chapter.workspaceId, editContent);
             setInspectionIssues(issues);
             await db.chapters.update(chapterId, { inspectionResults: issues });
             if (issues.length === 0) toast.success("Không tìm thấy lỗi nào!");
@@ -509,11 +512,12 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     };
 
     const handleApplyFix = async (issue: InspectionIssue, saveToCorrections: boolean) => {
-        if (!editContent) return;
+        if (!editContent || !chapter) return;
 
         // 1. Save to Corrections if requested
         if (saveToCorrections) {
             await db.corrections.add({
+                workspaceId: chapter.workspaceId,
                 original: issue.original,
                 replacement: issue.suggestion,
                 createdAt: new Date()
@@ -755,10 +759,11 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                         <Button
                             className="bg-blue-600 hover:bg-blue-700"
                             onClick={async () => {
-                                if (!dictOriginal || !dictTranslated) return;
-                                const existing = await db.dictionary.where("original").equals(dictOriginal).first();
+                                if (!dictOriginal || !dictTranslated || !chapter.workspaceId) return;
+                                const existing = await db.dictionary.where({ original: dictOriginal, workspaceId: chapter.workspaceId }).first();
                                 if (!existing) {
                                     await db.dictionary.add({
+                                        workspaceId: chapter.workspaceId,
                                         original: dictOriginal,
                                         translated: dictTranslated,
                                         type: 'general',

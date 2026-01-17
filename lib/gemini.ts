@@ -55,6 +55,7 @@ async function withKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>, onLog?: (
 
 // --- Main Translation Function ---
 export const translateChapter = async (
+    workspaceId: string, // Added
     text: string,
     onLog: (log: TranslationLog) => void,
     onSuccess: (result: TranslationResult) => void,
@@ -67,8 +68,8 @@ export const translateChapter = async (
     text = text.trim().replace(/\n\s*\n/g, '\n\n');
 
     // 1. Get Glossary & Blacklist
-    const dict = await db.dictionary.toArray();
-    const blacklist = await db.blacklist.toArray();
+    const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
+    const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
     const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
     // Lọc glossary: Bỏ blacklist, chỉ lấy từ xuất hiện, LIMIT 50 terms để tiết kiệm tokens
@@ -92,7 +93,10 @@ export const translateChapter = async (
  3. Dịch sát nghĩa, đầy đủ, không bỏ sót.
  4. Giữ nguyên tên riêng (Hán Việt).
  5. Ngôi kể chính xác (Hắn/Nàng).
- 6. Chỉ trả về JSON hợp lệ.`;
+ 6. Chỉ trả về JSON hợp lệ.
+ 7. TUYỆT ĐỐI KHÔNG TỰ Ý NGẮT ĐOẠN. Nếu các câu nằm cạnh nhau trong văn bản gốc thì bản dịch phải giữ nguyên trong cùng một đoạn văn.
+ 8. Giữ nguyên cấu trúc danh sách theo chiều dọc. Mỗi chỉ số (Strength, Agility, Intelligence...) phải nằm trên một dòng riêng biệt y hệt bản gốc. Tuyệt đối không được gom nhóm chúng thành một đoạn văn.
+ 9. Giữ nguyên tuyệt đối các ký hiệu hệ thống trong dấu ngoặc vuông []. Không được thêm bớt dấu cách hay xuống dòng bên trong hoặc ngay sau các dấu ngoặc này.`;
 
     try {
         onLog({ timestamp: new Date(), message: `Đang dịch với model: ${aiModel}...`, type: 'info' });
@@ -147,8 +151,12 @@ export const translateChapter = async (
             const parsed = JSON.parse(jsonText);
             if (!parsed.translatedText) throw new Error("Invalid JSON structure: missing translatedText");
 
+            // Normalize Brackets & Spacing
+            parsed.translatedText = normalizeVietnameseContent(parsed.translatedText);
+            if (parsed.translatedTitle) parsed.translatedTitle = normalizeVietnameseContent(parsed.translatedTitle);
+
             // 4. Apply Auto-Corrections (Hard overrides)
-            const corrections = await db.corrections.toArray();
+            const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
             if (corrections.length > 0) {
                 let finalContent = parsed.translatedText;
                 let finalTitle = parsed.translatedTitle || "";
@@ -331,7 +339,7 @@ export interface AnalyzedEntity {
     metadata?: any;
 }
 
-export const analyzeEntities = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL): Promise<AnalyzedEntity[]> => {
+export const analyzeEntities = async (workspaceId: string, text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL): Promise<AnalyzedEntity[]> => {
     const raw = await extractGlossary(text, onLog, model);
     const entities: AnalyzedEntity[] = [];
 
@@ -360,7 +368,7 @@ export const analyzeEntities = async (text: string, onLog?: (msg: string) => voi
     }
 
     // Filter against blacklist
-    const blacklist = await db.blacklist.toArray();
+    const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
     const blockedSet = new Set(blacklist.map(b => b.word.toLowerCase()));
     return entities.filter(e => !blockedSet.has(e.src.toLowerCase()));
 };
@@ -373,10 +381,10 @@ export interface InspectionIssue {
     reason: string;
 }
 
-export const inspectChapter = async (text: string, onLog?: (msg: string) => void): Promise<InspectionIssue[]> => {
+export const inspectChapter = async (workspaceId: string, text: string, onLog?: (msg: string) => void): Promise<InspectionIssue[]> => {
     // 1. Get Glossary to avoid false positives
-    const dict = await db.dictionary.toArray();
-    const blacklist = await db.blacklist.toArray();
+    const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
+    const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
     const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
     // Filter relevant terms present in text
@@ -435,5 +443,172 @@ Output JSON:
         const rawResponse = response as any;
         const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
         return JSON.parse(jsonText || "[]");
+    }, onLog);
+};
+
+// --- Prompt Lab AI Features ---
+export const generatePromptVariants = async (keywords: string, onLog?: (msg: string) => void): Promise<{ promptA: string, promptB: string }> => {
+    return withKeyRotation(async (ai) => {
+        const prompt = `Bạn là chuyên gia Prompt Engineering cho việc dịch truyện Trung - Việt.
+Nhiệm vụ: Tạo ra 2 phiên bản System Instructions khác nhau dựa trên yêu cầu người dùng.
+
+Yêu cầu người dùng (Keywords/Goals): "${keywords}"
+
+Output JSON:
+{
+    "promptA": "Phiên bản 1 (Base/Safe): Tập trung vào yêu cầu cơ bản, an toàn, chuẩn mực.",
+    "promptB": "Phiên bản 2 (Creative/Strict/Styled): Tập trung vào phong cách cụ thể, sáng tạo hơn hoặc khắt khe hơn theo keywords."
+}`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        promptA: { type: Type.STRING },
+                        promptB: { type: Type.STRING }
+                    },
+                    required: ["promptA", "promptB"]
+                }
+            }
+        });
+
+        const rawResponse = response as any;
+        const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
+        return JSON.parse(jsonText || '{"promptA": "", "promptB": ""}');
+    }, onLog);
+};
+
+export const evaluateTranslation = async (source: string, resultA: string, resultB: string, onLog?: (msg: string) => void): Promise<{ winner: 'A' | 'B' | 'Draw', reason: string, scoreA: number, scoreB: number }> => {
+    return withKeyRotation(async (ai) => {
+        const prompt = `So sánh 2 bản dịch tiếng Việt từ văn bản gốc tiếng Trung và chấm điểm.
+
+Original (Chinese): "${source.substring(0, 1000)}"
+
+Translation A: "${resultA.substring(0, 1000)}"
+
+Translation B: "${resultB.substring(0, 1000)}"
+
+Yêu cầu:
+- Chấm điểm trên thang 1-10 dựa trên: Độ chính xác, Văn phong (tự nhiên, Hán Việt chuẩn), Ngữ pháp.
+- Đưa ra lý do ngắn gọn tại sao bản này tốt hơn bản kia.
+
+Output JSON:
+{
+    "winner": "A" | "B" | "Draw",
+    "reason": "Giải thích ngắn",
+    "scoreA": 8.5,
+    "scoreB": 9.0
+}`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        winner: { type: Type.STRING, enum: ["A", "B", "Draw"] },
+                        reason: { type: Type.STRING },
+                        scoreA: { type: Type.NUMBER },
+                        scoreB: { type: Type.NUMBER }
+                    },
+                    required: ["winner", "reason", "scoreA", "scoreB"]
+                }
+            }
+        });
+
+        const rawResponse = response as any;
+        const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
+        return JSON.parse(jsonText || '{"winner": "Draw", "reason": "Error", "scoreA": 0, "scoreB": 0}');
+    }, onLog);
+};
+
+// --- Text Normalization Helper ---
+function normalizeVietnameseContent(text: string): string {
+    if (!text) return "";
+    return text
+        // 1. Normalize Brackets: 【 】 -> [ ] (Direct replacement, no added spaces yet)
+        .replace(/【/g, "[")
+        .replace(/】/g, "]")
+        // 2. Normalize Parentheses: （ ） -> ( )
+        .replace(/（/g, "(")
+        .replace(/）/g, ")")
+        // 3. AGGRESSIVE: Remove newlines/spaces *around* brackets to prevent orphaned brackets
+        .replace(/\s*\]/g, "]") // Remove space/newline BEFORE ]
+        .replace(/\[\s*/g, "[") // Remove space/newline AFTER [
+        .replace(/\s*\)/g, ")")
+        .replace(/\(\s*/g, "(")
+        // 4. Add legitimate spacing
+        .replace(/\](?=[^\s.,;!?\]])/g, "] ")
+        .replace(/(?<=[^\s\[])\[/g, " [")
+
+        // 5. CRITICAL: Squash whitespace/newlines INSIDE brackets to single space
+        // This prevents "[Sentence 1.\nSentence 2]" from being split into two paragraphs.
+        .replace(/\[([\s\S]*?)\]/g, (match) => match.replace(/\s+/g, " "))
+        .replace(/\(([^\)]*?)\)/g, (match) => match.replace(/\s+/g, " "))
+
+        // 6. Fix double spaces (horizontal only) -- apply again after squash
+        .replace(/[ \t]{2,}/g, " ")
+        // 7. Ensure max 2 newlines (paragraph break)
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+}
+
+// --- Spirit Extraction (Style DNA) ---
+export interface StyleDNA {
+    tone: string;       // Giọng văn (Hào hùng, Bi thương, Hài hước...)
+    setting: string;    // Bối cảnh (Tu tiên, Đô thị, Mạt thế...)
+    pronouns: string;   // Cách xưng hô đặc trưng
+    keywords: string[]; // Các từ khóa quan trọng để build prompt
+    description: string; // Tóm tắt ngắn gọn để cho vào prompt
+}
+
+export const analyzeStyleDNA = async (chaptersContent: string[], onLog?: (msg: string) => void): Promise<StyleDNA> => {
+    return withKeyRotation(async (ai) => {
+        // Limit content to ~20k chars to save tokens but get enough context
+        const sampleText = chaptersContent.join('\n\n').substring(0, 20000);
+
+        const prompt = `Bạn là nhà phê bình văn học và chuyên gia phân tích văn phong.
+Nhiệm vụ: Phân tích đoạn văn mẫu từ 5 chương đầu của một bộ truyện để trích xuất "DNA Văn Học" (Style DNA).
+
+Input Text:
+"${sampleText}..."
+
+Yêu cầu output JSON:
+{
+    "tone": "Giọng văn chủ đạo (VD: Hài hước, Trầm mặc, Sôi nổi...)",
+    "setting": "Bối cảnh câu chuyện (VD: Tiên hiệp cổ điển, Mạt thế hiện đại...)",
+    "pronouns": "Cách xưng hô đặc trưng của nhân vật chính/phụ (VD: Ta-Ngươi, Hắn-Nàng, Tôi-Cậu...)",
+    "keywords": ["từ khóa 1", "từ khóa 2", "từ khóa 3"],
+    "description": "Một đoạn mô tả ngắn gọn (2-3 câu) tổng hợp phong cách để ra lệnh cho AI dịch thuật bắt chước theo."
+}`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash-exp",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        tone: { type: Type.STRING },
+                        setting: { type: Type.STRING },
+                        pronouns: { type: Type.STRING },
+                        keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        description: { type: Type.STRING }
+                    },
+                    required: ["tone", "setting", "pronouns", "keywords", "description"]
+                }
+            }
+        });
+
+        const rawResponse = response as any;
+        const jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
+        return JSON.parse(jsonText || '{}');
     }, onLog);
 };

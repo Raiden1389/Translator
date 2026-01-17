@@ -46,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-[1px]`}
+        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-[1px] select-none`}
       >
         <div className="flex-1 flex flex-col bg-[#0a0514] rounded-lg border border-zinc-800 shadow-2xl overflow-hidden relative group/window">
           {/* Window Glow Effect */}
@@ -59,6 +59,7 @@ export default function RootLayout({
           <StatusBar />
           <Toaster
             position="bottom-right"
+            expand={true}
             richColors
             theme="dark"
             toastOptions={{

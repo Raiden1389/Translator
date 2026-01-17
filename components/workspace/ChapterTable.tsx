@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2 } from "lucide-react";
+import { Trash2, Book } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db, type Chapter } from "@/lib/db";
 
@@ -160,7 +160,14 @@ export function ChapterTable({
                                         onClick={(e) => { e.stopPropagation(); onRead(chapter.id!); }}
                                         className="hover:text-primary transition-colors block w-full h-full text-left"
                                     >
-                                        <div className="line-clamp-1 text-sm font-bold">{chapter.title}</div>
+                                        <div className="line-clamp-1 text-sm font-bold flex items-center gap-2">
+                                            {chapter.glossaryExtractedAt && (
+                                                <span title={`Đã trích xuất thuật ngữ: ${new Date(chapter.glossaryExtractedAt).toLocaleString()}`}>
+                                                    <Book className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                                                </span>
+                                            )}
+                                            {chapter.title}
+                                        </div>
                                     </button>
                                 </TableCell>
                                 <TableCell className="text-white/70">

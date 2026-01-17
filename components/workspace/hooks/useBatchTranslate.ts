@@ -4,6 +4,7 @@ import { translateChapter } from "@/lib/gemini";
 import { toast } from "sonner";
 
 interface BatchTranslateProps {
+    workspaceId: string; // Added
     chapters: any[];
     selectedChapters: number[];
     currentSettings: { apiKey: string, model: string };
@@ -20,6 +21,7 @@ export function useBatchTranslate() {
     const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentTitle: "" });
 
     const handleBatchTranslate = async ({
+        workspaceId,
         chapters,
         selectedChapters,
         currentSettings,
@@ -63,6 +65,7 @@ export function useBatchTranslate() {
             try {
                 await new Promise<void>((resolve, reject) => {
                     translateChapter(
+                        workspaceId,
                         chapter.content_original,
                         onLog,
                         async (result) => {
@@ -131,15 +134,15 @@ export function useBatchTranslate() {
                         if (result) {
                             for (const char of result.characters) {
                                 if (blacklistSet.has(char.original.toLowerCase())) continue; // Skip bold blacklisted
-                                if (!(await db.dictionary.where("original").equals(char.original).first())) {
-                                    await db.dictionary.add({ ...char, type: 'name', createdAt: new Date() });
+                                if (!(await db.dictionary.where({ original: char.original, workspaceId }).first())) {
+                                    await db.dictionary.add({ ...char, workspaceId, type: 'name', createdAt: new Date() });
                                     totalNewChars++;
                                 }
                             }
                             for (const term of result.terms) {
                                 if (blacklistSet.has(term.original.toLowerCase())) continue; // Skip bold blacklisted
-                                if (!(await db.dictionary.where("original").equals(term.original).first())) {
-                                    await db.dictionary.add({ ...term, type: term.type as any, createdAt: new Date() });
+                                if (!(await db.dictionary.where({ original: term.original, workspaceId }).first())) {
+                                    await db.dictionary.add({ ...term, workspaceId, type: term.type as any, createdAt: new Date() });
                                     totalNewTerms++;
                                 }
                             }
@@ -158,11 +161,10 @@ export function useBatchTranslate() {
         };
 
         // Fetch all corrections once before starting the batch to avoid repeated DB hits
-        const corrections = await db.corrections.toArray();
+        const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
 
         // 2. Fetch all Blacklist entries to exclude from "Auto Extract" logic if needed
-        // (Though extractGlossary handles blacklist internally if we update lib/gemini, but better safe)
-        const blacklist = await db.blacklist.toArray();
+        const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
         const blacklistSet = new Set(blacklist.map(b => b.word.toLowerCase()));
 
         try {

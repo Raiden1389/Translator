@@ -49,9 +49,9 @@ const DIC_TYPES = [
 ];
 
 export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
-    const dictionary = useLiveQuery(() => db.dictionary.toArray()) || [];
-    const blacklist = useLiveQuery(() => db.blacklist.toArray()) || [];
-    const corrections = useLiveQuery(() => db.corrections.toArray()) || [];
+    const dictionary = useLiveQuery(() => db.dictionary.where('workspaceId').equals(workspaceId).toArray(), [workspaceId]) || [];
+    const blacklist = useLiveQuery(() => db.blacklist.where('workspaceId').equals(workspaceId).toArray(), [workspaceId]) || [];
+    const corrections = useLiveQuery(() => db.corrections.where('workspaceId').equals(workspaceId).toArray(), [workspaceId]) || [];
 
     // Tab State
     const [activeTab, setActiveTab] = useState("dictionary");
@@ -115,16 +115,17 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                 // Update DB
                 for (const res of results) {
                     if (res.category === 'trash') {
-                        const entry = await db.dictionary.where('original').equals(res.original).first();
+                        const entry = await db.dictionary.where({ original: res.original, workspaceId }).first();
                         await db.blacklist.add({
+                            workspaceId,
                             word: res.original,
                             translated: entry?.translated || res.original, // Use existing translation if available
                             source: 'ai',
                             createdAt: new Date()
                         });
-                        await db.dictionary.where('original').equals(res.original).delete();
+                        await db.dictionary.where({ original: res.original, workspaceId }).delete();
                     } else {
-                        await db.dictionary.where('original').equals(res.original).modify({ type: res.category as any });
+                        await db.dictionary.where({ original: res.original, workspaceId }).modify({ type: res.category as any });
                     }
                 }
             }
@@ -146,10 +147,13 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
     };
 
     const handleAdd = async () => {
-        if (!newOriginal || !newTranslated) return;
+        if (!newOriginal || !newTranslated || !workspaceId) return;
         try {
-            // Check existing
-            const existing = await db.dictionary.where("original").equals(newOriginal).first();
+            // Check existing in this workspace
+            const existing = await db.dictionary
+                .where({ original: newOriginal, workspaceId: workspaceId })
+                .first();
+
             if (existing) {
                 await db.dictionary.update(existing.id!, {
                     translated: newTranslated,
@@ -158,6 +162,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                 });
             } else {
                 await db.dictionary.add({
+                    workspaceId, // Pass workspaceId
                     original: newOriginal,
                     translated: newTranslated,
                     type: newType as any,
@@ -184,6 +189,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
             if (item) {
                 // Auto-add to Blacklist (Manual Source)
                 await db.blacklist.add({
+                    workspaceId,
                     word: item.original,
                     translated: item.translated,
                     source: 'manual',
@@ -211,9 +217,10 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
         await db.blacklist.delete(id);
 
         // Quick Restore: Add back to dictionary if not duplicates
-        const existing = await db.dictionary.where("original").equals(item.word).first();
+        const existing = await db.dictionary.where({ original: item.word, workspaceId }).first();
         if (!existing) {
             await db.dictionary.add({
+                workspaceId,
                 original: item.word,
                 translated: item.translated || item.word,
                 type: 'general',
@@ -231,9 +238,10 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
             // Bulk Restore to Dictionary
             const now = new Date();
             for (const item of itemsToRestore) {
-                const existing = await db.dictionary.where("original").equals(item.word).first();
+                const existing = await db.dictionary.where({ original: item.word, workspaceId }).first();
                 if (!existing) {
                     await db.dictionary.add({
+                        workspaceId,
                         original: item.word,
                         translated: item.translated || item.word,
                         type: 'general',
@@ -312,9 +320,10 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                 if (!line.trim()) continue;
                 try {
                     const entry = JSON.parse(line);
-                    const exists = await db.blacklist.where('word').equals(entry.word).first();
+                    const exists = await db.blacklist.where({ word: entry.word, workspaceId }).first();
                     if (!exists) {
                         await db.blacklist.add({
+                            workspaceId,
                             word: entry.word,
                             translated: entry.translated, // Added translated
                             source: entry.source || 'manual',
@@ -400,6 +409,13 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                 setPendingCharacters(newChars);
                 setPendingTerms(newTerms);
                 setIsReviewOpen(true);
+
+                // Update Chapter extraction status
+                if (targetChapter?.id) {
+                    await db.chapters.update(targetChapter.id, {
+                        glossaryExtractedAt: new Date()
+                    });
+                }
             } else {
                 toast.info("AI không trả về kết quả nào.");
             }
@@ -422,7 +438,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
             // 1. Save to Dictionary (Chars & Terms)
             const allSaveItems = [...saveChars, ...saveTerms];
             for (const item of allSaveItems) {
-                const existing = await db.dictionary.where("original").equals(item.original).first();
+                const existing = await db.dictionary.where({ original: item.original, workspaceId }).first();
                 if (existing) {
                     await db.dictionary.update(existing.id!, {
                         translated: item.translated,
@@ -435,6 +451,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     updatedCount++;
                 } else {
                     await db.dictionary.add({
+                        workspaceId,
                         original: item.original,
                         translated: item.translated,
                         type: item.type || 'name',
@@ -451,9 +468,10 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
             const allBlacklistItems = [...blacklistChars, ...blacklistTerms];
             for (const item of allBlacklistItems) {
                 // Check if already in blacklist
-                const existing = await db.blacklist.where("word").equals(item.original).first();
+                const existing = await db.blacklist.where({ word: item.original, workspaceId }).first();
                 if (!existing) {
                     await db.blacklist.add({
+                        workspaceId,
                         word: item.original,
                         translated: item.translated, // Optional, might be useful context
                         source: 'manual', // User explicitly banned it
@@ -464,7 +482,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                 // If it was in dictionary, remove it? 
                 // Logic: If user blacklists it here, maybe they want to remove existing dict entry if it exists?
                 // For safety, let's remove from dictionary if it exists.
-                const dictEntry = await db.dictionary.where("original").equals(item.original).first();
+                const dictEntry = await db.dictionary.where({ original: item.original, workspaceId }).first();
                 if (dictEntry) {
                     await db.dictionary.delete(dictEntry.id!);
                 }
@@ -565,7 +583,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                 if (!cleanOriginal || !translated) continue;
 
                 // Create or Update
-                const existing = await db.dictionary.where("original").equals(cleanOriginal).first();
+                const existing = await db.dictionary.where({ original: cleanOriginal, workspaceId }).first();
                 if (existing) {
                     if (existing.translated !== translated) {
                         await db.dictionary.update(existing.id!, { translated, type: 'term' });
@@ -573,6 +591,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     }
                 } else {
                     await db.dictionary.add({
+                        workspaceId,
                         original: cleanOriginal,
                         translated,
                         type: 'term',
@@ -650,6 +669,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                 onClick={async () => {
                                     if (!newWrong || !newRight) return;
                                     await db.corrections.add({
+                                        workspaceId,
                                         original: newWrong,
                                         replacement: newRight,
                                         createdAt: new Date()
