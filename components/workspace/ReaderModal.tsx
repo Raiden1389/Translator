@@ -125,6 +125,9 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         lineHeight: 1.8,
         textAlign: "justify",
         textColor: "#e2e8f0",
+        ttsPitch: 0,
+        ttsRate: 0,
+        ttsVoice: VIETNAMESE_VOICES[0].value,
     });
     const [configLoaded, setConfigLoaded] = useState(false);
 
@@ -159,7 +162,6 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     const [isTTSPlaying, setIsTTSPlaying] = useState(false);
     const [isTTSLoading, setIsTTSLoading] = useState(false);
     const [activeTTSIndex, setActiveTTSIndex] = useState<number | null>(null);
-    const [selectedVoice, setSelectedVoice] = useState(VIETNAMESE_VOICES[0].value);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const ttsSegments = useMemo(() => {
@@ -195,11 +197,14 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     // Warm up TTS cache for the first 3 segments of this chapter
     useEffect(() => {
         if (chapterId && ttsSegments.length > 0) {
+            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
+            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
+
             ttsSegments.slice(0, 3).forEach(seg => {
-                prefetchTTS(chapterId, seg, selectedVoice);
+                prefetchTTS(chapterId, seg, readerConfig.ttsVoice, pitchStr, rateStr);
             });
         }
-    }, [chapterId, ttsSegments]);
+    }, [chapterId, ttsSegments, readerConfig.ttsVoice, readerConfig.ttsPitch, readerConfig.ttsRate]);
 
     // Auto-scroll to highlighted TTS paragraph
     useEffect(() => {
@@ -327,7 +332,9 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     if (next && next.content_translated) {
                         const segments = splitIntoParagraphs(next.content_translated);
                         if (segments.length > 0) {
-                            prefetchTTS(next.id, segments[0], selectedVoice);
+                            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
+                            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
+                            prefetchTTS(next.id, segments[0], readerConfig.ttsVoice, pitchStr, rateStr);
                         }
                     }
                 });
@@ -336,7 +343,11 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         try {
             setIsTTSLoading(true);
             const text = ttsSegments[index];
-            const audioUrl = await speak(chapterId, text, selectedVoice);
+
+            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
+            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
+
+            const audioUrl = await speak(chapterId, text, readerConfig.ttsVoice, pitchStr, rateStr);
 
             const audio = new Audio(audioUrl);
             audioRef.current = audio;
@@ -344,7 +355,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             // Trigger proactive pre-fetching for the next 2 segments
             [index + 1, index + 2].forEach(nextIdx => {
                 if (nextIdx < ttsSegments.length) {
-                    prefetchTTS(chapterId, ttsSegments[nextIdx], selectedVoice);
+                    prefetchTTS(chapterId, ttsSegments[nextIdx], readerConfig.ttsVoice, pitchStr, rateStr);
                 }
             });
 
@@ -583,8 +594,12 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     isTTSLoading={isTTSLoading}
                     handleTTSPlay={handleTTSPlay}
                     handleTTSStop={handleTTSStop}
-                    selectedVoice={selectedVoice}
-                    setSelectedVoice={setSelectedVoice}
+                    selectedVoice={readerConfig.ttsVoice}
+                    setSelectedVoice={(voice) => setReaderConfig({ ...readerConfig, ttsVoice: voice })}
+                    ttsPitch={readerConfig.ttsPitch}
+                    setTtsPitch={(pitch) => setReaderConfig({ ...readerConfig, ttsPitch: pitch })}
+                    ttsRate={readerConfig.ttsRate}
+                    setTtsRate={(rate) => setReaderConfig({ ...readerConfig, ttsRate: rate })}
                 />
 
                 {/* Body Content */}

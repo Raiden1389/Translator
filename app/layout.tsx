@@ -52,7 +52,6 @@ export default function RootLayout({
           {/* Window Glow Effect */}
           <div className="absolute inset-0 rounded-lg pointer-events-none shadow-[0_0_50px_rgba(108,92,231,0.05)]" />
 
-          <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
           <TitleBar />
           <main className="flex-1 overflow-hidden flex flex-col relative z-0">
             {children}

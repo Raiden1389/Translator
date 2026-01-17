@@ -123,11 +123,14 @@ export const translateChapter = async (
 
             let jsonText = "";
             try {
-                if (typeof response.text === 'function') {
-                    jsonText = response.text();
+                const res = response as any;
+                if (typeof res.text === 'function') {
+                    jsonText = res.text();
+                } else if (typeof res.response?.text === 'function') {
+                    jsonText = res.response.text();
                 } else {
                     // Fallback for different SDK versions or response shapes
-                    const candidates = (response as any).candidates;
+                    const candidates = res.candidates || res.response?.candidates;
                     jsonText = candidates?.[0]?.content?.parts?.[0]?.text || "";
                 }
             } catch (e) {

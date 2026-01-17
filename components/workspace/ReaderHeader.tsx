@@ -13,6 +13,9 @@ export interface ReaderConfig {
     lineHeight: number;
     textAlign: "left" | "center" | "right" | "justify";
     textColor: string;
+    ttsPitch: number;
+    ttsRate: number;
+    ttsVoice: string;
 }
 
 interface ReaderHeaderProps {
@@ -40,6 +43,10 @@ interface ReaderHeaderProps {
     handleTTSStop: () => void;
     selectedVoice: string;
     setSelectedVoice: (v: string) => void;
+    ttsPitch: number;
+    setTtsPitch: (v: number) => void;
+    ttsRate: number;
+    setTtsRate: (v: number) => void;
 }
 
 export function ReaderHeader({
@@ -65,7 +72,11 @@ export function ReaderHeader({
     handleTTSPlay,
     handleTTSStop,
     selectedVoice,
-    setSelectedVoice
+    setSelectedVoice,
+    ttsPitch,
+    setTtsPitch,
+    ttsRate,
+    setTtsRate
 }: ReaderHeaderProps) {
     if (!chapter) return null;
 
@@ -207,6 +218,54 @@ export function ReaderHeader({
                                     {voice.name}
                                 </button>
                             ))}
+
+                            <div className="h-px bg-white/10 my-1" />
+
+                            {/* Pitch Control */}
+                            <div className="space-y-1.5 pt-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Tone (Pitch: {ttsPitch}Hz)</div>
+                                    <button
+                                        onClick={() => setTtsPitch(0)}
+                                        className="text-[10px] text-emerald-500 hover:text-emerald-400"
+                                    >
+                                        Mặc định
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-white/30">-10</span>
+                                    <input
+                                        type="range" min="-20" max="20"
+                                        value={ttsPitch}
+                                        onChange={(e) => setTtsPitch(parseInt(e.target.value))}
+                                        className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                    />
+                                    <span className="text-[10px] text-white/30">+20</span>
+                                </div>
+                            </div>
+
+                            {/* Rate Control */}
+                            <div className="space-y-1.5 pt-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Tốc độ (Rate: {ttsRate}%)</div>
+                                    <button
+                                        onClick={() => setTtsRate(0)}
+                                        className="text-[10px] text-emerald-500 hover:text-emerald-400"
+                                    >
+                                        Mặc định
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-white/30">-25</span>
+                                    <input
+                                        type="range" min="-50" max="50"
+                                        value={ttsRate}
+                                        onChange={(e) => setTtsRate(parseInt(e.target.value))}
+                                        className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                    />
+                                    <span className="text-[10px] text-white/30">+50</span>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

@@ -3,7 +3,12 @@ use tauri::command;
 use uuid::Uuid;
 
 #[command]
-pub async fn edge_tts_speak(text: String, voice: String) -> Result<Vec<u8>, String> {
+pub async fn edge_tts_speak(
+    text: String,
+    voice: String,
+    pitch: String,
+    rate: String,
+) -> Result<Vec<u8>, String> {
     // Create temp file path
     let temp_dir = std::env::temp_dir();
     let filename = format!("tts_{}.mp3", Uuid::new_v4());
@@ -13,6 +18,10 @@ pub async fn edge_tts_speak(text: String, voice: String) -> Result<Vec<u8>, Stri
     let output = Command::new("edge-tts")
         .arg("--voice")
         .arg(&voice)
+        .arg("--pitch")
+        .arg(&pitch)
+        .arg("--rate")
+        .arg(&rate)
         .arg("--text")
         .arg(&text)
         .arg("--write-media")

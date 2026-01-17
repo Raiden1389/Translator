@@ -39,13 +39,17 @@ async fn generate_speech(text: String, voice: String, rate: String) -> Result<Ve
 }
 
 mod tts;
+mod auth;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![tts::edge_tts_speak])
+        .invoke_handler(tauri::generate_handler![
+            tts::edge_tts_speak,
+            auth::start_auth_server
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

@@ -16,20 +16,26 @@ export function getTextHash(text: string): string {
     return hash.toString();
 }
 
-export async function speak(chapterId: number, text: string, voice: string = "vi-VN-HoaiMyNeural"): Promise<string> {
+export async function speak(
+    chapterId: number,
+    text: string,
+    voice: string = "vi-VN-HoaiMyNeural",
+    pitch: string = "+0Hz",
+    rate: string = "+0%"
+): Promise<string> {
     const textHash = getTextHash(text);
 
     // 1. Check Cache
-    const cache = await db.ttsCache.where({ chapterId, voice, textHash }).first();
+    const cache = await db.ttsCache.where({ chapterId, voice, textHash, pitch, rate }).first();
     if (cache) {
-        console.log("TTS Cache Hit!", chapterId, textHash);
+        console.log("TTS Cache Hit!", chapterId, textHash, pitch, rate);
         const blob = new Blob([new Uint8Array(cache.blob)], { type: 'audio/mpeg' });
         return URL.createObjectURL(blob);
     }
 
     // 2. Fetch from Backend
-    console.log("TTS Fetching...", chapterId, textHash);
-    const audioData = await invoke<number[]>("edge_tts_speak", { text, voice });
+    console.log("TTS Fetching...", chapterId, textHash, pitch, rate);
+    const audioData = await invoke<number[]>("edge_tts_speak", { text, voice, pitch, rate });
     const uint8Array = new Uint8Array(audioData);
 
     // 3. Save to Cache (Async)
@@ -37,6 +43,8 @@ export async function speak(chapterId: number, text: string, voice: string = "vi
         chapterId,
         voice,
         textHash,
+        pitch,
+        rate,
         blob: uint8Array.buffer,
         createdAt: new Date()
     }).catch(e => console.error("Failed to cache TTS:", e));
@@ -45,14 +53,14 @@ export async function speak(chapterId: number, text: string, voice: string = "vi
     return URL.createObjectURL(blob);
 }
 
-export async function prefetchTTS(chapterId: number, text: string, voice: string) {
+export async function prefetchTTS(chapterId: number, text: string, voice: string, pitch: string = "+0Hz", rate: string = "+0%") {
     const textHash = getTextHash(text);
-    const exists = await db.ttsCache.where({ chapterId, voice, textHash }).count();
+    const exists = await db.ttsCache.where({ chapterId, voice, textHash, pitch, rate }).count();
     if (exists > 0) return; // Already cached
 
     // Generate in background
-    speak(chapterId, text, voice).then(url => {
-        console.log(`Prefetched TTS for chapter ${chapterId} segment ${textHash}`);
+    speak(chapterId, text, voice, pitch, rate).then(url => {
+        console.log(`Prefetched TTS for chapter ${chapterId} segment ${textHash} (${pitch}, ${rate})`);
         URL.revokeObjectURL(url);
     }).catch(e => console.error("Prefetch failed:", e));
 }

@@ -60,7 +60,6 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
     const [exportProgress, setExportProgress] = useState(0);
 
     const [useDrive, setUseDrive] = useState(false);
-    const [isConnecting, setIsConnecting] = useState(false);
     const [driveFolders, setDriveFolders] = useState<{ id: string; name: string }[]>([]);
     const [selectedFolderId, setSelectedFolderId] = useState<string>("root");
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -95,38 +94,31 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
             setShowManualInput(true);
         };
         window.addEventListener("gdrive-auth-error", handleAuthError);
-        return () => window.removeEventListener("gdrive-auth-error", handleAuthError);
+
+        // Check for GIS readiness - REMOVED for Native OAuth
+        return () => {
+            window.removeEventListener("gdrive-auth-error", handleAuthError);
+        };
     }, []);
 
-    const handleConnectDrive = () => {
+    const handleConnectDrive = async () => {
         if (!clientIdSetting?.value) {
             const id = prompt("Vui lòng nhập Google Client ID:");
             if (id) {
-                // Fire and forget save
                 db.settings.put({ key: "gdrive_client_id", value: id }).catch(console.error);
                 gdrive.init(id);
-                // Can't connect immediately after prompt+save safely in one go reliably without async
-                // But we can try since init is now robust
-                setTimeout(() => gdrive.connect(), 500);
-                toast.info("Đang khởi tạo...");
+                toast.info("Đã lưu Client ID. Bấm 'Kết nối' để bắt đầu.");
             }
             return;
         }
 
-        // Pure sync call
         try {
-            gdrive.connect();
-            toast.success("Đã mở cửa sổ đăng nhập Google Drive...");
-
-            // Safety fallback: Show manual input option after 2s in case popup was blocked silently
-            setTimeout(() => {
-                setShowManualInput(true);
-            }, 2000);
-
-        } catch (error) {
+            toast.info("Đang mở trình duyệt để đăng nhập...");
+            await gdrive.connect();
+            toast.success("Kết nối Google Drive thành công!");
+        } catch (error: any) {
             console.error(error);
-            toast.error("Không thể mở popup. Vui lòng thử kết nối thủ công.");
-            setShowManualInput(true);
+            toast.error(error.message || "Lỗi kết nối Google Drive");
         }
     };
 
@@ -175,8 +167,9 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
         try {
             const folders = await gdrive.listFolders();
             setDriveFolders(folders);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            toast.error(error.message || "Lỗi khi tải danh sách thư mục Google Drive");
         }
     };
 
@@ -495,10 +488,9 @@ h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid 
                                                 <Button
                                                     size="sm"
                                                     onClick={handleConnectDrive}
-                                                    disabled={isConnecting}
                                                     className="bg-primary hover:bg-primary/90"
                                                 >
-                                                    {isConnecting ? <RefreshCw className="w-3 h-3 animate-spin" /> : "Kết nối"}
+                                                    Kết nối
                                                 </Button>
                                             </div>
                                         </div>
@@ -570,17 +562,31 @@ h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid 
                                         <div className="space-y-1">
                                             <Label className="text-[10px] text-white/40 uppercase font-black">Thư mục Drive</Label>
                                             <div className="flex gap-2">
-                                                <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
-                                                    <SelectTrigger className="h-9 text-xs bg-black/40 border-white/5">
-                                                        <SelectValue placeholder="Chọn thư mục" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-[#1a0b2e] border-white/10 text-white">
-                                                        <SelectItem value="root">My Drive (Gốc)</SelectItem>
-                                                        {driveFolders.map(folder => (
-                                                            <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <div className="flex-1 flex gap-2">
+                                                    <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
+                                                        <SelectTrigger className="h-9 text-xs bg-black/40 border-white/5">
+                                                            <SelectValue placeholder="Chọn thư mục" />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="bg-[#1a0b2e] border-white/10 text-white">
+                                                            <SelectItem value="root">My Drive (Gốc)</SelectItem>
+                                                            {driveFolders.map(folder => (
+                                                                <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-9 w-9 border border-white/5 bg-black/20 hover:bg-white/5"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            loadFolders();
+                                                        }}
+                                                        title="Làm mới danh sách"
+                                                    >
+                                                        <RefreshCw className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </div>
                                                 <Button
                                                     size="icon"
                                                     variant="secondary"

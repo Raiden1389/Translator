@@ -216,12 +216,13 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                     <Users className="w-3 h-3" /> Tác Giả
                                 </label>
                                 <input
-                                    className="bg-transparent text-white/90 text-lg font-serif italic w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-2 transition-all"
-                                    defaultValue={workspace.author}
+                                    className="bg-transparent text-white/90 text-lg font-bold w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-2 transition-all"
+                                    defaultValue={workspace.author?.normalize('NFC')}
                                     placeholder="Chưa rõ tác giả"
                                     onBlur={(e) => {
-                                        if (e.target.value !== workspace.author) {
-                                            db.workspaces.update(workspace.id, { author: e.target.value });
+                                        const val = e.target.value.normalize('NFC');
+                                        if (val !== workspace.author) {
+                                            db.workspaces.update(workspace.id, { author: val });
                                         }
                                     }}
                                 />
@@ -232,11 +233,12 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                 </label>
                                 <input
                                     className="bg-transparent text-white/90 text-base w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-2 transition-all"
-                                    defaultValue={workspace.genre}
+                                    defaultValue={workspace.genre?.normalize('NFC')}
                                     placeholder="Chưa phân loại"
                                     onBlur={(e) => {
-                                        if (e.target.value !== workspace.genre) {
-                                            db.workspaces.update(workspace.id, { genre: e.target.value });
+                                        const val = e.target.value.normalize('NFC');
+                                        if (val !== workspace.genre) {
+                                            db.workspaces.update(workspace.id, { genre: val });
                                         }
                                     }}
                                 />
@@ -396,7 +398,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                 </div>
 
                 <div className="px-6 mb-8 flex flex-col gap-1">
-                    <h1 className="text-lg font-black text-white leading-tight tracking-tight font-[var(--font-lora)] italic line-clamp-2">{workspace.title}</h1>
+                    <h1 className="text-lg font-bold text-white leading-tight tracking-tight line-clamp-2">{workspace.title?.normalize('NFC')}</h1>
                     <span className="text-[10px] text-white/20 uppercase font-bold tracking-[0.2em]">{workspace.genre || "Uncategorized"}</span>
 
                     <div className="mt-6 flex flex-col gap-2">
@@ -453,7 +455,6 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[11px] font-black text-white/90 tracking-tight">AI Engine v3.0</span>
-                            <span className="text-[9px] text-white/40 uppercase font-bold tracking-widest">Gemini 1.5 Pro</span>
                         </div>
                     </div>
                 </div>

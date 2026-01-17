@@ -53,6 +53,8 @@ export interface TTSCacheEntry {
     chapterId: number;
     voice: string;
     textHash: string;
+    pitch: string;
+    rate: string;
     blob: ArrayBuffer; // Store raw bytes
     createdAt: Date;
 }
@@ -117,6 +119,11 @@ db.version(8).stores({
 // V9: Correct TTS Cache (Include textHash to avoid segment collisions)
 db.version(9).stores({
     ttsCache: '++id, chapterId, voice, textHash'
+});
+
+// V10: Add pitch and rate to TTS Cache
+db.version(10).stores({
+    ttsCache: '++id, chapterId, voice, textHash, pitch, rate'
 });
 
 // Tauri Hook: Sync to local files on change
