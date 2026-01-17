@@ -41,6 +41,7 @@ interface ChapterListHeaderProps {
     viewMode: "grid" | "table";
     onViewModeChange: (mode: "grid" | "table") => void;
     onSelectRange: (range: string) => void;
+    onScan: () => void;
 }
 
 export function ChapterListHeader({
@@ -66,7 +67,8 @@ export function ChapterListHeader({
     onTranslate,
     viewMode,
     onViewModeChange,
-    onSelectRange
+    onSelectRange,
+    onScan
 }: ChapterListHeaderProps) {
     return (
         <div className="sticky top-2 z-30 bg-[#1a0b2e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl mb-6 mx-1 px-4 pb-4 transition-all duration-300">
@@ -265,11 +267,19 @@ export function ChapterListHeader({
                     <div className="flex items-center gap-2">
                         <Button
                             size="sm"
+                            variant="secondary"
+                            onClick={onScan}
+                            className="bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/30 h-8 font-medium px-4 transition-all hover:scale-105 active:scale-95"
+                        >
+                            <Sparkles className="mr-2 h-4 w-4" /> Quét thuật ngữ
+                        </Button>
+                        <Button
+                            size="sm"
                             variant="default"
                             onClick={onTranslate}
                             className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 font-bold px-4 shadow-[0_4px_10px_rgba(var(--primary-rgb),0.3)] transition-all hover:scale-105 active:scale-95"
                         >
-                            <Sparkles className="mr-2 h-4 w-4" /> Cấu hình & Dịch
+                            <FileText className="mr-2 h-4 w-4" /> Cấu hình & Dịch
                         </Button>
                         <Button
                             size="sm"

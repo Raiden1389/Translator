@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Sparkles, User, Filter, Save, X } from "lucide-react";
+import { Sparkles, User, Filter, Save, ShieldBan, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ReviewDialogProps {
@@ -22,7 +22,7 @@ interface ReviewDialogProps {
     onOpenChange: (open: boolean) => void;
     characters: any[];
     terms: any[];
-    onSave: (selectedCharacters: any[], selectedTerms: any[]) => void;
+    onSave: (saveChars: any[], saveTerms: any[], blacklistChars: any[], blacklistTerms: any[]) => void;
     title?: string;
     description?: string;
 }
@@ -41,16 +41,19 @@ export function ReviewDialog({
 
     useEffect(() => {
         if (open) {
-            setPendingCharacters(initialCharacters.map(c => ({ ...c, selected: true })));
-            setPendingTerms(initialTerms.map(t => ({ ...t, selected: true })));
+            setPendingCharacters(initialCharacters.map(c => ({ ...c, status: 'save' })));
+            setPendingTerms(initialTerms.map(t => ({ ...t, status: 'save' })));
         }
     }, [open, initialCharacters, initialTerms]);
 
     const handleConfirmSave = () => {
-        onSave(
-            pendingCharacters.filter(c => c.selected),
-            pendingTerms.filter(t => t.selected)
-        );
+        const saveChars = pendingCharacters.filter(c => c.status === 'save');
+        const blacklistChars = pendingCharacters.filter(c => c.status === 'blacklist');
+
+        const saveTerms = pendingTerms.filter(t => t.status === 'save');
+        const blacklistTerms = pendingTerms.filter(t => t.status === 'blacklist');
+
+        onSave(saveChars, saveTerms, blacklistChars, blacklistTerms);
         onOpenChange(false);
     };
 
@@ -85,21 +88,42 @@ export function ReviewDialog({
                                     {pendingCharacters.map((char, i) => (
                                         <div key={i} className={cn(
                                             "p-4 rounded-lg border transition-all",
-                                            char.selected ? "bg-white/5 border-white/10" : "bg-transparent border-white/5 opacity-50"
+                                            char.status === 'save' ? "bg-white/5 border-white/10" :
+                                                char.status === 'blacklist' ? "bg-red-500/10 border-red-500/20" :
+                                                    "bg-transparent border-white/5 opacity-50"
                                         )}>
                                             <div className="flex gap-4">
-                                                <Checkbox
-                                                    checked={char.selected}
-                                                    onCheckedChange={(checked) => {
-                                                        const newChars = [...pendingCharacters];
-                                                        newChars[i].selected = !!checked;
-                                                        setPendingCharacters(newChars);
-                                                    }}
-                                                    className="mt-1 border-white/20 data-[state=checked]:bg-purple-500"
-                                                />
+                                                <div className="flex flex-col gap-2 pt-1">
+                                                    <Checkbox
+                                                        checked={char.status === 'save'}
+                                                        onCheckedChange={(checked) => {
+                                                            const newChars = [...pendingCharacters];
+                                                            newChars[i].status = checked ? 'save' : 'ignore';
+                                                            setPendingCharacters(newChars);
+                                                        }}
+                                                        className="border-white/20 data-[state=checked]:bg-purple-500"
+                                                    />
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className={cn(
+                                                            "h-4 w-4 rounded-full p-0 hover:bg-red-500/20",
+                                                            char.status === 'blacklist' ? "text-red-500 bg-red-500/10" : "text-white/20"
+                                                        )}
+                                                        onClick={() => {
+                                                            const newChars = [...pendingCharacters];
+                                                            newChars[i].status = newChars[i].status === 'blacklist' ? 'ignore' : 'blacklist';
+                                                            setPendingCharacters(newChars);
+                                                        }}
+                                                        title="Blacklist (Chặn từ này)"
+                                                    >
+                                                        <ShieldBan className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+
                                                 <div className="flex-1 space-y-3">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
+                                                        <div className={cn("flex items-center gap-3", char.status === 'blacklist' && "line-through opacity-50")}>
                                                             <span className="font-serif text-lg leading-none">{char.original}</span>
                                                             <span className="text-white/40">→</span>
                                                             <span className="font-bold text-lg leading-none text-emerald-400">{char.translated}</span>
@@ -112,16 +136,18 @@ export function ReviewDialog({
                                                             <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-white/50">{char.role}</span>
                                                         </div>
                                                     </div>
-                                                    <Textarea
-                                                        className="text-xs bg-black/20 border-white/5 focus:border-purple-500/50 min-h-[40px] h-[40px] resize-none"
-                                                        value={char.description}
-                                                        onChange={(e) => {
-                                                            const newChars = [...pendingCharacters];
-                                                            newChars[i].description = e.target.value;
-                                                            setPendingCharacters(newChars);
-                                                        }}
-                                                        placeholder="Mô tả nhân vật..."
-                                                    />
+                                                    {char.status === 'save' && (
+                                                        <Textarea
+                                                            className="text-xs bg-black/20 border-white/5 focus:border-purple-500/50 min-h-[40px] h-[40px] resize-none"
+                                                            value={char.description}
+                                                            onChange={(e) => {
+                                                                const newChars = [...pendingCharacters];
+                                                                newChars[i].description = e.target.value;
+                                                                setPendingCharacters(newChars);
+                                                            }}
+                                                            placeholder="Mô tả nhân vật..."
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -140,31 +166,53 @@ export function ReviewDialog({
                                     {pendingTerms.map((term, i) => (
                                         <div key={i} className={cn(
                                             "p-3 rounded-lg border flex items-center gap-3 transition-opacity",
-                                            term.selected ? "bg-white/5 border-white/10" : "bg-transparent border-white/5 opacity-50"
+                                            term.status === 'save' ? "bg-white/5 border-white/10" :
+                                                term.status === 'blacklist' ? "bg-red-500/10 border-red-500/20" :
+                                                    "bg-transparent border-white/5 opacity-50"
                                         )}>
-                                            <Checkbox
-                                                checked={term.selected}
-                                                onCheckedChange={(checked) => {
-                                                    const newTerms = [...pendingTerms];
-                                                    newTerms[i].selected = !!checked;
-                                                    setPendingTerms(newTerms);
-                                                }}
-                                                className="border-white/20 data-[state=checked]:bg-amber-500"
-                                            />
+                                            <div className="flex flex-col gap-1">
+                                                <Checkbox
+                                                    checked={term.status === 'save'}
+                                                    onCheckedChange={(checked) => {
+                                                        const newTerms = [...pendingTerms];
+                                                        newTerms[i].status = checked ? 'save' : 'ignore';
+                                                        setPendingTerms(newTerms);
+                                                    }}
+                                                    className="border-white/20 data-[state=checked]:bg-amber-500"
+                                                />
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className={cn(
+                                                        "h-3 w-3 rounded-full p-0 hover:bg-red-500/20",
+                                                        term.status === 'blacklist' ? "text-red-500 bg-red-500/10" : "text-white/20"
+                                                    )}
+                                                    onClick={() => {
+                                                        const newTerms = [...pendingTerms];
+                                                        newTerms[i].status = newTerms[i].status === 'blacklist' ? 'ignore' : 'blacklist';
+                                                        setPendingTerms(newTerms);
+                                                    }}
+                                                    title="Blacklist"
+                                                >
+                                                    <ShieldBan className="h-2.5 w-2.5" />
+                                                </Button>
+                                            </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between mb-1">
+                                                <div className={cn("flex items-center justify-between mb-1", term.status === 'blacklist' && "line-through opacity-50")}>
                                                     <span className="font-serif text-sm truncate">{term.original}</span>
                                                     <span className="text-[10px] text-white/30">{term.type}</span>
                                                 </div>
-                                                <Input
-                                                    className="h-7 text-xs bg-black/20 border-white/5 text-emerald-400 font-bold"
-                                                    value={term.translated}
-                                                    onChange={(e) => {
-                                                        const newTerms = [...pendingTerms];
-                                                        newTerms[i].translated = e.target.value;
-                                                        setPendingTerms(newTerms);
-                                                    }}
-                                                />
+                                                {term.status !== 'blacklist' && (
+                                                    <Input
+                                                        className="h-7 text-xs bg-black/20 border-white/5 text-emerald-400 font-bold"
+                                                        value={term.translated}
+                                                        onChange={(e) => {
+                                                            const newTerms = [...pendingTerms];
+                                                            newTerms[i].translated = e.target.value;
+                                                            setPendingTerms(newTerms);
+                                                        }}
+                                                    />
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -176,8 +224,8 @@ export function ReviewDialog({
 
                 <DialogFooter className="p-6 bg-black/20 border-t border-white/5 flex items-center justify-between shrink-0">
                     <div className="text-xs text-white/30">
-                        Đã chọn: <span className="text-white font-bold">{pendingCharacters.filter(c => c.selected).length}</span> nhân vật,
-                        <span className="text-white font-bold ml-1">{pendingTerms.filter(t => t.selected).length}</span> thuật ngữ
+                        Sẽ lưu: <span className="text-emerald-400 font-bold">{pendingCharacters.filter(c => c.status === 'save').length + pendingTerms.filter(t => t.status === 'save').length}</span> từ,
+                        Blacklist: <span className="text-red-400 font-bold ml-1">{pendingCharacters.filter(c => c.status === 'blacklist').length + pendingTerms.filter(t => t.status === 'blacklist').length}</span> từ
                     </div>
                     <div className="flex gap-3">
                         <Button variant="ghost" onClick={() => onOpenChange(false)}>Hủy bỏ</Button>

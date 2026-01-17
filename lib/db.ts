@@ -48,6 +48,14 @@ export interface Setting {
     value: any;
 }
 
+export interface TTSCacheEntry {
+    id?: number;
+    chapterId: number;
+    voice: string;
+    blob: ArrayBuffer; // Store raw bytes
+    createdAt: Date;
+}
+
 const db = new Dexie('AITranslatorDB') as Dexie & {
     workspaces: EntityTable<Workspace, 'id'>;
     chapters: EntityTable<Chapter, 'id'>;
@@ -56,6 +64,7 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     blacklist: EntityTable<BlacklistEntry, 'id'>;
     corrections: EntityTable<CorrectionEntry, 'id'>;
     prompts: EntityTable<PromptEntry, 'id'>;
+    ttsCache: EntityTable<TTSCacheEntry, 'id'>; // Added
 };
 
 // Define Schema

@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { cn } from "@/lib/utils";
 import { gdrive } from "@/lib/googleDrive";
+import { open } from "@tauri-apps/plugin-shell";
 
 // Sub-components
 import { FormatCard } from "./export/FormatCard";
@@ -63,7 +64,8 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
     const [driveFolders, setDriveFolders] = useState<{ id: string; name: string }[]>([]);
     const [selectedFolderId, setSelectedFolderId] = useState<string>("root");
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-
+    const [showManualInput, setShowManualInput] = useState(false);
+    const [manualToken, setManualToken] = useState("");
     // Set default rangeEnd when chapters load
     React.useEffect(() => {
         if (chapters.length > 0 && !rangeEnd) {
@@ -85,25 +87,81 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
         }
     }, [clientIdSetting?.value]);
 
-    const handleConnectDrive = async () => {
+    // Listen for GSI auth errors (popup blocked)
+    React.useEffect(() => {
+        const handleAuthError = (e: any) => {
+            console.error("Caught GSI Auth Error:", e.detail);
+            toast.error("Trình duyệt đã chặn cửa sổ đăng nhập. Đang chuyển sang chế độ thủ công...");
+            setShowManualInput(true);
+        };
+        window.addEventListener("gdrive-auth-error", handleAuthError);
+        return () => window.removeEventListener("gdrive-auth-error", handleAuthError);
+    }, []);
+
+    const handleConnectDrive = () => {
         if (!clientIdSetting?.value) {
             const id = prompt("Vui lòng nhập Google Client ID:");
             if (id) {
-                await db.settings.put({ key: "gdrive_client_id", value: id });
+                // Fire and forget save
+                db.settings.put({ key: "gdrive_client_id", value: id }).catch(console.error);
                 gdrive.init(id);
-                toast.success("Đã lưu Client ID. Hãy bấm kết nối lại.");
+                // Can't connect immediately after prompt+save safely in one go reliably without async
+                // But we can try since init is now robust
+                setTimeout(() => gdrive.connect(), 500);
+                toast.info("Đang khởi tạo...");
             }
             return;
         }
-        setIsConnecting(true);
+
+        // Pure sync call
         try {
-            await gdrive.connect();
-            toast.success("Đã kết nối Google Drive!");
+            gdrive.connect();
+            toast.success("Đã mở cửa sổ đăng nhập Google Drive...");
+
+            // Safety fallback: Show manual input option after 2s in case popup was blocked silently
+            setTimeout(() => {
+                setShowManualInput(true);
+            }, 2000);
+
         } catch (error) {
-            toast.error("Lỗi kết nối Drive");
-        } finally {
-            setIsConnecting(false);
+            console.error(error);
+            toast.error("Không thể mở popup. Vui lòng thử kết nối thủ công.");
+            setShowManualInput(true);
         }
+    };
+
+    const handleManualTokenSave = async () => {
+        if (!manualToken.trim()) return;
+
+        // Support pasting full URL
+        let token = manualToken.trim();
+        if (token.includes("access_token=")) {
+            const match = token.match(/access_token=([^&]+)/);
+            if (match) token = match[1];
+        }
+
+        try {
+            await db.settings.put({ key: "gdrive_token", value: token });
+            // Manually set token in service
+            (gdrive as any).accessToken = token;
+            (gdrive as any).expiresAt = Date.now() + 3600 * 1000; // Assume 1 hour
+
+            const userInfo = await gdrive.getUserInfo(token);
+            await db.settings.put({ key: "gdrive_user", value: userInfo });
+
+            toast.success("Đã lưu token thủ công!");
+            setShowManualInput(false);
+            setManualToken("");
+            loadFolders(); // Refresh UI
+        } catch (e) {
+            toast.error("Token không hợp lệ hoặc đã hết hạn.");
+        }
+    };
+
+    const getManualAuthUrl = () => {
+        if (!clientIdSetting?.value) return "#";
+        const scope = encodeURIComponent("https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email");
+        return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientIdSetting.value}&redirect_uri=http://localhost:3000&response_type=token&scope=${scope}`;
     };
 
     const handleLogoutDrive = async () => {
@@ -382,21 +440,21 @@ h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid 
                                     className={cn(
                                         "flex items-center justify-between p-3 px-4 rounded-xl border text-left transition-all relative overflow-hidden",
                                         lang === opt.id
-                                            ? "bg-primary/10 border-primary ring-1 ring-primary shadow-sm"
+                                            ? "bg-amber-500/10 border-amber-500 ring-1 ring-amber-500 shadow-sm"
                                             : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
                                     )}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={cn(
                                             "w-2 h-2 rounded-full",
-                                            lang === opt.id ? "bg-primary" : "bg-white/20"
+                                            lang === opt.id ? "bg-amber-500" : "bg-white/20"
                                         )} />
                                         <div>
                                             <div className="font-bold text-sm text-white">{opt.label}</div>
                                             <div className="text-[10px] text-white/40">{opt.desc}</div>
                                         </div>
                                     </div>
-                                    {lang === opt.id && <Check className="w-4 h-4 text-primary" />}
+                                    {lang === opt.id && <Check className="w-4 h-4 text-amber-500" />}
                                 </button>
                             ))}
                         </div>
@@ -444,6 +502,48 @@ h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid 
                                                 </Button>
                                             </div>
                                         </div>
+
+                                        {/* Manual Fallback */}
+                                        {showManualInput ? (
+                                            <div className="space-y-3 pt-3 border-t border-white/5 animate-in fade-in">
+                                                <div className="text-[10px] text-amber-500 font-bold uppercase tracking-wider">Kết nối thủ công</div>
+                                                <div className="text-xs text-white/50">
+                                                    1. <a
+                                                        href="#"
+                                                        onClick={async (e) => {
+                                                            e.preventDefault();
+                                                            const url = getManualAuthUrl();
+                                                            if (url && url !== "#") {
+                                                                await open(url);
+                                                            } else {
+                                                                toast.error("Chưa có Client ID");
+                                                            }
+                                                        }}
+                                                        className="text-amber-500 hover:text-amber-400 underline decoration-amber-500/50 font-medium cursor-pointer"
+                                                    >
+                                                        Bấm vào đây để cấp quyền
+                                                    </a> (trình duyệt sẽ mở).
+                                                    <br />
+                                                    2. Sau khi đăng nhập, copy URL hoặc Access Token rồi dán vào dưới:
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        value={manualToken}
+                                                        onChange={(e) => setManualToken(e.target.value)}
+                                                        placeholder="Dán URL hoặc access_token..."
+                                                        className="h-9 text-xs bg-black/40 border-white/5 flex-1"
+                                                    />
+                                                    <Button size="sm" onClick={handleManualTokenSave}>Lưu</Button>
+                                                </div>
+                                                <Button variant="link" size="sm" className="h-auto p-0 text-[10px] text-white/30" onClick={() => setShowManualInput(false)}>Hủy</Button>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center pt-2">
+                                                <button onClick={() => setShowManualInput(true)} className="text-[10px] text-amber-500/70 hover:text-amber-500 underline decoration-amber-500/30 underline-offset-2 transition-colors">
+                                                    Gặp lỗi? Thử kết nối thủ công
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="space-y-4">

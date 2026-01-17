@@ -15,6 +15,7 @@ export class GoogleDriveService {
     private tokenClient: any = null;
     private accessToken: string | null = null;
     private expiresAt: number = 0;
+    private clientId: string | null = null; // Store for lazy init
 
     private constructor() { }
 
@@ -27,40 +28,53 @@ export class GoogleDriveService {
 
     async init(clientId: string) {
         if (typeof window === "undefined") return;
+        this.clientId = clientId;
 
         return new Promise<void>((resolve, reject) => {
             const checkGis = () => {
                 if ((window as any).google?.accounts?.oauth2) {
-                    this.tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-                        client_id: clientId,
-                        scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
-                        callback: async (resp: any) => {
-                            if (resp.error) {
-                                reject(resp);
-                                return;
-                            }
-                            this.accessToken = resp.access_token;
-                            this.expiresAt = Date.now() + resp.expires_in * 1000;
-
-                            // Save to settings
-                            await db.settings.put({ key: "gdrive_token", value: this.accessToken });
-
-                            try {
-                                const userInfo = await this.getUserInfo(this.accessToken);
-                                await db.settings.put({ key: "gdrive_user", value: userInfo });
-                            } catch (e) {
-                                console.error("Failed to fetch user info", e);
-                            }
-
-                            resolve();
-                        },
-                    });
+                    this.initTokenClient();
                     resolve();
                 } else {
                     setTimeout(checkGis, 100);
                 }
             };
             checkGis();
+        });
+    }
+
+    private initTokenClient() {
+        if (!this.clientId || !(window as any).google?.accounts?.oauth2) return;
+
+        console.log("Initializing Token Client with ID:", this.clientId);
+        this.tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+            client_id: this.clientId,
+            scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email",
+            callback: async (resp: any) => {
+                if (resp.error) {
+                    console.error("Auth Error:", resp);
+                    return;
+                }
+                this.accessToken = resp.access_token;
+                this.expiresAt = Date.now() + resp.expires_in * 1000;
+
+                // Save to settings
+                await db.settings.put({ key: "gdrive_token", value: this.accessToken });
+
+                try {
+                    const userInfo = await this.getUserInfo(this.accessToken!);
+                    await db.settings.put({ key: "gdrive_user", value: userInfo });
+                    // Provide feedback (e.g. reload UI or toast via callback if needed, but simple update is fine)
+                } catch (e) {
+                    console.error("Failed to fetch user info", e);
+                }
+            },
+            error_callback: (error: any) => {
+                console.error("GSI Auth Error Callback:", error);
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent("gdrive-auth-error", { detail: error }));
+                }
+            },
         });
     }
 
@@ -81,8 +95,18 @@ export class GoogleDriveService {
         throw new Error("Mất kết nối với Google Drive. Hãy kết nối lại.");
     }
 
-    async connect() {
-        if (!this.tokenClient) throw new Error("Chưa khởi tạo Google Client ID");
+    connect() {
+        if (!this.tokenClient) {
+            // Try lazy init if script is now available
+            if ((window as any).google?.accounts?.oauth2 && this.clientId) {
+                this.initTokenClient();
+            }
+        }
+
+        if (!this.tokenClient) {
+            throw new Error("Google Script chưa tải xong. Vui lòng đợi vài giây rồi thử lại.");
+        }
+
         this.tokenClient.requestAccessToken({ prompt: 'consent' });
     }
 

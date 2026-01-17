@@ -65,6 +65,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
     const [correctionSearch, setCorrectionSearch] = useState("");
     const [newWrong, setNewWrong] = useState("");
     const [newRight, setNewRight] = useState("");
+    const [isApplyingCorrections, setIsApplyingCorrections] = useState(false);
 
     // New Entry State
     const [isAdding, setIsAdding] = useState(false);
@@ -412,63 +413,133 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
         }
     };
 
-    const handleConfirmSave = async (selectedChars: any[], selectedTerms: any[]) => {
+    const handleConfirmSave = async (saveChars: any[], saveTerms: any[], blacklistChars: any[], blacklistTerms: any[]) => {
         let addedCount = 0;
         let updatedCount = 0;
+        let blacklistCount = 0;
 
         try {
-            // Save Characters
-            for (const char of selectedChars) {
-                const existing = await db.dictionary.where("original").equals(char.original).first();
+            // 1. Save to Dictionary (Chars & Terms)
+            const allSaveItems = [...saveChars, ...saveTerms];
+            for (const item of allSaveItems) {
+                const existing = await db.dictionary.where("original").equals(item.original).first();
                 if (existing) {
                     await db.dictionary.update(existing.id!, {
-                        translated: char.translated,
-                        gender: char.gender,
-                        role: char.role,
-                        description: char.description,
+                        translated: item.translated,
+                        type: item.type || 'name', // Default type if missing
+                        gender: item.gender,
+                        role: item.role,
+                        description: item.description,
                         createdAt: new Date()
                     });
                     updatedCount++;
                 } else {
                     await db.dictionary.add({
-                        original: char.original,
-                        translated: char.translated,
-                        type: 'name',
-                        gender: char.gender,
-                        role: char.role,
-                        description: char.description,
+                        original: item.original,
+                        translated: item.translated,
+                        type: item.type || 'name',
+                        gender: item.gender,
+                        role: item.role,
+                        description: item.description,
                         createdAt: new Date()
                     });
                     addedCount++;
                 }
             }
 
-            // Save Terms
-            for (const term of selectedTerms) {
-                const existing = await db.dictionary.where("original").equals(term.original).first();
-                if (existing) {
-                    await db.dictionary.update(existing.id!, {
-                        translated: term.translated,
-                        type: term.type as any,
+            // 2. Save to Blacklist
+            const allBlacklistItems = [...blacklistChars, ...blacklistTerms];
+            for (const item of allBlacklistItems) {
+                // Check if already in blacklist
+                const existing = await db.blacklist.where("word").equals(item.original).first();
+                if (!existing) {
+                    await db.blacklist.add({
+                        word: item.original,
+                        translated: item.translated, // Optional, might be useful context
+                        source: 'manual', // User explicitly banned it
                         createdAt: new Date()
                     });
-                    updatedCount++;
-                } else {
-                    await db.dictionary.add({
-                        original: term.original,
-                        translated: term.translated,
-                        type: term.type as any,
-                        createdAt: new Date()
-                    });
-                    addedCount++;
+                    blacklistCount++;
+                }
+                // If it was in dictionary, remove it? 
+                // Logic: If user blacklists it here, maybe they want to remove existing dict entry if it exists?
+                // For safety, let's remove from dictionary if it exists.
+                const dictEntry = await db.dictionary.where("original").equals(item.original).first();
+                if (dictEntry) {
+                    await db.dictionary.delete(dictEntry.id!);
                 }
             }
 
-            toast.success(`Đã lưu ${addedCount + updatedCount} mục! (Thêm mới: ${addedCount}, Cập nhật: ${updatedCount})`);
+            toast.success(`Đã lưu! Thêm mới: ${addedCount}, Cập nhật: ${updatedCount}, Blacklist: ${blacklistCount}`);
             setIsReviewOpen(false);
         } catch (error) {
             console.error(error);
             toast.error("Lỗi khi lưu kết quả");
+        }
+    };
+
+    const handleApplyCorrections = async () => {
+        setIsApplyingCorrections(true);
+        try {
+            const allCorrections = await db.corrections.toArray();
+            if (allCorrections.length === 0) {
+                toast.info("Chưa có quy tắc sửa lỗi nào.");
+                return;
+            }
+
+            const chapters = await db.chapters.where("workspaceId").equals(workspaceId).toArray();
+            const translatedChapters = chapters.filter(c => c.status === 'translated' && c.content_translated);
+
+            if (translatedChapters.length === 0) {
+                toast.info("Không có chương nào đã dịch để áp dụng.");
+                return;
+            }
+
+            let modifiedCount = 0;
+
+            // Sequential processing to avoid jamming UI
+            for (const chapter of translatedChapters) {
+                let content = chapter.content_translated!;
+                let title = chapter.title_translated || chapter.title; // Also correct titles if needed
+                let isModified = false;
+
+                for (const correction of allCorrections) {
+                    // Create regex for case-insensitive replacement? Or simple replaceAll?
+                    // User request implies "Find & Replace". Simple text replacement is safest and fastest.
+                    // To avoid replacing parts of words (e.g. "Nam" inside "Vietnam"), we might want word boundaries?
+                    // But names in Vietnamese often contain spaces.
+                    // Let's use simple global replace for now as demanded: "Thái Linh Kiếm" -> "Thái Minh Kiếm"
+
+                    if (content.includes(correction.original)) {
+                        content = content.replaceAll(correction.original, correction.replacement);
+                        isModified = true;
+                    }
+                    if (title && title.includes(correction.original)) {
+                        title = title.replaceAll(correction.original, correction.replacement);
+                        isModified = true;
+                    }
+                }
+
+                if (isModified) {
+                    await db.chapters.update(chapter.id!, {
+                        content_translated: content,
+                        title_translated: title
+                    });
+                    modifiedCount++;
+                }
+            }
+
+            if (modifiedCount > 0) {
+                toast.success(`Đã sửa lỗi cho ${modifiedCount} chương!`);
+            } else {
+                toast.info("Không tìm thấy nội dung cần sửa trong các chương đã dịch.");
+            }
+
+        } catch (error) {
+            console.error("Apply corrections failed:", error);
+            toast.error("Lỗi khi áp dụng sửa lỗi.");
+        } finally {
+            setIsApplyingCorrections(false);
         }
     };
 
@@ -594,8 +665,8 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     </div>
 
                     {/* Corrections List */}
-                    <div className="rounded-md border border-white/10 bg-[#1e1e2e] overflow-hidden">
-                        <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto custom-scrollbar">
+                    <div className="rounded-md border border-white/10 bg-[#1e1e2e] overflow-hidden flex flex-col">
+                        <div className="divide-y divide-white/5 h-[calc(100vh-350px)] overflow-y-auto scrollbar-hide">
                             {corrections
                                 .filter(c => c.original.toLowerCase().includes(correctionSearch.toLowerCase()) || c.replacement.toLowerCase().includes(correctionSearch.toLowerCase()))
                                 .map((c) => (
@@ -620,6 +691,28 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                     </div>
                                 ))}
                             {corrections.length === 0 && <div className="p-8 text-center text-white/20 italic">Chưa có quy tắc sửa lỗi nào</div>}
+                        </div>
+
+                        <div className="p-4 bg-white/5 border-t border-white/5 mt-auto">
+                            <Button
+                                variant="secondary"
+                                className="w-full bg-[#6c5ce7]/20 hover:bg-[#6c5ce7]/30 text-[#a29bfe] border border-[#6c5ce7]/30"
+                                onClick={handleApplyCorrections}
+                                disabled={isApplyingCorrections || corrections.length === 0}
+                            >
+                                {isApplyingCorrections ? (
+                                    <>
+                                        <Sparkles className="mr-2 h-4 w-4 animate-spin" /> Đang xử lý...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RotateCcw className="mr-2 h-4 w-4" /> Áp dụng cho các chương đã dịch
+                                    </>
+                                )}
+                            </Button>
+                            <p className="text-[10px] text-white/30 text-center mt-2">
+                                * Thao tác này sẽ quét và sửa lỗi cho toàn bộ các chương có trạng thái "Đã dịch".
+                            </p>
                         </div>
                     </div>
                 </TabsContent>
@@ -840,7 +933,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                         </div>
 
                         {/* Rows */}
-                        <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <div className="divide-y divide-white/5 h-[calc(100vh-300px)] overflow-y-auto scrollbar-hide">
                             {filteredDic.length === 0 ? (
                                 <div className="p-8 text-center text-white/20 italic">
                                     Chưa có dữ liệu từ điển
@@ -978,7 +1071,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                             <div className="col-span-2 text-right">Hành động</div>
                         </div>
 
-                        <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <div className="divide-y divide-white/5 h-[calc(100vh-300px)] overflow-y-auto scrollbar-hide">
                             {filteredBlacklist.length === 0 ? (
                                 <div className="p-8 text-center text-white/20 italic">
                                     Blacklist trống. AI chưa dám sút ai cả.

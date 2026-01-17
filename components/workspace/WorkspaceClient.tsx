@@ -171,41 +171,52 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
     return (
         <div className="max-w-[1800px] mx-auto px-6 lg:px-8 py-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {/* Left Column: Stats */}
+                {/* Left Column: Stats & Info */}
                 <div className="lg:col-span-1 space-y-6">
-                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl">
-                        <CardHeader>
-                            <CardTitle className="text-white text-base">Thống Kê</CardTitle>
+                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl overflow-hidden relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-white text-base flex items-center gap-2">
+                                <Zap className="w-4 h-4 text-yellow-400" />
+                                Thống Kê
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-sm p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
                                 <span className="text-white/50">Tổng số chương</span>
-                                <span className="text-white font-medium">{totalChapters.toLocaleString()}</span>
+                                <span className="text-white font-bold font-mono text-lg">{totalChapters.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-sm p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
                                 <span className="text-white/50">Đã dịch</span>
-                                <span className="text-white font-medium text-emerald-400">{translatedChapters.toLocaleString()}</span>
+                                <span className="text-emerald-400 font-bold font-mono text-lg">{translatedChapters.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-white/50">Thuật ngữ</span>
-                                <span className="text-white font-medium">{termCount.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-white/50">Nhân vật</span>
-                                <span className="text-white font-medium">{charCount.toLocaleString()}</span>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
+                                    <div className="text-xs text-white/40 mb-1">Thuật ngữ</div>
+                                    <div className="text-white font-bold">{termCount.toLocaleString()}</div>
+                                </div>
+                                <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
+                                    <div className="text-xs text-white/40 mb-1">Nhân vật</div>
+                                    <div className="text-white font-bold">{charCount.toLocaleString()}</div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl">
-                        <CardHeader>
-                            <CardTitle className="text-white text-base">Thông Tin</CardTitle>
+                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl overflow-hidden">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-white text-base flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-blue-400" />
+                                Thông Tin
+                            </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-xs text-white/50 uppercase font-bold tracking-wider">Tác Giả</label>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-2 group">
+                                <label className="text-[10px] text-white/40 uppercase font-bold tracking-widest flex items-center gap-2 group-focus-within:text-primary transition-colors">
+                                    <Users className="w-3 h-3" /> Tác Giả
+                                </label>
                                 <input
-                                    className="bg-transparent text-white/90 italic w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-1 transition-colors"
+                                    className="bg-transparent text-white/90 text-lg font-serif italic w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-2 transition-all"
                                     defaultValue={workspace.author}
                                     placeholder="Chưa rõ tác giả"
                                     onBlur={(e) => {
@@ -215,10 +226,12 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                     }}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-xs text-white/50 uppercase font-bold tracking-wider">Thể Loại</label>
+                            <div className="space-y-2 group">
+                                <label className="text-[10px] text-white/40 uppercase font-bold tracking-widest flex items-center gap-2 group-focus-within:text-primary transition-colors">
+                                    <Database className="w-3 h-3" /> Thể Loại
+                                </label>
                                 <input
-                                    className="bg-transparent text-white/90 w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-1 transition-colors"
+                                    className="bg-transparent text-white/90 text-base w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-2 transition-all"
                                     defaultValue={workspace.genre}
                                     placeholder="Chưa phân loại"
                                     onBlur={(e) => {
@@ -230,60 +243,48 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                             </div>
                         </CardContent>
                     </Card>
-
-                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl">
-                        <CardHeader>
-                            <CardTitle className="text-white text-base">Mô Tả</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <AutoResizeTextarea
-                                defaultValue={workspace.description || ""}
-                                placeholder="Chưa có mô tả"
-                                onSave={(val) => {
-                                    if (val !== workspace.description) {
-                                        db.workspaces.update(workspace.id, { description: val });
-                                    }
-                                }}
-                            />
-                        </CardContent>
-                    </Card>
                 </div>
 
-                {/* Right Column: Cover & Actions */}
-                <div className="lg:col-span-2 space-y-6">
+                {/* Right Column: Cover & Description */}
+                <div className="lg:col-span-2 space-y-6 flex flex-col h-full">
                     <Card
-                        className={`bg-[#1e1e2e] border-white/10 shadow-xl h-52 flex items-center justify-center relative overflow-hidden group transition-all duration-300 ${isDragging ? 'border-primary border-2 bg-primary/10' : ''}`}
+                        className={`bg-[#1e1e2e] border-white/10 shadow-xl h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300 ${isDragging ? 'border-primary border-2 bg-primary/10' : ''}`}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                     >
                         {workspace.cover ? (
-                            <div className="absolute inset-0">
-                                {/* Blurred Background Layer for Atmosphere */}
+                            <div className="absolute inset-0 w-full h-full">
+                                {/* Blurred Background Layer */}
                                 <div
-                                    className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-110"
+                                    className="absolute inset-0 bg-cover bg-center blur-2xl opacity-30 scale-110 transition-transform duration-700 group-hover:scale-125"
                                     style={{ backgroundImage: `url(${workspace.cover})` }}
                                 />
 
-                                {/* Main Image Layer - Contain to show full image */}
-                                <div className="absolute inset-0 flex items-center justify-center p-4">
+                                {/* Gradient Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e2e] via-transparent to-transparent opacity-60" />
+
+                                {/* Main Image */}
+                                <div className="absolute inset-0 flex items-center justify-center p-6">
                                     <img
                                         src={workspace.cover}
                                         alt="Cover"
-                                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl z-10"
+                                        className="h-full w-auto object-contain rounded-lg shadow-2xl shadow-black/50 z-10 transition-transform duration-500 group-hover:scale-[1.02]"
                                     />
                                 </div>
-
-                                {/* Gradient Overlay for Text Readability at bottom (if needed) but here mostly for depth */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e2e] via-transparent to-transparent opacity-50" />
                             </div>
                         ) : (
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all" />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/2 group-hover:bg-white/5 transition-colors gap-4">
+                                <div className="p-4 rounded-full bg-white/5 border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                                    <Upload className="h-8 w-8 text-white/30 group-hover:text-white/60 transition-colors" />
+                                </div>
+                                <p className="text-white/30 text-sm font-medium">Kéo thả hoặc tải ảnh bìa</p>
+                            </div>
                         )}
 
                         {isDragging && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 backdrop-blur-sm">
-                                <p className="text-white text-lg font-bold animate-bounce">Thả ảnh vào đây!</p>
+                            <div className="absolute inset-0 flex items-center justify-center bg-primary/20 z-30 backdrop-blur-sm border-2 border-primary border-dashed m-2 rounded-xl">
+                                <p className="text-white text-lg font-bold animate-pulse">Thả ảnh vào đây!</p>
                             </div>
                         )}
 
@@ -295,44 +296,51 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                 accept="image/*"
                                 onChange={handleCoverUpload}
                             />
-                            {/* If cover exists, show small button top-right on hover. If no cover, show big center button */}
                             {workspace.cover ? (
-                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
                                     <Button
                                         variant="secondary"
-                                        size="icon"
-                                        className="h-8 w-8 bg-black/60 text-white hover:bg-black/80 backdrop-blur-md border border-white/20 rounded-full"
+                                        size="sm"
+                                        className="bg-black/60 text-white hover:bg-black/80 backdrop-blur-md border border-white/20 shadow-lg"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             fileInputRef.current?.click();
                                         }}
-                                        title="Đổi ảnh bìa"
                                     >
-                                        <Upload className="h-4 w-4" />
+                                        <Upload className="h-4 w-4 mr-2" /> Đổi ảnh
                                     </Button>
                                 </div>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                     <Button
-                                        variant="outline"
-                                        className="pointer-events-auto border-dashed border-white/20 text-white/50 hover:text-white hover:border-white/50 h-24 w-24 rounded-2xl flex flex-col items-center justify-center gap-2 bg-black/20 backdrop-blur-sm"
+                                        variant="ghost"
+                                        className="pointer-events-auto opacity-0" // Hidden but clickable via the parent container click usually, doing verify explicit click below
                                         onClick={() => fileInputRef.current?.click()}
                                     >
-                                        <Upload className="h-6 w-6" />
-                                        <span className="text-xs">Tải ảnh bìa</span>
+                                        Hidden Trigger
                                     </Button>
                                 </div>
                             )}
                         </div>
                     </Card>
 
-                    <Card className="bg-gradient-to-br from-[#2d1b4e] to-[#1e1e2e] border-white/10 shadow-xl">
-                        <CardContent className="p-8">
-                            <h3 className="text-white font-bold text-lg mb-2">Đồng bộ & Xuất bản</h3>
-                            <p className="text-white/50 text-sm mb-6">Trạng thái đồng bộ: <span className="text-amber-500 font-medium">Chưa đồng bộ</span></p>
-                            <Button className="bg-[#6c5ce7] hover:bg-[#5b4cc4] text-white">
-                                <Share2 className="mr-2 h-4 w-4" /> Đồng bộ lên Cloud
-                            </Button>
+                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl flex-1 flex flex-col">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-white text-base flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-purple-400" />
+                                Mô Tả / Tóm Tắt
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <AutoResizeTextarea
+                                defaultValue={workspace.description || ""}
+                                placeholder="Nhập mô tả hoặc tóm tắt truyện tại đây..."
+                                onSave={(val) => {
+                                    if (val !== workspace.description) {
+                                        db.workspaces.update(workspace.id, { description: val });
+                                    }
+                                }}
+                            />
                         </CardContent>
                     </Card>
                 </div>

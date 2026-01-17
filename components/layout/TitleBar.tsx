@@ -8,7 +8,16 @@ export function TitleBar() {
     const [appWindow, setAppWindow] = useState<any>(null);
 
     useEffect(() => {
-        setAppWindow(getCurrentWindow());
+        try {
+            // Check if running in Tauri environment before accessing window API
+            if (typeof window !== 'undefined' && 'isTauri' in window) { // heuristic or just try/catch
+                // actually just try-catch is enough
+            }
+            const win = getCurrentWindow();
+            setAppWindow(win);
+        } catch (e) {
+            console.warn("Failed to attach to Tauri window (likely running in browser):", e);
+        }
     }, []);
 
     const handleMinimize = () => appWindow?.minimize();

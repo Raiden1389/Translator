@@ -52,7 +52,7 @@ export function useBatchTranslate() {
 
         const activePromises: Promise<void>[] = [];
 
-        const processChapter = async (chapter: any) => {
+        const processChapter = async (chapter: any, corrections: any[], blacklistSet: Set<string>) => {
             const startTime = Date.now();
             console.log(`Processing chapter ${chapter.id}: ${chapter.title}`);
 
@@ -82,11 +82,27 @@ export function useBatchTranslate() {
                                         .replace(/第\s*([0-9]+)\s*章/, "Chương $1");
                                 }
 
+                                // --- AUTO CORRECT ---
+                                let finalContent = result.translatedText;
+                                let finalTitle = newTitle;
+
+                                if (corrections && corrections.length > 0) {
+                                    for (const correction of corrections) {
+                                        if (finalContent.includes(correction.original)) {
+                                            finalContent = finalContent.replaceAll(correction.original, correction.replacement);
+                                        }
+                                        if (finalTitle && finalTitle.includes(correction.original)) {
+                                            finalTitle = finalTitle.replaceAll(correction.original, correction.replacement);
+                                        }
+                                    }
+                                }
+                                // --------------------
+
                                 console.log(`Updating DB for chapter ${chapter.id}...`);
                                 const updateResult = await db.chapters.update(chapter.id!, {
-                                    content_translated: result.translatedText,
-                                    title_translated: newTitle,
-                                    wordCountTranslated: result.translatedText.trim().split(/\s+/).length,
+                                    content_translated: finalContent,
+                                    title_translated: finalTitle,
+                                    wordCountTranslated: finalContent.trim().split(/\s+/).length,
                                     status: 'translated',
                                     lastTranslatedAt: new Date(),
                                     translationModel: currentSettings.model,
@@ -114,12 +130,14 @@ export function useBatchTranslate() {
                         const result = await extractGlossary(chapter.content_original);
                         if (result) {
                             for (const char of result.characters) {
+                                if (blacklistSet.has(char.original.toLowerCase())) continue; // Skip bold blacklisted
                                 if (!(await db.dictionary.where("original").equals(char.original).first())) {
                                     await db.dictionary.add({ ...char, type: 'name', createdAt: new Date() });
                                     totalNewChars++;
                                 }
                             }
                             for (const term of result.terms) {
+                                if (blacklistSet.has(term.original.toLowerCase())) continue; // Skip bold blacklisted
                                 if (!(await db.dictionary.where("original").equals(term.original).first())) {
                                     await db.dictionary.add({ ...term, type: term.type as any, createdAt: new Date() });
                                     totalNewTerms++;
@@ -139,9 +157,17 @@ export function useBatchTranslate() {
             }
         };
 
+        // Fetch all corrections once before starting the batch to avoid repeated DB hits
+        const corrections = await db.corrections.toArray();
+
+        // 2. Fetch all Blacklist entries to exclude from "Auto Extract" logic if needed
+        // (Though extractGlossary handles blacklist internally if we update lib/gemini, but better safe)
+        const blacklist = await db.blacklist.toArray();
+        const blacklistSet = new Set(blacklist.map(b => b.word.toLowerCase()));
+
         try {
             for (const chapter of chaptersToTranslate) {
-                const p = processChapter(chapter);
+                const p = processChapter(chapter, corrections, blacklistSet);
                 activePromises.push(p);
                 p.then(() => activePromises.splice(activePromises.indexOf(p), 1));
                 if (activePromises.length >= CONCURRENT_LIMIT) {

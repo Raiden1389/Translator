@@ -1,17 +1,24 @@
-```javascript
 "use client";
 
 import React from "react";
-import { Activity } from "lucide-react";
+import { Wifi, Database, CheckCircle2 } from "lucide-react";
 import packageJson from "@/package.json";
 
 export function StatusBar() {
     return (
-        <div className="h-6 bg-black/40 backdrop-blur-xl border-t border-white/10 flex items-center justify-between px-4 text-[10px] text-white/30 select-none shrink-0">
-            <div className="flex items-center gap-3">
+        <footer className="h-7 w-full bg-[#0a0514]/95 backdrop-blur-md border-t border-white/5 flex items-center justify-between px-4 select-none shrink-0 text-[10px] text-white/40 font-mono">
+            <div className="flex items-center gap-4">
                 <span className="hover:text-white/60 transition-colors">v{packageJson.version}</span>
-                <div className="w-px h-3 bg-white/10" />
+                <div className="h-3 w-px bg-white/10" />
+                <div className="flex items-center gap-1.5 hover:text-white/60 transition-colors">
+                    <Wifi className="w-3 h-3" />
+                    <span>Connected</span>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5">
+                    <Database className="w-3 h-3" />
                     <span>Local DB: Dexie</span>
                 </div>
                 <div className="h-3 w-px bg-white/10" />

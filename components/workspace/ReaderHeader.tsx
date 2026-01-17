@@ -1,5 +1,8 @@
-import React from "react";
-import { ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, Search, ShieldCheck, Sparkles, X } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, Search, ShieldCheck, Sparkles, X, Volume2, VolumeX, Pause, Play } from "lucide-react";
+import { toast } from "sonner";
+import { speak, prefetchTTS, VIETNAMESE_VOICES } from "@/lib/tts";
+import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InspectionIssue } from "@/lib/gemini";
@@ -52,6 +55,76 @@ export function ReaderHeader({
     onClose
 }: ReaderHeaderProps) {
     if (!chapter) return null;
+
+    // TTS State
+    const [isTTSPlaying, setIsTTSPlaying] = useState(false);
+    const [isTTSLoading, setIsTTSLoading] = useState(false);
+    const [showTTSSettings, setShowTTSSettings] = useState(false);
+    const [selectedVoice, setSelectedVoice] = useState(VIETNAMESE_VOICES[0].value);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const handleTTSPlay = async () => {
+        if (isTTSPlaying && audioRef.current) {
+            audioRef.current.pause();
+            setIsTTSPlaying(false);
+            return;
+        }
+
+        try {
+            const text = chapter.content_translated || "";
+            if (!text.trim()) {
+                toast.error("Không có nội dung để đọc!");
+                return;
+            }
+
+            setIsTTSLoading(true);
+            const audioUrl = await speak(chapter.id, text, selectedVoice);
+
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+
+            audio.onended = () => setIsTTSPlaying(false);
+            audio.onerror = (e) => {
+                console.error("Audio Error:", e);
+                setIsTTSPlaying(false);
+                toast.error("Lỗi khi phát âm thanh!");
+            };
+
+            await audio.play();
+            setIsTTSPlaying(true);
+
+            // Prefetch next chapter audio
+            if (hasNext) {
+                // Find next chapter logic - simplified assumption: next ID or order
+                // Better: query DB for next chapter in sequence
+                const nextChapter = await db.chapters
+                    .where('workspaceId').equals(chapter.workspaceId)
+                    .and(c => c.order > chapter.order)
+                    .sortBy('order')
+                    .then(list => list[0]);
+
+                if (nextChapter && nextChapter.content_translated) {
+                    console.log("Prefetching next chapter TTS...", nextChapter.id);
+                    prefetchTTS(nextChapter.id, nextChapter.content_translated, selectedVoice);
+                }
+            }
+        } catch (error) {
+            console.error("TTS Error:", error);
+            toast.error("Lỗi tạo giọng đọc: " + (error as any).message);
+            setIsTTSPlaying(false);
+        } finally {
+            setIsTTSLoading(false);
+        }
+    };
+
+    const handleTTSStop = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            audioRef.current = null;
+        }
+        setIsTTSPlaying(false);
+    };
 
     return (
         <header className="h-16 border-b border-white/10 bg-gradient-to-b from-[#1e1e2e] to-[#1a1a2e] flex items-center justify-between px-6 shrink-0 select-none">
@@ -124,6 +197,73 @@ export function ReaderHeader({
                         <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{inspectionIssues.length}</span>
                     )}
                 </Button>
+
+                {/* TTS Controls */}
+                <div className="relative flex items-center bg-white/5 rounded-lg border border-white/5 mx-2">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className={cn(
+                            "text-white/60 hover:text-white hover:bg-white/10 border-r border-white/10 rounded-r-none h-9 px-3",
+                            isTTSPlaying && "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
+                        )}
+                        onClick={handleTTSPlay}
+                        disabled={isTTSLoading}
+                        title="Đọc truyện bằng giọng AI"
+                    >
+                        {isTTSLoading ? (
+                            <Sparkles className="w-4 h-4 sm:mr-2 animate-spin text-amber-500" />
+                        ) : isTTSPlaying ? (
+                            <Pause className="w-4 h-4 sm:mr-2" />
+                        ) : (
+                            <Volume2 className="w-4 h-4 sm:mr-2" />
+                        )}
+                        <span className="hidden lg:inline">{isTTSLoading ? "Creating..." : "TTS"}</span>
+                    </Button>
+
+                    {isTTSPlaying && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-white/40 hover:text-red-400 hover:bg-red-500/10 w-8 h-9 border-r border-white/10 rounded-none"
+                            onClick={handleTTSStop}
+                            title="Dừng TTS"
+                        >
+                            <VolumeX className="w-4 h-4" />
+                        </Button>
+                    )}
+
+                    <button
+                        onClick={() => setShowTTSSettings(!showTTSSettings)}
+                        className="text-white/40 hover:text-white hover:bg-white/10 px-1.5 h-9 rounded-r-lg transition-colors"
+                        title="Chọn giọng đọc"
+                    >
+                        <span className="text-[10px]">▼</span>
+                    </button>
+
+                    {showTTSSettings && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1e1e2e] border border-white/10 rounded-xl shadow-2xl p-3 z-[200] space-y-2 animate-in fade-in slide-in-from-top-2">
+                            <div className="text-xs text-white/40 uppercase font-bold tracking-wider mb-2">Giọng đọc</div>
+                            {VIETNAMESE_VOICES.map((voice) => (
+                                <button
+                                    key={voice.value}
+                                    onClick={() => {
+                                        setSelectedVoice(voice.value);
+                                        setShowTTSSettings(false);
+                                    }}
+                                    className={cn(
+                                        "w-full px-3 py-2 rounded text-sm text-left transition-all",
+                                        selectedVoice === voice.value
+                                            ? "bg-[#6c5ce7] text-white"
+                                            : "text-white/60 hover:bg-white/10"
+                                    )}
+                                >
+                                    {voice.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 <div className="relative">
                     <Button

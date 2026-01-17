@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { ChapterListHeader } from "./ChapterListHeader";
 import { ChapterTable } from "./ChapterTable";
 import { ChapterCardGrid } from "./ChapterCardGrid";
@@ -17,6 +18,7 @@ import { useBatchTranslate } from "./hooks/useBatchTranslate";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 
 import { ReviewDialog } from "./ReviewDialog";
+import { extractGlossary } from "@/lib/gemini";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -129,6 +131,60 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
         }
     };
 
+    const handleScan = async () => {
+        if (selectedChapters.length === 0) return;
+        toast.info(`Đang quét ${selectedChapters.length} chương...`);
+
+        try {
+            const selectedChaps = await db.chapters.where("id").anyOf(selectedChapters).toArray();
+            let allChars: any[] = [];
+            let allTerms: any[] = [];
+
+            // Process sequentially to avoid rate limits
+            for (const chapter of selectedChaps) {
+                toast.loading(`Đang quét chương: ${chapter.title}...`, {
+                    id: "scanning-toast",
+                    icon: <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                });
+                if (!chapter.content_original) continue;
+
+                const result = await extractGlossary(chapter.content_original, (log: string) => console.log(log));
+                if (result) {
+                    allChars = [...allChars, ...result.characters];
+                    allTerms = [...allTerms, ...result.terms];
+                }
+            }
+            toast.dismiss("scanning-toast");
+
+            if (allChars.length > 0 || allTerms.length > 0) {
+                // Deduplicate by original text
+                const uniqueChars = Array.from(new Map(allChars.map(item => [item.original, item])).values());
+                const uniqueTerms = Array.from(new Map(allTerms.map(item => [item.original, item])).values());
+
+                // Get existing dictionary to exclude existing items
+                const dictionary = await db.dictionary.toArray();
+                const existingOriginals = new Set(dictionary.map(d => d.original.toLowerCase().trim()));
+
+                const finalChars = uniqueChars.filter((c: any) => !existingOriginals.has(c.original.toLowerCase().trim()));
+                const finalTerms = uniqueTerms.filter((t: any) => !existingOriginals.has(t.original.toLowerCase().trim()));
+
+                if (finalChars.length === 0 && finalTerms.length === 0) {
+                    toast.info("Không tìm thấy thuật ngữ mới nào.");
+                    return;
+                }
+
+                setReviewData({ chars: finalChars, terms: finalTerms });
+                toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`);
+            } else {
+                toast.info("Không tìm thấy thuật ngữ nào.");
+            }
+        } catch (error) {
+            console.error("Scan error:", error);
+            toast.error("Lỗi khi quét thuật ngữ.");
+            toast.dismiss("scanning-toast");
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -177,6 +233,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
                 onSelectRange={handleSelectRange}
+                onScan={handleScan}
             />
 
             {viewMode === "grid" ? (
@@ -222,9 +279,29 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 onOpenChange={(v) => !v && setReviewData(null)}
                 characters={reviewData?.chars || []}
                 terms={reviewData?.terms || []}
-                onSave={async (chars, terms) => {
-                    await db.dictionary.bulkAdd([...chars, ...terms]);
-                    toast.success("Đã lưu vào từ điển!");
+                onSave={async (saveChars, saveTerms, blacklistChars, blacklistTerms) => {
+                    // Save to Dictionary
+                    const allSave = [...saveChars, ...saveTerms];
+                    if (allSave.length > 0) {
+                        await db.dictionary.bulkAdd(allSave);
+                    }
+
+                    // Save to Blacklist
+                    const allBlacklist = [...blacklistChars, ...blacklistTerms];
+                    for (const item of allBlacklist) {
+                        // Check existing before adding to avoid key constraint errors
+                        const existing = await db.blacklist.where("word").equals(item.original).first();
+                        if (!existing) {
+                            await db.blacklist.add({
+                                word: item.original,
+                                translated: item.translated,
+                                source: 'manual-scan',
+                                createdAt: new Date()
+                            });
+                        }
+                    }
+
+                    toast.success(`Đã lưu: ${allSave.length} từ vào từ điển, ${allBlacklist.length} từ vào blacklist.`);
                     setReviewData(null);
                 }}
             />
