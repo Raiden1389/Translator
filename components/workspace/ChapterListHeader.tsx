@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
     Search, ChevronLeft, ChevronRight, Download, Upload, Loader2,
-    FileText, X, Sparkles, ShieldCheck, Trash2, ArrowRightLeft, Filter
+    FileText, X, Sparkles, Trash2, Filter, LayoutGrid, LayoutList
 } from "lucide-react";
 import {
     Select,
@@ -15,6 +15,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { db } from "@/lib/db";
+import { cn } from "@/lib/utils";
 
 interface ChapterListHeaderProps {
     totalChapters: number;
@@ -30,14 +31,16 @@ interface ChapterListHeaderProps {
     selectedChapters: number[];
     setSelectedChapters: (value: number[]) => void;
     onExport: () => void;
-    onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onTranslate: () => void;
-    onInspect: () => void;
+    onImport: () => void;
     importInputRef: React.RefObject<HTMLInputElement | null>;
     fileInputRef: React.RefObject<HTMLInputElement | null>;
     onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
     importing: boolean;
-    onRangeSelect?: () => void;
+    onTranslate: () => void;
+    viewMode: "grid" | "table";
+    onViewModeChange: (mode: "grid" | "table") => void;
+    onSelectRange: (range: string) => void;
 }
 
 export function ChapterListHeader({
@@ -55,16 +58,18 @@ export function ChapterListHeader({
     setSelectedChapters,
     onExport,
     onImport,
-    onTranslate,
-    onInspect,
     importInputRef,
     fileInputRef,
     onFileUpload,
+    onImportJSON,
     importing,
-    onRangeSelect
+    onTranslate,
+    viewMode,
+    onViewModeChange,
+    onSelectRange
 }: ChapterListHeaderProps) {
     return (
-        <div className="sticky top-0 z-30 bg-[#1a0b2e]/95 backdrop-blur-md border-b border-white/10 pb-4 mb-6">
+        <div className="sticky top-2 z-30 bg-[#1a0b2e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl mb-6 mx-1 px-4 pb-4 transition-all duration-300">
             {/* Main Header Row */}
             <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-4">
@@ -95,12 +100,55 @@ export function ChapterListHeader({
                                 <SelectValue placeholder="Trạng thái" />
                             </div>
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1a0b2e] border-white/10 text-white">
+                        <SelectContent className="bg-[#1a0b2e] border-white/10 text-white font-sans">
                             <SelectItem value="all">Tất cả</SelectItem>
                             <SelectItem value="draft">Chưa dịch</SelectItem>
                             <SelectItem value="translated">Đã dịch</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    {/* Range Select */}
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                            <span className="text-white/40 text-[10px] font-mono">#</span>
+                        </div>
+                        <Input
+                            placeholder="1-10, 20..."
+                            className="pl-7 w-[100px] bg-white/5 border-white/10 text-white placeholder:text-white/30 h-9 text-xs focus:w-[140px] transition-all"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    onSelectRange((e.target as HTMLInputElement).value);
+                                    (e.target as HTMLInputElement).value = '';
+                                }
+                            }}
+                        />
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center bg-white/5 p-1 rounded-lg border border-white/5 ml-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                "h-7 w-7",
+                                viewMode === "grid" ? "bg-primary text-white hover:bg-primary/90" : "text-white/40 hover:text-white"
+                            )}
+                            onClick={() => onViewModeChange("grid")}
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                "h-7 w-7",
+                                viewMode === "table" ? "bg-primary text-white hover:bg-primary/90" : "text-white/40 hover:text-white"
+                            )}
+                            onClick={() => onViewModeChange("table")}
+                        >
+                            <LayoutList className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Export/Import Buttons */}
@@ -109,26 +157,26 @@ export function ChapterListHeader({
                         size="sm"
                         variant="outline"
                         onClick={onExport}
-                        className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 h-9"
+                        className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 h-9 font-medium"
                     >
-                        <Download className="mr-2 h-3 w-3" />
-                        Xuất JSON
+                        <Download className="mr-2 h-3.5 w-3.5" />
+                        Xuất
                     </Button>
                     <input
                         ref={importInputRef}
                         type="file"
                         accept=".json"
-                        onChange={onImport}
+                        onChange={onImportJSON}
                         className="hidden"
                     />
                     <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => importInputRef.current?.click()}
-                        className="border-green-500/30 text-green-400 hover:bg-green-500/10 h-9"
+                        onClick={onImport}
+                        className="border-green-500/30 text-green-400 hover:bg-green-500/10 h-9 font-medium"
                     >
-                        <Upload className="mr-2 h-3 w-3" />
-                        Nhập JSON
+                        <Upload className="mr-2 h-3.5 w-3.5" />
+                        Nhập
                     </Button>
                     <input
                         type="file"
@@ -142,10 +190,10 @@ export function ChapterListHeader({
                         variant="outline"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={importing}
-                        className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 h-9"
+                        className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 h-9 font-medium"
                     >
-                        {importing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Upload className="mr-2 h-3 w-3" />}
-                        Tải EPUB/TXT
+                        {importing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
+                        EPUB/TXT
                     </Button>
                 </div>
             </div>
@@ -162,7 +210,7 @@ export function ChapterListHeader({
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <span className="text-sm text-white/70 min-w-[100px] text-center">
+                    <span className="text-sm text-white/70 min-w-[100px] text-center font-medium">
                         Trang {currentPage} / {totalPages}
                     </span>
                     <Button
@@ -185,10 +233,10 @@ export function ChapterListHeader({
                             setCurrentPage(1);
                         }}
                     >
-                        <SelectTrigger className="h-8 w-[80px] bg-white/5 border-white/10 text-white focus:ring-primary">
+                        <SelectTrigger className="h-8 w-[80px] bg-white/5 border-white/10 text-white focus:ring-primary font-mono text-xs">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1a0b2e] border-white/10 text-white">
+                        <SelectContent className="bg-[#1a0b2e] border-white/10 text-white font-mono text-xs">
                             <SelectItem value="20">20</SelectItem>
                             <SelectItem value="50">50</SelectItem>
                             <SelectItem value="100">100</SelectItem>
@@ -200,56 +248,38 @@ export function ChapterListHeader({
 
             {/* Batch Actions Bar (Conditional) */}
             {selectedChapters.length > 0 && (
-                <div className="mt-3 flex items-center justify-between bg-gradient-to-r from-purple-600/20 to-blue-600/20 p-3 rounded-lg border border-purple-500/30 animate-in slide-in-from-top-2">
+                <div className="mt-3 flex items-center justify-between bg-gradient-to-r from-purple-600/20 to-blue-600/20 p-3 rounded-xl border border-purple-500/30 animate-in slide-in-from-top-2 shadow-lg shadow-purple-500/5">
                     <div className="flex items-center gap-3">
-                        <div className="bg-primary px-2.5 py-1 rounded text-white text-xs font-bold">
-                            {selectedChapters.length} đã chọn
+                        <div className="bg-primary px-3 py-1 rounded-full text-white text-[10px] uppercase font-black tracking-widest">
+                            {selectedChapters.length} Selected
                         </div>
                         <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => setSelectedChapters([])}
-                            className="h-7 text-white/70 hover:text-white"
+                            className="h-7 text-xs text-white/70 hover:text-white hover:bg-white/5"
                         >
-                            <X className="mr-1 h-3 w-3" /> Bỏ chọn
+                            <X className="mr-1.5 h-3 w-3" /> Clear selection
                         </Button>
-                        {onRangeSelect && (
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={onRangeSelect}
-                                className="h-7 text-white/70 hover:text-white"
-                            >
-                                <ArrowRightLeft className="mr-1 h-3 w-3" /> Chọn khoảng
-                            </Button>
-                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             size="sm"
-                            variant="outline"
+                            variant="default"
                             onClick={onTranslate}
-                            className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10 h-8"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 font-bold px-4 shadow-[0_4px_10px_rgba(var(--primary-rgb),0.3)] transition-all hover:scale-105 active:scale-95"
                         >
-                            <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Dịch
+                            <Sparkles className="mr-2 h-4 w-4" /> Cấu hình & Dịch
                         </Button>
                         <Button
                             size="sm"
-                            variant="outline"
-                            onClick={onInspect}
-                            className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10 h-8"
-                        >
-                            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Soi lỗi
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => {
                                 if (confirm(`Xóa ${selectedChapters.length} chương?`)) {
                                     db.chapters.bulkDelete(selectedChapters).then(() => setSelectedChapters([]));
                                 }
                             }}
-                            className="border-red-500/30 text-red-300 hover:bg-red-500/10 h-8"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 font-medium"
                         >
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Xóa
                         </Button>

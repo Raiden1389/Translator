@@ -1,59 +1,59 @@
 "use client";
 
-import React from "react";
-import { TTSPlayer } from "@/components/reader/TTSPlayer";
+import { useState } from "react";
+import { speak, VIETNAMESE_VOICES } from "@/lib/tts";
+import { toast } from "sonner";
 
-export default function TTSTestPage() {
-    const sampleText = `
-Chương 1: Cảm ơn bạn đọc đã theo dõi truyện dịch của tôi.
+export default function TestTTS() {
+    const [text, setText] = useState("Xin chào, đây là test giọng đọc tiếng Việt.");
+    const [voice, setVoice] = useState(VIETNAMESE_VOICES[0].value);
+    const [loading, setLoading] = useState(false);
 
-Đêm nay, trăng sáng như ban ngày. Gió thổi nhẹ nhàng qua khe cửa sổ, mang theo hương thơm của hoa sen. 
-Trong căn phòng tĩnh lặng, chỉ còn tiếng thở đều đặn của người đang ngủ say.
-
-Đột nhiên, một tiếng động vang lên từ ngoài sân. Bóng người nhanh như chớp lướt qua, để lại dấu vết mờ nhạt trên mặt đất.
-Đó là ai? Tại sao lại xuất hiện vào lúc này?
-
-Câu chuyện bắt đầu từ đây...
-    `.trim();
+    const handleSpeak = async () => {
+        try {
+            setLoading(true);
+            const url = await speak(text, voice);
+            const audio = new Audio(url);
+            await audio.play();
+            toast.success("Đang phát audio!");
+        } catch (error) {
+            toast.error(`Lỗi: ${error}`);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f] p-8">
-            <div className="max-w-2xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="text-center space-y-2">
-                    <h1 className="text-3xl font-bold text-white">TTS Player Test</h1>
-                    <p className="text-white/50">Music Player Style với Cover Art</p>
-                </div>
+        <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black p-8">
+            <div className="max-w-xl mx-auto bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                <h1 className="text-2xl font-bold text-white mb-4">Edge TTS Test</h1>
 
-                {/* TTS Player */}
-                <TTSPlayer
-                    text={sampleText}
-                    chapterTitle="Chương 1: Khởi đầu hành trình"
-                    workspaceTitle="Huyền Huyễn Cao Cấp"
-                    hasNext={true}
-                    hasPrevious={false}
-                    onNext={() => alert("Chuyển sang chương 2")}
+                <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white mb-4"
+                    rows={3}
                 />
 
-                {/* Sample Text Display */}
-                <div className="bg-[#1e1e2e] border border-white/10 rounded-xl p-6">
-                    <h2 className="text-white font-semibold mb-4">Nội dung mẫu:</h2>
-                    <div className="text-white/80 leading-relaxed whitespace-pre-wrap font-serif text-sm">
-                        {sampleText}
-                    </div>
-                </div>
+                <select
+                    value={voice}
+                    onChange={(e) => setVoice(e.target.value)}
+                    className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white mb-4"
+                >
+                    {VIETNAMESE_VOICES.map((v) => (
+                        <option key={v.value} value={v.value} className="bg-gray-900">
+                            {v.name}
+                        </option>
+                    ))}
+                </select>
 
-                {/* Instructions */}
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-                    <h3 className="text-blue-400 font-semibold mb-2">Tính năng:</h3>
-                    <ul className="text-blue-300/80 text-sm space-y-1 list-disc list-inside">
-                        <li>✅ Cover art với animation khi đang phát</li>
-                        <li>✅ Hiển thị tên chương và tên truyện</li>
-                        <li>✅ Nút Previous/Next (auto-next khi hết chương)</li>
-                        <li>✅ Play/Pause/Stop controls</li>
-                        <li>✅ Chọn giọng đọc và tốc độ</li>
-                    </ul>
-                </div>
+                <button
+                    onClick={handleSpeak}
+                    disabled={loading || !text}
+                    className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-bold py-3 rounded-lg disabled:opacity-50"
+                >
+                    {loading ? "Đang tạo..." : "🔊 Phát"}
+                </button>
             </div>
         </div>
     );

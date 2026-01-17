@@ -35,6 +35,7 @@ export const metadata: Metadata = {
 
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/layout/TitleBar";
+import { StatusBar } from "@/components/layout/StatusBar";
 
 export default function RootLayout({
   children,
@@ -44,14 +45,20 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-[#0a0514] text-white overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-[1px]`}
       >
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
-        <TitleBar />
-        <main className="flex flex-col h-screen overflow-hidden relative">
-          {children}
-        </main>
-        <Toaster position="bottom-right" richColors theme="dark" />
+        <div className="flex-1 flex flex-col bg-[#0a0514] rounded-lg border border-zinc-800 shadow-2xl overflow-hidden relative group/window">
+          {/* Window Glow Effect */}
+          <div className="absolute inset-0 rounded-lg pointer-events-none shadow-[0_0_50px_rgba(108,92,231,0.05)]" />
+
+          <script src="https://accounts.google.com/gsi/client" async defer></script>
+          <TitleBar />
+          <main className="flex-1 overflow-hidden flex flex-col relative z-0">
+            {children}
+          </main>
+          <StatusBar />
+          <Toaster position="bottom-right" richColors theme="dark" />
+        </div>
       </body>
     </html>
   );

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Key, Database, Sparkles, Loader2, RefreshCw, Settings, CheckCircle, XCircle, AlertTriangle, Calculator, Save } from "lucide-react";
-import { AI_MODELS } from "@/lib/ai-models";
+import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
 import { GoogleGenAI } from "@google/genai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 export function AISettingsTab() {
     const [primaryKey, setPrimaryKey] = useState("");
     const [poolKeys, setPoolKeys] = useState("");
-    const [model, setModel] = useState("gemini-1.5-flash"); // Default safe fallback
+    const [model, setModel] = useState(DEFAULT_MODEL); // Default safe fallback
     const [availableModels, setAvailableModels] = useState<{ value: string, label: string }[]>(AI_MODELS);
     const [isLoadingModels, setIsLoadingModels] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -40,7 +40,7 @@ export function AISettingsTab() {
 
         if (k1) setPrimaryKey(k1.value);
         if (k2) setPoolKeys(k2.value);
-        if (m) setModel(m.value);
+        if (m) setModel(migrateModelId(m.value));
     };
 
     const handleSavePrimary = (val: string) => {

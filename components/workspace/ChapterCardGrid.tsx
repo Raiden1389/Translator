@@ -3,24 +3,20 @@
 import React from "react";
 import { ChapterCard } from "./ChapterCard";
 import { FileUp } from "lucide-react";
-import type { Chapter } from "@/lib/db";
+import { db, type Chapter } from "@/lib/db";
 
 interface ChapterCardGridProps {
     chapters: Chapter[];
     selectedChapters: number[];
-    onToggleSelect: (id: number) => void;
+    toggleSelect: (id: number) => void;
     onRead: (id: number) => void;
-    onTranslate: (id: number) => void;
-    onDelete: (id: number) => void;
 }
 
 export function ChapterCardGrid({
     chapters,
     selectedChapters,
-    onToggleSelect,
-    onRead,
-    onTranslate,
-    onDelete
+    toggleSelect,
+    onRead
 }: ChapterCardGridProps) {
     if (chapters.length === 0) {
         return (
@@ -41,11 +37,15 @@ export function ChapterCardGrid({
                         key={chapter.id}
                         chapter={chapter}
                         isSelected={selectedChapters.includes(chapter.id!)}
-                        onSelect={() => onToggleSelect(chapter.id!)}
+                        onSelect={() => toggleSelect(chapter.id!)}
                         onRead={() => onRead(chapter.id!)}
-                        onTranslate={() => onTranslate(chapter.id!)}
+                        onTranslate={() => {/* Handle via multi-select or single translate */ }}
                         onInspect={() => {/* TODO: Add inspect functionality */ }}
-                        onDelete={() => onDelete(chapter.id!)}
+                        onDelete={async () => {
+                            if (confirm("Xóa chương này?")) {
+                                await db.chapters.delete(chapter.id!);
+                            }
+                        }}
                     />
                 ))}
             </div>

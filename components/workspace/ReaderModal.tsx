@@ -17,11 +17,13 @@ import { ReaderHeader, ReaderConfig } from "./ReaderHeader";
 
 interface ReaderModalProps {
     chapterId: number;
+    isOpen: boolean;
     onClose: () => void;
     onNext?: () => void;
     onPrev?: () => void;
     hasPrev?: boolean;
     hasNext?: boolean;
+    workspaceChapters?: any[];
 }
 
 const formatReaderText = (text: string, issues: InspectionIssue[] = []) => {
@@ -112,6 +114,8 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     const [inspectionIssues, setInspectionIssues] = useState<InspectionIssue[]>([]);
     const [activeIssue, setActiveIssue] = useState<InspectionIssue | null>(null);
 
+    const scrollViewportRef = useRef<HTMLDivElement>(null);
+
     // Load settings from localStorage on mount
     useEffect(() => {
         const savedConfig = localStorage.getItem("readerConfig");
@@ -144,17 +148,28 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         };
     }, [chapter]);
 
-    // ESC key to close modal
+    // Scroll to top when chapter changes
     useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
+        if (scrollViewportRef.current) {
+            scrollViewportRef.current.scrollTo(0, 0);
+        }
+    }, [chapterId]);
+
+    // Keyboard Navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 onClose();
+            } else if (e.key === 'ArrowLeft' && hasPrev) {
+                onPrev?.();
+            } else if (e.key === 'ArrowRight' && hasNext) {
+                onNext?.();
             }
         };
 
-        window.addEventListener('keydown', handleEscape);
-        return () => window.removeEventListener('keydown', handleEscape);
-    }, [onClose]);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose, onPrev, onNext, hasPrev, hasNext]);
 
     const handleTextSelection = () => {
         const selection = window.getSelection();
@@ -394,7 +409,10 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                 <div className="flex-1 overflow-hidden relative flex">
 
                     {/* Main Content Area */}
-                    <div className={cn("flex-1 h-full overflow-y-auto custom-scrollbar p-0", isParallel && "grid grid-cols-2 divide-x divide-white/10")}>
+                    <div
+                        ref={scrollViewportRef}
+                        className={cn("flex-1 h-full overflow-y-auto custom-scrollbar p-0", isParallel && "grid grid-cols-2 divide-x divide-white/10")}
+                    >
 
                         {/* Column 1: Based on Active Tab or Always Original in Parallel */}
                         {(activeTab === 'original' || isParallel) && (

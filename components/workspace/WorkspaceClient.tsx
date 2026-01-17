@@ -444,8 +444,8 @@ export default function WorkspaceClient({ id }: { id: string }) {
                             AI
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[11px] font-black text-white/90 tracking-tight">Pro Engine Active</span>
-                            <span className="text-[9px] text-white/40 uppercase font-bold tracking-widest">Gemini 2.0 Flash</span>
+                            <span className="text-[11px] font-black text-white/90 tracking-tight">AI Engine v3.0</span>
+                            <span className="text-[9px] text-white/40 uppercase font-bold tracking-widest">Gemini 1.5 Pro</span>
                         </div>
                     </div>
                 </div>

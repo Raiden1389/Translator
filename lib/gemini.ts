@@ -37,7 +37,12 @@ async function withKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>, onLog?: (
     let lastError: any = null;
     for (const key of keys) {
         try {
-            const ai = new GoogleGenAI({ apiKey: key });
+            // Standardizing on v1beta for feature support, with flexibility for custom endpoints.
+            const ai = new GoogleGenAI({
+                apiKey: key,
+                apiVersion: 'v1beta'
+            });
+
             return await fn(ai);
         } catch (error: any) {
             lastError = error;
@@ -80,39 +85,66 @@ export const translateChapter = async (
     const styleInstruction = customInstruction || "Mày là dịch giả chuyên nghiệp Trung - Việt. Dịch tự nhiên, giữ nguyên tên riêng.";
 
     const fullInstruction = `${styleInstruction}${glossaryContext}
-
-QUY TẮC:
-1. Dịch sát nghĩa 100%, không sót chữ Hán
-2. Ngôi 3: Nam='Hắn', Nữ='Nàng'/'Cô ta'. Cấm 'Anh'/'Chị' trong dẫn truyện
-3. Cấm: giải thích, phóng tác, lặp lại, bình luận
-4. Chỉ trả JSON theo schema`;
+ 
+ QUY TẮC BẮT BUỘC (CRITICAL):
+ 1. NGÔN NGỮ ĐẦU RA: 100% TIẾNG VIỆT. Nếu văn bản gốc là tiếng Anh hay tiếng Trung, ĐỀU PHẢI DỊCH SANG TIẾNG VIỆT.
+ 2. TUYỆT ĐỐI KHÔNG TRẢ VỀ TIẾNG ANH (NO ENGLISH OUTPUT).
+ 3. Dịch sát nghĩa, đầy đủ, không bỏ sót.
+ 4. Giữ nguyên tên riêng (Hán Việt).
+ 5. Ngôi kể chính xác (Hắn/Nàng).
+ 6. Chỉ trả về JSON hợp lệ.`;
 
     try {
         onLog({ timestamp: new Date(), message: `Đang dịch với model: ${aiModel}...`, type: 'info' });
 
         const result = await withKeyRotation(async (ai) => {
             const response = await ai.models.generateContent({
-                model: aiModel,
-                contents: text,
+                model: aiModel.trim(),
+                contents: [{ role: 'user', parts: [{ text: text }] }],
                 config: {
                     systemInstruction: fullInstruction,
                     responseMimeType: "application/json",
                     responseSchema: {
                         type: Type.OBJECT,
                         properties: {
-                            translatedTitle: { type: Type.STRING },
-                            translatedText: { type: Type.STRING }
+                            translatedTitle: {
+                                type: Type.STRING,
+                                description: "Tiêu đề chương dịch sang Tiếng Việt (Vietnamese Title)"
+                            },
+                            translatedText: {
+                                type: Type.STRING,
+                                description: "Nội dung chương dịch sang Tiếng Việt (Vietnamese Content). Không được chứa tiếng Anh."
+                            }
                         },
                         required: ["translatedTitle", "translatedText"]
                     }
                 }
             });
 
-            const rawResponse = response as any;
-            let jsonText = typeof rawResponse.text === 'function' ? rawResponse.text() : rawResponse.text;
-            if (!jsonText) jsonText = rawResponse.candidates?.[0]?.content?.parts?.[0]?.text;
+            let jsonText = "";
+            try {
+                if (typeof response.text === 'function') {
+                    jsonText = response.text();
+                } else {
+                    // Fallback for different SDK versions or response shapes
+                    const candidates = (response as any).candidates;
+                    jsonText = candidates?.[0]?.content?.parts?.[0]?.text || "";
+                }
+            } catch (e) {
+                console.error("Error extraction text from response", e);
+                const candidates = (response as any).candidates;
+                jsonText = candidates?.[0]?.content?.parts?.[0]?.text || "";
+            }
 
-            return JSON.parse(jsonText) as TranslationResult;
+            // Clean JSON: Remove markdown code blocks if present
+            jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+
+            if (!jsonText) throw new Error("Empty response from AI");
+
+            const parsed = JSON.parse(jsonText);
+            if (!parsed.translatedText) throw new Error("Invalid JSON structure: missing translatedText");
+
+            return parsed as TranslationResult;
         }, (msg) => onLog({ timestamp: new Date(), message: msg, type: 'info' }));
 
         // 3. Stats & Success
@@ -129,7 +161,7 @@ QUY TẮC:
         }
 
         result.stats = { terms: termUsage, characters: charUsage };
-        onLog({ timestamp: new Date(), message: "Dịch xong!", type: 'success' });
+        onLog({ timestamp: new Date(), message: "Dịch hoàn tất!", type: 'success' });
         onSuccess(result);
 
     } catch (e: any) {
