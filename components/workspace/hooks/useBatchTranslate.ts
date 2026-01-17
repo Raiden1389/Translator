@@ -185,7 +185,8 @@ export function useBatchTranslate() {
 
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
             toast.success(`Dịch hoàn tất ${processed} chương trong ${totalBatchTime}s`, {
-                description: `Sử dụng ${totalUsedChars} nhân vật và ${totalUsedTerms} thuật ngữ từ từ điển.`
+                description: `Sử dụng ${totalUsedChars} nhân vật và ${totalUsedTerms} thuật ngữ từ từ điển.`,
+                duration: 10000
             });
         } catch (fatalErr: any) {
             console.error("Fatal error in batch translation:", fatalErr);

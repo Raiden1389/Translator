@@ -29,12 +29,31 @@ export async function speak(
 
     const textHash = getTextHash(text);
 
-    // 1. Check Cache
-    const cache = await db.ttsCache.where({ chapterId, voice, textHash, pitch, rate }).first();
-    if (cache) {
-        console.log("TTS Cache Hit!", chapterId, textHash, pitch, rate);
-        const blob = new Blob([new Uint8Array(cache.blob)], { type: 'audio/mpeg' });
-        return URL.createObjectURL(blob);
+    // Safety check: ensure all query parameters are defined and valid for compound index
+    if (chapterId === undefined || !voice || !textHash || pitch === undefined || rate === undefined) {
+        console.warn("TTS Query aborted: missing keys", { chapterId, voice, textHash, pitch, rate });
+    } else {
+        // 1. Check Cache using explicit compound index for performance and stability
+        try {
+            const cache = await db.ttsCache
+                .where('[chapterId+voice+textHash+pitch+rate]')
+                .equals([chapterId, voice, textHash, pitch, rate])
+                .first();
+
+            if (cache) {
+                console.log("TTS Cache Hit!", chapterId, textHash, pitch, rate);
+                const blob = new Blob([new Uint8Array(cache.blob)], { type: 'audio/mpeg' });
+                return URL.createObjectURL(blob);
+            }
+        } catch (err) {
+            console.error("TTS Cache Query Error:", err);
+            // Fallback: search without compound index if it fails
+            const fallback = await db.ttsCache.where({ chapterId, textHash, voice }).first();
+            if (fallback) {
+                const blob = new Blob([new Uint8Array(fallback.blob)], { type: 'audio/mpeg' });
+                return URL.createObjectURL(blob);
+            }
+        }
     }
 
     // 2. Fetch from Backend
@@ -59,8 +78,18 @@ export async function speak(
 
 export async function prefetchTTS(chapterId: number, text: string, voice: string, pitch: string = "+0Hz", rate: string = "+0%") {
     const textHash = getTextHash(text);
-    const exists = await db.ttsCache.where({ chapterId, voice, textHash, pitch, rate }).count();
-    if (exists > 0) return; // Already cached
+
+    if (chapterId === undefined || !voice || !textHash || pitch === undefined || rate === undefined) return;
+
+    try {
+        const count = await db.ttsCache
+            .where('[chapterId+voice+textHash+pitch+rate]')
+            .equals([chapterId, voice, textHash, pitch, rate])
+            .count();
+        if (count > 0) return; // Already cached
+    } catch (e) {
+        // Fallback or ignore
+    }
 
     // Generate in background
     speak(chapterId, text, voice, pitch, rate).then(url => {

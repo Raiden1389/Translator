@@ -177,7 +177,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 }
 
                 setReviewData({ chars: finalChars, terms: finalTerms });
-                toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`);
+                toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`, { duration: 10000 });
             } else {
                 toast.info("Không tìm thấy thuật ngữ nào.");
             }
@@ -308,7 +308,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                         }
                     }
 
-                    toast.success(`Đã lưu: ${allSave.length} từ vào từ điển, ${allBlacklist.length} từ vào blacklist.`);
+                    toast.success(`Đã lưu: ${allSave.length} từ vào từ điển, ${allBlacklist.length} từ vào blacklist.`, { duration: 10000 });
                     setReviewData(null);
                 }}
             />

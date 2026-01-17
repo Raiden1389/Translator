@@ -20,10 +20,13 @@ import JSZip from "jszip";
 import { cn } from "@/lib/utils";
 import { gdrive } from "@/lib/googleDrive";
 import { open } from "@tauri-apps/plugin-shell";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 
 // Sub-components
 import { FormatCard } from "./export/FormatCard";
 import { ExportForm } from "./export/ExportForm";
+import { splitIntoParagraphs } from "./utils/readerFormatting";
 import { Switch } from "@/components/ui/switch";
 import {
     Select,
@@ -228,8 +231,7 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
                 await gdrive.uploadFile(blob, filename, selectedFolderId);
                 toast.success("Đã đẩy lên Google Drive!");
             } else {
-                downloadBlob(blob, filename);
-                toast.success("Đã tải xuống máy!");
+                await downloadBlob(blob, filename);
             }
         } catch (error) {
             console.error(error);
@@ -247,10 +249,12 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
             content += `--------------------------------------------------\r\n`;
             if (language === "vi") {
                 content += `${ch.title_translated || ch.title}\r\n\r\n`;
-                content += ch.content_translated || "[Chưa dịch]";
+                const paragraphs = splitIntoParagraphs(ch.content_translated || "[Chưa dịch]");
+                content += paragraphs.join("\r\n\r\n");
             } else if (language === "zh") {
                 content += `${ch.title}\r\n\r\n`;
-                content += ch.content_original;
+                const paragraphs = splitIntoParagraphs(ch.content_original || "");
+                content += paragraphs.join("\r\n\r\n");
             }
             content += `\r\n\r\n`;
             setExportProgress(10 + Math.round((idx / chs.length) * 80));
@@ -272,10 +276,11 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
 </container>`);
 
         zip.file("OEBPS/style.css", `
-body { font-family: "Georgia", serif; padding: 5%; line-height: 1.6; }
-h1 { text-align: center; color: #333; margin-bottom: 2em; }
-h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid #eee; padding-bottom: 0.5em; }
-.chapter-content { white-space: pre-wrap; margin-top: 1.5em; font-size: 1.1em; }
+body { font-family: "Georgia", serif; padding: 5% 8%; line-height: 1.8; color: #1a1a1a; background-color: #fdfdfd; }
+h1 { text-align: center; color: #333; margin-bottom: 2em; font-family:  serif; }
+h2 { text-align: center; color: #000; margin-top: 2em; margin-bottom: 2em; border-bottom: 1px solid #eee; padding-bottom: 1em; font-family: serif; }
+p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
+.chapter-content { margin-top: 2em; }
 `);
 
         const manifestArr: string[] = [];
@@ -305,12 +310,13 @@ h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid 
         }
 
         const tocEntries: string[] = [];
-
         for (let i = 0; i < chs.length; i++) {
             const ch = chs[i];
             const fileName = `chapter_${ch.id}.xhtml`;
             const title = language === 'vi' ? (ch.title_translated || ch.title) : ch.title;
-            const contentBody = language === 'vi' ? (ch.content_translated || "[Chưa dịch]") : ch.content_original;
+            const rawContent = language === 'vi' ? (ch.content_translated || "[Chưa dịch]") : ch.content_original;
+            const paragraphs = splitIntoParagraphs(rawContent);
+            const contentHtml = paragraphs.map(p => `<p>${p}</p>`).join('\n');
 
             const html = `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
@@ -321,7 +327,9 @@ h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid 
 </head>
 <body>
     <h2>${title}</h2>
-    <div class="chapter-content">${contentBody.replace(/\n/g, '<br/>')}</div>
+    <div class="chapter-content">
+        ${contentHtml}
+    </div>
 </body>
 </html>`;
 
@@ -371,15 +379,29 @@ h2 { text-align: center; color: #444; margin-top: 1em; border-bottom: 1px solid 
         return { blob: content, filename };
     };
 
-    const downloadBlob = (blob: Blob, filename: string) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    const downloadBlob = async (blob: Blob, filename: string) => {
+        try {
+            const filePath = await save({
+                defaultPath: filename,
+                filters: [
+                    {
+                        name: format === "epub" ? "E-Book EPUB" : "Plain Text",
+                        extensions: [format]
+                    }
+                ]
+            });
+
+            if (!filePath) return; // User cancelled
+
+            const arrayBuffer = await blob.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+
+            await writeFile(filePath, uint8Array);
+            toast.success("Đã lưu file thành công!");
+        } catch (error) {
+            console.error("Save Error:", error);
+            toast.error("Lỗi khi lưu file!");
+        }
     };
 
     const formatTypes = [

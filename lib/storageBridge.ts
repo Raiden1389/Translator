@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { writeTextFile, readTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { writeTextFile, readTextFile, exists, mkdir, BaseDirectory, readDir } from "@tauri-apps/plugin-fs";
 
 export class StorageBridge {
     private static instance: StorageBridge;
@@ -62,6 +62,22 @@ export class StorageBridge {
         } catch (e) {
             console.error("Failed to load workspace", e);
             return null;
+        }
+    }
+
+    async listWorkspaces() {
+        if (!this.isTauri) return [];
+
+        await this.ensureDataDir();
+
+        try {
+            const entries = await readDir("workspaces", { baseDir: BaseDirectory.AppData });
+            return entries
+                .filter(e => e.isFile && e.name.endsWith('.json'))
+                .map(e => e.name.replace('.json', ''));
+        } catch (e) {
+            console.error("Failed to list workspaces", e);
+            return [];
         }
     }
 

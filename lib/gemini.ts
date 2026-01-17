@@ -94,10 +94,13 @@ export const translateChapter = async (
  4. Giữ nguyên tên riêng (Hán Việt).
  5. Ngôi kể chính xác (Hắn/Nàng).
  6. Chỉ trả về JSON hợp lệ.
- 7. TUYỆT ĐỐI KHÔNG TỰ Ý NGẮT ĐOẠN. Nếu các câu nằm cạnh nhau trong văn bản gốc thì bản dịch phải giữ nguyên trong cùng một đoạn văn.
+ 7. GIỮ NGUYÊN CẤU TRÚC ĐOẠN VĂN: Bản dịch phải giữ nguyên các đoạn văn (paragraphs) y hệt như bản gốc. Không được tự ý gộp nhiều đoạn thành một, cũng không được tự ý chia nhỏ một đoạn thành nhiều đoạn.
  8. Giữ nguyên cấu trúc danh sách theo chiều dọc. Mỗi chỉ số (Strength, Agility, Intelligence...) phải nằm trên một dòng riêng biệt y hệt bản gốc. Tuyệt đối không được gom nhóm chúng thành một đoạn văn.
  9. Giữ nguyên tuyệt đối các ký hiệu hệ thống trong dấu ngoặc vuông []. Không được thêm bớt dấu cách hay xuống dòng bên trong hoặc ngay sau các dấu ngoặc này.
  10. TUYỆT ĐỐI KHÔNG Xuống dòng SAU dấu đóng ngoặc vuông ]. Dấu ] phải dính liền với nội dung bên trong và nối tiếp câu văn sau đó.
+ 11. CẤM TUYỆT ĐỐI VĂN BẢN THỪA (NO CHATTER): Không được bao gồm bất kỳ lời dẫn, lời chào, lời giải thích hay biểu tượng cảm xúc nào (Emoji) ngoài nội dung truyện. 
+ 12. CHỈ TRẢ VỀ JSON: Tuyệt đối không viết thêm gì phía sau dấu đóng ngoặc nhọn } cuối cùng của JSON.
+ 
      VÍ DỤ SAI (KHÔNG ĐƯỢC LÀM): 
      "...mắt hắn chợt sáng lên. [Phát hiện công thức vũ khí 'Trường mâu'
      ] Công thức chế tạo!"
@@ -150,33 +153,22 @@ export const translateChapter = async (
                 jsonText = candidates?.[0]?.content?.parts?.[0]?.text || "";
             }
 
-            // Clean JSON: Remove markdown code blocks if present
+            // Clean JSON: Remove markdown code blocks and ANY text outside the first { and last }
             jsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+
+            const firstBrace = jsonText.indexOf('{');
+            const lastBrace = jsonText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+                jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+            }
 
             if (!jsonText) throw new Error("Empty response from AI");
 
             const parsed = JSON.parse(jsonText);
             if (!parsed.translatedText) throw new Error("Invalid JSON structure: missing translatedText");
 
-            // Normalize Brackets & Spacing
-            console.log('[Translate] Before normalize - has \\n]?', parsed.translatedText.includes('\n]'));
-            console.log('[Translate] Before normalize - has .\\n\\n]?', parsed.translatedText.includes('.\n\n]'));
-
-            // Find the specific problem area
-            const idx = parsed.translatedText.indexOf('Kinh Hồn Dạ');
-            if (idx !== -1) {
-                console.log('[Translate] Around "Kinh Hồn Dạ":', JSON.stringify(parsed.translatedText.substring(idx, idx + 100)));
-            }
-
-            parsed.translatedText = normalizeVietnameseContent(parsed.translatedText);
-            if (parsed.translatedTitle) parsed.translatedTitle = normalizeVietnameseContent(parsed.translatedTitle);
-
-            console.log('[Translate] After normalize - has \\n]?', parsed.translatedText.includes('\n]'));
-
-            if (idx !== -1) {
-                const idx2 = parsed.translatedText.indexOf('Kinh Hồn Dạ');
-                console.log('[Translate] After normalize - Around "Kinh Hồn Dạ":', JSON.stringify(parsed.translatedText.substring(idx2, idx2 + 100)));
-            }
+            parsed.translatedText = scrubAIChatter(normalizeVietnameseContent(parsed.translatedText));
+            if (parsed.translatedTitle) parsed.translatedTitle = scrubAIChatter(normalizeVietnameseContent(parsed.translatedTitle));
 
             // 4. Apply Auto-Corrections (Hard overrides)
             const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
@@ -607,6 +599,22 @@ function normalizeVietnameseContent(text: string): string {
         .replace(/[ \t]{2,}/g, " ")
         // 10. Ensure max 2 newlines (paragraph break)
         .replace(/\n{3,}/g, "\n\n")
+        .trim();
+}
+
+/**
+ * Scrubs common AI meta-talk/preambles that leak into content
+ */
+function scrubAIChatter(text: string): string {
+    if (!text) return "";
+
+    return text
+        // 1. Common preambles
+        .replace(/^(Of course!|Here is the response|Strictly in JSON|Sure,|Certainly,)[^.]*[:\.]\s*/i, "")
+        // 2. Common postscripts / self-corrections
+        .replace(/\s*(Of course!|Here is the response|Strictly in JSON|Just kidding|I know you said|Here it is|Enjoy!|Hope this helps)[\s\S]*$/i, "")
+        // 3. Trailing artifacts like JSON leftovers
+        .replace(/["'\}\s\n]+$/g, "")
         .trim();
 }
 

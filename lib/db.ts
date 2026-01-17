@@ -152,6 +152,11 @@ db.version(12).stores({
     chapters: '++id, workspaceId, order' // update schema if necessary, though no index change needed for this field
 });
 
+// V13: Compound index for TTS Cache optimization
+db.version(13).stores({
+    ttsCache: '++id, chapterId, voice, textHash, pitch, rate, [chapterId+voice+textHash+pitch+rate]'
+});
+
 // Tauri Hook: Sync to local files on change
 if (typeof window !== 'undefined' && (window as any).__TAURI__) {
     const syncWorkspace = async (workspaceId: string) => {
@@ -210,5 +215,29 @@ export interface PromptEntry {
     content: string;
     createdAt: Date;
 }
+
+
+export const rehydrateFromStorage = async () => {
+    if (typeof window === 'undefined' || !(window as any).__TAURI__) return;
+
+    try {
+        const count = await db.workspaces.count();
+        if (count > 0) return; // Already has data
+
+        const workspaceIds = await storage.listWorkspaces();
+        if (workspaceIds.length === 0) return;
+
+        for (const id of workspaceIds) {
+            const data = await storage.loadWorkspace(id);
+            if (!data) continue;
+
+            if (data.workspace) await db.workspaces.put(data.workspace);
+            if (data.chapters && data.chapters.length > 0) await db.chapters.bulkPut(data.chapters);
+            if (data.dictionary && data.dictionary.length > 0) await db.dictionary.bulkPut(data.dictionary);
+        }
+    } catch (e) {
+        // Silent fail or minimal error reporting
+    }
+};
 
 export { db };

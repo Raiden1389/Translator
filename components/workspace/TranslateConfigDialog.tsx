@@ -54,7 +54,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         await db.settings.put({ key: "apiKeyPrimary", value: currentSettings.apiKey });
         await db.settings.put({ key: "aiModel", value: currentSettings.model });
         setSettingsOpen(false);
-        toast.success("Đã lưu cấu hình AI!");
+        toast.success("Đã lưu cấu hình AI!", { duration: 6000 });
     };
 
     const handleSavePrompt = async () => {
@@ -63,7 +63,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         if (title) {
             await db.prompts.add({ title, content: translateConfig.customPrompt, createdAt: new Date() });
             setSavedPrompts(await db.prompts.toArray());
-            toast.success("Đã lưu prompt thành công!");
+            toast.success("Đã lưu prompt thành công!", { duration: 10000 });
         }
     };
 
@@ -72,7 +72,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         if (confirm("Bạn có chắc muốn xóa prompt này?")) {
             await db.prompts.delete(id);
             setSavedPrompts(await db.prompts.toArray());
-            toast.success("Đã xóa prompt!");
+            toast.success("Đã xóa prompt!", { duration: 10000 });
         }
     };
 
@@ -82,7 +82,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         if (newTitle && newTitle.trim() !== currentTitle) {
             await db.prompts.update(id, { title: newTitle.trim() });
             setSavedPrompts(await db.prompts.toArray());
-            toast.success("Đã đổi tên prompt!");
+            toast.success("Đã đổi tên prompt!", { duration: 10000 });
         }
     };
 

@@ -213,14 +213,12 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     const handleContextMenu = (e: React.MouseEvent) => {
         const selection = window.getSelection();
-        console.log("Context Menu Triggered", selection?.toString());
         if (selection && selection.toString().trim().length > 0) {
             e.preventDefault();
             setSelectedText(selection.toString().trim());
             setContextMenuPosition({ x: e.clientX, y: e.clientY });
             setMenuPosition(null); // Hide standard selection menu if showing
         } else {
-            console.log("No selection found for context menu");
         }
     };
 
@@ -326,7 +324,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
         if (action === "copy") {
             navigator.clipboard.writeText(selectedText);
-            toast.success("Đã sao chép!");
+            toast.success("Đã sao chép!", { duration: 4000 });
             setContextMenuPosition(null);
             setMenuPosition(null);
             return;
@@ -353,7 +351,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     source: 'manual',
                     createdAt: new Date()
                 });
-                toast.success(`Đã thêm "${selectedText}" vào Blacklist`);
+                toast.success(`Đã thêm "${selectedText}" vào Blacklist`, { duration: 8000 });
             }
             setMenuPosition(null);
             setContextMenuPosition(null);
@@ -410,7 +408,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             // Validated.
         }
 
-        toast.success("Đã lưu quy tắc sửa lỗi và áp dụng!");
+        toast.success("Đã lưu quy tắc sửa lỗi và áp dụng!", { duration: 8000 });
         setCorrectionOpen(false);
     };
 
@@ -440,7 +438,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             const issues = await inspectChapter(chapter.workspaceId, editContent);
             setInspectionIssues(issues);
             await db.chapters.update(chapterId, { inspectionResults: issues });
-            if (issues.length === 0) toast.success("Không tìm thấy lỗi nào!");
+            if (issues.length === 0) toast.success("Không tìm thấy lỗi nào!", { duration: 6000 });
             else toast.warning(`Tìm thấy ${issues.length} vấn đề cần xem xét.`);
         } catch (error) {
             toast.error("Lỗi khi kiểm tra: " + (error as any).message);
@@ -474,7 +472,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         setInspectionIssues(newIssues);
         await db.chapters.update(chapterId, { inspectionResults: newIssues });
         setActiveIssue(null);
-        toast.success("Đã sửa lỗi!");
+        toast.success("Đã sửa lỗi!", { duration: 6000 });
     };
 
     const handleAutoFixAll = async (type: string) => {
@@ -498,21 +496,9 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     if (!chapter) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
-
-            {/* Close Button - Always Visible at Top Right */}
-            <Button
-                size="icon"
-                variant="ghost"
-                onClick={onClose}
-                className="absolute top-4 right-4 z-[200] hover:bg-red-500/30 bg-black/40 backdrop-blur-sm text-white/90 hover:text-white rounded-full w-10 h-10 border border-white/10"
-                title="Đóng cửa sổ (ESC)"
-            >
-                <X className="w-5 h-5" />
-            </Button>
-
-            {/* Modal Container: 95% Screen */}
-            <div className="w-[95vw] h-[95vh] bg-[#1a0b2e] rounded-xl shadow-2xl border border-white/10 flex flex-col overflow-hidden relative">
+        <div className="fixed inset-x-0 bottom-0 top-[31px] z-[100] flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
+            {/* Modal Inner Window: Premium rounded-t-3xl with glass-like border */}
+            <div className="w-full h-full bg-[#0a0515] rounded-t-[32px] overflow-hidden flex flex-col border-t border-white/10 shadow-[0_-15px_60px_rgba(0,0,0,0.8)] relative">
 
                 <ReaderHeader
                     activeTab={activeTab}
@@ -564,13 +550,14 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                         )}
 
                         {(activeTab === 'translated' || isParallel) && (
-                            <div className="min-h-full flex flex-col relative bg-[#1a0b2e]">
-                                {isParallel && <div className="px-8 md:px-12 pt-8 text-xs font-bold text-emerald-500 uppercase tracking-widest shrink-0">Translation</div>}
+                            <div className="min-h-full flex flex-col relative bg-[#0a0515]">
+                                {isParallel && <div className="px-8 md:px-12 pt-8 text-xs font-black text-emerald-500/50 uppercase tracking-[0.2em] shrink-0">Translation</div>}
 
                                 <div className={cn(
-                                    "font-bold text-3xl text-amber-500 font-serif mb-8 text-center", // Enhanced style
-                                    "max-w-[850px] mx-auto px-6", // Match body width
-                                    isParallel ? "pt-4" : "pt-12 md:pt-20"
+                                    "font-bold text-4xl text-amber-500 font-serif mb-12 text-center",
+                                    "max-w-[800px] mx-auto px-6",
+                                    "drop-shadow-[0_0_15px_rgba(245,158,11,0.2)]", // Luxury glow
+                                    isParallel ? "pt-6" : "pt-16 md:pt-24"
                                 )}
                                     style={{ fontFamily: readerConfig.fontFamily }}
                                 >
@@ -578,15 +565,15 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                 </div>
 
                                 <div
-                                    key={chapter.id} // Re-mount component only when switching chapters to reset content
+                                    key={chapter.id}
                                     contentEditable
                                     suppressContentEditableWarning
                                     onInput={(e) => setEditContent(e.currentTarget.innerText)}
                                     onSelect={handleTextSelection}
                                     onContextMenu={handleContextMenu}
                                     className={cn(
-                                        "w-full h-full flex-1 bg-transparent focus:outline-none outline-none font-serif",
-                                        "max-w-[850px] mx-auto px-6 pb-24"
+                                        "w-full h-full flex-1 bg-transparent focus:outline-none outline-none",
+                                        "max-w-[800px] mx-auto px-8 pb-32 transition-colors duration-500"
                                     )}
                                     style={{
                                         fontFamily: readerConfig.fontFamily,
@@ -598,7 +585,6 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                     spellCheck={false}
                                     ref={editorRef}
                                     onClick={(e) => {
-                                        // Event Delegation for Inspector Issues
                                         const target = e.target as HTMLElement;
                                         const issueOriginal = target.getAttribute('data-issue-original');
                                         if (issueOriginal) {
@@ -607,7 +593,6 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                         }
                                     }}
                                     dangerouslySetInnerHTML={htmlContent}
-
                                 />
                             </div>
                         )}

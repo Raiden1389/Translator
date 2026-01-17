@@ -12,7 +12,9 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const percent = Math.round((progress.current / progress.total) * 100) || 0;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-300">
+            {/* Subtle blocking layer to prevent accidental clicks while still showing the UI */}
+            <div className="absolute inset-0 bg-black/5"></div>
             <div className="bg-[#1a0b2e] border border-white/10 p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-8 relative overflow-hidden">
                 {/* Background glow effects */}
                 <div className="absolute -top-24 -left-24 h-48 w-48 bg-primary/20 rounded-full blur-3xl"></div>

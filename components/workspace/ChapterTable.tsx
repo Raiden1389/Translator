@@ -138,6 +138,11 @@ export function ChapterTable({
                                 )}
                                 onMouseDown={(e) => handleMouseDown(chapter.id!, e)}
                                 onMouseEnter={() => handleMouseEnter(chapter.id!)}
+                                onClick={(e) => {
+                                    // Don't toggle if clicking a button or a link/title specifically handled elsewhere
+                                    if ((e.target as HTMLElement).closest('button, a, .cursor-help')) return;
+                                    toggleSelect(chapter.id!);
+                                }}
                                 onContextMenu={(e) => {
                                     if (selectedChapters.length > 0) {
                                         e.preventDefault();
@@ -149,7 +154,8 @@ export function ChapterTable({
                                     <Checkbox
                                         checked={isSelected || isInDrag}
                                         onCheckedChange={() => toggleSelect(chapter.id!)}
-                                        className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary pointer-events-none" // Pointer events none to prevent conflict with row click
+                                        className="border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                        onClick={(e) => e.stopPropagation()} // Prevent double trigger with row onClick
                                     />
                                 </TableCell>
                                 <TableCell className="text-center font-mono text-white/50 text-xs text-nowrap">

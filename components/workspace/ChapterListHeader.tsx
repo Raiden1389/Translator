@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { FixBracketsButton } from "./FixBracketsButton";
 
 interface ChapterListHeaderProps {
     totalChapters: number;
@@ -276,7 +275,6 @@ export function ChapterListHeader({
                         >
                             <Sparkles className="mr-2 h-4 w-4" /> Quét thuật ngữ
                         </Button>
-                        <FixBracketsButton workspaceId={workspaceId} />
                         <Button
                             size="sm"
                             variant="default"

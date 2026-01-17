@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { db, rehydrateFromStorage } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NewWorkspaceDialog } from "@/components/dashboard/NewWorkspaceDialog";
 import { BookOpen, Trash2, Search, Clock, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from 'next/link';
+import { toast } from "sonner";
 
 const EditableTitle = ({ id, initialTitle }: { id: string, initialTitle: string }) => {
     const [title, setTitle] = useState(initialTitle);
@@ -113,6 +114,16 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
 export function WorkspaceList() {
     const workspaces = useLiveQuery(() => db.workspaces.orderBy("updatedAt").reverse().toArray());
     const [search, setSearch] = useState("");
+
+    useEffect(() => {
+        const checkAndRecover = async () => {
+            if (workspaces && workspaces.length === 0) {
+                // Potential recovery case
+                await rehydrateFromStorage();
+            }
+        };
+        checkAndRecover();
+    }, [workspaces]);
 
     const deleteWorkspace = async (e: React.MouseEvent, id: string) => {
         e.preventDefault();
