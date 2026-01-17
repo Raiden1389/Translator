@@ -49,7 +49,7 @@ export function useBatchTranslate() {
         const batchStartTime = Date.now();
         setBatchProgress({ current: 0, total: chaptersToTranslate.length, currentTitle: "Khởi tạo..." });
 
-        const CONCURRENT_LIMIT = 3;
+        const CONCURRENT_LIMIT = 5;
         const accumulatedChars: any[] = [];
 
         const activePromises: Promise<void>[] = [];
@@ -171,7 +171,12 @@ export function useBatchTranslate() {
             for (const chapter of chaptersToTranslate) {
                 const p = processChapter(chapter, corrections, blacklistSet);
                 activePromises.push(p);
-                p.then(() => activePromises.splice(activePromises.indexOf(p), 1));
+
+                // Cleanup when done
+                p.then(() => {
+                    activePromises.splice(activePromises.indexOf(p), 1);
+                });
+
                 if (activePromises.length >= CONCURRENT_LIMIT) {
                     await Promise.race(activePromises);
                 }

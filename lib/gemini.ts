@@ -96,7 +96,14 @@ export const translateChapter = async (
  6. Chỉ trả về JSON hợp lệ.
  7. TUYỆT ĐỐI KHÔNG TỰ Ý NGẮT ĐOẠN. Nếu các câu nằm cạnh nhau trong văn bản gốc thì bản dịch phải giữ nguyên trong cùng một đoạn văn.
  8. Giữ nguyên cấu trúc danh sách theo chiều dọc. Mỗi chỉ số (Strength, Agility, Intelligence...) phải nằm trên một dòng riêng biệt y hệt bản gốc. Tuyệt đối không được gom nhóm chúng thành một đoạn văn.
- 9. Giữ nguyên tuyệt đối các ký hiệu hệ thống trong dấu ngoặc vuông []. Không được thêm bớt dấu cách hay xuống dòng bên trong hoặc ngay sau các dấu ngoặc này.`;
+ 9. Giữ nguyên tuyệt đối các ký hiệu hệ thống trong dấu ngoặc vuông []. Không được thêm bớt dấu cách hay xuống dòng bên trong hoặc ngay sau các dấu ngoặc này.
+ 10. TUYỆT ĐỐI KHÔNG Xuống dòng SAU dấu đóng ngoặc vuông ]. Dấu ] phải dính liền với nội dung bên trong và nối tiếp câu văn sau đó.
+     VÍ DỤ SAI (KHÔNG ĐƯỢC LÀM): 
+     "...mắt hắn chợt sáng lên. [Phát hiện công thức vũ khí 'Trường mâu'
+     ] Công thức chế tạo!"
+     
+     VÍ DỤ ĐÚNG (BẮT BUỘC): 
+     "...mắt hắn chợt sáng lên. [Phát hiện công thức vũ khí 'Trường mâu'] Công thức chế tạo!"`;
 
     try {
         onLog({ timestamp: new Date(), message: `Đang dịch với model: ${aiModel}...`, type: 'info' });
@@ -152,8 +159,24 @@ export const translateChapter = async (
             if (!parsed.translatedText) throw new Error("Invalid JSON structure: missing translatedText");
 
             // Normalize Brackets & Spacing
+            console.log('[Translate] Before normalize - has \\n]?', parsed.translatedText.includes('\n]'));
+            console.log('[Translate] Before normalize - has .\\n\\n]?', parsed.translatedText.includes('.\n\n]'));
+
+            // Find the specific problem area
+            const idx = parsed.translatedText.indexOf('Kinh Hồn Dạ');
+            if (idx !== -1) {
+                console.log('[Translate] Around "Kinh Hồn Dạ":', JSON.stringify(parsed.translatedText.substring(idx, idx + 100)));
+            }
+
             parsed.translatedText = normalizeVietnameseContent(parsed.translatedText);
             if (parsed.translatedTitle) parsed.translatedTitle = normalizeVietnameseContent(parsed.translatedTitle);
+
+            console.log('[Translate] After normalize - has \\n]?', parsed.translatedText.includes('\n]'));
+
+            if (idx !== -1) {
+                const idx2 = parsed.translatedText.indexOf('Kinh Hồn Dạ');
+                console.log('[Translate] After normalize - Around "Kinh Hồn Dạ":', JSON.stringify(parsed.translatedText.substring(idx2, idx2 + 100)));
+            }
 
             // 4. Apply Auto-Corrections (Hard overrides)
             const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
@@ -248,7 +271,13 @@ export const extractGlossary = async (text: string, onLog?: (msg: string) => voi
             }
         });
         const jsonText = typeof (response as any).text === 'function' ? (response as any).text() : (response as any).text;
-        return JSON.parse(jsonText);
+        const result = JSON.parse(jsonText);
+
+        // Enforce type="name" for characters
+        if (result.characters && Array.isArray(result.characters)) {
+            result.characters = result.characters.map((c: any) => ({ ...c, type: 'name' }));
+        }
+        return result;
     }, onLog);
 };
 
@@ -538,23 +567,45 @@ function normalizeVietnameseContent(text: string): string {
         // 2. Normalize Parentheses: （ ） -> ( )
         .replace(/（/g, "(")
         .replace(/）/g, ")")
-        // 3. AGGRESSIVE: Remove newlines/spaces *around* brackets to prevent orphaned brackets
-        .replace(/\s*\]/g, "]") // Remove space/newline BEFORE ]
-        .replace(/\[\s*/g, "[") // Remove space/newline AFTER [
+
+        // 3. MOST CRITICAL: Remove ANY amount of whitespace/newlines before ]
+        // This catches patterns like "text.\n]", "text.\n\n]", "text. \n \n ]", etc.
+        .replace(/[\s\n]+\]/g, "]")
+
+        // 4. CRITICAL FIX: Remove ALL whitespace/newlines INSIDE brackets first
+        // This prevents "[Sentence 1.\n\nSentence 2]" from being split
+        .replace(/\[([\s\S]*?)\]/g, (match) => {
+            const inner = match.slice(1, -1); // Extract content between [ and ]
+            const cleaned = inner.replace(/\s+/g, " ").trim(); // Collapse all whitespace to single space
+            return `[${cleaned}]`;
+        })
+        .replace(/\(([^\)]*?)\)/g, (match) => {
+            const inner = match.slice(1, -1);
+            const cleaned = inner.replace(/\s+/g, " ").trim();
+            return `(${cleaned})`;
+        })
+
+        // 5. AGGRESSIVE: Remove newlines/spaces *around* brackets
+        // Must handle cases like "text.\n\n]" (double newline before ])
+        .replace(/\[[\s\n]+/g, "[") // Remove ALL newlines and spaces AFTER [
+
+        // 5. Fix: Squash newline between brackets: ] \n [ -> ] [
+        .replace(/\]\s*\n+\s*\[/g, "] [")
+
+        // 6. Fix: Remove newline after ] if it's not a paragraph break (double newline)
+        .replace(/\]\n(?!\n)/g, "] ")
+
+        // 7. Same for parentheses
         .replace(/\s*\)/g, ")")
         .replace(/\(\s*/g, "(")
-        // 4. Add legitimate spacing
+
+        // 8. Add legitimate spacing
         .replace(/\](?=[^\s.,;!?\]])/g, "] ")
         .replace(/(?<=[^\s\[])\[/g, " [")
 
-        // 5. CRITICAL: Squash whitespace/newlines INSIDE brackets to single space
-        // This prevents "[Sentence 1.\nSentence 2]" from being split into two paragraphs.
-        .replace(/\[([\s\S]*?)\]/g, (match) => match.replace(/\s+/g, " "))
-        .replace(/\(([^\)]*?)\)/g, (match) => match.replace(/\s+/g, " "))
-
-        // 6. Fix double spaces (horizontal only) -- apply again after squash
+        // 9. Fix double spaces (horizontal only)
         .replace(/[ \t]{2,}/g, " ")
-        // 7. Ensure max 2 newlines (paragraph break)
+        // 10. Ensure max 2 newlines (paragraph break)
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 }

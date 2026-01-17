@@ -185,9 +185,18 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
 
     const handleDelete = async (id: number) => {
         try {
+            await db.dictionary.delete(id);
+            toast.success("Đã xóa thuật ngữ.");
+        } catch (e) {
+            console.error("Delete failed:", e);
+            toast.error("Lỗi khi xóa.");
+        }
+    }
+
+    const handleBlacklist = async (id: number) => {
+        try {
             const item = await db.dictionary.get(id);
             if (item) {
-                // Auto-add to Blacklist (Manual Source)
                 await db.blacklist.add({
                     workspaceId,
                     word: item.original,
@@ -196,9 +205,11 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     createdAt: new Date()
                 });
                 await db.dictionary.delete(id);
+                toast.success("Đã chặn (vào Blacklist).");
             }
         } catch (e) {
-            console.error("Delete failed:", e);
+            console.error("Blacklist failed:", e);
+            toast.error("Lỗi khi thêm vào Blacklist.");
         }
     }
 
@@ -415,6 +426,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     await db.chapters.update(targetChapter.id, {
                         glossaryExtractedAt: new Date()
                     });
+                    toast.success(`Đã đánh dấu chương "${targetChapter.title}" là đã quét thuật ngữ.`);
                 }
             } else {
                 toast.info("AI không trả về kết quả nào.");
@@ -1005,7 +1017,19 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            <div className="col-span-2 flex justify-end">
+                                            <div className="col-span-2 flex justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-white/20 hover:text-amber-500 hover:bg-amber-500/10"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleBlacklist(entry.id!);
+                                                    }}
+                                                    title="Chặn (Thêm vào Blacklist)"
+                                                >
+                                                    <ShieldBan className="h-4 w-4" />
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

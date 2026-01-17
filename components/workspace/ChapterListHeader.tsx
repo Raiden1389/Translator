@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { FixBracketsButton } from "./FixBracketsButton";
 
 interface ChapterListHeaderProps {
     totalChapters: number;
@@ -42,6 +43,7 @@ interface ChapterListHeaderProps {
     onViewModeChange: (mode: "grid" | "table") => void;
     onSelectRange: (range: string) => void;
     onScan: () => void;
+    workspaceId: string;
 }
 
 export function ChapterListHeader({
@@ -68,7 +70,8 @@ export function ChapterListHeader({
     viewMode,
     onViewModeChange,
     onSelectRange,
-    onScan
+    onScan,
+    workspaceId
 }: ChapterListHeaderProps) {
     return (
         <div className="sticky top-2 z-30 bg-[#1a0b2e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl mb-6 mx-1 px-4 pb-4 transition-all duration-300">
@@ -273,6 +276,7 @@ export function ChapterListHeader({
                         >
                             <Sparkles className="mr-2 h-4 w-4" /> Quét thuật ngữ
                         </Button>
+                        <FixBracketsButton workspaceId={workspaceId} />
                         <Button
                             size="sm"
                             variant="default"

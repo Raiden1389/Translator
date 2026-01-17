@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ReaderHeader, ReaderConfig } from "./ReaderHeader";
+import { splitIntoParagraphs, formatReaderText } from "./utils/readerFormatting";
+import { ReaderProvider, useReaderContext } from "./context/ReaderContext";
 
 interface ReaderModalProps {
     chapterId: number;
@@ -29,71 +31,7 @@ interface ReaderModalProps {
     workspaceChapters?: any[];
 }
 
-// Shared logic for both UI rendering and TTS segmenting
-const splitIntoParagraphs = (text: string): string[] => {
-    if (!text) return [];
-
-    // 1. Initial split by newlines
-    let paragraphs = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
-
-    // 2. Smart splitting for very long blocks (often happens in AI translations)
-    return paragraphs.flatMap(para => {
-        if (para.length > 600) {
-            // Split at sentence endings followed by space
-            const sentences = para.split(/([.!?。！？]\s*)/);
-            const smartParas: string[] = [];
-            let currentPara = '';
-
-            for (let i = 0; i < sentences.length; i++) {
-                currentPara += sentences[i];
-                if (sentences[i].match(/[.!?。！？]\s*/) && currentPara.length > 300) {
-                    smartParas.push(currentPara.trim());
-                    currentPara = '';
-                }
-            }
-            if (currentPara.trim()) smartParas.push(currentPara.trim());
-            return smartParas;
-        }
-        return [para];
-    });
-};
-
-const formatReaderText = (text: string, issues: InspectionIssue[] = [], activeTTSIndex: number | null = null) => {
-    if (!text) return "";
-
-    const paragraphs = splitIntoParagraphs(text);
-
-    return paragraphs.map((para, index) => {
-        let formattedPara = para;
-
-        // 1. Quotes: "Hello" -> <i>"Hello"</i>
-        formattedPara = formattedPara.replace(/"([^"]+)"/g, '<i>"$1"</i>');
-
-        // 2. Dashes: - Hello -> - <i>Hello</i>
-        if (formattedPara.trim().startsWith('-') || formattedPara.trim().startsWith('—')) {
-            formattedPara = formattedPara.replace(/^([-—])\s*(.*)/, '$1 <i>$2</i>');
-        }
-
-        // 3. Apply Issues Highlighting
-        issues.sort((a, b) => b.original.length - a.original.length).forEach(issue => {
-            if (formattedPara.includes(issue.original)) {
-                formattedPara = formattedPara.split(issue.original).join(
-                    `<span class="bg-yellow-500/20 underline decoration-yellow-500 decoration-wavy cursor-pointer hover:bg-yellow-500/30 transition-colors" data-issue-original="${issue.original}">
-                        ${issue.original}
-                      </span>`
-                );
-            }
-        });
-
-        const isHighlighted = activeTTSIndex === index;
-        const isTTSMode = activeTTSIndex !== null;
-
-        const highlightClass = isHighlighted
-            ? "opacity-100 bg-white/[0.04] px-6 -mx-6 py-4 rounded-xl border-l-2 border-emerald-400 mb-6 transition-all duration-300 ease-out"
-            : `mb-5 leading-loose text-justify transition-all duration-500 ${isTTSMode ? "opacity-50 hover:opacity-100" : "opacity-100"}`;
-        return `<p id="tts-para-${index}" class="${highlightClass}">${formattedPara}</p>`;
-    }).join('');
-};
+// Utility functions moved to ./utils/readerFormatting.ts
 
 export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNext }: ReaderModalProps) {
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);

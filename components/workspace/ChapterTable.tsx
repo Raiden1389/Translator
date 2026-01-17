@@ -162,9 +162,13 @@ export function ChapterTable({
                                     >
                                         <div className="line-clamp-1 text-sm font-bold flex items-center gap-2">
                                             {chapter.glossaryExtractedAt && (
-                                                <span title={`Đã trích xuất thuật ngữ: ${new Date(chapter.glossaryExtractedAt).toLocaleString()}`}>
-                                                    <Book className="w-3 h-3 text-purple-400 flex-shrink-0" />
-                                                </span>
+                                                <div
+                                                    className="flex items-center gap-1 bg-purple-500/20 px-1.5 py-0.5 rounded text-[10px] text-purple-300 border border-purple-500/30 cursor-help"
+                                                    title={`Đã trích xuất thuật ngữ: ${new Date(chapter.glossaryExtractedAt).toLocaleString()}`}
+                                                >
+                                                    <Book className="w-3 h-3" />
+                                                    <span className="hidden xl:inline">Glossary</span>
+                                                </div>
                                             )}
                                             {chapter.title}
                                         </div>

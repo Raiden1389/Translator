@@ -152,6 +152,9 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 if (result) {
                     allChars = [...allChars, ...result.characters];
                     allTerms = [...allTerms, ...result.terms];
+
+                    // Update Chapter Status
+                    await db.chapters.update(chapter.id!, { glossaryExtractedAt: new Date() });
                 }
             }
             toast.dismiss("scanning-toast");
@@ -235,6 +238,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 onViewModeChange={setViewMode}
                 onSelectRange={handleSelectRange}
                 onScan={handleScan}
+                workspaceId={workspaceId}
             />
 
             {viewMode === "grid" ? (
