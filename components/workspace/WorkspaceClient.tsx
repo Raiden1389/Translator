@@ -201,32 +201,40 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
         return () => window.removeEventListener("paste", handlePaste);
     }, [workspace.id]);
 
-    // Stats
-    const totalChapters = useLiveQuery(
-        () => db.chapters.where("workspaceId").equals(workspace.id).count(),
-        [workspace.id]
-    ) || 0;
+    // Stats - Combined query to reduce re-renders (5 queries → 1)
+    const stats = useLiveQuery(async () => {
+        const [total, translated, terms, chars, usage] = await Promise.all([
+            db.chapters.where("workspaceId").equals(workspace.id).count(),
+            db.chapters.where("workspaceId").equals(workspace.id).filter(c => c.status === 'translated').count(),
+            db.dictionary.where("workspaceId").equals(workspace.id).filter(d => d.type !== 'name').count(),
+            db.dictionary.where("workspaceId").equals(workspace.id).filter(d => d.type === 'name').count(),
+            db.apiUsage.toArray()
+        ]);
 
-    const translatedChapters = useLiveQuery(
-        () => db.chapters.where("workspaceId").equals(workspace.id).filter(c => c.status === 'translated').count(),
-        [workspace.id]
-    ) || 0;
+        const totalInputTokens = usage.reduce((acc, curr) => acc + (curr.inputTokens || 0), 0);
+        const totalOutputTokens = usage.reduce((acc, curr) => acc + (curr.outputTokens || 0), 0);
+        const totalCostUSD = usage.reduce((acc, curr) => acc + (curr.totalCost || 0), 0);
 
-    const termCount = useLiveQuery(
-        () => db.dictionary.where("workspaceId").equals(workspace.id).filter(d => d.type !== 'name').count(),
-        [workspace.id]
-    ) || 0;
-
-    const charCount = useLiveQuery(
-        () => db.dictionary.where("workspaceId").equals(workspace.id).filter(d => d.type === 'name').count(),
-        [workspace.id]
-    ) || 0;
-
-    const apiUsage = useLiveQuery(() => db.apiUsage.toArray()) || [];
-    const totalInputTokens = apiUsage.reduce((acc, curr) => acc + (curr.inputTokens || 0), 0);
-    const totalOutputTokens = apiUsage.reduce((acc, curr) => acc + (curr.outputTokens || 0), 0);
-    const totalCostUSD = apiUsage.reduce((acc, curr) => acc + (curr.totalCost || 0), 0);
-    const totalCostVND = totalCostUSD * 25400; // Hardcoded exchange rate for now
+        return {
+            totalChapters: total,
+            translatedChapters: translated,
+            termCount: terms,
+            charCount: chars,
+            totalInputTokens,
+            totalOutputTokens,
+            totalCostUSD,
+            totalCostVND: totalCostUSD * 25400
+        };
+    }, [workspace.id]) || {
+        totalChapters: 0,
+        translatedChapters: 0,
+        termCount: 0,
+        charCount: 0,
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalCostUSD: 0,
+        totalCostVND: 0
+    };
 
     return (
         <div className="max-w-[1800px] mx-auto px-6 lg:px-8 py-6">
@@ -244,20 +252,20 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                         <CardContent className="space-y-4">
                             <div className="flex justify-between text-sm p-3 rounded-lg bg-background border border-border hover:border-primary/20 transition-colors">
                                 <span className="text-muted-foreground">Tổng số chương</span>
-                                <span className="text-foreground font-bold font-mono text-lg">{totalChapters.toLocaleString()}</span>
+                                <span className="text-foreground font-bold font-mono text-lg">{stats.totalChapters.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-sm p-3 rounded-lg bg-background border border-border hover:border-primary/20 transition-colors">
                                 <span className="text-muted-foreground">Đã dịch</span>
-                                <span className="text-emerald-600 font-bold font-mono text-lg">{translatedChapters.toLocaleString()}</span>
+                                <span className="text-emerald-600 font-bold font-mono text-lg">{stats.translatedChapters.toLocaleString()}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-3 rounded-lg bg-background border border-border text-center">
                                     <div className="text-xs text-muted-foreground mb-1">Thuật ngữ</div>
-                                    <div className="text-foreground font-bold">{termCount.toLocaleString()}</div>
+                                    <div className="text-foreground font-bold">{stats.termCount.toLocaleString()}</div>
                                 </div>
                                 <div className="p-3 rounded-lg bg-background border border-border text-center">
                                     <div className="text-xs text-muted-foreground mb-1">Nhân vật</div>
-                                    <div className="text-foreground font-bold">{charCount.toLocaleString()}</div>
+                                    <div className="text-foreground font-bold">{stats.charCount.toLocaleString()}</div>
                                 </div>
                             </div>
                             <div className="pt-2 border-t border-border mt-2 space-y-3">
@@ -266,14 +274,14 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                     <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg border border-border/50">
                                         <div className="text-xs text-muted-foreground font-medium">Tổng Token</div>
                                         <div className="text-foreground font-bold font-mono text-sm">
-                                            {((totalInputTokens + totalOutputTokens) / 1000).toFixed(1)}K
+                                            {((stats.totalInputTokens + stats.totalOutputTokens) / 1000).toFixed(1)}K
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center bg-primary/5 p-2 rounded-lg border border-primary/10">
                                         <div className="text-xs text-primary/70 font-bold uppercase tracking-tight">Thanh toán</div>
                                         <div className="text-right">
-                                            <div className="text-primary font-black font-mono text-lg leading-tight">${totalCostUSD.toFixed(3)}</div>
-                                            <div className="text-[10px] text-primary/40 font-bold">~{Math.round(totalCostVND).toLocaleString()} VNĐ</div>
+                                            <div className="text-primary font-black font-mono text-lg leading-tight">${stats.totalCostUSD.toFixed(3)}</div>
+                                            <div className="text-[10px] text-primary/40 font-bold">~{Math.round(stats.totalCostVND).toLocaleString()} VNĐ</div>
                                         </div>
                                     </div>
                                 </div>
@@ -362,7 +370,7 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                         )}
 
                         {isDragging && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-primary/20 z-30 backdrop-blur-sm border-2 border-primary border-dashed m-2 rounded-xl">
+                            <div className="absolute inset-0 flex items-center justify-center bg-primary/30 z-30 border-2 border-primary border-dashed m-2 rounded-xl">
                                 <p className="text-white text-lg font-bold animate-pulse">Thả ảnh vào đây!</p>
                             </div>
                         )}

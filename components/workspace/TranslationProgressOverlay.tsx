@@ -14,7 +14,7 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-300">
             {/* Subtle blocking layer to prevent accidental clicks while still showing the UI */}
-            <div className="absolute inset-0 bg-background/20 backdrop-blur-[2px]"></div>
+            <div className="absolute inset-0 bg-background/30"></div>
             <div className="bg-card border border-border p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-8 relative overflow-hidden">
                 {/* Background glow effects */}
                 <div className="absolute -top-24 -left-24 h-48 w-48 bg-primary/5 rounded-full blur-3xl"></div>

@@ -88,13 +88,13 @@ export function NewWorkspaceDialog() {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-in fade-in duration-200 p-4">
             {/* Modal Container */}
-            <div className="w-full max-w-lg bg-[#1e1e2e] border border-white/10 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* Header */}
                 <div className="p-6 pb-2">
-                    <h2 className="text-xl font-bold text-white">Tạo Workspace</h2>
+                    <h2 className="text-2xl font-bold text-foreground">Tạo Workspace Mới</h2>
                 </div>
 
                 {/* Scrollable Content */}
@@ -190,7 +190,7 @@ export function NewWorkspaceDialog() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 pt-4 border-t border-white/5 flex justify-between gap-4 bg-[#1e1e2e]">
+                <div className="p-6 border-b border-border flex justify-between gap-4 bg-[#1e1e2e]">
                     <Button
                         type="button"
                         variant="ghost"

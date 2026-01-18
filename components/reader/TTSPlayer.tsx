@@ -158,7 +158,7 @@ export function TTSPlayer({
 
                     {/* Playing Animation Overlay */}
                     {isPlaying && (
-                        <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                             <div className="flex gap-1">
                                 {[...Array(4)].map((_, i) => (
                                     <div
@@ -189,7 +189,7 @@ export function TTSPlayer({
 
             {/* Settings Panel */}
             {showSettings && (
-                <div className="space-y-3 p-4 bg-black/20 rounded-xl border border-white/5 backdrop-blur-sm">
+                <div className="space-y-3 p-4 bg-black/30 rounded-xl border border-white/5">
                     <div className="space-y-2">
                         <label className="text-xs text-white/50 uppercase font-bold">Giọng đọc</label>
                         <select

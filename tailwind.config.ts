@@ -70,6 +70,9 @@ const config: Config = {
             },
         },
     },
-    plugins: [require("tailwindcss-animate"), require("tailwind-scrollbar")],
+    plugins: [
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        require("tailwindcss-animate"), require("@tailwindcss/typography")
+    ],
 };
 export default config;

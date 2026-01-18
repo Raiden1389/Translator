@@ -36,6 +36,7 @@ export const metadata: Metadata = {
 import { Toaster } from "sonner";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { StatusBar } from "@/components/layout/StatusBar";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Script from "next/script";
 
 export default function RootLayout({
@@ -54,7 +55,9 @@ export default function RootLayout({
 
           <TitleBar />
           <main className="flex-1 overflow-hidden flex flex-col relative z-0">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </main>
           <StatusBar />
           <Toaster
