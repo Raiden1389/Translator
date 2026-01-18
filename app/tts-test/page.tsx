@@ -12,7 +12,7 @@ export default function TestTTS() {
     const handleSpeak = async () => {
         try {
             setLoading(true);
-            const url = await speak(text, voice);
+            const url = await speak(0, text, voice);
             const audio = new Audio(url);
             await audio.play();
             toast.success("Đang phát audio!");

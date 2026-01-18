@@ -38,7 +38,7 @@ interface ReaderContextValue {
     setContextMenuPosition: (pos: { x: number, y: number } | null) => void;
     selectedText: string;
     setSelectedText: (text: string) => void;
-    editorRef: React.RefObject<HTMLDivElement>;
+    editorRef: React.RefObject<HTMLDivElement | null>;
     handleTextSelection: () => void;
     handleContextMenu: (e: React.MouseEvent) => void;
     clearSelection: () => void;

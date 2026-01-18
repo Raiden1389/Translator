@@ -34,38 +34,38 @@ export function ExportForm({
 }: ExportFormProps) {
     return (
         <div className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
+            <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
                 <Settings className="w-5 h-5 text-primary" />
                 2. Tùy chọn xuất
             </h3>
-            <Card className="bg-white/5 border-white/10 shadow-xl overflow-hidden">
+            <Card className="bg-card border-border shadow-xl overflow-hidden">
                 <CardContent className="p-6 space-y-6">
                     <div className="space-y-4">
-                        <Label className="text-white/70 flex justify-between">
+                        <Label className="text-muted-foreground flex justify-between">
                             <span>Khoảng chương</span>
                             <span className="text-[10px] text-primary/70 font-mono">Max: {totalAvailable}</span>
                         </Label>
                         <div className="flex items-center gap-4">
                             <div className="flex-1 space-y-1">
-                                <span className="text-[10px] text-white/30 uppercase font-bold px-1">Từ</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold px-1">Từ</span>
                                 <Input
                                     type="number"
                                     min="1"
                                     max={totalAvailable}
                                     value={rangeStart}
                                     onChange={(e) => setRangeStart(e.target.value)}
-                                    className="bg-[#1a0b2e] border-white/10 text-white focus:ring-primary h-11"
+                                    className="bg-background border-border text-foreground focus:ring-primary h-11"
                                 />
                             </div>
                             <div className="flex-1 space-y-1">
-                                <span className="text-[10px] text-white/30 uppercase font-bold px-1">Đến</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold px-1">Đến</span>
                                 <Input
                                     type="number"
                                     min="1"
                                     max={totalAvailable}
                                     value={rangeEnd}
                                     onChange={(e) => setRangeEnd(e.target.value)}
-                                    className="bg-[#1a0b2e] border-white/10 text-white focus:ring-primary h-11"
+                                    className="bg-background border-border text-foreground focus:ring-primary h-11"
                                 />
                             </div>
                         </div>
@@ -98,13 +98,13 @@ export function ExportForm({
 
                         {isExporting && (
                             <div className="space-y-2">
-                                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_10px_rgba(var(--primary),0.5)]"
                                         style={{ width: `${exportProgress}%` }}
                                     />
                                 </div>
-                                <div className="flex justify-between text-[10px] text-white/30 font-bold uppercase tracking-widest">
+                                <div className="flex justify-between text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                                     <span>Đang nén dữ liệu</span>
                                     <span>{exportProgress}%</span>
                                 </div>

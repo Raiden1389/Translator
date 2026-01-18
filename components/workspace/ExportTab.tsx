@@ -423,7 +423,7 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
                 {/* Selection Section */}
                 <div className="space-y-6">
                     <div className="space-y-4">
-                        <h3 className="text-lg font-bold flex items-center gap-2">
+                        <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
                             <Layout className="w-5 h-5 text-primary" />
                             1. Định dạng file
                         </h3>
@@ -443,7 +443,7 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-lg font-bold flex items-center gap-2">
+                        <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
                             <Type className="w-5 h-5 text-primary" />
                             2. Nội dung ngôn ngữ
                         </h3>
@@ -456,17 +456,17 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
                                         "flex items-center justify-between p-3 px-4 rounded-xl border text-left transition-all relative overflow-hidden",
                                         lang === opt.id
                                             ? "bg-amber-500/10 border-amber-500 ring-1 ring-amber-500 shadow-sm"
-                                            : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                                            : "bg-muted/50 border-border hover:bg-muted hover:border-border/80"
                                     )}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={cn(
                                             "w-2 h-2 rounded-full",
-                                            lang === opt.id ? "bg-amber-500" : "bg-white/20"
+                                            lang === opt.id ? "bg-amber-500" : "bg-muted-foreground/30"
                                         )} />
                                         <div>
-                                            <div className="font-bold text-sm text-white">{opt.label}</div>
-                                            <div className="text-[10px] text-white/40">{opt.desc}</div>
+                                            <div className="font-bold text-sm text-foreground">{opt.label}</div>
+                                            <div className="text-[10px] text-muted-foreground">{opt.desc}</div>
                                         </div>
                                     </div>
                                     {lang === opt.id && <Check className="w-4 h-4 text-amber-500" />}
@@ -475,9 +475,9 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
                         </div>
                     </div>
 
-                    <div className="space-y-4 p-5 bg-white/5 border border-white/10 rounded-2xl">
+                    <div className="space-y-4 p-5 bg-muted/30 border border-border rounded-2xl">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-bold flex items-center gap-2">
+                            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
                                 <Cloud className="w-4 h-4 text-primary" />
                                 Google Drive
                             </h3>
@@ -492,7 +492,7 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
                                 {!driveToken?.value ? (
                                     <div className="space-y-3">
                                         <div className="space-y-1">
-                                            <Label className="text-[10px] text-white/40 uppercase font-black">Google Client ID</Label>
+                                            <Label className="text-[10px] text-muted-foreground uppercase font-black">Google Client ID</Label>
                                             <div className="flex gap-2">
                                                 <Input
                                                     type="password"
@@ -655,7 +655,7 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
                         </div>
                         <div className="text-[12px] leading-relaxed">
                             <span className="text-amber-500 font-bold mr-1">Lưu ý:</span>
-                            <span className="text-white/50">
+                            <span className="text-muted-foreground">
                                 Hãy đảm bảo mày đã cài đặt **Ảnh bìa** ở tab Tổng quan để EPUB có giao diện chuyên nghiệp nhất trên các thiết bị đọc sách.
                             </span>
                         </div>

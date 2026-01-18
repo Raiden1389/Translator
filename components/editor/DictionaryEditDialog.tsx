@@ -18,6 +18,7 @@ import { BookA } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface DictionaryEditDialogProps {
+    workspaceId: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     initialOriginal: string;
@@ -26,6 +27,7 @@ interface DictionaryEditDialogProps {
 }
 
 export function DictionaryEditDialog({
+    workspaceId,
     open,
     onOpenChange,
     initialOriginal,
@@ -82,6 +84,7 @@ export function DictionaryEditDialog({
                     await db.dictionary.update(existing.id!, { translated, createdAt: new Date() });
                 } else {
                     await db.dictionary.add({
+                        workspaceId,
                         original,
                         translated,
                         type: 'term',
@@ -104,6 +107,7 @@ export function DictionaryEditDialog({
                        type = 'correction'
                     */
                     await db.dictionary.add({
+                        workspaceId,
                         original: initialTranslated, // Store OLD Viet as Key
                         translated: translated,      // Store NEW Viet as Value
                         type: 'correction',

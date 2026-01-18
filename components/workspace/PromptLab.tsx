@@ -181,11 +181,11 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                    <h2 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
                         <Swords className="w-6 h-6 text-orange-500" />
                         Prompt Lab
                     </h2>
-                    <p className="text-white/40 text-sm">Thử nghiệm và tối ưu hóa câu lệnh dịch (A/B Testing)</p>
+                    <p className="text-muted-foreground text-sm">Thử nghiệm và tối ưu hóa câu lệnh dịch (A/B Testing)</p>
                 </div>
                 <Button
                     onClick={handleFight}
@@ -200,9 +200,9 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left: Input & Generator */}
-                <Card className="bg-[#1e1e2e] border-white/5 shadow-xl">
+                <Card className="bg-card border-border shadow-xl">
                     <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-white text-sm font-bold flex items-center gap-2">
+                        <CardTitle className="text-foreground text-sm font-bold flex items-center gap-2">
                             <FileText className="w-4 h-4 text-purple-400" />
                             VĂN BẢN MẪU (TEST SAMPLE)
                         </CardTitle>
@@ -228,27 +228,27 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
                         <Textarea
                             value={testSample}
                             onChange={(e) => setTestSample(e.target.value)}
-                            className="bg-black/20 border-white/5 text-white/70 text-sm h-32 focus:border-purple-500/50 transition-all resize-none"
+                            className="bg-background border-border text-foreground text-sm h-32 focus:border-primary transition-all resize-none"
                             placeholder="Nhập đoạn văn bản muốn test dịch..."
                         />
                     </CardContent>
                 </Card>
 
-                <Card className="bg-[#1e1e2e] border-white/5 shadow-xl">
+                <Card className="bg-card border-border shadow-xl">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-white text-sm font-bold flex items-center gap-2">
+                        <CardTitle className="text-foreground text-sm font-bold flex items-center gap-2">
                             <Zap className="w-4 h-4 text-emerald-400" />
                             MỤC TIÊU CẦN ĐẠT
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <p className="text-[11px] text-white/40 italic">
+                        <p className="text-[11px] text-muted-foreground italic">
                             * Nhập từ khóa hoặc phong cách bạn muốn (VD: Kiếm hiệp, Hiện đại, Hài hước...) để AI tự tạo prompt.
                         </p>
                         <Textarea
                             value={promptGoals}
                             onChange={(e) => setPromptGoals(e.target.value)}
-                            className="bg-black/20 border-white/5 text-white/90 text-sm h-20 focus:border-emerald-500/50 transition-all resize-none"
+                            className="bg-background border-border text-foreground text-sm h-20 focus:border-primary transition-all resize-none"
                             placeholder="Mô tả mục tiêu (VD: Văn phong kiếm hiệp cổ trang, dùng nhiều từ Hán Việt...)"
                         />
                         <div className="flex gap-3">
@@ -276,13 +276,13 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:block">
-                    <div className="w-12 h-12 rounded-full bg-[#1e1e2e] border border-white/10 flex items-center justify-center shadow-2xl">
-                        <Swords className="w-5 h-5 text-white/20" />
+                    <div className="w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center shadow-2xl">
+                        <Swords className="w-5 h-5 text-muted-foreground" />
                     </div>
                 </div>
 
                 {/* Prompt A */}
-                <Card className="bg-[#1e1e2e] border-orange-500/20 shadow-xl overflow-hidden group">
+                <Card className="bg-card border-orange-500/20 shadow-xl overflow-hidden group">
                     <div className="absolute top-0 left-0 w-1 h-full bg-orange-500/50" />
                     <CardHeader className="pb-2 flex flex-row items-center justify-between">
                         <CardTitle className="text-orange-400 text-sm font-black flex items-center gap-2">
@@ -294,22 +294,22 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
                         <Textarea
                             value={promptA}
                             onChange={(e) => setPromptA(e.target.value)}
-                            className="bg-black/40 border-white/5 text-white/80 font-mono text-xs h-24"
+                            className="bg-background border-border text-foreground font-mono text-xs h-24"
                         />
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-white/30">Kết quả dịch A</span>
+                            <span className="text-[10px] text-muted-foreground">Kết quả dịch A</span>
                             <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt A - " + new Date().toLocaleTimeString('vi-VN'), promptA)} className="h-6 text-[10px] hover:bg-orange-500/20 hover:text-orange-400">
                                 <Save className="w-3 h-3 mr-1" /> Lưu Prompt A
                             </Button>
                         </div>
-                        <div className="min-h-[200px] p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 text-white/90 text-sm italic leading-relaxed">
+                        <div className="min-h-[200px] p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 text-foreground text-sm italic leading-relaxed">
                             {resultA || (isFighting ? "Đang dịch..." : "Chưa có dữ liệu.")}
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Prompt B */}
-                <Card className="bg-[#1e1e2e] border-emerald-500/20 shadow-xl overflow-hidden group">
+                <Card className="bg-card border-emerald-500/20 shadow-xl overflow-hidden group">
                     <div className="absolute top-0 right-0 w-1 h-full bg-emerald-500/50" />
                     <CardHeader className="pb-2 flex flex-row items-center justify-between">
                         <CardTitle className="text-emerald-400 text-sm font-black flex items-center gap-2">
@@ -321,15 +321,15 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
                         <Textarea
                             value={promptB}
                             onChange={(e) => setPromptB(e.target.value)}
-                            className="bg-black/40 border-white/5 text-white/80 font-mono text-xs h-24"
+                            className="bg-background border-border text-foreground font-mono text-xs h-24"
                         />
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-white/30">Kết quả dịch B</span>
+                            <span className="text-[10px] text-muted-foreground">Kết quả dịch B</span>
                             <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt B - " + new Date().toLocaleTimeString('vi-VN'), promptB)} className="h-6 text-[10px] hover:bg-emerald-500/20 hover:text-emerald-400">
                                 <Save className="w-3 h-3 mr-1" /> Lưu Prompt B
                             </Button>
                         </div>
-                        <div className="min-h-[200px] p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-white/90 text-sm italic leading-relaxed">
+                        <div className="min-h-[200px] p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-foreground text-sm italic leading-relaxed">
                             {resultB || (isFighting ? "Đang dịch..." : "Chưa có dữ liệu.")}
                         </div>
                     </CardContent>
@@ -347,8 +347,8 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
                                 <Trophy className="w-8 h-8 text-yellow-500" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-white">{winner}</h3>
-                                <p className="text-white/50 text-sm">{reason}</p>
+                                <h3 className="text-xl font-black text-foreground">{winner}</h3>
+                                <p className="text-muted-foreground text-sm">{reason}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -356,28 +356,28 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
             )}
 
             <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-                <DialogContent className="sm:max-w-[425px] bg-[#1e1e2e] border-white/10 text-white">
+                <DialogContent className="sm:max-w-[425px] bg-popover border-border text-popover-foreground">
                     <DialogHeader>
                         <DialogTitle>Lưu Prompt vào Thư viện</DialogTitle>
-                        <DialogDescription className="text-white/40">
+                        <DialogDescription className="text-muted-foreground">
                             Đặt tên gợi nhớ cho prompt này để dễ dàng tìm kiếm sau này.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right text-white/70">
+                            <Label htmlFor="name" className="text-right text-muted-foreground">
                                 Tên
                             </Label>
                             <Input
                                 id="name"
                                 value={saveName}
                                 onChange={(e) => setSaveName(e.target.value)}
-                                className="col-span-3 bg-black/20 border-white/10 text-white focus:border-purple-500/50"
+                                className="col-span-3 bg-background border-border text-foreground focus:border-primary"
                             />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setIsSaveDialogOpen(false)} className="text-white/50 hover:text-white">Hủy</Button>
+                        <Button type="button" variant="ghost" onClick={() => setIsSaveDialogOpen(false)} className="text-muted-foreground hover:text-foreground">Hủy</Button>
                         <Button type="submit" onClick={confirmSavePrompt} className="bg-emerald-600 hover:bg-emerald-700 text-white">Lưu Ngay</Button>
                     </DialogFooter>
                 </DialogContent>

@@ -265,19 +265,19 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="flex gap-2 items-center w-full md:w-auto">
                     <div className="relative flex-1 md:w-[300px]">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9 bg-[#2b2b40] border-white/10 text-white"
+                            className="pl-9 bg-background border-border text-foreground"
                             placeholder="Tìm kiếm nhân vật..."
                         />
                     </div>
                     <Select value={filterRole} onValueChange={setFilterRole}>
-                        <SelectTrigger className="w-[150px] bg-[#2b2b40] border-white/10 text-white">
+                        <SelectTrigger className="w-[150px] bg-background border-border text-foreground">
                             <SelectValue placeholder="Tất cả vai trò" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                        <SelectContent className="bg-popover border-border text-popover-foreground">
                             <SelectItem value="all">Tất cả vai trò</SelectItem>
                             {ROLES.map(r => (
                                 <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
@@ -295,17 +295,17 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                             <Sparkles className="mr-2 h-4 w-4" />
                             Quét AI
                         </Button>
-                        <DialogContent className="sm:max-w-[400px] bg-[#1e1e2e] border-white/10 text-white">
+                        <DialogContent className="sm:max-w-[400px] bg-popover border-border text-popover-foreground">
                             <DialogHeader>
                                 <DialogTitle>Chọn nguồn quét AI</DialogTitle>
-                                <DialogDescription className="text-white/40">
+                                <DialogDescription className="text-muted-foreground">
                                     Mày muốn AI quét dữ liệu từ đâu để trích xuất nhân vật?
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <Button
                                     variant="outline"
-                                    className="justify-start h-16 border-white/5 hover:bg-white/5 bg-transparent group"
+                                    className="justify-start h-16 border-border hover:bg-muted bg-transparent group"
                                     onClick={() => handleAIExtract("current")}
                                     disabled={isExtracting}
                                 >
@@ -315,13 +315,13 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                         </div>
                                         <div>
                                             <div className="font-bold">Chương đang đọc</div>
-                                            <div className="text-xs text-white/30">Quét chương mày vừa mở gần đây nhất.</div>
+                                            <div className="text-xs text-muted-foreground">Quét chương mày vừa mở gần đây nhất.</div>
                                         </div>
                                     </div>
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="justify-start h-16 border-white/5 hover:bg-white/5 bg-transparent group"
+                                    className="justify-start h-16 border-border hover:bg-muted bg-transparent group"
                                     onClick={() => handleAIExtract("latest")}
                                     disabled={isExtracting}
                                 >
@@ -331,13 +331,13 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                         </div>
                                         <div>
                                             <div className="font-bold">Chương mới nhất</div>
-                                            <div className="text-xs text-white/30">Quét chương cuối cùng vừa đăng.</div>
+                                            <div className="text-xs text-muted-foreground">Quét chương cuối cùng vừa đăng.</div>
                                         </div>
                                     </div>
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="justify-start h-16 border-white/5 hover:bg-white/5 bg-transparent group"
+                                    className="justify-start h-16 border-border hover:bg-muted bg-transparent group"
                                     onClick={() => {
                                         setExtractDialogOpen(false);
                                         // Since we don't have tab switching here easily without passing props, 
@@ -353,7 +353,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                         </div>
                                         <div>
                                             <div className="font-bold">Chọn từ danh sách</div>
-                                            <div className="text-xs text-white/30">Mày sang tab Chương để chọn nhiều chương.</div>
+                                            <div className="text-xs text-muted-foreground">Mày sang tab Chương để chọn nhiều chương.</div>
                                         </div>
                                     </div>
                                 </Button>
@@ -361,7 +361,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                         </DialogContent>
                     </Dialog>
                     <Button
-                        className="bg-[#6c5ce7] hover:bg-[#5b4cc4] text-white"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
                         onClick={() => setIsAdding(!isAdding)}
                     >
                         <Plus className="mr-2 h-4 w-4" /> Thêm Nhân Vật
@@ -371,75 +371,75 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
 
             {/* Quick Add Form */}
             {isAdding && (
-                <div className="bg-[#2d1b4e] p-4 rounded-lg border border-[#6c5ce7]/30 shadow-lg grid grid-cols-12 gap-4 items-end">
+                <div className="bg-primary/10 p-4 rounded-lg border border-primary/30 shadow-lg grid grid-cols-12 gap-4 items-end">
                     <div className="col-span-12 md:col-span-2 space-y-1">
-                        <label className="text-xs text-white/50">Tên Gốc</label>
+                        <label className="text-xs text-muted-foreground">Tên Gốc</label>
                         <Input
                             value={newChar.original}
                             onChange={e => setNewChar({ ...newChar, original: e.target.value })}
-                            className="bg-[#1a0b2e] border-white/10"
+                            className="bg-background border-border"
                             autoFocus
                         />
                     </div>
                     <div className="col-span-12 md:col-span-3 space-y-1">
-                        <label className="text-xs text-white/50">Tên Dịch</label>
+                        <label className="text-xs text-muted-foreground">Tên Dịch</label>
                         <Input
                             value={newChar.translated}
                             onChange={e => setNewChar({ ...newChar, translated: e.target.value })}
-                            className="bg-[#1a0b2e] border-white/10 font-bold text-emerald-400"
+                            className="bg-background border-border font-bold text-emerald-400"
                         />
                     </div>
                     <div className="col-span-6 md:col-span-2 space-y-1">
-                        <label className="text-xs text-white/50">Giới tính</label>
+                        <label className="text-xs text-muted-foreground">Giới tính</label>
                         <Select
                             value={newChar.gender}
                             onValueChange={v => setNewChar({ ...newChar, gender: v as any })}
                         >
-                            <SelectTrigger className="bg-[#1a0b2e] border-white/10"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                            <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-popover border-border text-popover-foreground">
                                 {GENDERS.map(g => <SelectItem key={g.value} value={g.value}>{g.icon} {g.label}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="col-span-6 md:col-span-2 space-y-1">
-                        <label className="text-xs text-white/50">Vai trò</label>
+                        <label className="text-xs text-muted-foreground">Vai trò</label>
                         <Select
                             value={newChar.role}
                             onValueChange={v => setNewChar({ ...newChar, role: v as any })}
                         >
-                            <SelectTrigger className="bg-[#1a0b2e] border-white/10"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                            <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-popover border-border text-popover-foreground">
                                 {ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="col-span-12 md:col-span-3 flex gap-2">
                         <div className="flex-1 space-y-1">
-                            <label className="text-xs text-white/50">Mô tả (VD: Tự xưng ta...)</label>
+                            <label className="text-xs text-muted-foreground">Mô tả (VD: Tự xưng ta...)</label>
                             <Input
                                 value={newChar.description}
                                 onChange={e => setNewChar({ ...newChar, description: e.target.value })}
-                                className="bg-[#1a0b2e] border-white/10 text-xs"
+                                className="bg-background border-border text-xs"
                             />
                         </div>
-                        <Button className="bg-[#6c5ce7] mb-[2px]" size="icon" onClick={handleAdd}><Save className="h-4 w-4" /></Button>
+                        <Button className="bg-primary mb-[2px]" size="icon" onClick={handleAdd}><Save className="h-4 w-4" /></Button>
                     </div>
                 </div>
             )}
 
             {/* Bulk Actions Toolbar */}
             {selectedIds.length > 0 && (
-                <div className="flex items-center gap-4 bg-[#6c5ce7]/20 p-2 px-4 rounded-lg border border-[#6c5ce7]/50 mb-4 animate-in slide-in-from-top-2">
-                    <span className="text-sm font-medium text-white">{selectedIds.length} đã chọn</span>
+                <div className="flex items-center gap-4 bg-primary/20 p-2 px-4 rounded-lg border border-primary/50 mb-4 animate-in slide-in-from-top-2">
+                    <span className="text-sm font-medium text-foreground">{selectedIds.length} đã chọn</span>
                     <Button size="sm" variant="destructive" className="h-8 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50" onClick={handleBulkDelete}>
                         <Trash2 className="mr-2 h-4 w-4" /> Xóa hàng loạt
                     </Button>
                     <div className="h-6 w-px bg-white/10 mx-2" />
                     <Select onValueChange={handleBulkUpdateRole}>
-                        <SelectTrigger className="h-8 w-[180px] bg-[#2b2b40] border-white/10 text-white text-xs">
+                        <SelectTrigger className="h-8 w-[180px] bg-background border-border text-foreground text-xs">
                             <SelectValue placeholder="Đổi vai trò..." />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                        <SelectContent className="bg-popover border-border text-popover-foreground">
                             {ROLES.map(r => (
                                 <SelectItem key={r.value} value={r.value}>
                                     <div className="flex items-center gap-2">
@@ -450,21 +450,21 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                             ))}
                         </SelectContent>
                     </Select>
-                    <Button variant="ghost" size="sm" className="h-8 text-white/40 hover:text-white" onClick={() => setSelectedIds([])}>
+                    <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-foreground" onClick={() => setSelectedIds([])}>
                         Hủy chọn
                     </Button>
                 </div>
             )}
 
             {/* Table */}
-            <div className="rounded-md border border-white/10 bg-[#1e1e2e] overflow-hidden"
+            <div className="rounded-md border border-border bg-card overflow-hidden"
                 onMouseUp={() => { setIsSelecting(false); setSelectionMode(null); }}>
-                <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-[#2b2b40]/50 text-xs font-bold text-white/40 uppercase tracking-widest">
+                <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/50 text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     <div className="col-span-1 flex justify-center items-center gap-2">
                         <Checkbox
                             checked={filteredChars.length > 0 && selectedIds.length === filteredChars.length}
                             onCheckedChange={toggleSelectAll}
-                            className="border-white/20 data-[state=checked]:bg-[#6c5ce7] data-[state=checked]:border-[#6c5ce7]"
+                            className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
                         <span className="text-[10px]">#</span>
                     </div>
@@ -475,9 +475,9 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                     <div className="col-span-3 text-right pr-10">Mô Tả / Action</div>
                 </div>
 
-                <div className="divide-y divide-white/5 max-h-[600px] overflow-y-auto custom-scrollbar">
+                <div className="divide-y divide-border max-h-[600px] overflow-y-auto custom-scrollbar">
                     {filteredChars.length === 0 ? (
-                        <div className="p-8 text-center text-white/20 italic">
+                        <div className="p-8 text-center text-muted-foreground italic">
                             Chưa có nhân vật nào.
                         </div>
                     ) : (
@@ -491,7 +491,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                     key={char.id}
                                     className={cn(
                                         "grid grid-cols-12 gap-4 p-4 items-center transition-colors group",
-                                        isSelected ? "bg-[#6c5ce7]/10" : "hover:bg-white/5"
+                                        isSelected ? "bg-primary/10" : "hover:bg-muted"
                                     )}
                                 >
                                     <div className="col-span-1 flex justify-center items-center gap-2">
@@ -510,21 +510,21 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                                     handleSelect(char.id!, selectionMode);
                                                 }
                                             }}
-                                            className="border-white/20 data-[state=checked]:bg-[#6c5ce7] data-[state=checked]:border-[#6c5ce7]"
+                                            className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                         />
-                                        <span className="text-white/30 text-[10px] font-mono w-4 text-center">{index + 1}</span>
+                                        <span className="text-muted-foreground text-[10px] font-mono w-4 text-center">{index + 1}</span>
                                     </div>
-                                    <div className="col-span-2 text-white/90 font-serif select-all">{char.original}</div>
+                                    <div className="col-span-2 text-foreground font-serif select-all">{char.original}</div>
                                     <div className="col-span-3 text-emerald-400 font-bold select-all">{char.translated}</div>
                                     <div className="col-span-1 text-center font-mono">
                                         <Select
                                             value={char.gender || 'unknown'}
                                             onValueChange={v => handleUpdate(char.id!, { gender: v as any })}
                                         >
-                                            <SelectTrigger className="h-7 text-xs w-full max-w-[45px] mx-auto border-white/5 bg-white/5 text-white/70 p-0 justify-center">
+                                            <SelectTrigger className="h-7 text-xs w-full max-w-[45px] mx-auto border-border bg-muted text-muted-foreground p-0 justify-center">
                                                 <span title={genderInfo.label}>{genderInfo.icon}</span>
                                             </SelectTrigger>
-                                            <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                                            <SelectContent className="bg-popover border-border text-popover-foreground">
                                                 {GENDERS.map(g => <SelectItem key={g.value} value={g.value}>{g.icon} {g.label}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
@@ -534,13 +534,13 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                             value={char.role || 'mob'}
                                             onValueChange={v => handleUpdate(char.id!, { role: v as any })}
                                         >
-                                            <SelectTrigger className="h-7 text-xs w-full max-w-[120px] border-white/5 bg-white/5 text-white/70">
+                                            <SelectTrigger className="h-7 text-xs w-full max-w-[120px] border-border bg-muted text-muted-foreground">
                                                 <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
                                                     <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${roleInfo.color}`} />
                                                     <span className="truncate">{roleInfo.label}</span>
                                                 </div>
                                             </SelectTrigger>
-                                            <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                                            <SelectContent className="bg-popover border-border text-popover-foreground">
                                                 {ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
@@ -553,30 +553,30 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                                         <div className="w-full">
                                                             <Popover.Root>
                                                                 <Popover.Trigger asChild>
-                                                                    <div className="text-xs text-white/50 truncate cursor-pointer hover:text-white transition-colors text-left px-2 py-1 rounded hover:bg-white/5">
+                                                                    <div className="text-xs text-muted-foreground truncate cursor-pointer hover:text-foreground transition-colors text-left px-2 py-1 rounded hover:bg-muted">
                                                                         {char.description || "Thêm mô tả..."}
                                                                     </div>
                                                                 </Popover.Trigger>
                                                                 <Popover.Content
-                                                                    className="bg-[#2b2b40] border border-white/10 p-3 rounded-md shadow-2xl w-[300px] z-50 animate-in fade-in zoom-in-95 duration-200"
+                                                                    className="bg-popover border border-border p-3 rounded-md shadow-2xl w-[300px] z-50 animate-in fade-in zoom-in-95 duration-200"
                                                                     side="left"
                                                                     align="center"
                                                                 >
                                                                     <div className="space-y-2">
-                                                                        <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Mô tả nhân vật</h4>
+                                                                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mô tả nhân vật</h4>
                                                                         <Textarea
-                                                                            className="min-h-[100px] bg-[#1e1e2e] border-white/5 text-xs text-white/80 focus:border-[#6c5ce7]/50 resize-none"
+                                                                            className="min-h-[100px] bg-background border-border text-xs text-foreground focus:border-primary resize-none"
                                                                             value={char.description || ""}
                                                                             onChange={e => handleUpdate(char.id!, { description: e.target.value })}
                                                                             placeholder="Nhập mô tả chi tiết..."
                                                                         />
                                                                         <div className="flex justify-end pt-1">
                                                                             <Popover.Close asChild>
-                                                                                <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-white/5 text-white/30 hover:text-white">Đóng</Button>
+                                                                                <Button size="sm" variant="ghost" className="h-6 text-[10px] hover:bg-muted text-muted-foreground hover:text-foreground">Đóng</Button>
                                                                             </Popover.Close>
                                                                         </div>
                                                                     </div>
-                                                                    <Popover.Arrow className="fill-white/10" />
+                                                                    <Popover.Arrow className="fill-border" />
                                                                 </Popover.Content>
                                                             </Popover.Root>
                                                         </div>

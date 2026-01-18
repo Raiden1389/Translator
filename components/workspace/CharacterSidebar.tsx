@@ -34,7 +34,8 @@ export function CharacterSidebar({
     // For now, list all characters in DB.
     // TODO: Filter by workspace if we add workspaceId to dictionary later.
     const characters = useLiveQuery(() =>
-        db.dictionary.where("type").equals("character").toArray()
+        db.dictionary.where({ workspaceId, type: "character" }).toArray(),
+        [workspaceId]
     ) || [];
 
     // Local scan state
@@ -42,14 +43,15 @@ export function CharacterSidebar({
         if (!chapterContent) return;
         setAnalyzing(true);
         try {
-            const results = await analyzeEntities(chapterContent);
+            const results = await analyzeEntities(workspaceId, chapterContent);
             // Save to DB (avoid duplicates)
             let count = 0;
             for (const item of results) {
                 // Check exist
-                const exist = await db.dictionary.where("original").equals(item.src).first();
+                const exist = await db.dictionary.where({ workspaceId, original: item.src }).first();
                 if (!exist) {
                     await db.dictionary.add({
+                        workspaceId,
                         original: item.src,
                         translated: item.dest,
                         type: 'character',

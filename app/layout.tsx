@@ -48,9 +48,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-[1px] select-none`}
       >
-        <div className="flex-1 flex flex-col bg-[#0a0514] rounded-lg border border-zinc-800 shadow-2xl overflow-hidden relative group/window">
-          {/* Window Glow Effect */}
-          <div className="absolute inset-0 rounded-lg pointer-events-none shadow-[0_0_50px_rgba(108,92,231,0.05)]" />
+        <div className="flex-1 flex flex-col bg-background rounded-lg border border-border shadow-2xl overflow-hidden relative group/window">
+          {/* Window Shadow Overlay */}
+          <div className="absolute inset-0 rounded-lg pointer-events-none shadow-[0_0_20px_rgba(0,0,0,0.05)]" />
 
           <TitleBar />
           <main className="flex-1 overflow-hidden flex flex-col relative z-0">
@@ -61,14 +61,9 @@ export default function RootLayout({
             position="bottom-right"
             expand={true}
             richColors
-            theme="dark"
+            theme="light"
             toastOptions={{
-              className: "bg-[#1e1e2e]/90 backdrop-blur-xl border border-white/10 text-white shadow-2xl rounded-xl",
-              style: {
-                background: "rgba(30, 30, 46, 0.9)",
-                borderColor: "rgba(255, 255, 255, 0.05)",
-                color: "white",
-              },
+              className: "bg-card border border-border text-foreground shadow-2xl rounded-xl",
             }}
           />
         </div >

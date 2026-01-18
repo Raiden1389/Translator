@@ -643,11 +643,11 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                         <div className="flex gap-2 items-center w-full md:w-auto flex-1">
                             <div className="relative flex-1 md:w-[300px]">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     value={correctionSearch}
                                     onChange={(e) => setCorrectionSearch(e.target.value)}
-                                    className="pl-9 bg-[#2b2b40] border-white/10 text-white"
+                                    className="pl-9 bg-background border-border text-foreground"
                                     placeholder="Tìm kiếm..."
                                 />
                             </div>
@@ -655,22 +655,22 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     </div>
 
                     {/* Add Correction Form */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-[#2d1b4e] p-4 rounded-lg border border-amber-500/30 shadow-lg mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-amber-500/10 p-4 rounded-lg border border-amber-500/30 shadow-lg mb-4">
                         <div className="md:col-span-4">
                             <Input
                                 placeholder="Từ sai (Ví dụ: Thiên Linh Kiếm)..."
-                                className="bg-[#1a0b2e] border-white/10 text-white"
+                                className="bg-background border-border text-foreground"
                                 value={newWrong}
                                 onChange={(e) => setNewWrong(e.target.value)}
                             />
                         </div>
-                        <div className="md:col-span-1 flex items-center justify-center text-white/30">
+                        <div className="md:col-span-1 flex items-center justify-center text-muted-foreground">
                             ➔
                         </div>
                         <div className="md:col-span-5">
                             <Input
                                 placeholder="Từ đúng (Ví dụ: Thiên Minh Kiếm)..."
-                                className="bg-[#1a0b2e] border-white/10 text-white font-bold"
+                                className="bg-background border-border text-foreground font-bold"
                                 value={newRight}
                                 onChange={(e) => setNewRight(e.target.value)}
                             />
@@ -697,13 +697,13 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     </div>
 
                     {/* Corrections List */}
-                    <div className="rounded-md border border-white/10 bg-[#1e1e2e] overflow-hidden flex flex-col">
-                        <div className="divide-y divide-white/5 h-[calc(100vh-350px)] overflow-y-auto scrollbar-hide">
+                    <div className="rounded-md border border-border bg-card overflow-hidden flex flex-col">
+                        <div className="divide-y divide-border h-[calc(100vh-350px)] overflow-y-auto scrollbar-hide">
                             {corrections
                                 .filter(c => c.original.toLowerCase().includes(correctionSearch.toLowerCase()) || c.replacement.toLowerCase().includes(correctionSearch.toLowerCase()))
                                 .map((c) => (
-                                    <div key={c.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 group">
-                                        <div className="col-span-4 text-white/70 line-through decoration-red-500/50">{c.original}</div>
+                                    <div key={c.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted group">
+                                        <div className="col-span-4 text-muted-foreground line-through decoration-red-500/50">{c.original}</div>
                                         <div className="col-span-1 text-center text-white/20">➔</div>
                                         <div className="col-span-5 text-emerald-400 font-bold">
                                             <EditableCell
@@ -714,7 +714,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                         <div className="col-span-2 text-right">
                                             <Button
                                                 size="sm" variant="ghost"
-                                                className="h-8 w-8 p-0 text-white/30 hover:text-red-400 group-hover:bg-red-500/10"
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400 group-hover:bg-red-500/10"
                                                 onClick={() => db.corrections.delete(c.id!)}
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -722,13 +722,13 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                         </div>
                                     </div>
                                 ))}
-                            {corrections.length === 0 && <div className="p-8 text-center text-white/20 italic">Chưa có quy tắc sửa lỗi nào</div>}
+                            {corrections.length === 0 && <div className="p-8 text-center text-muted-foreground italic">Chưa có quy tắc sửa lỗi nào</div>}
                         </div>
 
-                        <div className="p-4 bg-white/5 border-t border-white/5 mt-auto">
+                        <div className="p-4 bg-muted border-t border-border mt-auto">
                             <Button
                                 variant="secondary"
-                                className="w-full bg-[#6c5ce7]/20 hover:bg-[#6c5ce7]/30 text-[#a29bfe] border border-[#6c5ce7]/30"
+                                className="w-full bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30"
                                 onClick={handleApplyCorrections}
                                 disabled={isApplyingCorrections || corrections.length === 0}
                             >
@@ -742,7 +742,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                     </>
                                 )}
                             </Button>
-                            <p className="text-[10px] text-white/30 text-center mt-2">
+                            <p className="text-[10px] text-muted-foreground text-center mt-2">
                                 * Thao tác này sẽ quét và sửa lỗi cho toàn bộ các chương có trạng thái "Đã dịch".
                             </p>
                         </div>
@@ -754,10 +754,10 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                         <div className="flex gap-2 items-center w-full md:w-auto">
                             <Select value={filterType} onValueChange={setFilterType}>
-                                <SelectTrigger className="w-[150px] bg-[#2b2b40] border-white/10 text-white">
+                                <SelectTrigger className="w-[150px] bg-background border-border text-foreground">
                                     <SelectValue placeholder="Tất cả loại" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                                <SelectContent className="bg-popover border-border text-popover-foreground">
                                     <SelectItem value="all">Tất cả loại</SelectItem>
                                     {DIC_TYPES.map(t => (
                                         <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -766,11 +766,11 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                             </Select>
 
                             <div className="relative flex-1 md:w-[300px]">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-9 bg-[#2b2b40] border-white/10 text-white"
+                                    className="pl-9 bg-background border-border text-foreground"
                                     placeholder="Tìm kiếm thuật ngữ..."
                                 />
                             </div>
@@ -778,7 +778,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
 
                         <div className="flex gap-2 w-full md:w-auto justify-end">
 
-                            <Button variant="outline" className="border-white/10 text-white/70 hover:text-white hover:bg-white/10 hidden sm:flex" onClick={() => document.getElementById('import-file')?.click()}>
+                            <Button variant="outline" className="border-border text-muted-foreground hover:text-foreground hover:bg-muted" onClick={() => document.getElementById('import-file')?.click()}>
                                 <Upload className="mr-2 h-4 w-4" /> Import VP
                             </Button>
                             <input
@@ -788,22 +788,22 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                 accept=".txt"
                                 onChange={handleImport}
                             />
-                            <Button variant="outline" className="border-white/10 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10" onClick={handleExport}>
+                            <Button variant="outline" className="border-border text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10" onClick={handleExport}>
                                 <Download className="mr-2 h-4 w-4" /> Export VP
                             </Button>
 
                             <Dialog open={extractDialogOpen} onOpenChange={setExtractDialogOpen}>
                                 <Button
                                     onClick={() => setExtractDialogOpen(true)}
-                                    className="bg-[#6c5ce7] hover:bg-[#5b4cc4] text-white"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                                 >
                                     <Sparkles className="mr-2 h-4 w-4" />
                                     Quét AI
                                 </Button>
-                                <DialogContent className="sm:max-w-[400px] bg-[#1e1e2e] border-white/10 text-white">
+                                <DialogContent className="sm:max-w-[400px] bg-popover border-border text-popover-foreground">
                                     <DialogHeader>
                                         <DialogTitle>Chọn nguồn quét AI</DialogTitle>
-                                        <DialogDescription className="text-white/40">
+                                        <DialogDescription className="text-muted-foreground">
                                             Mày muốn AI quét dữ liệu từ đâu để trích xuất nhân vật/thuật ngữ?
                                         </DialogDescription>
                                     </DialogHeader>
@@ -820,7 +820,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                                 </div>
                                                 <div>
                                                     <div className="font-bold">Chương đang đọc</div>
-                                                    <div className="text-xs text-white/30">Quét chương mày vừa mở gần đây nhất.</div>
+                                                    <div className="text-xs text-muted-foreground">Quét chương mày vừa mở gần đây nhất.</div>
                                                 </div>
                                             </div>
                                         </Button>
@@ -836,7 +836,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                                 </div>
                                                 <div>
                                                     <div className="font-bold">Chương mới nhất</div>
-                                                    <div className="text-xs text-white/30">Quét chương cuối cùng vừa đăng.</div>
+                                                    <div className="text-xs text-muted-foreground">Quét chương cuối cùng vừa đăng.</div>
                                                 </div>
                                             </div>
                                         </Button>
@@ -856,7 +856,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                                 </div>
                                                 <div>
                                                     <div className="font-bold">Chọn từ danh sách</div>
-                                                    <div className="text-xs text-white/30">Mày sang tab Chương để chọn nhiều chương.</div>
+                                                    <div className="text-xs text-muted-foreground">Mày sang tab Chương để chọn nhiều chương.</div>
                                                 </div>
                                             </div>
                                         </Button>
@@ -865,7 +865,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                             </Dialog>
 
                             <Button
-                                className="bg-[#6c5ce7] hover:bg-[#5b4cc4] text-white"
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground"
                                 onClick={() => setIsAdding(!isAdding)}
                             >
                                 <Plus className="mr-2 h-4 w-4" /> Thêm Thuật Ngữ
@@ -875,11 +875,11 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
 
                     {/* Quick Add Form */}
                     {isAdding && (
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-[#2d1b4e] p-4 rounded-lg border border-[#6c5ce7]/30 shadow-lg mb-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-primary/10 p-4 rounded-lg border border-primary/30 shadow-lg mb-4">
                             <div className="md:col-span-3">
                                 <Input
                                     placeholder="Thuật ngữ gốc (Trung)..."
-                                    className="bg-[#1a0b2e] border-white/10 text-white font-serif"
+                                    className="bg-background border-border text-foreground font-serif"
                                     value={newOriginal}
                                     onChange={(e) => setNewOriginal(e.target.value)}
                                     autoFocus
@@ -888,17 +888,17 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                             <div className="md:col-span-4">
                                 <Input
                                     placeholder="Bản dịch (Việt)..."
-                                    className="bg-[#1a0b2e] border-white/10 text-white font-bold"
+                                    className="bg-background border-border text-foreground font-bold"
                                     value={newTranslated}
                                     onChange={(e) => setNewTranslated(e.target.value)}
                                 />
                             </div>
                             <div className="md:col-span-3">
                                 <Select value={newType} onValueChange={setNewType}>
-                                    <SelectTrigger className="bg-[#1a0b2e] border-white/10 text-white">
+                                    <SelectTrigger className="bg-background border-border text-foreground">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                                    <SelectContent className="bg-popover border-border text-popover-foreground">
                                         {DIC_TYPES.map(t => (
                                             <SelectItem key={t.value} value={t.value}>
                                                 <div className="flex items-center gap-2">
@@ -911,28 +911,28 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                 </Select>
                             </div>
                             <div className="md:col-span-2">
-                                <Button className="w-full bg-[#6c5ce7] hover:bg-[#5b4cc4]" onClick={handleAdd}>Lưu</Button>
+                                <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleAdd}>Lưu</Button>
                             </div>
                         </div>
                     )}
 
                     {/* Bulk Actions Toolbar */}
                     {selectedEntries.length > 0 && (
-                        <div className="flex items-center gap-4 bg-[#6c5ce7]/20 p-2 px-4 rounded-lg border border-[#6c5ce7]/50 mb-4 animate-in slide-in-from-top-2">
-                            <span className="text-sm font-medium text-white">{selectedEntries.length} đã chọn</span>
+                        <div className="flex items-center gap-4 bg-primary/20 p-2 px-4 rounded-lg border border-primary/50 mb-4 animate-in slide-in-from-top-2">
+                            <span className="text-sm font-medium text-foreground">{selectedEntries.length} đã chọn</span>
                             <Button size="sm" variant="destructive" className="h-8 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50" onClick={handleBulkDelete}>
                                 <Trash2 className="mr-2 h-4 w-4" /> Xóa hàng loạt
                             </Button>
-                            <div className="h-6 w-px bg-white/10 mx-2" />
+                            <div className="h-6 w-px bg-border mx-2" />
                             <Button variant="outline" size="sm" className="h-8 border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10" onClick={handleBulkAICategorize} disabled={isExtracting}>
                                 <Sparkles className={cn("mr-2 h-3.5 w-3.5", isExtracting && "animate-spin")} /> {isExtracting ? "Đang xử lý..." : "AI Phân Loại"}
                             </Button>
-                            <div className="h-6 w-px bg-white/10 mx-2" />
+                            <div className="h-6 w-px bg-border mx-2" />
                             <Select onValueChange={handleBulkUpdateType}>
-                                <SelectTrigger className="h-8 w-[180px] bg-[#2b2b40] border-white/10 text-white text-xs">
+                                <SelectTrigger className="h-8 w-[180px] bg-background border-border text-foreground text-xs">
                                     <SelectValue placeholder="Đổi phân loại..." />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#2b2b40] border-white/10 text-white">
+                                <SelectContent className="bg-popover border-border text-popover-foreground">
                                     {DIC_TYPES.map(t => (
                                         <SelectItem key={t.value} value={t.value}>
                                             <div className="flex items-center gap-2">
@@ -947,14 +947,14 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                     )}
 
                     {/* Table */}
-                    <div className="rounded-md border border-white/10 bg-[#1e1e2e] overflow-hidden">
+                    <div className="rounded-md border border-border bg-card overflow-hidden">
                         {/* Header */}
-                        <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-[#2b2b40]/50 text-xs font-bold text-white/40 uppercase tracking-widest">
+                        <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/50 text-xs font-bold text-muted-foreground uppercase tracking-widest">
                             <div className="col-span-1 flex justify-center">
                                 <Checkbox
                                     checked={filteredDic.length > 0 && selectedEntries.length === filteredDic.length}
                                     onCheckedChange={toggleSelectAll}
-                                    className="border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                                    className="border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
                                 />
                             </div>
                             <div className="col-span-1 text-center">#</div>
@@ -965,9 +965,9 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                         </div>
 
                         {/* Rows */}
-                        <div className="divide-y divide-white/5 h-[calc(100vh-300px)] overflow-y-auto scrollbar-hide">
+                        <div className="divide-y divide-border h-[calc(100vh-300px)] overflow-y-auto scrollbar-hide">
                             {filteredDic.length === 0 ? (
-                                <div className="p-8 text-center text-white/20 italic">
+                                <div className="p-8 text-center text-muted-foreground italic">
                                     Chưa có dữ liệu từ điển
                                 </div>
                             ) : (
@@ -975,7 +975,7 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                     const typeInfo = DIC_TYPES.find(t => t.value === entry.type) || DIC_TYPES[0];
                                     const isSelected = selectedEntries.includes(entry.id!);
                                     return (
-                                        <div key={entry.id} className={cn("grid grid-cols-12 gap-4 p-4 items-center transition-colors group", isSelected ? "bg-cyan-500/10 hover:bg-cyan-500/20" : "hover:bg-white/5")}>
+                                        <div key={entry.id} className={cn("grid grid-cols-12 gap-4 p-4 items-center transition-colors group", isSelected ? "bg-cyan-500/10 hover:bg-cyan-500/20" : "hover:bg-muted")}>
                                             <div className="col-span-1 flex justify-center">
                                                 <Checkbox
                                                     checked={isSelected}
@@ -983,18 +983,18 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
                                                         if (checked) setSelectedEntries([...selectedEntries, entry.id!]);
                                                         else setSelectedEntries(selectedEntries.filter(id => id !== entry.id));
                                                     }}
-                                                    className="border-white/20 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                                                    className="border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
                                                 />
                                             </div>
-                                            <div className="col-span-1 text-center text-white/30 text-xs font-mono">{index + 1}</div>
-                                            <div className="col-span-3 text-white/90 font-serif text-lg select-all">{entry.original}</div>
+                                            <div className="col-span-1 text-center text-muted-foreground text-xs font-mono">{index + 1}</div>
+                                            <div className="col-span-3 text-foreground font-serif text-lg select-all">{entry.original}</div>
                                             <div className="col-span-3">
                                                 <EditableCell
                                                     initialValue={entry.translated}
                                                     onSave={(val) => db.dictionary.update(entry.id!, { translated: val })}
                                                 />
                                                 {entry.description && (
-                                                    <div className="text-[10px] text-white/40 italic mt-1 font-sans line-clamp-1" title={entry.description}>
+                                                    <div className="text-[10px] text-muted-foreground italic mt-1 font-sans line-clamp-1" title={entry.description}>
                                                         {entry.description}
                                                     </div>
                                                 )}

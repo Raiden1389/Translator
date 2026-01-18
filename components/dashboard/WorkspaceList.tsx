@@ -25,7 +25,7 @@ const EditableTitle = ({ id, initialTitle }: { id: string, initialTitle: string 
 
     return (
         <Input
-            className="font-bold text-lg text-white leading-tight bg-transparent border-transparent px-0 h-auto focus-visible:ring-0 focus:border-white/20 hover:border-white/10 transition-all p-1 -ml-1 rounded-sm w-full"
+            className="font-bold text-lg text-foreground leading-tight bg-transparent border-transparent px-0 h-auto focus-visible:ring-0 focus:border-border hover:border-border transition-all p-1 -ml-1 rounded-sm w-full"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={handleBlur}
@@ -50,7 +50,7 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
     return (
         <Link href={`/workspace?id=${ws.id}`}>
             <div className="group relative h-full transition-all hover:-translate-y-2 duration-500 active:scale-[0.98]">
-                <Card className="h-full border-white/5 bg-[#1a0f2e]/80 backdrop-blur-md overflow-hidden rounded-3xl shadow-2xl transition-all group-hover:border-[#6c5ce7]/30 group-hover:shadow-[#6c5ce7]/10">
+                <Card className="h-full border-border bg-card overflow-hidden rounded-3xl shadow-lg transition-all group-hover:border-primary/30 group-hover:shadow-primary/5">
                     <div className={`h-32 p-6 relative flex flex-col justify-between transition-all duration-500 ${!ws.cover && (index % 2 === 0 ? 'bg-gradient-to-r from-orange-500 to-amber-600' : 'bg-gradient-to-r from-purple-600 to-indigo-600')}`}>
                         {ws.cover && (
                             <>
@@ -60,14 +60,14 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
                         )}
 
                         <div className="flex justify-between items-start relative z-10 w-full">
-                            <span className="inline-flex items-center rounded-md bg-black/40 backdrop-blur-md px-2 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/20">
+                            <span className="inline-flex items-center rounded-md bg-background/60 backdrop-blur-none px-2 py-1 text-xs font-medium text-foreground ring-1 ring-inset ring-border">
                                 <BookOpen className="mr-1 h-3 w-3" />
                                 {ws.author || "N/A"}
                             </span>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-white/70 hover:text-white hover:bg-black/40 backdrop-blur-sm -mt-1 -mr-1"
+                                className="h-6 w-6 text-foreground/70 hover:text-foreground hover:bg-background/60 backdrop-blur-none -mt-1 -mr-1"
                                 onClick={(e) => onDelete(e, ws.id)}
                             >
                                 <Trash2 className="h-3 w-3" />
@@ -78,7 +78,7 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
                     <CardContent className="p-5 pt-2 space-y-4 relative z-10 -mt-4">
                         <div>
                             <EditableTitle id={ws.id} initialTitle={ws.title} />
-                            <div className="mt-1 flex items-center text-xs text-white/50">
+                            <div className="mt-1 flex items-center text-xs text-muted-foreground">
                                 <span>Tiếng Trung (中文)</span>
                                 <span className="mx-2">→</span>
                                 <span>Tiếng Việt</span>
@@ -86,11 +86,11 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
                         </div>
 
                         <div className="space-y-1.5">
-                            <div className="flex justify-between text-xs text-white/50">
+                            <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>Tiến độ</span>
                                 <span>{stats ? `${stats.translated}/${stats.total} chương` : 'Đang tính...'}</span>
                             </div>
-                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-primary transition-all duration-500"
                                     style={{ width: `${progress}%` }}
@@ -98,8 +98,8 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                            <div className="flex items-center text-[10px] text-white/40 bg-white/5 px-2 py-1 rounded-full">
+                        <div className="flex items-center justify-between pt-2 border-t border-border">
+                            <div className="flex items-center text-[10px] text-muted-foreground bg-secondary px-2 py-1 rounded-full">
                                 <Clock className="mr-1 h-3 w-3" />
                                 {ws.updatedAt.toLocaleDateString()}
                             </div>
@@ -137,36 +137,36 @@ export function WorkspaceList() {
 
     const filtered = workspaces?.filter(w => w.title.toLowerCase().includes(search.toLowerCase()));
 
-    if (!workspaces) return <div className="p-10 text-center text-white/50">Đang tải dữ liệu...</div>;
+    if (!workspaces) return <div className="p-10 text-center text-muted-foreground">Đang tải dữ liệu...</div>;
 
     return (
         <div className="space-y-6">
             {/* Action Bar - Floating Dock Style */}
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">My Library</h2>
+                <h2 className="text-xl font-bold text-foreground">My Library</h2>
 
-                <div className="flex items-center gap-2 bg-[#1a0f2e] p-1.5 pl-4 rounded-full border border-white/10 shadow-lg shadow-black/20 hover:border-white/20 transition-all">
+                <div className="flex items-center gap-2 bg-card p-1.5 pl-4 rounded-full border border-border shadow-lg hover:border-primary/20 transition-all">
                     <div className="relative group w-64">
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 group-focus-within:text-white/70 transition-colors" />
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-foreground transition-colors" />
                         <Input
                             placeholder="Tìm kiếm workspace..."
-                            className="pl-8 bg-transparent border-none text-white placeholder:text-white/30 focus-visible:ring-0 pr-0 h-9"
+                            className="pl-8 bg-transparent border-none text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-0 pr-0 h-9"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="h-5 w-px bg-white/10" />
+                    <div className="h-5 w-px bg-border" />
                     <NewWorkspaceDialog />
                 </div>
             </div>
 
             {workspaces.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-20 border border-dashed rounded-xl border-white/10 bg-white/5 text-center">
-                    <div className="h-16 w-16 rounded-full bg-white/10 flex items-center justify-center mb-4">
+                <div className="flex flex-col items-center justify-center p-20 border border-dashed rounded-xl border-border bg-card text-center">
+                    <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center mb-4">
                         <Zap className="h-8 w-8 text-primary" />
                     </div>
-                    <p className="text-xl font-bold text-white">Chưa có workspace nào</p>
-                    <p className="text-white/50 mt-2 max-w-sm">
+                    <p className="text-xl font-bold text-foreground">Chưa có workspace nào</p>
+                    <p className="text-muted-foreground mt-2 max-w-sm">
                         Tạo workspace mới để bắt đầu dịch truyện với sức mạnh của AI.
                     </p>
                     <div className="mt-6">

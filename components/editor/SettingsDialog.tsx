@@ -33,11 +33,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface SettingsDialogProps {
+    workspaceId?: string;
     defaultTab?: string;
     trigger?: React.ReactNode;
 }
 
-export function SettingsDialog({ defaultTab = "ai", trigger }: SettingsDialogProps) {
+export function SettingsDialog({ workspaceId, defaultTab = "ai", trigger }: SettingsDialogProps) {
     const [open, setOpen] = useState(false)
     const [primaryKey, setPrimaryKey] = useState("")
     const [poolKeys, setPoolKeys] = useState("")
@@ -113,12 +114,28 @@ export function SettingsDialog({ defaultTab = "ai", trigger }: SettingsDialogPro
 
     const handleAddDic = async () => {
         if (!newOriginal || !newTranslated) return;
+
+        // Find a valid workspaceId if not provided (fallback to first available)
+        let targetWsId = workspaceId;
+        if (!targetWsId) {
+            const firstWs = await db.workspaces.limit(1).toArray();
+            if (firstWs.length > 0) {
+                targetWsId = firstWs[0].id;
+            }
+        }
+
+        if (!targetWsId) {
+            alert("No workspace found to add dictionary entry.");
+            return;
+        }
+
         try {
             const existing = await db.dictionary.where("original").equals(newOriginal).first();
             if (existing) {
                 await db.dictionary.update(existing.id!, { translated: newTranslated, createdAt: new Date() });
             } else {
                 await db.dictionary.add({
+                    workspaceId: targetWsId,
                     original: newOriginal,
                     translated: newTranslated,
                     type: 'term',

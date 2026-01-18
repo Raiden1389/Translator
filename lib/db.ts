@@ -7,6 +7,7 @@ export interface Workspace {
     author?: string;
     cover?: string; // Base64 or URL
     description?: string;
+    isAiDescription?: boolean; // Added: Track if description is AI-generated
     genre?: string; // Added
     sourceLang?: string; // Added (e.g., 'zh')
     targetLang?: string; // Added (e.g., 'vi')
@@ -61,6 +62,14 @@ export interface TTSCacheEntry {
     createdAt: Date;
 }
 
+export interface APIUsageEntry {
+    model: string; // The model ID
+    inputTokens: number;
+    outputTokens: number;
+    totalCost: number; // Accumulated cost in USD
+    updatedAt: Date;
+}
+
 const db = new Dexie('AITranslatorDB') as Dexie & {
     workspaces: EntityTable<Workspace, 'id'>;
     chapters: EntityTable<Chapter, 'id'>;
@@ -69,7 +78,8 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     blacklist: EntityTable<BlacklistEntry, 'id'>;
     corrections: EntityTable<CorrectionEntry, 'id'>;
     prompts: EntityTable<PromptEntry, 'id'>;
-    ttsCache: EntityTable<TTSCacheEntry, 'id'>; // Added
+    ttsCache: EntityTable<TTSCacheEntry, 'id'>;
+    apiUsage: EntityTable<APIUsageEntry, 'model'>; // Added
 };
 
 // Define Schema
@@ -156,6 +166,14 @@ db.version(12).stores({
 db.version(13).stores({
     ttsCache: '++id, chapterId, voice, textHash, pitch, rate, [chapterId+voice+textHash+pitch+rate]'
 });
+
+// V14: Add Token Usage tracking
+db.version(14).stores({
+    apiUsage: 'model' // Model is the primary key
+});
+
+// V15: Auto-Summary support
+db.version(15).stores({}); // No new indexes, just a schema iteration
 
 // Tauri Hook: Sync to local files on change
 if (typeof window !== 'undefined' && (window as any).__TAURI__) {

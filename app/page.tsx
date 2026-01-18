@@ -13,23 +13,23 @@ export default function Home() {
                 <Zap className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-white tracking-tight font-[var(--font-lora)] italic">Raiden</h1>
-                <p className="text-[10px] text-white/30 uppercase font-black tracking-[0.3em] -mt-1">AI Translator Engine</p>
+                <h1 className="text-3xl font-black text-foreground tracking-tight font-[var(--font-lora)] italic">Raiden</h1>
+                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.3em] -mt-1">AI Translator Engine</p>
               </div>
             </div>
           </header>
 
           <div className="mb-10 selectable">
-            <h2 className="text-4xl font-black text-white mb-3 tracking-tight">My Library</h2>
-            <div className="h-1 w-20 bg-gradient-to-r from-[#6c5ce7] to-transparent rounded-full mb-4"></div>
-            <p className="text-white/40 text-sm max-w-md leading-relaxed">
+            <h2 className="text-4xl font-black text-foreground mb-3 tracking-tight">My Library</h2>
+            <div className="h-1 w-20 bg-primary/40 rounded-full mb-4"></div>
+            <p className="text-muted-foreground text-sm max-w-md leading-relaxed">
               Manage your localized translations with Raiden's advanced neural engine.
-              <span className="text-white/20 ml-2 italic">Dữ liệu được lưu trữ cục bộ và bảo mật.</span>
+              <span className="text-muted-foreground/40 ml-2 italic">Dữ liệu được lưu trữ cục bộ và bảo mật.</span>
             </p>
           </div>
 
           <div className="relative">
-            <div className="absolute -inset-4 bg-gradient-to-r from-[#6c5ce7]/5 to-transparent blur-3xl rounded-full opacity-50 pointer-events-none" />
+            <div className="absolute -inset-4 bg-primary/5 blur-3xl rounded-full opacity-50 pointer-events-none" />
             <WorkspaceList />
           </div>
         </div>

@@ -2,6 +2,42 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { db } from "./db";
 import { AI_MODELS, DEFAULT_MODEL } from "./ai-models";
 
+/**
+ * Record API usage metadata to IndexedDB
+ */
+async function recordUsage(modelId: string, usage: any) {
+    try {
+        if (!usage) return;
+        const modelInfo = AI_MODELS.find(m => m.value === modelId.trim()) || AI_MODELS[0];
+        const inputTokens = usage.promptTokenCount || 0;
+        const outputTokens = usage.candidatesTokenCount || 0;
+
+        // Simple cost calculation (per 1M tokens)
+        const cost = ((inputTokens * (modelInfo.inputPrice || 0)) / 1_000_000) +
+            ((outputTokens * (modelInfo.outputPrice || 0)) / 1_000_000);
+
+        const existing = await db.apiUsage.get(modelInfo.value);
+        if (existing) {
+            await db.apiUsage.update(modelInfo.value, {
+                inputTokens: (existing.inputTokens || 0) + inputTokens,
+                outputTokens: (existing.outputTokens || 0) + outputTokens,
+                totalCost: (existing.totalCost || 0) + cost,
+                updatedAt: new Date()
+            });
+        } else {
+            await db.apiUsage.add({
+                model: modelInfo.value,
+                inputTokens,
+                outputTokens,
+                totalCost: cost,
+                updatedAt: new Date()
+            });
+        }
+    } catch (err) {
+        console.warn("Failed to record usage:", err);
+    }
+}
+
 // --- Types ---
 export interface TranslationResult {
     translatedText: string;
@@ -134,6 +170,9 @@ export const translateChapter = async (
                     }
                 }
             });
+
+            // --- TRACK USAGE ---
+            recordUsage(aiModel, response.usageMetadata);
 
             let jsonText = "";
             try {
@@ -671,3 +710,50 @@ Yêu cầu output JSON:
         return JSON.parse(jsonText || '{}');
     }, onLog);
 };
+
+/**
+ * Generate a book summary (blurb) based on context
+ */
+export async function generateBookSummary(context: string, aiModel: string, onLog?: (msg: string) => void) {
+    return withKeyRotation(async (ai) => {
+        const prompt = `Dựa vào các phần trích dẫn sau đây từ một bộ truyện, hãy viết một đoạn mô tả hấp dẫn (blurb) cho bộ truyện đó.
+Tập trung vào bối cảnh, hệ thống sức mạnh (nếu có), và tính cách/số phận của nhân vật chính. 
+Giữ văn phong lôi cuốn, chuyên nghiệp của một dịch giả truyện. 
+Kết quả trả về CHỈ bao gồm đoạn văn mô tả, không chứa lời dẫn hay ký hiệu markdown đặc biệt.
+
+NỘI DUNG TRÍCH DẪN:
+${context}
+
+ĐOẠN MÔ TẢ (TIẾNG VIỆT):`;
+
+        const response = await ai.models.generateContent({
+            model: aiModel.trim(),
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: {
+                temperature: 0.7,
+                topP: 0.95,
+                maxOutputTokens: 1024,
+            }
+        });
+
+        let text = "";
+        try {
+            const res = response as any;
+            if (typeof res.text === 'function') {
+                text = res.text();
+            } else if (typeof res.response?.text === 'function') {
+                text = res.response.text();
+            } else {
+                const candidates = res.candidates || res.response?.candidates;
+                text = candidates?.[0]?.content?.parts?.[0]?.text || "";
+            }
+        } catch (e) {
+            console.error("Error extraction text from summary response", e);
+        }
+
+        // Track usage
+        recordUsage(aiModel, (response as any).usageMetadata || (response as any).response?.usageMetadata);
+
+        return text.trim();
+    }, onLog);
+}

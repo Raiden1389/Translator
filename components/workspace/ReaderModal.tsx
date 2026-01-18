@@ -62,7 +62,9 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         fontSize: 18,
         lineHeight: 1.8,
         textAlign: "justify",
-        textColor: "#e2e8f0",
+        textColor: "#262626",
+        backgroundColor: "#ffffff",
+        maxWidth: 800,
         ttsPitch: 0,
         ttsRate: 0,
         ttsVoice: VIETNAMESE_VOICES[0].value,
@@ -81,7 +83,18 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         const savedConfig = localStorage.getItem("readerConfig");
         if (savedConfig) {
             try {
-                setReaderConfig(JSON.parse(savedConfig));
+                const config = JSON.parse(savedConfig);
+
+                // Migration: Reset textColor if it's too light (legacy dark mode setting)
+                // Also ensures backgroundColor exists
+                if (config.textColor && (config.textColor === "hsl(var(--foreground))" || config.textColor.startsWith("#f") || config.textColor.startsWith("#e"))) {
+                    config.textColor = "#262626";
+                }
+                if (!config.backgroundColor) {
+                    config.backgroundColor = "#ffffff";
+                }
+
+                setReaderConfig(prev => ({ ...prev, ...config }));
             } catch (e) {
                 console.error("Failed to parse reader config", e);
             }
@@ -498,7 +511,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     return (
         <div className="fixed inset-x-0 bottom-0 top-[31px] z-[100] flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
             {/* Modal Inner Window: Premium rounded-t-3xl with glass-like border */}
-            <div className="w-full h-full bg-[#0a0515] rounded-t-[32px] overflow-hidden flex flex-col border-t border-white/10 shadow-[0_-15px_60px_rgba(0,0,0,0.8)] relative">
+            <div className="w-full h-full bg-background rounded-t-[32px] overflow-hidden flex flex-col border-t border-border shadow-2xl relative">
 
                 <ReaderHeader
                     activeTab={activeTab}
@@ -536,30 +549,34 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     {/* Main Content Area */}
                     <div
                         ref={scrollViewportRef}
-                        className={cn("flex-1 h-full overflow-y-auto custom-scrollbar p-0", isParallel && "grid grid-cols-2 divide-x divide-white/10")}
+                        className={cn("flex-1 h-full overflow-y-auto custom-scrollbar p-0", isParallel && "grid grid-cols-2 divide-x divide-border")}
+                        style={{ backgroundColor: readerConfig.backgroundColor }}
                     >
 
                         {/* Column 1: Based on Active Tab or Always Original in Parallel */}
                         {(activeTab === 'original' || isParallel) && (
                             <div className="min-h-full p-8 md:p-12 pb-20">
-                                {isParallel && <div className="mb-4 text-xs font-bold text-white/30 uppercase tracking-widest sticky top-0">Original Source</div>}
-                                <div className="text-lg leading-loose text-white/80 font-serif whitespace-pre-wrap">
+                                {isParallel && <div className="mb-4 text-xs font-bold text-muted-foreground/30 uppercase tracking-widest sticky top-0">Original Source</div>}
+                                <div className="text-lg leading-loose text-foreground/80 font-serif whitespace-pre-wrap">
                                     {chapter.content_original}
                                 </div>
                             </div>
                         )}
 
                         {(activeTab === 'translated' || isParallel) && (
-                            <div className="min-h-full flex flex-col relative bg-[#0a0515]">
-                                {isParallel && <div className="px-8 md:px-12 pt-8 text-xs font-black text-emerald-500/50 uppercase tracking-[0.2em] shrink-0">Translation</div>}
+                            <div className="min-h-full flex flex-col relative" style={{ backgroundColor: readerConfig.backgroundColor }}>
+                                {isParallel && <div className="px-8 md:px-12 pt-8 text-xs font-black text-primary/50 uppercase tracking-[0.2em] shrink-0">Translation</div>}
 
                                 <div className={cn(
-                                    "font-bold text-4xl text-amber-500 font-serif mb-12 text-center",
+                                    "font-bold text-4xl text-primary font-serif mb-12 text-center",
                                     "max-w-[800px] mx-auto px-6",
-                                    "drop-shadow-[0_0_15px_rgba(245,158,11,0.2)]", // Luxury glow
+                                    "drop-shadow-sm", // Clean light shadow
                                     isParallel ? "pt-6" : "pt-16 md:pt-24"
                                 )}
-                                    style={{ fontFamily: readerConfig.fontFamily }}
+                                    style={{
+                                        fontFamily: readerConfig.fontFamily,
+                                        maxWidth: isParallel ? "none" : `${readerConfig.maxWidth}px`
+                                    }}
                                 >
                                     {(chapter.title_translated || chapter.title).normalize('NFC')}
                                 </div>
@@ -580,7 +597,8 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                                         fontSize: `${readerConfig.fontSize}px`,
                                         lineHeight: readerConfig.lineHeight,
                                         textAlign: readerConfig.textAlign,
-                                        color: readerConfig.textColor
+                                        color: readerConfig.textColor,
+                                        maxWidth: isParallel ? "none" : `${readerConfig.maxWidth}px`
                                     }}
                                     spellCheck={false}
                                     ref={editorRef}
@@ -617,45 +635,44 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             />
 
             <Dialog open={correctionOpen} onOpenChange={setCorrectionOpen}>
-                <DialogContent className="bg-[#1e1e2e] border-white/10 text-white sm:max-w-[400px]">
+                <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-[400px]">
                     <DialogHeader>
                         <DialogTitle>Sửa lỗi & Tự động thay thế</DialogTitle>
-                        <DialogDescription className="text-white/50">
+                        <DialogDescription className="text-muted-foreground/60">
                             Quy tắc này sẽ được lưu lại để dùng cho tính năng sửa lỗi tự động sau này.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Từ sai (Đang chọn)</Label>
-                            <Input value={correctionOriginal} disabled className="bg-white/5 border-white/10" />
+                            <Input value={correctionOriginal} disabled className="bg-muted border-border" />
                         </div>
-                        <div className="flex justify-center text-white/20">⬇</div>
+                        <div className="flex justify-center text-muted-foreground/20">⬇</div>
                         <div className="space-y-2">
                             <Label>Từ đúng (Thay thế)</Label>
                             <Input
                                 value={correctionReplacement}
                                 onChange={(e) => setCorrectionReplacement(e.target.value)}
-                                className="bg-[#2b2b40] border-white/10"
+                                className="bg-background border-border"
                                 autoFocus
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setCorrectionOpen(false)}>Hủy</Button>
-                        <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleSaveCorrection}>Lưu & Áp dụng</Button>
+                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleSaveCorrection}>Lưu & Áp dụng</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Quick Dictionary Dialog */}
             <Dialog open={dictDialogOpen} onOpenChange={setDictDialogOpen}>
-                <DialogContent className="bg-[#1e1e2e] border-white/10 text-white sm:max-w-[400px]">
+                <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-[400px]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-blue-400" />
+                            <BookOpen className="w-5 h-5 text-primary" />
                             Thêm vào Từ điển
                         </DialogTitle>
-                        <DialogDescription className="text-white/50">
+                        <DialogDescription className="text-muted-foreground/60">
                             Thêm từ mới để AI dịch chuẩn hơn trong tương lai.
                         </DialogDescription>
                     </DialogHeader>
@@ -665,7 +682,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                             <Input
                                 value={dictOriginal}
                                 onChange={(e) => setDictOriginal(e.target.value)}
-                                className="bg-[#2b2b40] border-white/10"
+                                className="bg-background border-border"
                             />
                         </div>
                         <div className="space-y-2">
@@ -673,14 +690,14 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                             <Input
                                 value={dictTranslated}
                                 onChange={(e) => setDictTranslated(e.target.value)}
-                                className="bg-[#2b2b40] border-white/10"
+                                className="bg-background border-border"
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setDictDialogOpen(false)}>Hủy</Button>
                         <Button
-                            className="bg-blue-600 hover:bg-blue-700"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground"
                             onClick={async () => {
                                 if (!dictOriginal || !dictTranslated || !chapter.workspaceId) return;
                                 const existing = await db.dictionary.where({ original: dictOriginal, workspaceId: chapter.workspaceId }).first();
@@ -711,37 +728,37 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
 
             <Dialog open={!!activeIssue} onOpenChange={(v) => !v && setActiveIssue(null)}>
-                <DialogContent className="bg-[#1e1e2e] border-white/10 text-white sm:max-w-[400px]">
+                <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-[400px]">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-amber-500">
-                            <AlertTriangle className="w-5 h-5" />
+                        <DialogTitle className="flex items-center gap-2 text-primary">
+                            <AlertTriangle className="w-5 h-5 text-amber-500" />
                             Phát hiện vấn đề
                         </DialogTitle>
-                        <DialogDescription className="text-white/50">
+                        <DialogDescription className="text-muted-foreground/60">
                             AI phát hiện nội dung có thể cần chỉnh sửa.
                         </DialogDescription>
                     </DialogHeader>
                     {activeIssue && (
                         <div className="space-y-4 py-4">
-                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                <div className="text-xs text-red-400 font-bold uppercase mb-1">Nguyên văn (Lỗi)</div>
-                                <div className="text-lg font-serif">{activeIssue.original}</div>
+                            <div className="p-3 bg-red-100/50 border border-red-200 rounded-lg">
+                                <div className="text-xs text-red-600 font-bold uppercase mb-1">Nguyên văn (Lỗi)</div>
+                                <div className="text-lg font-serif text-foreground">{activeIssue.original}</div>
                             </div>
 
-                            <div className="flex justify-center text-white/20">⬇</div>
+                            <div className="flex justify-center text-muted-foreground/20">⬇</div>
 
-                            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                                <div className="text-xs text-emerald-400 font-bold uppercase mb-1">Gợi ý sửa</div>
-                                <div className="text-lg font-bold text-emerald-300">{activeIssue.suggestion}</div>
+                            <div className="p-3 bg-emerald-100/50 border border-emerald-200 rounded-lg">
+                                <div className="text-xs text-emerald-600 font-bold uppercase mb-1">Gợi ý sửa</div>
+                                <div className="text-lg font-bold text-emerald-800">{activeIssue.suggestion}</div>
                             </div>
 
-                            <div className="text-sm text-white/60 italic border-l-2 border-white/20 pl-3">
+                            <div className="text-sm text-muted-foreground italic border-l-2 border-border pl-3">
                                 "{activeIssue.reason}"
                             </div>
 
-                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
+                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
                                 <Button
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                                     onClick={() => handleApplyFix(activeIssue, false)}
                                 >
                                     Sửa ngay

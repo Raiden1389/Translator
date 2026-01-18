@@ -32,15 +32,15 @@ interface ChapterCardProps {
 const statusConfig = {
     draft: {
         label: "Chưa dịch",
-        className: "bg-gray-500/20 text-gray-300 border-gray-500/30"
+        className: "bg-slate-100 text-slate-600 border-slate-200"
     },
     translated: {
         label: "Đã dịch",
-        className: "bg-green-500/20 text-green-300 border-green-500/30"
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200"
     },
     reviewing: {
         label: "Đang soi",
-        className: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+        className: "bg-amber-50 text-amber-700 border-amber-200"
     }
 };
 
@@ -63,11 +63,11 @@ export function ChapterCard({
         <div
             className={cn(
                 "group relative p-3 rounded-lg border transition-all duration-200",
-                "bg-gradient-to-br from-[#1e1e2e] to-[#2a2a3e]",
-                "hover:scale-[1.005] hover:shadow-xl hover:shadow-primary/10",
+                "bg-card",
+                "hover:scale-[1.005] hover:shadow-xl hover:shadow-primary/5",
                 isSelected
-                    ? "border-primary/50 shadow-lg shadow-primary/20"
-                    : "border-white/10 hover:border-primary/30"
+                    ? "border-primary/50 shadow-lg shadow-primary/10"
+                    : "border-border hover:border-primary/30"
             )}
             onContextMenu={onContextMenu}
             onMouseEnter={onMouseEnter}
@@ -86,12 +86,12 @@ export function ChapterCard({
                                 className="h-4 w-4 text-primary flex-shrink-0 cursor-pointer hover:text-primary/80 transition-colors"
                                 onClick={onRead}
                             />
-                            <h3 className="font-semibold text-white truncate">
+                            <h3 className="font-semibold text-foreground truncate">
                                 {chapter.title}
                             </h3>
                         </div>
                         {chapter.title_translated && (
-                            <p className="text-xs text-white/40 truncate">
+                            <p className="text-xs text-muted-foreground/60 truncate">
                                 {chapter.title_translated}
                             </p>
                         )}
@@ -109,8 +109,7 @@ export function ChapterCard({
                 </Button>
             </div>
 
-            {/* Stats Row */}
-            <div className="flex items-center gap-2 text-sm text-white/60 mb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                 <span className="flex items-center gap-1">
                     <FileText className="h-3.5 w-3.5" />
                     {chapter.wordCountOriginal || 0} từ
@@ -134,7 +133,7 @@ export function ChapterCard({
                     size="sm"
                     variant="ghost"
                     onClick={onTranslate}
-                    className="h-6 text-[10px] px-2 text-purple-300 hover:text-purple-200 hover:bg-purple-500/10"
+                    className="h-6 text-[10px] px-2 text-primary hover:text-primary-foreground hover:bg-primary/90"
                 >
                     <Zap className="mr-1 h-3 w-3" />
                     Dịch
@@ -143,7 +142,7 @@ export function ChapterCard({
                     size="sm"
                     variant="ghost"
                     onClick={onInspect}
-                    className="h-6 text-[10px] px-2 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10"
+                    className="h-6 text-[10px] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
                 >
                     <ShieldCheck className="mr-1 h-3 w-3" />
                     Soi lỗi
@@ -152,7 +151,7 @@ export function ChapterCard({
                     size="sm"
                     variant="ghost"
                     onClick={onDelete}
-                    className="h-6 text-[10px] px-2 text-red-300 hover:text-red-200 hover:bg-red-500/10"
+                    className="h-6 text-[10px] px-2 text-destructive hover:text-destructive-foreground hover:bg-destructive"
                 >
                     <Trash2 className="mr-1 h-3 w-3" />
                     Xóa

@@ -177,7 +177,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 }
 
                 setReviewData({ chars: finalChars, terms: finalTerms });
-                toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`, { duration: 10000 });
+                toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`);
             } else {
                 toast.info("Không tìm thấy thuật ngữ nào.");
             }

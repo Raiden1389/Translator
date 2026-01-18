@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     ArrowLeft, Save, Upload, BookOpen,
     Zap, Settings, Users, FileText,
-    Database, LayoutDashboard, Swords
+    Database, LayoutDashboard, Swords,
+    Sparkles, Loader2
 } from "lucide-react";
+import { generateBookSummary } from "@/lib/gemini";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { ChapterList } from "@/components/workspace/ChapterList";
@@ -40,7 +42,7 @@ const AutoResizeTextarea = ({ defaultValue, placeholder, onSave }: { defaultValu
     return (
         <textarea
             ref={textareaRef}
-            className="bg-transparent text-white/50 text-sm whitespace-pre-wrap w-full border-none focus:ring-0 focus:outline-none resize-none placeholder:text-white/30 hover:bg-white/5 p-1 rounded transition-colors overflow-hidden"
+            className="bg-transparent text-foreground text-sm whitespace-pre-wrap w-full border-none focus:ring-0 focus:outline-none resize-none placeholder:text-muted-foreground/30 hover:bg-muted/50 p-1 rounded transition-colors overflow-hidden"
             defaultValue={defaultValue}
             placeholder={placeholder}
             onInput={handleInput}
@@ -54,6 +56,55 @@ const AutoResizeTextarea = ({ defaultValue, placeholder, onSave }: { defaultValu
 const OverviewTab = ({ workspace }: { workspace: any }) => {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+    const handleAutoSummary = async () => {
+        try {
+            setIsGeneratingSummary(true);
+
+            // 1. Fetch First 5 chapters
+            const firstChapters = await db.chapters
+                .where("workspaceId")
+                .equals(workspace.id)
+                .limit(5)
+                .toArray();
+
+            // 2. Fetch Latest Translated Chapter
+            const latestChapter = await db.chapters
+                .where("workspaceId")
+                .equals(workspace.id)
+                .filter(c => c.status === 'translated')
+                .reverse()
+                .limit(1)
+                .toArray();
+
+            const contextText = [...firstChapters, ...latestChapter]
+                .map(c => `Chapter: ${c.title}\n${c.content_original.slice(0, 1000)}...`)
+                .join("\n\n---\n\n");
+
+            if (!contextText.trim()) {
+                alert("Cần ít nhất một chương để tóm tắt.");
+                return;
+            }
+
+            const modelSetting = await db.settings.get("aiModel");
+            const aiModel = modelSetting?.value || "gemini-3-flash-preview";
+
+            const summary = await generateBookSummary(contextText, aiModel);
+
+            await db.workspaces.update(workspace.id, {
+                description: summary,
+                isAiDescription: true,
+                updatedAt: new Date()
+            });
+
+        } catch (err) {
+            console.error("Failed to generate summary", err);
+            alert("Lỗi khi tạo tóm tắt.");
+        } finally {
+            setIsGeneratingSummary(false);
+        }
+    };
 
     const processFile = (file: File) => {
         // Limit size? 5MB initial check
@@ -171,55 +222,79 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
         [workspace.id]
     ) || 0;
 
+    const apiUsage = useLiveQuery(() => db.apiUsage.toArray()) || [];
+    const totalInputTokens = apiUsage.reduce((acc, curr) => acc + (curr.inputTokens || 0), 0);
+    const totalOutputTokens = apiUsage.reduce((acc, curr) => acc + (curr.outputTokens || 0), 0);
+    const totalCostUSD = apiUsage.reduce((acc, curr) => acc + (curr.totalCost || 0), 0);
+    const totalCostVND = totalCostUSD * 25400; // Hardcoded exchange rate for now
+
     return (
         <div className="max-w-[1800px] mx-auto px-6 lg:px-8 py-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Left Column: Stats & Info */}
                 <div className="lg:col-span-1 space-y-6">
-                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl overflow-hidden relative group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <Card className="bg-card border-border shadow-md overflow-hidden relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-white text-base flex items-center gap-2">
-                                <Zap className="w-4 h-4 text-yellow-400" />
+                            <CardTitle className="text-foreground text-base flex items-center gap-2">
+                                <Zap className="w-4 h-4 text-primary" />
                                 Thống Kê
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between text-sm p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
-                                <span className="text-white/50">Tổng số chương</span>
-                                <span className="text-white font-bold font-mono text-lg">{totalChapters.toLocaleString()}</span>
+                            <div className="flex justify-between text-sm p-3 rounded-lg bg-background border border-border hover:border-primary/20 transition-colors">
+                                <span className="text-muted-foreground">Tổng số chương</span>
+                                <span className="text-foreground font-bold font-mono text-lg">{totalChapters.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between text-sm p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
-                                <span className="text-white/50">Đã dịch</span>
-                                <span className="text-emerald-400 font-bold font-mono text-lg">{translatedChapters.toLocaleString()}</span>
+                            <div className="flex justify-between text-sm p-3 rounded-lg bg-background border border-border hover:border-primary/20 transition-colors">
+                                <span className="text-muted-foreground">Đã dịch</span>
+                                <span className="text-emerald-600 font-bold font-mono text-lg">{translatedChapters.toLocaleString()}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
-                                    <div className="text-xs text-white/40 mb-1">Thuật ngữ</div>
-                                    <div className="text-white font-bold">{termCount.toLocaleString()}</div>
+                                <div className="p-3 rounded-lg bg-background border border-border text-center">
+                                    <div className="text-xs text-muted-foreground mb-1">Thuật ngữ</div>
+                                    <div className="text-foreground font-bold">{termCount.toLocaleString()}</div>
                                 </div>
-                                <div className="p-3 rounded-lg bg-white/5 border border-white/5 text-center">
-                                    <div className="text-xs text-white/40 mb-1">Nhân vật</div>
-                                    <div className="text-white font-bold">{charCount.toLocaleString()}</div>
+                                <div className="p-3 rounded-lg bg-background border border-border text-center">
+                                    <div className="text-xs text-muted-foreground mb-1">Nhân vật</div>
+                                    <div className="text-foreground font-bold">{charCount.toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div className="pt-2 border-t border-border mt-2 space-y-3">
+                                <div className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Chi Phí API (Tạm tính)</div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg border border-border/50">
+                                        <div className="text-xs text-muted-foreground font-medium">Tổng Token</div>
+                                        <div className="text-foreground font-bold font-mono text-sm">
+                                            {((totalInputTokens + totalOutputTokens) / 1000).toFixed(1)}K
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-primary/5 p-2 rounded-lg border border-primary/10">
+                                        <div className="text-xs text-primary/70 font-bold uppercase tracking-tight">Thanh toán</div>
+                                        <div className="text-right">
+                                            <div className="text-primary font-black font-mono text-lg leading-tight">${totalCostUSD.toFixed(3)}</div>
+                                            <div className="text-[10px] text-primary/40 font-bold">~{Math.round(totalCostVND).toLocaleString()} VNĐ</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl overflow-hidden">
+                    <Card className="bg-card border-border shadow-md overflow-hidden">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-white text-base flex items-center gap-2">
-                                <BookOpen className="w-4 h-4 text-blue-400" />
+                            <CardTitle className="text-foreground text-base flex items-center gap-2">
+                                <BookOpen className="w-4 h-4 text-primary" />
                                 Thông Tin
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2 group">
-                                <label className="text-[10px] text-white/40 uppercase font-bold tracking-widest flex items-center gap-2 group-focus-within:text-primary transition-colors">
+                                <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest flex items-center gap-2 group-focus-within:text-primary transition-colors">
                                     <Users className="w-3 h-3" /> Tác Giả
                                 </label>
                                 <input
-                                    className="bg-transparent text-white/90 text-lg font-bold w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-2 transition-all"
+                                    className="bg-transparent text-foreground font-bold text-lg w-full border-b border-border focus:border-primary focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all"
                                     defaultValue={workspace.author?.normalize('NFC')}
                                     placeholder="Chưa rõ tác giả"
                                     onBlur={(e) => {
@@ -231,11 +306,11 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                 />
                             </div>
                             <div className="space-y-2 group">
-                                <label className="text-[10px] text-white/40 uppercase font-bold tracking-widest flex items-center gap-2 group-focus-within:text-primary transition-colors">
+                                <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest flex items-center gap-2 group-focus-within:text-primary transition-colors">
                                     <Database className="w-3 h-3" /> Thể Loại
                                 </label>
                                 <input
-                                    className="bg-transparent text-white/90 text-base w-full border-b border-white/10 focus:border-primary focus:ring-0 focus:outline-none placeholder:text-white/20 py-2 transition-all"
+                                    className="bg-transparent text-foreground text-base w-full border-b border-border focus:border-primary focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all"
                                     defaultValue={workspace.genre?.normalize('NFC')}
                                     placeholder="Chưa phân loại"
                                     onBlur={(e) => {
@@ -253,7 +328,7 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                 {/* Right Column: Cover & Description */}
                 <div className="lg:col-span-2 space-y-6 flex flex-col h-full">
                     <Card
-                        className={`bg-[#1e1e2e] border-white/10 shadow-xl h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300 ${isDragging ? 'border-primary border-2 bg-primary/10' : ''}`}
+                        className={`bg-card border-border shadow-md h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300 ${isDragging ? 'border-primary border-2 bg-primary/5' : ''}`}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
@@ -267,23 +342,22 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                 />
 
                                 {/* Gradient Overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e2e] via-transparent to-transparent opacity-60" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80" />
 
-                                {/* Main Image */}
                                 <div className="absolute inset-0 flex items-center justify-center p-6">
                                     <img
                                         src={workspace.cover}
                                         alt="Cover"
-                                        className="h-full w-auto object-contain rounded-lg shadow-2xl shadow-black/50 z-10 transition-transform duration-500 group-hover:scale-[1.02]"
+                                        className="h-full w-auto object-contain rounded-lg shadow-xl z-10 transition-transform duration-500 group-hover:scale-[1.02]"
                                     />
                                 </div>
                             </div>
                         ) : (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/2 group-hover:bg-white/5 transition-colors gap-4">
-                                <div className="p-4 rounded-full bg-white/5 border border-white/10 group-hover:scale-110 transition-transform duration-300">
-                                    <Upload className="h-8 w-8 text-white/30 group-hover:text-white/60 transition-colors" />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/20 group-hover:bg-muted/40 transition-colors gap-4">
+                                <div className="p-4 rounded-full bg-background border border-border group-hover:scale-110 transition-transform duration-300">
+                                    <Upload className="h-8 w-8 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
                                 </div>
-                                <p className="text-white/30 text-sm font-medium">Kéo thả hoặc tải ảnh bìa</p>
+                                <p className="text-muted-foreground/40 text-sm font-medium">Kéo thả hoặc tải ảnh bìa</p>
                             </div>
                         )}
 
@@ -306,7 +380,7 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                     <Button
                                         variant="secondary"
                                         size="sm"
-                                        className="bg-black/60 text-white hover:bg-black/80 backdrop-blur-md border border-white/20 shadow-lg"
+                                        className="bg-background/80 text-foreground hover:bg-background border border-border shadow-md"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             fileInputRef.current?.click();
@@ -329,11 +403,36 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                         </div>
                     </Card>
 
-                    <Card className="bg-[#1e1e2e] border-white/10 shadow-xl flex-1 flex flex-col">
+                    <Card className="bg-card border-border shadow-md flex-1 flex flex-col">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-white text-base flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-purple-400" />
-                                Mô Tả / Tóm Tắt
+                            <CardTitle className="text-foreground text-base flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-primary" />
+                                    Mô Tả / Tóm Tắt
+                                    {workspace.isAiDescription && (
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[9px] text-emerald-600 font-black uppercase tracking-tighter shadow-sm animate-in fade-in zoom-in duration-300">
+                                            <Sparkles className="w-2.5 h-2.5" />
+                                            AI Generated
+                                        </div>
+                                    )}
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                        "h-7 px-2 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all duration-300 rounded-lg group/wand",
+                                        isGeneratingSummary && "animate-pulse"
+                                    )}
+                                    onClick={handleAutoSummary}
+                                    disabled={isGeneratingSummary}
+                                    title="Tự động tóm tắt bằng AI"
+                                >
+                                    {isGeneratingSummary ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                                    ) : (
+                                        <Sparkles className="w-3.5 h-3.5 group-hover/wand:scale-110 transition-transform" />
+                                    )}
+                                </Button>
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1">
@@ -342,7 +441,10 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                                 placeholder="Nhập mô tả hoặc tóm tắt truyện tại đây..."
                                 onSave={(val) => {
                                     if (val !== workspace.description) {
-                                        db.workspaces.update(workspace.id, { description: val });
+                                        db.workspaces.update(workspace.id, {
+                                            description: val,
+                                            isAiDescription: false // Reset flag if manually edited
+                                        });
                                     }
                                 }}
                             />
@@ -375,7 +477,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
         }
     }, [activeTabParam]);
 
-    if (workspace === undefined) return <div className="p-10 text-center text-white/50">Loading...</div>;
+    if (workspace === undefined) return <div className="p-10 text-center text-muted-foreground">Loading...</div>;
     if (workspace === null) return notFound();
 
     const tabs = [
@@ -390,31 +492,36 @@ export default function WorkspaceClient({ id }: { id: string }) {
     ];
 
     return (
-        <div className="flex h-full w-full bg-[#0a0514] text-white overflow-hidden">
+        <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
             {/* Desktop Sidebar */}
-            <aside className="w-64 border-r border-white/5 bg-[#0d0617]/50 backdrop-blur-xl flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300">
+            <aside className="w-64 border-r border-sidebar-border bg-sidebar flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300">
                 <div className="px-6 mb-6">
                     <Link href="/">
-                        <Button variant="ghost" size="sm" className="w-full justify-start text-white/40 hover:text-white hover:bg-white/5 -ml-2 gap-2 text-[10px] uppercase font-bold tracking-widest transition-colors group">
+                        <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent -ml-2 gap-2 text-[10px] uppercase font-bold tracking-widest transition-colors group">
                             <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-1" /> Back to Library
                         </Button>
                     </Link>
                 </div>
 
                 <div className="px-6 mb-8 flex flex-col gap-1">
-                    <h1 className="text-lg font-bold text-white leading-tight tracking-tight line-clamp-2">{workspace.title?.normalize('NFC')}</h1>
-                    <span className="text-[10px] text-white/20 uppercase font-bold tracking-[0.2em]">{workspace.genre || "Uncategorized"}</span>
+                    <h1 className="text-lg font-bold text-foreground leading-tight tracking-tight line-clamp-2">{workspace.title?.normalize('NFC')}</h1>
+                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.2em]">{workspace.genre || "Uncategorized"}</span>
 
                     <div className="mt-6 flex flex-col gap-2">
-                        <div className="flex items-center justify-between text-[9px] text-white/30 font-black uppercase tracking-widest">
+                        <div className="flex items-center justify-between text-[9px] text-muted-foreground font-black uppercase tracking-widest">
                             <span>Neural Progress</span>
                             <span>{Math.round(progress)}%</span>
                         </div>
-                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div className="w-full h-1 bg-border rounded-full overflow-hidden relative">
                             <div
-                                className="h-full bg-gradient-to-r from-[#6c5ce7] via-[#a29bfe] to-[#6c5ce7] bg-[length:200%_100%] animate-gradient-x transition-all duration-1000"
+                                className="h-full bg-primary transition-all duration-1000 will-change-[width] relative"
                                 style={{ width: `${progress}%` }}
-                            />
+                            >
+                                {/* Shimmer Overlay - Only run when active (1-99%) to save GPU on idle */}
+                                {progress > 0 && progress < 100 && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-fast w-full" />
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -430,35 +537,35 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                 className={cn(
                                     "w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all group relative",
                                     isActive
-                                        ? "text-white"
-                                        : "text-white/40 hover:text-white hover:bg-white/5"
+                                        ? "text-primary"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
                                 )}
                             >
                                 {isActive && (
-                                    <div className="absolute inset-0 bg-[#6c5ce7]/10 border border-[#6c5ce7]/20 rounded-2xl shadow-[0_0_20px_rgba(108,92,231,0.05)]" />
+                                    <div className="absolute inset-0 bg-primary/5 border border-primary/20 rounded-2xl shadow-sm" />
                                 )}
                                 <div className={cn(
                                     "p-1.5 rounded-xl transition-all relative z-10",
-                                    isActive ? "bg-[#6c5ce7] text-white shadow-lg shadow-[#6c5ce7]/20" : "bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white"
+                                    isActive ? "bg-primary text-primary-foreground shadow-md" : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground"
                                 )}>
                                     <Icon className="h-3.5 w-3.5" />
                                 </div>
                                 <span className="relative z-10">{tab.label}</span>
                                 {isActive && (
-                                    <div className="ml-auto w-1 h-4 bg-[#6c5ce7] rounded-full relative z-10" />
+                                    <div className="ml-auto w-1 h-4 bg-primary rounded-full relative z-10" />
                                 )}
                             </button>
                         )
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-white/5">
-                    <div className="group flex items-center gap-3 p-4 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-[#6c5ce7]/30 transition-all cursor-default">
-                        <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#6c5ce7] to-[#fd79a8] flex items-center justify-center text-[10px] font-black text-white shadow-[0_0_15px_rgba(108,92,231,0.2)] group-hover:scale-110 transition-transform">
+                <div className="p-4 border-t border-sidebar-border">
+                    <div className="group flex items-center gap-3 p-4 rounded-3xl bg-gradient-to-br from-muted/50 to-transparent border border-sidebar-border hover:border-primary/30 transition-all cursor-default text-sidebar-foreground">
+                        <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-[10px] font-black text-white shadow-xl group-hover:scale-110 transition-transform">
                             AI
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[11px] font-black text-white/90 tracking-tight">AI Engine v3.0</span>
+                            <span className="text-[11px] font-black opacity-90 tracking-tight">AI Engine v3.0</span>
                         </div>
                     </div>
                 </div>
@@ -467,10 +574,10 @@ export default function WorkspaceClient({ id }: { id: string }) {
             {/* Content Area */}
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative h-full">
                 {/* Internal Header for Content - useful for context */}
-                <header className="h-20 flex items-center justify-between px-8 pt-4 border-b border-white/5 bg-[#0a0514]/30 backdrop-blur-sm shrink-0">
-                    <h2 className="text-sm font-bold text-white/80 capitalize flex items-center gap-2">
+                <header className="h-20 flex items-center justify-between px-8 pt-4 border-b border-border bg-background shrink-0">
+                    <h2 className="text-sm font-bold text-foreground capitalize flex items-center gap-2">
                         {tabs.find(t => t.id === activeTab)?.label}
-                        <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-white/30 font-mono">WORKSPACE_ID: {id.slice(0, 8)}</span>
+                        <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-mono font-black">WORKSPACE_ID: {id.slice(0, 8)}</span>
                     </h2>
 
                     <div className="flex items-center gap-2">
@@ -496,8 +603,8 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                     <CardContent>
                                         <div className="flex items-center justify-between">
                                             <div className="space-y-1">
-                                                <p className="text-white font-medium">Xóa Workspace</p>
-                                                <p className="text-sm text-white/50">Hành động này không thể hoàn tác. Tất cả chương và dữ liệu sẽ bị xóa.</p>
+                                                <p className="text-foreground font-medium">Xóa Workspace</p>
+                                                <p className="text-sm text-muted-foreground">Hành động này không thể hoàn tác. Tất cả chương và dữ liệu sẽ bị xóa.</p>
                                             </div>
                                             <Button variant="destructive" className="bg-red-600 hover:bg-red-700">Delete Workspace</Button>
                                         </div>

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Sparkles, Settings, ArrowRight, ArrowLeft as ArrowPrev, BookOpen } from "lucide-react";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SettingsDialog } from "@/components/editor/SettingsDialog";
 import { DictionaryEditDialog } from "@/components/editor/DictionaryEditDialog";
@@ -28,13 +28,16 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
 import { DictionaryManager } from "@/lib/dictionary-manager";
-
 import { CharacterSidebar } from "@/components/workspace/CharacterSidebar";
 import { Users } from "lucide-react";
 
-export default function ChapterEditorClient({ id, chapterId }: { id: string; chapterId: string }) {
+export interface ChapterEditorClientProps {
+    id: string;
+    chapterId: string;
+}
+
+export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClientProps) {
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const router = useRouter();
 
@@ -86,22 +89,6 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
             setDictManager(new DictionaryManager(dictEntries));
         }
     }, [dictEntries]);
-
-    // Translation State
-    const [isTranslating, setIsTranslating] = useState(false);
-    const [statusOpen, setStatusOpen] = useState(false);
-    const [logs, setLogs] = useState<TranslationLog[]>([]);
-
-    // AI Extraction State
-    const [isAIExtracting, setIsAIExtracting] = useState(false);
-    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
-    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
-    const [isReviewOpen, setIsReviewOpen] = useState(false);
-
-    // Auto-Apply Dictionary Logic
-    useEffect(() => {
-        if (!dictManager || !chapter?.content_translated) return;
-    }, [dictManager, chapter]);
 
     useEffect(() => {
         if (chapter && chapter.content_translated) {
@@ -208,12 +195,12 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                         translated: char.translated,
                         gender: char.gender,
                         role: char.role,
-                        description: char.description,
-                        createdAt: new Date()
+                        description: char.description
                     });
                     updatedCount++;
                 } else {
                     await db.dictionary.add({
+                        workspaceId: id,
                         original: char.original,
                         translated: char.translated,
                         type: 'name',
@@ -232,7 +219,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                     await db.dictionary.update(existing.id!, { translated: term.translated, type: term.type as any });
                     updatedCount++;
                 } else {
-                    await db.dictionary.add({ original: term.original, translated: term.translated, type: term.type as any, createdAt: new Date() });
+                    await db.dictionary.add({ workspaceId: id, original: term.original, translated: term.translated, type: term.type as any, createdAt: new Date() });
                     addedCount++;
                 }
             }
@@ -256,6 +243,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
         };
 
         await translateChapter(
+            id,
             chapter.content_original,
             addLog,
             (result) => {
@@ -272,6 +260,18 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
         setIsTranslating(false);
     };
 
+    // Translation State
+    const [isTranslating, setIsTranslating] = useState(false);
+    const [statusOpen, setStatusOpen] = useState(false);
+    const [logs, setLogs] = useState<TranslationLog[]>([]);
+
+    // AI Extraction State
+    const [isAIExtracting, setIsAIExtracting] = useState(false);
+    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
+    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
+
+    // Render Tokenized Original Text
     const renderOriginalText = () => {
         if (!dictManager || !chapter.content_original) return chapter.content_original;
 
@@ -314,7 +314,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
             {/* Top Bar */}
             <header className="h-14 border-b border-white/10 bg-[#1e1e2e] flex items-center justify-between px-4 shrink-0 transition-all">
                 <div className="flex items-center gap-4">
-                    <Link href={`/workspace?id=${id}&tab=chapters`}>
+                    <Link href={`/workspace/${id}?tab=chapters`}>
                         <Button variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-white/10 px-2 h-9">
                             <ArrowLeft className="h-4 w-4 mr-1" />
                             <span className="hidden sm:inline">Trở lại</span>
@@ -326,7 +326,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                             size="icon"
                             className="h-8 w-8 text-white/60 hover:text-white disabled:opacity-30"
                             disabled={!prevChapterId}
-                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${prevChapterId}`)}
+                            onClick={() => router.push(`/workspace/${id}/chapter/${prevChapterId}`)}
                         >
                             <ArrowPrev className="h-4 w-4" />
                         </Button>
@@ -335,7 +335,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                             size="icon"
                             className="h-8 w-8 text-white/60 hover:text-white disabled:opacity-30"
                             disabled={!nextChapterId}
-                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${nextChapterId}`)}
+                            onClick={() => router.push(`/workspace/${id}/chapter/${nextChapterId}`)}
                         >
                             <ArrowRight className="h-4 w-4" />
                         </Button>
@@ -354,7 +354,6 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                     </div>
                 </div>
 
-                {/* Center: View Mode Switcher */}
                 <div className="flex bg-[#2b2b40] rounded-lg p-1 gap-1 border border-white/5">
                     <Button
                         size="sm"
@@ -438,7 +437,6 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                         )}
                     </Button>
 
-                    {/* Sidebar Toggle */}
                     <Button
                         variant="ghost"
                         size="icon"
@@ -449,11 +447,10 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                         <Users className="h-5 w-5" />
                     </Button>
 
-                    <SettingsDialog defaultTab="ai" />
+                    <SettingsDialog workspaceId={id} defaultTab="ai" />
                 </div>
             </header>
 
-            {/* Editor Area (Grid Layout) OR User Custom Reader Layout */}
             <div
                 className={cn(
                     "flex-1 min-h-0 overflow-hidden bg-[#1a0b2e] transition-all duration-300 ease-in-out",
@@ -466,7 +463,6 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                         : (viewMode === 'parallel' ? "1fr 1fr" : "1fr")
                 }}
             >
-                {/* Left: Original */}
                 {(viewMode === 'zh' || viewMode === 'parallel') && (
                     <div className={cn("flex flex-col border-r border-white/10 min-h-0", "reader-column")}>
                         <div className="h-10 border-b border-white/5 flex items-center px-4 bg-[#1e1e2e]/50 shrink-0">
@@ -496,7 +492,6 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                     </div>
                 )}
 
-                {/* Right: Translated */}
                 {(viewMode === 'vi' || viewMode === 'parallel') && (
                     <div className={cn("flex flex-col min-h-0", "reader-column")}>
                         <div className="h-10 border-b border-white/5 flex items-center px-4 bg-[#1e1e2e]/50 shrink-0">
@@ -527,7 +522,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                                                         </p>
                                                     );
                                                 })}
-                                                <div className="h-20" /> {/* Extra spacer */}
+                                                <div className="h-20" />
 
                                                 <div className="mt-20 flex flex-col items-center gap-6 pb-20 border-t border-white/5 pt-12">
                                                     <p className="text-white/30 text-sm">Hết chương {currentIndex + 1}</p>
@@ -535,7 +530,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                                                         <Button
                                                             variant="outline"
                                                             disabled={!prevChapterId}
-                                                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${prevChapterId}`)}
+                                                            onClick={() => router.push(`/workspace/${id}/chapter/${prevChapterId}`)}
                                                             className="border-white/10 bg-white/5"
                                                         >
                                                             Chương trước
@@ -543,7 +538,7 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                                                         <Button
                                                             variant="default"
                                                             disabled={!nextChapterId}
-                                                            onClick={() => router.push(`/chapter?id=${id}&chapterId=${nextChapterId}`)}
+                                                            onClick={() => router.push(`/workspace/${id}/chapter/${nextChapterId}`)}
                                                             className="bg-primary hover:bg-primary/80"
                                                         >
                                                             Chương sau
@@ -582,7 +577,6 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                     </div>
                 )}
 
-                {/* Sidebar */}
                 <CharacterSidebar
                     workspaceId={id}
                     chapterId={chapterId}
@@ -594,10 +588,8 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
                 />
             </div>
 
-            {/* Bottom Status Bar */}
-            {/* Bottom Status Bar Removed for Full Screen */}
-
             <DictionaryEditDialog
+                workspaceId={id}
                 open={dicOpen}
                 onOpenChange={setDicOpen}
                 initialOriginal={selectedText}
@@ -639,4 +631,3 @@ export default function ChapterEditorClient({ id, chapterId }: { id: string; cha
         </main>
     );
 }
-
