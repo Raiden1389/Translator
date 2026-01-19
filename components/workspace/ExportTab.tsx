@@ -16,7 +16,6 @@ import {
     Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
-import JSZip from "jszip";
 import { cn } from "@/lib/utils";
 import { gdrive } from "@/lib/googleDrive";
 import { open } from "@tauri-apps/plugin-shell";
@@ -266,6 +265,7 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
     };
 
     const exportAsEPUB = async (ws: Workspace, chs: Chapter[], language: ContentLang) => {
+        const JSZip = (await import("jszip")).default;
         const zip = new JSZip();
         zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
         zip.file("META-INF/container.xml", `<?xml version="1.0"?>

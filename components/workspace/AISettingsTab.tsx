@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Key, Database, Sparkles, Loader2, RefreshCw, Settings, CheckCircle, XCircle, AlertTriangle, Calculator, Save } from "lucide-react";
+import { Key, Database, Sparkles, Loader2, RefreshCw, Settings, CheckCircle, XCircle, AlertTriangle, Calculator, Save, ShieldCheck } from "lucide-react";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
 import { GoogleGenAI } from "@google/genai";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
 
 export function AISettingsTab() {
     const [primaryKey, setPrimaryKey] = useState("");
@@ -28,6 +29,7 @@ export function AISettingsTab() {
 
     // Word Count Fix State
     const [isFixingWordCount, setIsFixingWordCount] = useState(false);
+    const [isBackendKeyLoading, setIsBackendKeyLoading] = useState(false);
 
     useEffect(() => {
         loadSettings();
@@ -70,6 +72,22 @@ export function AISettingsTab() {
         }
     };
 
+    const handleLoadFromBackend = async () => {
+        setIsBackendKeyLoading(true);
+        try {
+            const key = await invoke<string>("get_gemini_key");
+            setPrimaryKey(key);
+            toast.success("Đã nạp Key từ Backend (.env) thành công!", {
+                description: "Đừng quên bấm 'Lưu Thay Đổi' để áp dụng."
+            });
+        } catch (err: any) {
+            console.error("Backend Key Error:", err);
+            toast.error(err.toString());
+        } finally {
+            setIsBackendKeyLoading(false);
+        }
+    };
+
     const fetchModels = async () => {
         if (!primaryKey) return;
         setIsLoadingModels(true);
@@ -85,11 +103,11 @@ export function AISettingsTab() {
                     .filter((m: { value: string }) => m.value.includes("gemini"));
                 setAvailableModels(models);
             } else {
-                alert("Failed to fetch models. Check your API Key.");
+                toast.error("Không thể lấy danh sách Model. Vui lòng kiểm tra API Key.");
             }
         } catch (e) {
             console.error(e);
-            alert("Network error fetching models.");
+            toast.error("Lỗi kết nối khi lấy danh sách Model.");
         } finally {
             setIsLoadingModels(false);
         }
@@ -193,10 +211,10 @@ export function AISettingsTab() {
                 }
             }
 
-            alert(`Đã sửa ${fixed} chương!`);
+            toast.success(`Đã sửa ${fixed} chương!`);
         } catch (e) {
             console.error(e);
-            alert("Lỗi: " + e);
+            toast.error("Lỗi khi sửa Word Count: " + e);
         } finally {
             setIsFixingWordCount(false);
         }
@@ -226,6 +244,16 @@ export function AISettingsTab() {
                             onChange={(e) => handleSavePrimary(e.target.value)}
                             className="bg-background border-border text-foreground focus-visible:ring-primary flex-1"
                         />
+                        <Button
+                            variant="outline"
+                            onClick={handleLoadFromBackend}
+                            disabled={isBackendKeyLoading}
+                            className="border-primary/30 hover:bg-primary/5 text-primary gap-2"
+                            title="Nạp Key từ file .env (Backend)"
+                        >
+                            {isBackendKeyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                            <span className="hidden sm:inline">Nạp từ .env</span>
+                        </Button>
                         <Button
                             variant="outline"
                             onClick={fetchModels}

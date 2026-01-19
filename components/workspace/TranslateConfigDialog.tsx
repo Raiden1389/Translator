@@ -100,8 +100,8 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                 if (!db.isOpen()) await db.open();
                                 const count = await db.prompts.count();
                                 const list = await db.prompts.toArray();
-                                alert(`Debug Prompts: ${count} items.\nTitles: ${list.map(p => p.title).join(', ')}`);
-                            } catch (e: any) { alert("Error: " + e.message); }
+                                toast.info(`Debug Prompts: ${count} items.\nTitles: ${list.map(p => p.title).join(', ')}`);
+                            } catch (e: any) { toast.error("Error: " + e.message); }
                         }}>
                             <AlertTriangle className="h-3 w-3 mr-1" /> Check DB ({savedPrompts.length})
                         </Button>

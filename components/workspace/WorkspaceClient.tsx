@@ -3,6 +3,8 @@
 import React, { useState, useEffect, use } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { ReviewData, GlossaryCharacter, GlossaryTerm } from "@/lib/types"; // Import types
+import { ReviewDialog } from "./ReviewDialog"; // Import ReviewDialog
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,38 +19,63 @@ import { notFound, useSearchParams } from "next/navigation";
 import { ChapterList } from "@/components/workspace/ChapterList";
 import { DictionaryTab } from "@/components/workspace/DictionaryTab";
 import { CharacterTab } from "@/components/workspace/CharacterTab";
-import { AISettingsTab } from "@/components/workspace/AISettingsTab";
-import { ExportTab } from "@/components/workspace/ExportTab";
 import { PromptLab } from "@/components/workspace/PromptLab";
+import { AISettingsTab } from "./AISettingsTab";
+import { ExportTab } from "./ExportTab";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { storage } from "@/lib/storageBridge";
+import { useBatchTranslate } from "./hooks/useBatchTranslate";
+import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useRouter } from "next/navigation";
 
 const AutoResizeTextarea = ({ defaultValue, placeholder, onSave }: { defaultValue: string, placeholder: string, onSave: (value: string) => void }) => {
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+    const [value, setValue] = React.useState(defaultValue || "");
 
+    // Sync local state when prop changes (e.g. from DB)
     React.useEffect(() => {
+        setValue(defaultValue || "");
+    }, [defaultValue]);
+
+    const adjustHeight = () => {
         const el = textareaRef.current;
         if (el) {
             el.style.height = 'auto';
             el.style.height = el.scrollHeight + 'px';
         }
-    }, []);
+    };
+
+    // Use LayoutEffect to resize immediately after DOM update but before paint
+    React.useLayoutEffect(() => {
+        adjustHeight();
+    }, [value]);
 
     const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-        const el = e.currentTarget;
-        el.style.height = 'auto';
-        el.style.height = el.scrollHeight + 'px';
+        setValue(e.currentTarget.value);
     };
 
     return (
         <textarea
             ref={textareaRef}
             className="bg-transparent text-foreground text-sm whitespace-pre-wrap w-full border-none focus:ring-0 focus:outline-none resize-none placeholder:text-muted-foreground/30 hover:bg-muted/50 p-1 rounded transition-colors overflow-hidden"
-            defaultValue={defaultValue}
+            value={value}
             placeholder={placeholder}
             onInput={handleInput}
             onBlur={(e) => onSave(e.target.value)}
-            rows={3}
+            rows={1} // Start small
         />
     );
 };
@@ -84,7 +111,7 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                 .join("\n\n---\n\n");
 
             if (!contextText.trim()) {
-                alert("Cần ít nhất một chương để tóm tắt.");
+                toast.info("Cần ít nhất một chương để tóm tắt.");
                 return;
             }
 
@@ -101,7 +128,7 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
 
         } catch (err) {
             console.error("Failed to generate summary", err);
-            alert("Lỗi khi tạo tóm tắt.");
+            toast.error("Lỗi khi tạo tóm tắt.");
         } finally {
             setIsGeneratingSummary(false);
         }
@@ -110,7 +137,7 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
     const processFile = (file: File) => {
         // Limit size? 5MB initial check
         if (file.size > 10 * 1024 * 1024) {
-            alert("Ảnh quá lớn (< 10MB)");
+            toast.warning("Ảnh quá lớn (< 10MB)");
             return;
         }
 
@@ -148,7 +175,7 @@ const OverviewTab = ({ workspace }: { workspace: any }) => {
                 db.workspaces.update(workspace.id, { cover: optimizedBase64, updatedAt: new Date() })
                     .catch(err => {
                         console.error("Failed to save cover", err);
-                        alert("Lỗi khi lưu ảnh");
+                        toast.error("Lỗi khi lưu ảnh bìa");
                     });
             };
             img.src = e.target?.result as string;
@@ -478,7 +505,68 @@ export default function WorkspaceClient({ id }: { id: string }) {
 
     const progress = stats ? (stats.total > 0 ? (stats.translated / stats.total) * 100 : 0) : 0;
 
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState("overview");
+    // Scan Results State (Lifted from ChapterList)
+    const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+
+    // Batch Translate State (Lifted from ChapterList)
+    const { isTranslating, batchProgress, handleBatchTranslate } = useBatchTranslate();
+
+    const handleReviewSave = async (saveChars: GlossaryCharacter[], saveTerms: GlossaryTerm[], blacklistChars: GlossaryCharacter[], blacklistTerms: GlossaryTerm[]) => {
+        // Save to Dictionary
+        const allSave = [...saveChars, ...saveTerms].map(item => ({ ...item, workspaceId: id, createdAt: new Date() }));
+        if (allSave.length > 0) {
+            await db.dictionary.bulkAdd(allSave);
+        }
+
+        // Save to Blacklist
+        const allBlacklist = [...blacklistChars, ...blacklistTerms];
+        for (const item of allBlacklist) {
+            // Check existing before adding to avoid key constraint errors
+            const existing = await db.blacklist.where({ word: item.original, workspaceId: id }).first();
+            if (!existing) {
+                await db.blacklist.add({
+                    workspaceId: id,
+                    word: item.original,
+                    translated: item.translated,
+                    source: 'manual',
+                    createdAt: new Date()
+                });
+            }
+        }
+
+        toast.success(`Đã lưu: ${allSave.length} từ vào từ điển, ${allBlacklist.length} từ vào blacklist.`, { duration: 10000 });
+        setReviewData(null);
+    };
+
+    const handleDeleteWorkspace = async () => {
+        try {
+            // 1. Delete chapters
+            await db.chapters.where("workspaceId").equals(id).delete();
+
+            // 2. Delete dictionary
+            await db.dictionary.where("workspaceId").equals(id).delete();
+
+            // 3. Delete blacklist
+            await db.blacklist.where("workspaceId").equals(id).delete();
+
+            // 4. Delete corrections
+            await db.corrections.where("workspaceId").equals(id).delete();
+
+            // 5. Delete local file
+            await storage.deleteWorkspace(id);
+
+            // 6. Delete workspace itself
+            await db.workspaces.delete(id);
+
+            toast.success("Đã xóa Workspace thành công!");
+            router.push("/");
+        } catch (err) {
+            console.error("Failed to delete workspace:", err);
+            toast.error("Lỗi khi xóa Workspace.");
+        }
+    };
 
     useEffect(() => {
         if (activeTabParam) {
@@ -598,7 +686,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                     <div className="max-w-6xl mx-auto">
                         <ErrorBoundary name="WorkspaceTabContent">
                             {activeTab === "overview" && <OverviewTab workspace={workspace} />}
-                            {activeTab === "chapters" && <ChapterList workspaceId={id} />}
+                            {activeTab === "chapters" && <ChapterList workspaceId={id} onShowScanResults={setReviewData} onTranslate={handleBatchTranslate} />}
                             {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
                             {activeTab === "characters" && <CharacterTab workspaceId={id} />}
                             {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
@@ -616,7 +704,23 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                                     <p className="text-foreground font-medium">Xóa Workspace</p>
                                                     <p className="text-sm text-muted-foreground">Hành động này không thể hoàn tác. Tất cả chương và dữ liệu sẽ bị xóa.</p>
                                                 </div>
-                                                <Button variant="destructive" className="bg-red-600 hover:bg-red-700">Delete Workspace</Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="destructive" className="bg-red-600 hover:bg-red-700">Delete Workspace</Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent className="bg-[#1a0b2e] border-white/10 text-white">
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Bạn có tuyệt đối chắc chắn?</AlertDialogTitle>
+                                                            <AlertDialogDescription className="text-white/50">
+                                                                Hành động này không thể hoàn tác. Toàn bộ dữ liệu của Workspace này bao gồm các chương, từ điển và lịch sử dịch sẽ bị xóa vĩnh viễn khỏi ổ đĩa.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10 text-white font-bold">Hủy</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={handleDeleteWorkspace} className="bg-red-600 hover:bg-red-700 text-white border-none font-bold">Xác nhận xóa</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -627,6 +731,16 @@ export default function WorkspaceClient({ id }: { id: string }) {
                     </div>
                 </div>
             </div>
-        </div>
+
+            <ReviewDialog
+                open={!!reviewData}
+                onOpenChange={(v) => !v && setReviewData(null)}
+                characters={reviewData?.chars || []}
+                terms={reviewData?.terms || []}
+                onSave={handleReviewSave}
+            />
+
+            <TranslationProgressOverlay isTranslating={isTranslating} progress={batchProgress} />
+        </div >
     );
 }

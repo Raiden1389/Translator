@@ -181,38 +181,75 @@ db.version(16).stores({
     dictionary: '++id, workspaceId, original, translated, type, gender, role, [workspaceId+original]'
 });
 
+// V17: Compound index for character filtering isolation
+db.version(17).stores({
+    dictionary: '++id, workspaceId, original, translated, type, gender, role, [workspaceId+original], [workspaceId+type]'
+});
+
+// V18: Optimize sorting by updatedAt
+db.version(18).stores({
+    workspaces: 'id, title, updatedAt',
+    chapters: '++id, workspaceId, order, updatedAt, [workspaceId+order]'
+});
+
 // Tauri Hook: Sync to local files on change
 if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    const syncTimers: Record<string, any> = {};
+
     const syncWorkspace = async (workspaceId: string) => {
-        const workspace = await db.workspaces.get(workspaceId);
-        if (!workspace) return;
+        // Clear any existing timer for this workspace
+        if (syncTimers[workspaceId]) {
+            clearTimeout(syncTimers[workspaceId]);
+        }
 
-        const chapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
-        const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray(); // Filtered by workspaceId
+        // Debounce: Wait 2 seconds of inactivity before writing to disk
+        syncTimers[workspaceId] = setTimeout(async () => {
+            try {
+                const workspace = await db.workspaces.get(workspaceId);
+                if (!workspace) return;
 
-        // Note: Prompts are global, not synced per workspace yet, but could be added if needed.
+                const chapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
+                const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
 
-        await storage.saveWorkspace(workspaceId, {
-            workspace,
-            chapters,
-            dictionary
-        });
+                await storage.saveWorkspace(workspaceId, {
+                    workspace,
+                    chapters,
+                    dictionary
+                });
+
+                delete syncTimers[workspaceId];
+            } catch (err) {
+                console.error("Sync error:", err);
+            }
+        }, 2000);
     };
 
     db.workspaces.hook('updating', (mods, prim, obj) => {
-        setTimeout(() => syncWorkspace(obj.id), 100);
+        syncWorkspace(obj.id);
     });
 
     db.chapters.hook('creating', (prim, obj) => {
-        setTimeout(() => syncWorkspace(obj.workspaceId), 100);
+        syncWorkspace(obj.workspaceId);
     });
 
     db.chapters.hook('updating', (mods, prim, obj) => {
-        setTimeout(() => syncWorkspace(obj.workspaceId), 100);
+        syncWorkspace(obj.workspaceId);
     });
 
     db.chapters.hook('deleting', (prim, obj) => {
-        setTimeout(() => syncWorkspace(obj.workspaceId), 100);
+        syncWorkspace(obj.workspaceId);
+    });
+
+    db.dictionary.hook('creating', (prim, obj) => {
+        syncWorkspace(obj.workspaceId);
+    });
+
+    db.dictionary.hook('updating', (mods, prim, obj) => {
+        syncWorkspace(obj.workspaceId);
+    });
+
+    db.dictionary.hook('deleting', (prim, obj) => {
+        syncWorkspace(obj.workspaceId);
     });
 }
 

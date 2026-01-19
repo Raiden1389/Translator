@@ -12,75 +12,49 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const percent = Math.round((progress.current / progress.total) * 100) || 0;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-300">
-            {/* Subtle blocking layer to prevent accidental clicks while still showing the UI */}
-            <div className="absolute inset-0 bg-background/30"></div>
-            <div className="bg-card border border-border p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-8 relative overflow-hidden">
-                {/* Background glow effects */}
-                <div className="absolute -top-24 -left-24 h-48 w-48 bg-primary/5 rounded-full blur-3xl"></div>
-                <div className="absolute -bottom-24 -right-24 h-48 w-48 bg-primary/5 rounded-full blur-3xl"></div>
+
+        <div className="fixed bottom-6 right-6 z-[100] animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-auto">
+            <div className="bg-card border border-border p-6 rounded-3xl w-[400px] shadow-2xl space-y-6 relative overflow-hidden ring-1 ring-white/10 glass">
+                {/* Background glow effects - Reduced intensity for non-modal */}
+                <div className="absolute -top-24 -left-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl"></div>
+                <div className="absolute -bottom-24 -right-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl"></div>
 
                 <div className="flex items-center justify-between relative">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20 scale-110">
-                            <RefreshCw className="h-5 w-5 animate-spin" />
+                        <div className="p-2 rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                            <RefreshCw className="h-4 w-4 animate-spin" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-foreground">Đang tiến hành dịch</h3>
-                            <p className="text-muted-foreground/40 text-[10px] uppercase tracking-widest font-bold">AI Processing</p>
+                            <h3 className="text-base font-bold text-foreground leading-none">Đang dịch</h3>
+                            <p className="text-muted-foreground/60 text-[9px] uppercase tracking-widest font-bold mt-1">AI Processing</p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-3xl font-black text-foreground font-mono tabular-nums leading-none">{percent}%</div>
-                        <div className="text-[10px] text-muted-foreground/40 font-bold mt-1 uppercase tracking-tighter">
-                            {progress.current} / {progress.total} chương
-                        </div>
+                        <div className="text-2xl font-black text-foreground font-mono tabular-nums leading-none">{percent}%</div>
                     </div>
                 </div>
 
-                <div className="space-y-4 relative">
+                <div className="space-y-3 relative">
                     <div className="flex justify-between items-end px-1">
                         <div className="space-y-1 max-w-[70%]">
-                            <div className="text-[10px] text-primary/60 font-bold uppercase tracking-widest flex items-center gap-1.5">
-                                <Circle className="h-1.5 w-1.5 fill-primary animate-pulse" />
-                                Current Task
-                            </div>
-                            <p className="text-foreground font-medium text-sm truncate leading-none">
+                            <p className="text-foreground font-medium text-xs truncate leading-none">
                                 {progress.currentTitle}
                             </p>
                         </div>
-                        <div className="text-muted-foreground/40 italic text-[10px] font-medium flex items-center gap-1 bg-muted/50 py-1 px-2 rounded-full border border-border">
-                            <Loader2 className="h-2 w-2 animate-spin" /> Vui lòng chờ...
+                        <div className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-tighter">
+                            {progress.current} / {progress.total}
                         </div>
                     </div>
 
-                    <div className="relative h-4 bg-muted rounded-full p-1 border border-border overflow-hidden relative">
+                    <div className="relative h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                            className="h-full rounded-full bg-primary transition-all duration-700 ease-in-out relative will-change-[width,transform]"
+                            className="h-full rounded-full bg-primary transition-all duration-700 ease-in-out relative will-change-[width]"
                             style={{ width: `${percent}%` }}
                         >
-                            {/* GPU-efficient shimmer effect */}
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-fast w-full" />
-
-                            <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-white/30 to-transparent blur-sm"></div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 rounded-2xl bg-muted/50 border border-border flex flex-col gap-1">
-                            <div className="text-[10px] text-muted-foreground/40 font-bold uppercase leading-none">Status</div>
-                            <div className="text-sm font-bold text-emerald-600">Đang hoạt động</div>
-                        </div>
-                        <div className="p-3 rounded-2xl bg-muted/50 border border-border flex flex-col gap-1">
-                            <div className="text-[10px] text-muted-foreground/40 font-bold uppercase leading-none">Threads</div>
-                            <div className="text-sm font-bold text-emerald-600">5 Workers Active</div>
                         </div>
                     </div>
                 </div>
-
-                <p className="text-center text-[11px] text-muted-foreground/20 italic font-medium pt-2 border-t border-border">
-                    Hệ thống đang sử dụng Gemini và xử lý song song để tối ưu tốc độ.
-                </p>
             </div>
         </div>
     );

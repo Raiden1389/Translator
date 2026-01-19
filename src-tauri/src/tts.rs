@@ -15,7 +15,9 @@ pub async fn edge_tts_speak(
     let output_path = temp_dir.join(&filename);
 
     // Run edge-tts command
-    let output = Command::new("edge-tts")
+    let mut command = Command::new("edge-tts");
+    
+    command
         .arg("--voice")
         .arg(&voice)
         .arg("--pitch")
@@ -25,7 +27,16 @@ pub async fn edge_tts_speak(
         .arg("--text")
         .arg(&text)
         .arg("--write-media")
-        .arg(&output_path)
+        .arg(&output_path);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = command
         .output()
         .map_err(|e| format!("Failed to run edge-tts: {}", e))?;
 

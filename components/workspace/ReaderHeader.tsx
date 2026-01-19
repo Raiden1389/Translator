@@ -405,6 +405,17 @@ export function ReaderHeader({
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
+                                    <div className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">Độ rộng: {readerConfig.maxWidth >= 1800 ? "Full" : readerConfig.maxWidth + "px"}</div>
+                                </div>
+                                <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-xl border border-border/50">
+                                    <button onClick={() => setReaderConfig({ ...readerConfig, maxWidth: Math.max(600, readerConfig.maxWidth - 100) })} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors">-</button>
+                                    <input type="range" min="600" max="1800" step="50" value={readerConfig.maxWidth || 800} onChange={(e) => setReaderConfig({ ...readerConfig, maxWidth: parseInt(e.target.value) })} className="flex-1 h-1 bg-background rounded-full appearance-none accent-primary" />
+                                    <button onClick={() => setReaderConfig({ ...readerConfig, maxWidth: Math.min(1800, readerConfig.maxWidth + 100) })} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors">+</button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
                                     <div className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">Cỡ chữ: {readerConfig.fontSize}px</div>
                                 </div>
                                 <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-xl border border-border/50">

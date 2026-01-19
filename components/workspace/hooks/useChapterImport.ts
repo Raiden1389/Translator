@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { db } from "@/lib/db";
-import ePub from "epubjs";
 import { toast } from "sonner";
 
 export function useChapterImport(workspaceId: string, currentChaptersCount: number) {
@@ -20,6 +19,8 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
 
         try {
             if (file.name.endsWith(".epub")) {
+                // Dynamically import epubjs only when needed
+                const ePub = (await import("epubjs")).default;
                 const book = ePub();
                 await book.open(await file.arrayBuffer());
 

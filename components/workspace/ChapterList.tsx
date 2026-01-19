@@ -20,15 +20,16 @@ import { useChapterImport } from "./hooks/useChapterImport";
 import { useBatchTranslate } from "./hooks/useBatchTranslate";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 
-import { ReviewDialog } from "./ReviewDialog";
 import { extractGlossary, inspectChapter, InspectionIssue } from "@/lib/gemini";
-import { GlossaryCharacter, GlossaryTerm, ReviewData } from "@/lib/types";
+import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types"; // Kept ReviewData for prop type
 
 interface ChapterListProps {
     workspaceId: string;
+    onShowScanResults: (data: ReviewData) => void;
+    onTranslate: (props: any) => void; // Using any for brevity, or partial BatchTranslateProps
 }
 
-export function ChapterList({ workspaceId }: ChapterListProps) {
+export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: ChapterListProps) {
     const chapters = useLiveQuery(
         () => db.chapters.where("[workspaceId+order]").between([workspaceId, Dexie.minKey], [workspaceId, Dexie.maxKey]).toArray(),
         [workspaceId]
@@ -41,7 +42,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
     const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
     const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(`workspace-${workspaceId}-viewMode`, "grid");
     const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
-    const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+    // Removed local reviewData state
     const [inspectingChapter, setInspectingChapter] = useState<{ id: number, title: string, issues: InspectionIssue[] } | null>(null);
     const [isInspectOpen, setIsInspectOpen] = useState(false);
 
@@ -73,11 +74,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
         handleImportJSON
     } = useChapterImport(workspaceId, chapters?.length || 0);
 
-    const {
-        isTranslating,
-        batchProgress,
-        handleBatchTranslate
-    } = useBatchTranslate();
+    // Removed local useBatchTranslate
 
     // Pagination
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -182,7 +179,9 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                     return;
                 }
 
-                setReviewData({ chars: finalChars, terms: finalTerms });
+                // Call parent to show results (persists even if unmounted?)
+                // Actually if unmounted this might be ignored, but WorkspaceClient is parent so it should be fine if we are just switching tabs.
+                onShowScanResults({ chars: finalChars, terms: finalTerms });
                 toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`);
             } else {
                 toast.info("Không tìm thấy thuật ngữ nào.");
@@ -226,7 +225,9 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
         <div className="space-y-6 animate-in fade-in duration-500 relative pb-10">
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
 
-            <TranslationProgressOverlay isTranslating={isTranslating} progress={batchProgress} />
+            <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
+
+            {/* TranslationProgressOverlay removed (lifted to WorkspaceClient) */}
 
             <TranslateConfigDialog
                 open={translateDialogOpen}
@@ -234,13 +235,13 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 selectedCount={selectedChapters.length}
                 onStart={(config, settings) => {
                     setTranslateDialogOpen(false);
-                    handleBatchTranslate({
+                    onTranslate({
                         workspaceId,
                         chapters: filtered,
                         selectedChapters,
                         currentSettings: settings,
                         translateConfig: config,
-                        onReviewNeeded: (chars, terms) => setReviewData({ chars, terms })
+                        onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
                     });
                 }}
             />
@@ -328,39 +329,6 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                     }}
                 />
             )}
-
-            <ReviewDialog
-                open={!!reviewData}
-                onOpenChange={(v) => !v && setReviewData(null)}
-                characters={reviewData?.chars || []}
-                terms={reviewData?.terms || []}
-                onSave={async (saveChars, saveTerms, blacklistChars, blacklistTerms) => {
-                    // Save to Dictionary
-                    const allSave = [...saveChars, ...saveTerms].map(item => ({ ...item, workspaceId, createdAt: new Date() }));
-                    if (allSave.length > 0) {
-                        await db.dictionary.bulkAdd(allSave);
-                    }
-
-                    // Save to Blacklist
-                    const allBlacklist = [...blacklistChars, ...blacklistTerms];
-                    for (const item of allBlacklist) {
-                        // Check existing before adding to avoid key constraint errors
-                        const existing = await db.blacklist.where({ word: item.original, workspaceId }).first();
-                        if (!existing) {
-                            await db.blacklist.add({
-                                workspaceId,
-                                word: item.original,
-                                translated: item.translated,
-                                source: 'manual',
-                                createdAt: new Date()
-                            });
-                        }
-                    }
-
-                    toast.success(`Đã lưu: ${allSave.length} từ vào từ điển, ${allBlacklist.length} từ vào blacklist.`, { duration: 10000 });
-                    setReviewData(null);
-                }}
-            />
         </div>
     );
 }

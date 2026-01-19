@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Sparkles, Settings, ArrowRight, ArrowLeft as ArrowPrev, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SettingsDialog } from "@/components/editor/SettingsDialog";
 import { DictionaryEditDialog } from "@/components/editor/DictionaryEditDialog";
@@ -20,7 +21,6 @@ import {
 import { translateChapter, TranslationLog, extractGlossary } from "@/lib/gemini";
 import { Loader2, Terminal, X, CheckCircle2, AlertCircle, Copy, FileSearch } from "lucide-react";
 import { ReviewDialog } from "@/components/workspace/ReviewDialog";
-import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -109,7 +109,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
             await db.workspaces.update(id, { updatedAt: new Date() });
         } catch (e) {
             console.error(e);
-            alert("Failed to save");
+            toast.error("Lỗi khi lưu chương");
         } finally {
             setIsSaving(false);
         }
@@ -138,7 +138,9 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
             }
 
             if (!replaced && !oldTranslated) {
-                alert(`Đã lưu "${original}" = "${translated}".\nLưu ý: Bạn nên bấm "AI Translate" lại để áp dụng cho toàn bộ văn bản.`);
+                toast.success(`Đã lưu "${original}" = "${translated}"`, {
+                    description: "Bạn nên bấm 'AI Translate' lại để áp dụng cho toàn bộ văn bản."
+                });
             } else if (replaced) {
                 setTranslatedContent(newContent);
                 try {

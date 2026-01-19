@@ -117,31 +117,29 @@ export const translateChapter = async (
         ? `\n\nTHUẬT NGỮ (ƯU TIÊN DÙNG):\n${relevantDict.map(d => `${d.original} -> ${d.translated}`).join('\n')}`
         : '';
 
-    // 2. System Instruction (Clean separation: Preset = Style, System = Rules)
+    // 2. System Instruction (Static rules + Style + Context)
     const styleInstruction = customInstruction || "Mày là dịch giả chuyên nghiệp Trung - Việt. Dịch tự nhiên, giữ nguyên tên riêng.";
 
-    const fullInstruction = `${styleInstruction}${glossaryContext}
- 
- QUY TẮC BẮT BUỘC (CRITICAL):
- 1. NGÔN NGỮ ĐẦU RA: 100% TIẾNG VIỆT. Nếu văn bản gốc là tiếng Anh hay tiếng Trung, ĐỀU PHẢI DỊCH SANG TIẾNG VIỆT.
- 2. TUYỆT ĐỐI KHÔNG TRẢ VỀ TIẾNG ANH (NO ENGLISH OUTPUT).
- 3. Dịch sát nghĩa, đầy đủ, không bỏ sót.
- 4. Giữ nguyên tên riêng (Hán Việt).
- 5. Ngôi kể chính xác (Hắn/Nàng).
- 6. Chỉ trả về JSON hợp lệ.
- 7. GIỮ NGUYÊN CẤU TRÚC ĐOẠN VĂN: Bản dịch phải giữ nguyên các đoạn văn (paragraphs) y hệt như bản gốc. Không được tự ý gộp nhiều đoạn thành một, cũng không được tự ý chia nhỏ một đoạn thành nhiều đoạn.
- 8. Giữ nguyên cấu trúc danh sách theo chiều dọc. Mỗi chỉ số (Strength, Agility, Intelligence...) phải nằm trên một dòng riêng biệt y hệt bản gốc. Tuyệt đối không được gom nhóm chúng thành một đoạn văn.
- 9. Giữ nguyên tuyệt đối các ký hiệu hệ thống trong dấu ngoặc vuông []. Không được thêm bớt dấu cách hay xuống dòng bên trong hoặc ngay sau các dấu ngoặc này.
- 10. TUYỆT ĐỐI KHÔNG Xuống dòng SAU dấu đóng ngoặc vuông ]. Dấu ] phải dính liền với nội dung bên trong và nối tiếp câu văn sau đó.
- 11. CẤM TUYỆT ĐỐI VĂN BẢN THỪA (NO CHATTER): Không được bao gồm bất kỳ lời dẫn, lời chào, lời giải thích hay biểu tượng cảm xúc nào (Emoji) ngoài nội dung truyện. 
- 12. CHỈ TRẢ VỀ JSON: Tuyệt đối không viết thêm gì phía sau dấu đóng ngoặc nhọn } cuối cùng của JSON.
- 
-     VÍ DỤ SAI (KHÔNG ĐƯỢC LÀM): 
-     "...mắt hắn chợt sáng lên. [Phát hiện công thức vũ khí 'Trường mâu'
-     ] Công thức chế tạo!"
-     
-     VÍ DỤ ĐÚNG (BẮT BUỘC): 
-     "...mắt hắn chợt sáng lên. [Phát hiện công thức vũ khí 'Trường mâu'] Công thức chế tạo!"`;
+    // Static rules moved to systemInstruction for model consistency and potential caching
+    const systemRules = `
+QUY TẮC BẮT BUỘC (CRITICAL):
+1. NGÔN NGỮ ĐẦU RA: 100% TIẾNG VIỆT.
+2. TUYỆT ĐỐI KHÔNG TRẢ VỀ TIẾNG ANH (NO ENGLISH OUTPUT).
+3. Dịch sát nghĩa, đầy đủ, không bỏ sót.
+4. Giữ nguyên tên riêng (Hán Việt).
+5. Ngôi kể chính xác (Hắn/Nàng/Ta/Ngươi).
+6. Chỉ trả về JSON hợp lệ.
+7. GIỮ NGUYÊN CẤU TRÚC ĐOẠN VĂN: Tuyệt đối không gộp dòng. Mỗi đoạn văn gốc là một dòng trong output.
+8. Giữ nguyên cấu trúc danh sách theo chiều dọc.
+9. Giữ nguyên tuyệt đối các ký hiệu hệ thống trong dấu ngoặc vuông [].
+10. TUYỆT ĐỐI KHÔNG Xuống dòng SAU dấu đóng ngoặc vuông ].
+11. CẤM TUYỆT ĐỐI VĂN BẢN THỪA (NO CHATTER).
+12. CHỈ TRẢ VỀ JSON.
+
+VÍ DỤ ĐÚNG (BẮT BUỘC): 
+"...mắt hắn chợt sáng lên. [Phát hiện công thức vũ khí 'Trường mâu'] Công thức chế tạo!"`;
+
+    const fullInstruction = `${styleInstruction}\n\n${systemRules}${glossaryContext}`;
 
     try {
         onLog({ timestamp: new Date(), message: `Đang dịch với model: ${aiModel}...`, type: 'info' });
@@ -162,7 +160,7 @@ export const translateChapter = async (
                             },
                             translatedText: {
                                 type: Type.STRING,
-                                description: "Nội dung chương dịch sang Tiếng Việt (Vietnamese Content). Không được chứa tiếng Anh."
+                                description: "Nội dung chương dịch sang Tiếng Việt (Vietnamese Content). Không được chứa tiếng Anh. Giữ nguyên các dấu xuống dòng như bản gốc."
                             }
                         },
                         required: ["translatedTitle", "translatedText"]

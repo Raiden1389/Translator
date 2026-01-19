@@ -1,6 +1,6 @@
 [package]
 name = "raiden-ai-translator"
-version = "0.1.0"
+version = "1.0.0"
 description = "A portable AI-powered web novel translator"
 authors = ["Antigravity"]
 edition = "2021"
@@ -21,8 +21,15 @@ serde_json = "1.0"
 uuid = { version = "1.0", features = ["v4"] }
 tauri-plugin-shell = "2"
 tiny_http = "0.12"
+dotenvy = "0.15"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true # Remove debug symbols from the binary

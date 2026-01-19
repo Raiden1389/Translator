@@ -31,10 +31,8 @@ export function useBatchTranslate() {
         onComplete
     }: BatchTranslateProps) => {
         setIsTranslating(true);
-        // Starting batch translate
 
         const chaptersToTranslate = chapters?.filter(c => selectedChapters.includes(c.id!)) || [];
-        // Found chapters to translate
 
         if (chaptersToTranslate.length === 0) {
             setIsTranslating(false);
@@ -43,156 +41,139 @@ export function useBatchTranslate() {
         }
 
         let processed = 0;
-        let totalDuration = 0;
-        let totalNewTerms = 0;
-        let totalNewChars = 0;
         let totalUsedTerms = 0;
         let totalUsedChars = 0;
         const batchStartTime = Date.now();
         setBatchProgress({ current: 0, total: chaptersToTranslate.length, currentTitle: "Khởi tạo..." });
 
-        const CONCURRENT_LIMIT = 5;
-        const accumulatedChars: GlossaryCharacter[] = [];
-
+        // Reduce concurrency slightly for better stability on free tier keys
+        const CONCURRENT_LIMIT = 3;
         const activePromises: Promise<void>[] = [];
 
-        const processChapter = async (chapter: Chapter, corrections: any[], blacklistSet: Set<string>) => {
+        // Global variables for batch stats
+        let totalNewTerms = 0;
+        let totalNewChars = 0;
+
+        // Pre-fetch constants for the entire batch
+        const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
+        const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
+        const blacklistSet = new Set(blacklist.map(b => b.word.toLowerCase()));
+
+        const processChapter = async (chapter: Chapter) => {
             const startTime = Date.now();
-            // Processing chapter
 
             const onLog = (log: any) => {
                 setBatchProgress(prev => ({ ...prev, currentTitle: typeof log === 'string' ? log : log.message }));
             };
 
             try {
-                await new Promise<void>((resolve, reject) => {
+                // Wrap in a promise to handle the old-style callbacks if needed, 
+                // but we should ideally move to async/await fully.
+                const result = await new Promise<any>((resolve, reject) => {
                     translateChapter(
                         workspaceId,
                         chapter.content_original,
                         onLog,
-                        async (result) => {
-                            try {
-                                const duration = Date.now() - startTime;
-                                totalDuration += duration;
-
-                                if (result.stats) {
-                                    totalUsedTerms += result.stats.terms;
-                                    totalUsedChars += result.stats.characters;
-                                }
-
-                                let newTitle = result.translatedTitle || chapter.title;
-                                if (!result.translatedTitle && newTitle) {
-                                    newTitle = newTitle.replace(/Chapter\s+(\d+)/i, "Chương $1")
-                                        .replace(/第\s*(\d+)\s*章/, "Chương $1")
-                                        .replace(/第\s*([0-9]+)\s*章/, "Chương $1");
-                                }
-
-                                // --- AUTO CORRECT ---
-                                let finalContent = result.translatedText;
-                                let finalTitle = newTitle;
-
-                                if (corrections && corrections.length > 0) {
-                                    for (const correction of corrections) {
-                                        if (finalContent.includes(correction.original)) {
-                                            finalContent = finalContent.replaceAll(correction.original, correction.replacement);
-                                        }
-                                        if (finalTitle && finalTitle.includes(correction.original)) {
-                                            finalTitle = finalTitle.replaceAll(correction.original, correction.replacement);
-                                        }
-                                    }
-                                }
-                                // --------------------
-
-                                // Updating DB for chapter
-                                const updateResult = await db.chapters.update(chapter.id!, {
-                                    content_translated: finalContent,
-                                    title_translated: finalTitle,
-                                    wordCountTranslated: finalContent.trim().split(/\s+/).length,
-                                    status: 'translated',
-                                    lastTranslatedAt: new Date(),
-                                    translationModel: currentSettings.model,
-                                    translationDurationMs: duration
-                                });
-                                // DB Update complete
-
-                                resolve();
-                            } catch (err) {
-                                console.error(`Error in onSuccess for ${chapter.id}: `, err);
-                                reject(err);
-                            }
-                        },
+                        (res) => resolve(res),
                         translateConfig.customPrompt
-                    ).catch(err => {
-                        console.error(`Error in translateChapter for ${chapter.id}: `, err);
-                        reject(err);
-                    });
+                    ).catch(reject);
+                });
+
+                const duration = Date.now() - startTime;
+                if (result.stats) {
+                    totalUsedTerms += result.stats.terms;
+                    totalUsedChars += result.stats.characters;
+                }
+
+                let finalTitle = result.translatedTitle || chapter.title;
+                if (!result.translatedTitle && finalTitle) {
+                    finalTitle = finalTitle.replace(/Chapter\s+(\d+)/i, "Chương $1")
+                        .replace(/第\s*(\d+)\s*章/, "Chương $1")
+                        .replace(/第\s*([0-9]+)\s*章/, "Chương $1");
+                }
+
+                let finalContent = result.translatedText;
+
+                // Apply batch-cached corrections
+                if (corrections.length > 0) {
+                    for (const correction of corrections) {
+                        finalContent = finalContent.split(correction.original).join(correction.replacement);
+                        if (finalTitle) finalTitle = finalTitle.split(correction.original).join(correction.replacement);
+                    }
+                }
+
+                await db.chapters.update(chapter.id!, {
+                    content_translated: finalContent,
+                    title_translated: finalTitle,
+                    wordCountTranslated: finalContent.trim().split(/\s+/).length,
+                    status: 'translated',
+                    lastTranslatedAt: new Date(),
+                    translationModel: currentSettings.model,
+                    translationDurationMs: duration
                 });
 
                 if (translateConfig.autoExtract) {
                     try {
                         const { extractGlossary } = require("@/lib/gemini");
-                        onLog({ message: "Đang trích xuất thuật ngữ..." });
-                        const result = await extractGlossary(chapter.content_original);
-                        if (result) {
-                            for (const char of result.characters) {
-                                if (blacklistSet.has(char.original.toLowerCase())) continue; // Skip bold blacklisted
-                                if (!(await db.dictionary.where({ original: char.original, workspaceId }).first())) {
+                        const extractionResult = await extractGlossary(chapter.content_original);
+                        if (extractionResult) {
+                            // Bulk check/add could be better, but let's keep it simple for now
+                            for (const char of extractionResult.characters) {
+                                if (blacklistSet.has(char.original.toLowerCase())) continue;
+                                const exists = await db.dictionary.where({ original: char.original, workspaceId }).first();
+                                if (!exists) {
                                     await db.dictionary.add({ ...char, workspaceId, type: 'name', createdAt: new Date() });
                                     totalNewChars++;
                                 }
                             }
-                            for (const term of result.terms) {
-                                if (blacklistSet.has(term.original.toLowerCase())) continue; // Skip bold blacklisted
-                                if (!(await db.dictionary.where({ original: term.original, workspaceId }).first())) {
-                                    await db.dictionary.add({ ...term, workspaceId, type: term.type as any, createdAt: new Date() });
+                            for (const term of extractionResult.terms) {
+                                if (blacklistSet.has(term.original.toLowerCase())) continue;
+                                const exists = await db.dictionary.where({ original: term.original, workspaceId }).first();
+                                if (!exists) {
+                                    await db.dictionary.add({ ...term, workspaceId, type: term.category || 'other', createdAt: new Date() });
                                     totalNewTerms++;
                                 }
                             }
                         }
                     } catch (e) {
-                        console.error("Auto extract failed", e);
+                        console.warn("Auto extract failed for chapter", chapter.id, e);
                     }
                 }
             } catch (e: any) {
                 console.error(`Failed to process chapter ${chapter.id}: `, e);
-                toast.error(`Lỗi chương ${chapter.title}: ${e.message} `);
+                toast.error(`Lỗi chương ${chapter.title}: ${e.message}`);
             } finally {
                 processed++;
                 setBatchProgress(prev => ({ ...prev, current: processed }));
             }
         };
 
-        // Fetch all corrections once before starting the batch to avoid repeated DB hits
-        const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
-
-        // 2. Fetch all Blacklist entries to exclude from "Auto Extract" logic if needed
-        const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
-        const blacklistSet = new Set(blacklist.map(b => b.word.toLowerCase()));
-
         try {
             for (const chapter of chaptersToTranslate) {
-                const p = processChapter(chapter, corrections, blacklistSet);
+                const p = processChapter(chapter);
                 activePromises.push(p);
 
-                // Cleanup when done
-                p.then(() => {
+                p.finally(() => {
                     activePromises.splice(activePromises.indexOf(p), 1);
                 });
 
                 if (activePromises.length >= CONCURRENT_LIMIT) {
                     await Promise.race(activePromises);
                 }
+
+                // Slight delay between starting new requests to avoid instant burst rate limits
+                await new Promise(r => setTimeout(r, 200));
             }
             await Promise.all(activePromises);
 
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
-            toast.success(`Dịch hoàn tất ${processed} chương trong ${totalBatchTime} s`, {
-                description: `Sử dụng ${totalUsedChars} nhân vật và ${totalUsedTerms} thuật ngữ từ từ điển.`,
-                duration: 10000
+            toast.success(`Dịch hoàn tất ${processed} chương trong ${totalBatchTime}s`, {
+                description: `Đã áp dụng ${totalUsedChars} lượt nhân vật và ${totalUsedTerms} thuật ngữ. Tìm thấy ${totalNewChars} thực thể mới.`,
+                duration: 5000
             });
         } catch (fatalErr: any) {
             console.error("Fatal error in batch translation:", fatalErr);
-            toast.error("Lỗi nghiêm trọng trong quá trình dịch: " + fatalErr.message);
+            toast.error("Lỗi nghiêm trọng: " + fatalErr.message);
         } finally {
             setIsTranslating(false);
             setBatchProgress(prev => ({ ...prev, currentTitle: "Hoàn tất" }));

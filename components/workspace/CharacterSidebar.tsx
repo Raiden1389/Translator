@@ -31,11 +31,11 @@ export function CharacterSidebar({
     const [analyzing, setAnalyzing] = useState(false);
 
     // Fetch characters from dictionary
-    // We filter by type='character' AND (maybe generic ones? or just all characters)
-    // For now, list all characters in DB.
-    // TODO: Filter by workspace if we add workspaceId to dictionary later.
     const characters = useLiveQuery(() =>
-        db.dictionary.where({ workspaceId, type: "character" }).toArray(),
+        db.dictionary.where("[workspaceId+type]").equals([workspaceId, "character"]).toArray().catch(() =>
+            // Fallback if index missing or error
+            db.dictionary.where("workspaceId").equals(workspaceId).and(d => d.type === "character").toArray()
+        ),
         [workspaceId]
     ) || [];
 

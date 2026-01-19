@@ -41,6 +41,12 @@ async fn generate_speech(text: String, voice: String, rate: String) -> Result<Ve
 mod tts;
 mod auth;
 
+#[tauri::command]
+fn get_gemini_key() -> Result<String, String> {
+    dotenvy::dotenv().ok(); // Read .env file
+    std::env::var("GEMINI_API_KEY").map_err(|_| "Không tìm thấy Key trong .env mày ơi".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -49,7 +55,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             tts::edge_tts_speak,
-            auth::start_auth_server
+            auth::start_auth_server,
+            get_gemini_key
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

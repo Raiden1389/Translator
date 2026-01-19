@@ -33,19 +33,59 @@ export function ChapterTable({
     const [dragStartId, setDragStartId] = useState<number | null>(null);
     const [dragCurrentId, setDragCurrentId] = useState<number | null>(null);
 
-    // Global mouse up to stop dragging if mouse leaves table
+    // Refs for stale closure prevention in global listeners
+    const stateRef = useRef({
+        chapters,
+        selectedChapters,
+        isDragging,
+        dragStartId,
+        dragCurrentId,
+        setSelectedChapters
+    });
+
+    // Update ref on render
+    useEffect(() => {
+        stateRef.current = {
+            chapters,
+            selectedChapters,
+            isDragging,
+            dragStartId,
+            dragCurrentId,
+            setSelectedChapters
+        };
+    }, [chapters, selectedChapters, isDragging, dragStartId, dragCurrentId, setSelectedChapters]);
+
+    // Global mouse up
     useEffect(() => {
         const handleGlobalMouseUp = () => {
-            if (isDragging) {
-                commitDragSelection();
+            const state = stateRef.current;
+            if (state.isDragging) {
+                // Determine selection
+                if (state.dragStartId && state.dragCurrentId && state.setSelectedChapters) {
+                    const startIndex = state.chapters.findIndex(c => c.id === state.dragStartId);
+                    const currentIndex = state.chapters.findIndex(c => c.id === state.dragCurrentId);
+
+                    if (startIndex !== -1 && currentIndex !== -1) {
+                        const start = Math.min(startIndex, currentIndex);
+                        const end = Math.max(startIndex, currentIndex);
+                        const idsInRange = state.chapters.slice(start, end + 1).map(c => c.id!);
+
+                        // Add to existing selection (Union)
+                        const newSelection = Array.from(new Set([...state.selectedChapters, ...idsInRange]));
+                        state.setSelectedChapters(newSelection);
+                    }
+                }
+
+                // Reset
                 setIsDragging(false);
                 setDragStartId(null);
                 setDragCurrentId(null);
+                document.body.style.userSelect = "";
             }
         };
         window.addEventListener("mouseup", handleGlobalMouseUp);
         return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
-    }, [isDragging, dragStartId, dragCurrentId]);
+    }, []); // Empty dependency! uses ref
 
     const handleMouseDown = useCallback((id: number, e: React.MouseEvent) => {
         // Allow drag to start anywhere except on actual utility buttons (Trash, etc) or the checkbox itself
@@ -61,32 +101,11 @@ export function ChapterTable({
     }, []);
 
     const handleMouseEnter = useCallback((id: number) => {
-        if (isDragging) {
+        // Read directly from ref to avoid dependency churn, or just trust state since this is React event
+        if (stateRef.current.isDragging) {
             setDragCurrentId(id);
         }
-    }, [isDragging]);
-
-    const commitDragSelection = () => {
-        if (!dragStartId || !dragCurrentId || !setSelectedChapters) {
-            document.body.style.userSelect = "";
-            return;
-        }
-
-        const startIndex = chapters.findIndex(c => c.id === dragStartId);
-        const currentIndex = chapters.findIndex(c => c.id === dragCurrentId);
-
-        if (startIndex === -1 || currentIndex === -1) return;
-
-        const start = Math.min(startIndex, currentIndex);
-        const end = Math.max(startIndex, currentIndex);
-
-        const idsInRange = chapters.slice(start, end + 1).map(c => c.id!);
-
-        const newSelection = Array.from(new Set([...selectedChapters, ...idsInRange]));
-        setSelectedChapters(newSelection);
-
-        document.body.style.userSelect = "";
-    };
+    }, []);
 
     // Helper to check if a row is currently in the potential drag range
     const isInDragRange = (id: number) => {
