@@ -55,8 +55,11 @@ export function useBatchTranslate() {
         let totalNewChars = 0;
 
         // Pre-fetch constants for the entire batch
-        const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
-        const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
+        // Pre-fetch constants for the entire batch (Parallelized to remove waterfall)
+        const [corrections, blacklist] = await Promise.all([
+            db.corrections.where('workspaceId').equals(workspaceId).toArray(),
+            db.blacklist.where('workspaceId').equals(workspaceId).toArray()
+        ]);
         const blacklistSet = new Set(blacklist.map(b => b.word.toLowerCase()));
 
         const processChapter = async (chapter: Chapter) => {

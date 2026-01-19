@@ -32,12 +32,14 @@ export function ChapterTable({
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartId, setDragStartId] = useState<number | null>(null);
     const [dragCurrentId, setDragCurrentId] = useState<number | null>(null);
+    const [isRightDrag, setIsRightDrag] = useState(false);
 
     // Refs for stale closure prevention in global listeners
     const stateRef = useRef({
         chapters,
         selectedChapters,
         isDragging,
+        isRightDrag,
         dragStartId,
         dragCurrentId,
         setSelectedChapters
@@ -49,42 +51,75 @@ export function ChapterTable({
             chapters,
             selectedChapters,
             isDragging,
+            isRightDrag,
             dragStartId,
             dragCurrentId,
             setSelectedChapters
         };
-    }, [chapters, selectedChapters, isDragging, dragStartId, dragCurrentId, setSelectedChapters]);
+    }, [chapters, selectedChapters, isDragging, isRightDrag, dragStartId, dragCurrentId, setSelectedChapters]);
 
     // Global mouse up
     useEffect(() => {
         const handleGlobalMouseUp = () => {
             const state = stateRef.current;
             if (state.isDragging) {
-                // Determine selection
+                // Only process DRAG (start != current) to avoid conflict with onClick (single click)
+                // However, for Right Drag, we might want to handle it even if small movement if we suppress context menu?
+                // Actually, separation of concerns:
+                // Left Click: onClick handles toggle. Left Drag: MouseUp handles range add.
+                // Right Click: Context Menu (default) or custom logic. Right Drag: Range remove.
+
                 if (state.dragStartId && state.dragCurrentId && state.setSelectedChapters) {
-                    const startIndex = state.chapters.findIndex(c => c.id === state.dragStartId);
-                    const currentIndex = state.chapters.findIndex(c => c.id === state.dragCurrentId);
+                    // Only commit if meaningful drag OR if it's a right-drag (since we preventDefault context menu)
+                    // If start === current, it's a "Click".
+                    // Left Click -> Covered by onClick prop on Row.
+                    // Right Click -> We need to handle it manually here if we want "Right Click to Deselect".
 
-                    if (startIndex !== -1 && currentIndex !== -1) {
-                        const start = Math.min(startIndex, currentIndex);
-                        const end = Math.max(startIndex, currentIndex);
-                        const idsInRange = state.chapters.slice(start, end + 1).map(c => c.id!);
+                    const isClick = state.dragStartId === state.dragCurrentId;
 
-                        // Add to existing selection (Union)
-                        const newSelection = Array.from(new Set([...state.selectedChapters, ...idsInRange]));
-                        state.setSelectedChapters(newSelection);
+                    if (!isClick || state.isRightDrag) {
+                        const startIndex = state.chapters.findIndex(c => c.id === state.dragStartId);
+                        const currentIndex = state.chapters.findIndex(c => c.id === state.dragCurrentId);
+
+                        if (startIndex !== -1 && currentIndex !== -1) {
+                            const start = Math.min(startIndex, currentIndex);
+                            const end = Math.max(startIndex, currentIndex);
+                            const idsInRange = state.chapters.slice(start, end + 1).map(c => c.id!);
+
+                            if (state.isRightDrag) {
+                                // Right Drag / Right Click -> Deselect/Remove
+                                const newSelection = state.selectedChapters.filter(id => !idsInRange.includes(id));
+                                state.setSelectedChapters(newSelection);
+                            } else {
+                                // Left Drag -> Add (Union)
+                                const newSelection = Array.from(new Set([...state.selectedChapters, ...idsInRange]));
+                                state.setSelectedChapters(newSelection);
+                            }
+                        }
                     }
                 }
 
                 // Reset
                 setIsDragging(false);
+                setIsRightDrag(false);
                 setDragStartId(null);
                 setDragCurrentId(null);
                 document.body.style.userSelect = "";
             }
         };
         window.addEventListener("mouseup", handleGlobalMouseUp);
-        return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
+        // Also listen for context menu to prevent it during right drag
+        const handleContextMenu = (e: MouseEvent) => {
+            if (stateRef.current.isRightDrag) {
+                e.preventDefault();
+            }
+        };
+        window.addEventListener("contextmenu", handleContextMenu);
+
+        return () => {
+            window.removeEventListener("mouseup", handleGlobalMouseUp)
+            window.removeEventListener("contextmenu", handleContextMenu);
+        };
     }, []); // Empty dependency! uses ref
 
     const handleMouseDown = useCallback((id: number, e: React.MouseEvent) => {
@@ -92,7 +127,11 @@ export function ChapterTable({
         const target = e.target as HTMLElement;
         if (target.closest('[role="checkbox"]') || target.closest('.action-button')) return;
 
+        // Check button: 0 = Left, 2 = Right
+        if (e.button !== 0 && e.button !== 2) return;
+
         setIsDragging(true);
+        setIsRightDrag(e.button === 2);
         setDragStartId(id);
         setDragCurrentId(id);
 

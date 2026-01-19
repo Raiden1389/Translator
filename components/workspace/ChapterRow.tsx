@@ -42,6 +42,10 @@ export const ChapterRow = React.memo(function ChapterRow({
             )}
             onMouseDown={(e) => onMouseDown(chapter.id!, e)}
             onMouseEnter={() => onMouseEnter(chapter.id!)}
+            onContextMenu={(e) => {
+                e.preventDefault();
+                toggleSelect(chapter.id!);
+            }}
             onClick={(e) => {
                 const target = e.target as HTMLElement;
                 if (target.closest('button, a, .cursor-help, [role="checkbox"]')) return;

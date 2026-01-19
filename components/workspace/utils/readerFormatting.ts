@@ -16,9 +16,13 @@ export function splitIntoParagraphs(text: string): string[] {
     // 2. FIX RỤNG DẤU: Dán cái dấu ] vào câu trước nếu lỡ bị xuống dòng láo
     cleanedText = cleanedText.replace(/(.)\n\]/g, "$1]");
 
-    // 3. THÊM DÒNG CHO HỆ THỐNG: Đảm bảo mỗi cái [ ] là một dòng nhưng không bị tách quá xa
-    // Nếu sau ] mà dính liền với [ thì chèn một dấu xuống dòng
+    // 3. THÊM DÒNG CHO HỆ THỐNG:
+    // a. Đảm bảo mỗi cái [ ] là một dòng nếu dính liền
     cleanedText = cleanedText.replace(/\]\s*\[/g, "]\n[");
+
+    // b. Xử lý dạng hội thoại: [Nội dung A] Tên B: [Nội dung B] -> xuống dòng trước Tên B
+    // Regex logic: Tìm dấu ] + khoảng trắng + (Tên Speaker < 40 ký tự) + khoảng trắng tùy ý + dấu : + dấu [
+    cleanedText = cleanedText.replace(/\]\s*([^\n:\[\]]{1,40})\s*:\s*\[/g, "]\n$1: [");
 
     // 4. CHỐT HẠ: Split theo dấu xuống dòng
     // Chúng ta split theo 1 hoặc nhiều dấu xuống dòng để tạo mảng paragraphs
