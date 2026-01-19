@@ -42,7 +42,8 @@ export function useDictionary(workspaceId: string) {
         if (!newOriginal || !newTranslated || !workspaceId) return;
         try {
             const existing = await db.dictionary
-                .where({ original: newOriginal, workspaceId: workspaceId })
+                .where('[workspaceId+original]')
+                .equals([workspaceId, newOriginal])
                 .first();
 
             if (existing) {
@@ -140,7 +141,7 @@ export function useDictionary(workspaceId: string) {
                     const [original, translated, type] = line.split('\t');
                     if (!original || !translated) continue;
 
-                    const existing = await db.dictionary.where({ original, workspaceId }).first();
+                    const existing = await db.dictionary.where('[workspaceId+original]').equals([workspaceId, original]).first();
                     if (existing) {
                         await db.dictionary.update(existing.id!, {
                             translated,

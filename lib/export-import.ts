@@ -29,7 +29,6 @@ export async function exportWorkspace(workspaceId: string): Promise<Blob> {
 
         return blob;
     } catch (error) {
-        console.error("Export failed:", error);
         throw error;
     }
 }
@@ -91,7 +90,6 @@ export async function importWorkspace(file: File): Promise<void> {
         }
 
     } catch (error) {
-        console.error("Import failed:", error);
         throw error;
     }
 }
@@ -132,7 +130,6 @@ export async function autoBackup(workspaceId: string): Promise<void> {
             localStorage.setItem(`backup_${workspaceId}`, jsonString);
         }
     } catch (error) {
-        console.error("Auto-backup failed:", error);
         // Don't throw - backup failure shouldn't block translation
     }
 }

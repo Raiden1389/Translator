@@ -27,7 +27,7 @@ export class StorageBridge {
                 await mkdir("workspaces", { baseDir: BaseDirectory.AppData, recursive: true });
             }
         } catch (e) {
-            console.error("Failed to ensure data dir", e);
+            // Silently fail - non-critical operation
         }
     }
 
@@ -42,7 +42,7 @@ export class StorageBridge {
                 baseDir: BaseDirectory.AppData
             });
         } catch (e) {
-            console.error("Failed to save workspace", e);
+            // Silently fail - non-critical operation
         }
     }
 
@@ -60,7 +60,7 @@ export class StorageBridge {
             });
             return JSON.parse(content);
         } catch (e) {
-            console.error("Failed to load workspace", e);
+            // Silently fail - return null
             return null;
         }
     }
@@ -76,7 +76,7 @@ export class StorageBridge {
                 .filter(e => e.isFile && e.name.endsWith('.json'))
                 .map(e => e.name.replace('.json', ''));
         } catch (e) {
-            console.error("Failed to list workspaces", e);
+            // Silently fail - return empty array
             return [];
         }
     }

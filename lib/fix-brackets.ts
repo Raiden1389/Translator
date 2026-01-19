@@ -61,7 +61,6 @@ function normalizeVietnameseContent(text: string): string {
 }
 
 export async function fixAllBrackets(workspaceId: string): Promise<{ fixed: number, total: number }> {
-    console.log('[FixBrackets] Starting for workspace:', workspaceId);
 
     const chapters = await db.chapters
         .where('workspaceId')
@@ -69,7 +68,6 @@ export async function fixAllBrackets(workspaceId: string): Promise<{ fixed: numb
         .and(c => c.status === 'translated' && !!c.content_translated)
         .toArray();
 
-    console.log('[FixBrackets] Found chapters:', chapters.length);
     let fixed = 0;
 
     for (const chapter of chapters) {
@@ -80,19 +78,12 @@ export async function fixAllBrackets(workspaceId: string): Promise<{ fixed: numb
         const cleanedTitle = originalTitle ? normalizeVietnameseContent(originalTitle) : originalTitle;
 
         // FORCE UPDATE: Always update to ensure normalization is applied
-        console.log(`[FixBrackets] Fixing chapter ${chapter.id}: ${chapter.title}`);
-        console.log('[FixBrackets] Original length:', originalContent.length, 'Cleaned length:', cleanedContent.length);
-        console.log('[FixBrackets] Has \\n]?', originalContent.includes('\n]'));
-        console.log('[FixBrackets] Has .\\n\\n]?', originalContent.includes('.\n\n]'));
-        console.log('[FixBrackets] Sample:', originalContent.substring(0, 600));
 
         await db.chapters.update(chapter.id!, {
             content_translated: cleanedContent,
             title_translated: cleanedTitle
         });
-        fixed++;
     }
 
-    console.log('[FixBrackets] Fixed:', fixed, 'Total:', chapters.length);
     return { fixed, total: chapters.length };
 }

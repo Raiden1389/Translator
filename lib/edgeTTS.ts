@@ -46,7 +46,6 @@ export async function generateSpeech(options: TTSOptions): Promise<Blob> {
         // Create blob from audio data
         return new Blob([uint8Array], { type: "audio/mpeg" });
     } catch (error) {
-        console.error("Edge TTS generation failed:", error);
         throw error;
     }
 }

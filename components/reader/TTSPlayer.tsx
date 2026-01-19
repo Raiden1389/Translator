@@ -38,14 +38,21 @@ export function TTSPlayer({
     const [showSettings, setShowSettings] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const timersRef = useRef<NodeJS.Timeout[]>([]);
+    const mountedRef = useRef(true);
 
     // Cleanup audio on unmount
     useEffect(() => {
+        mountedRef.current = true;
         return () => {
+            mountedRef.current = false;
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
             }
+            // Clear all pending timers
+            timersRef.current.forEach(clearTimeout);
+            timersRef.current = [];
         };
     }, []);
 
@@ -84,7 +91,10 @@ export function TTSPlayer({
 
                 // Auto-play next chapter if available
                 if (hasNext && onNext) {
-                    setTimeout(() => onNext(), 1000);
+                    const timer = setTimeout(() => {
+                        if (mountedRef.current) onNext();
+                    }, 1000);
+                    timersRef.current.push(timer);
                 }
             };
 
@@ -133,7 +143,10 @@ export function TTSPlayer({
         if (isPlaying) {
             handleStop();
             // Auto-play will trigger with new speed
-            setTimeout(() => handlePlay(), 100);
+            const timer = setTimeout(() => {
+                if (mountedRef.current) handlePlay();
+            }, 100);
+            timersRef.current.push(timer);
         }
     };
 

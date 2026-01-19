@@ -34,7 +34,7 @@ async function recordUsage(modelId: string, usage: any) {
             });
         }
     } catch (err) {
-        console.warn("Failed to record usage:", err);
+        // Silently fail usage recording
     }
 }
 
@@ -82,7 +82,6 @@ async function withKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>, onLog?: (
             return await fn(ai);
         } catch (error: any) {
             lastError = error;
-            console.warn(`Rotating key due to error...`);
             continue;
         }
     }
@@ -187,7 +186,7 @@ export const translateChapter = async (
                     jsonText = candidates?.[0]?.content?.parts?.[0]?.text || "";
                 }
             } catch (e) {
-                console.error("Error extraction text from response", e);
+                // Fallback to empty string if text extraction fails
                 const candidates = (response as any).candidates;
                 jsonText = candidates?.[0]?.content?.parts?.[0]?.text || "";
             }
@@ -756,7 +755,7 @@ ${context}
                 text = candidates?.[0]?.content?.parts?.[0]?.text || "";
             }
         } catch (e) {
-            console.error("Error extraction text from summary response", e);
+            // Fallback to empty string if text extraction fails
         }
 
         // Track usage

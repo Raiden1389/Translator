@@ -16,6 +16,7 @@ export function useReaderTTS(
     const [isTTSLoading, setIsTTSLoading] = useState(false);
     const [activeTTSIndex, setActiveTTSIndex] = useState<number | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const audioUrlRef = useRef<string | null>(null);
 
     const ttsSegments = useMemo(() => {
         const text = (contentTranslated || "").normalize('NFC');
@@ -50,6 +51,10 @@ export function useReaderTTS(
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
+            }
+            if (audioUrlRef.current) {
+                URL.revokeObjectURL(audioUrlRef.current);
+                audioUrlRef.current = null;
             }
         };
     }, []);
@@ -95,12 +100,22 @@ export function useReaderTTS(
 
             if (audioRef.current) {
                 audioRef.current.pause();
+                audioRef.current.onended = null;
+                audioRef.current.onerror = null;
+            }
+            if (audioUrlRef.current) {
+                URL.revokeObjectURL(audioUrlRef.current);
             }
 
             const audio = new Audio(audioUrl);
             audioRef.current = audio;
+            audioUrlRef.current = audioUrl;
 
             audio.onended = () => {
+                if (audioUrlRef.current === audioUrl) {
+                    URL.revokeObjectURL(audioUrl);
+                    audioUrlRef.current = null;
+                }
                 if (index < ttsSegments.length - 1) {
                     handleTTSPlay(index + 1);
                 } else {

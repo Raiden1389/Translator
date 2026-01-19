@@ -19,7 +19,7 @@ export function usePersistedState<T>(
                 return JSON.parse(saved);
             }
         } catch (error) {
-            console.warn(`Failed to load persisted state for key "${key}":`, error);
+            // Silently fail - use initial value
         }
         return initialValue;
     });
@@ -30,7 +30,7 @@ export function usePersistedState<T>(
             try {
                 localStorage.setItem(key, JSON.stringify(state));
             } catch (error) {
-                console.warn(`Failed to persist state for key "${key}":`, error);
+                // Silently fail persistence
             }
         }, debounceMs);
 

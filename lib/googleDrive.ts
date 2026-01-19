@@ -74,16 +74,13 @@ export class GoogleDriveService {
 
         // 4. Listen for token event
         return new Promise<void>((resolve, reject) => {
-            console.log("Listening for oauth_token_received event...");
             const timeout = setTimeout(() => {
                 if (unlisten) unlisten();
-                console.error("OAuth timeout reached (120s)");
                 reject(new Error("Hết thời gian chờ đăng nhập (120s). Bạn hãy đảm bảo đã nhấn 'Cho phép' trên trình duyệt và đã thêm URI vào Google Console."));
             }, 120000);
 
             let unlisten: () => void;
             listen<string>("oauth_token_received", async (event) => {
-                console.log("Event oauth_token_received caught!", event);
                 clearTimeout(timeout);
                 const hash = event.payload;
 
@@ -102,7 +99,7 @@ export class GoogleDriveService {
                         const userInfo = await this.getUserInfo(this.accessToken);
                         await db.settings.put({ key: "gdrive_user", value: userInfo });
                     } catch (e) {
-                        console.error("Failed to fetch user info", e);
+                        // Silently fail user info fetch
                     }
 
                     resolve();
@@ -124,7 +121,6 @@ export class GoogleDriveService {
 
         if (!resp.ok) {
             const errData = await resp.json().catch(() => ({}));
-            console.error("Google Drive API Error (listFolders):", resp.status, errData);
             if (resp.status === 401) {
                 // Token expired, clear it
                 this.accessToken = null;
@@ -154,7 +150,6 @@ export class GoogleDriveService {
 
         if (!resp.ok) {
             const errData = await resp.json().catch(() => ({}));
-            console.error("Google Drive API Error (createFolder):", resp.status, errData);
             if (resp.status === 401) {
                 this.accessToken = null;
                 await db.settings.delete("gdrive_token");
@@ -189,7 +184,6 @@ export class GoogleDriveService {
 
         if (!resp.ok) {
             const errData = await resp.json().catch(() => ({}));
-            console.error("Google Drive API Error (uploadFile):", resp.status, errData);
             if (resp.status === 401) {
                 this.accessToken = null;
                 await db.settings.delete("gdrive_token");
@@ -212,7 +206,7 @@ export class GoogleDriveService {
     async logout() {
         if ((window as any).google?.accounts?.oauth2?.revoke && this.accessToken) {
             (window as any).google.accounts.oauth2.revoke(this.accessToken, () => {
-                console.log("Token revoked");
+                // Token revoked silently
             });
         }
         this.accessToken = null;

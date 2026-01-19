@@ -31,7 +31,7 @@ export async function speak(
 
     // Safety check: ensure all query parameters are defined and valid for compound index
     if (chapterId === undefined || !voice || !textHash || pitch === undefined || rate === undefined) {
-        console.warn("TTS Query aborted: missing keys", { chapterId, voice, textHash, pitch, rate });
+        // Skip cache check if parameters are invalid
     } else {
         // 1. Check Cache using explicit compound index for performance and stability
         try {
@@ -41,12 +41,10 @@ export async function speak(
                 .first();
 
             if (cache) {
-                console.log("TTS Cache Hit!", chapterId, textHash, pitch, rate);
                 const blob = new Blob([new Uint8Array(cache.blob)], { type: 'audio/mpeg' });
                 return URL.createObjectURL(blob);
             }
         } catch (err) {
-            console.error("TTS Cache Query Error:", err);
             // Fallback: search without compound index if it fails
             const fallback = await db.ttsCache.where({ chapterId, textHash, voice }).first();
             if (fallback) {
@@ -57,7 +55,6 @@ export async function speak(
     }
 
     // 2. Fetch from Backend
-    console.log("TTS Fetching...", chapterId, textHash, pitch, rate);
     const audioData = await invoke<number[]>("edge_tts_speak", { text, voice, pitch, rate });
     const uint8Array = new Uint8Array(audioData);
 
@@ -70,7 +67,7 @@ export async function speak(
         rate,
         blob: uint8Array.buffer,
         createdAt: new Date()
-    }).catch(e => console.error("Failed to cache TTS:", e));
+    }).catch(() => { /* Silently fail cache write */ });
 
     const blob = new Blob([uint8Array], { type: 'audio/mpeg' });
     return URL.createObjectURL(blob);
@@ -93,7 +90,6 @@ export async function prefetchTTS(chapterId: number, text: string, voice: string
 
     // Generate in background
     speak(chapterId, text, voice, pitch, rate).then(url => {
-        console.log(`Prefetched TTS for chapter ${chapterId} segment ${textHash} (${pitch}, ${rate})`);
         URL.revokeObjectURL(url);
-    }).catch(e => console.error("Prefetch failed:", e));
+    }).catch(() => { /* Silently fail prefetch */ });
 }

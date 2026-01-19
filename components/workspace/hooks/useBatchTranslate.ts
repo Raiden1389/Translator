@@ -60,8 +60,8 @@ export function useBatchTranslate() {
             const startTime = Date.now();
             // Processing chapter
 
-            const onLog: LogCallback = (log) => {
-                setBatchProgress(prev => ({ ...prev, currentTitle: log.message }));
+            const onLog = (log: any) => {
+                setBatchProgress(prev => ({ ...prev, currentTitle: typeof log === 'string' ? log : log.message }));
             };
 
             try {

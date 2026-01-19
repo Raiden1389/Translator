@@ -20,6 +20,7 @@ import { CharacterTab } from "@/components/workspace/CharacterTab";
 import { AISettingsTab } from "@/components/workspace/AISettingsTab";
 import { ExportTab } from "@/components/workspace/ExportTab";
 import { PromptLab } from "@/components/workspace/PromptLab";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
 
 const AutoResizeTextarea = ({ defaultValue, placeholder, onSave }: { defaultValue: string, placeholder: string, onSave: (value: string) => void }) => {
@@ -595,32 +596,34 @@ export default function WorkspaceClient({ id }: { id: string }) {
 
                 <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                     <div className="max-w-6xl mx-auto">
-                        {activeTab === "overview" && <OverviewTab workspace={workspace} />}
-                        {activeTab === "chapters" && <ChapterList workspaceId={id} />}
-                        {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
-                        {activeTab === "characters" && <CharacterTab workspaceId={id} />}
-                        {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
+                        <ErrorBoundary name="WorkspaceTabContent">
+                            {activeTab === "overview" && <OverviewTab workspace={workspace} />}
+                            {activeTab === "chapters" && <ChapterList workspaceId={id} />}
+                            {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
+                            {activeTab === "characters" && <CharacterTab workspaceId={id} />}
+                            {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
 
-                        {activeTab === "settings" && (
-                            <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                <AISettingsTab />
-                                <Card className="border-red-900/30 bg-red-900/5 shadow-xl">
-                                    <CardHeader>
-                                        <CardTitle className="text-red-400">Vùng Nguy Hiểm</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="flex items-center justify-between">
-                                            <div className="space-y-1">
-                                                <p className="text-foreground font-medium">Xóa Workspace</p>
-                                                <p className="text-sm text-muted-foreground">Hành động này không thể hoàn tác. Tất cả chương và dữ liệu sẽ bị xóa.</p>
+                            {activeTab === "settings" && (
+                                <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                                    <AISettingsTab />
+                                    <Card className="border-red-900/30 bg-red-900/5 shadow-xl">
+                                        <CardHeader>
+                                            <CardTitle className="text-red-400">Vùng Nguy Hiểm</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="flex items-center justify-between">
+                                                <div className="space-y-1">
+                                                    <p className="text-foreground font-medium">Xóa Workspace</p>
+                                                    <p className="text-sm text-muted-foreground">Hành động này không thể hoàn tác. Tất cả chương và dữ liệu sẽ bị xóa.</p>
+                                                </div>
+                                                <Button variant="destructive" className="bg-red-600 hover:bg-red-700">Delete Workspace</Button>
                                             </div>
-                                            <Button variant="destructive" className="bg-red-600 hover:bg-red-700">Delete Workspace</Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
-                        {activeTab === "export" && <ExportTab workspaceId={id} />}
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            )}
+                            {activeTab === "export" && <ExportTab workspaceId={id} />}
+                        </ErrorBoundary>
                     </div>
                 </div>
             </div>

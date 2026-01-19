@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import Dexie from "dexie";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -12,6 +13,7 @@ import { ReaderModal } from "./ReaderModal";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
 import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
 import { TranslateConfigDialog } from "./TranslateConfigDialog";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useChapterSelection } from "./hooks/useChapterSelection";
 import { useChapterImport } from "./hooks/useChapterImport";
 import { useBatchTranslate } from "./hooks/useBatchTranslate";
@@ -27,7 +29,7 @@ interface ChapterListProps {
 
 export function ChapterList({ workspaceId }: ChapterListProps) {
     const chapters = useLiveQuery(
-        () => db.chapters.where("workspaceId").equals(workspaceId).sortBy("order"),
+        () => db.chapters.where("[workspaceId+order]").between([workspaceId, Dexie.minKey], [workspaceId, Dexie.maxKey]).toArray(),
         [workspaceId]
     );
 
@@ -242,25 +244,27 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 workspaceId={workspaceId}
             />
 
-            {viewMode === "grid" ? (
-                <ChapterCardGrid
-                    chapters={currentChapters}
-                    selectedChapters={selectedChapters}
-                    toggleSelect={toggleSingleSelection}
-                    onRead={setReadingChapterId}
-                    onImport={() => fileInputRef.current?.click()}
-                />
-            ) : (
-                <ChapterTable
-                    chapters={currentChapters}
-                    selectedChapters={selectedChapters}
-                    setSelectedChapters={setSelectedChapters}
-                    toggleSelect={toggleSingleSelection}
-                    toggleSelectAll={() => toggleSelectAll(filtered.map(c => c.id!))}
-                    onRead={setReadingChapterId}
-                    allChapterIds={filtered.map(c => c.id!)}
-                />
-            )}
+            <ErrorBoundary name="ChapterListView">
+                {viewMode === "grid" ? (
+                    <ChapterCardGrid
+                        chapters={currentChapters}
+                        selectedChapters={selectedChapters}
+                        toggleSelect={toggleSingleSelection}
+                        onRead={setReadingChapterId}
+                        onImport={() => fileInputRef.current?.click()}
+                    />
+                ) : (
+                    <ChapterTable
+                        chapters={currentChapters}
+                        selectedChapters={selectedChapters}
+                        setSelectedChapters={setSelectedChapters}
+                        toggleSelect={toggleSingleSelection}
+                        toggleSelectAll={() => toggleSelectAll(filtered.map(c => c.id!))}
+                        onRead={setReadingChapterId}
+                        allChapterIds={filtered.map(c => c.id!)}
+                    />
+                )}
+            </ErrorBoundary>
 
             {readingChapterId && (
                 <ReaderModal
@@ -288,7 +292,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 terms={reviewData?.terms || []}
                 onSave={async (saveChars, saveTerms, blacklistChars, blacklistTerms) => {
                     // Save to Dictionary
-                    const allSave = [...saveChars, ...saveTerms].map(item => ({ ...item, workspaceId }));
+                    const allSave = [...saveChars, ...saveTerms].map(item => ({ ...item, workspaceId, createdAt: new Date() }));
                     if (allSave.length > 0) {
                         await db.dictionary.bulkAdd(allSave);
                     }

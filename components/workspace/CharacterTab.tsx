@@ -160,11 +160,11 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
 
             if (result) {
                 const existingOriginals = new Set(dictionary.map(d => d.original));
-                const newChars: GlossaryCharacter[] = result.characters.map((c) => ({
+                const newChars: GlossaryCharacter[] = result.characters.map((c: any) => ({
                     ...c,
                     isExisting: existingOriginals.has(c.original)
                 }));
-                const newTerms: GlossaryTerm[] = result.terms.map((t) => ({
+                const newTerms: GlossaryTerm[] = result.terms.map((t: any) => ({
                     ...t,
                     isExisting: existingOriginals.has(t.original)
                 }));

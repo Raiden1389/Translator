@@ -175,6 +175,12 @@ db.version(14).stores({
 // V15: Auto-Summary support
 db.version(15).stores({}); // No new indexes, just a schema iteration
 
+// V16: Compound index for chapters and dictionary optimization
+db.version(16).stores({
+    chapters: '++id, workspaceId, order, [workspaceId+order]',
+    dictionary: '++id, workspaceId, original, translated, type, gender, role, [workspaceId+original]'
+});
+
 // Tauri Hook: Sync to local files on change
 if (typeof window !== 'undefined' && (window as any).__TAURI__) {
     const syncWorkspace = async (workspaceId: string) => {
