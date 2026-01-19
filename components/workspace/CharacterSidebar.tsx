@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Users, Search, ChevronRight, User } from "lucide-react";
 import { AnalyzedEntity, analyzeEntities } from "@/lib/gemini";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface CharacterSidebarProps {
     workspaceId: string;
@@ -44,28 +45,31 @@ export function CharacterSidebar({
         setAnalyzing(true);
         try {
             const results = await analyzeEntities(workspaceId, chapterContent);
-            // Save to DB (avoid duplicates)
-            let count = 0;
-            for (const item of results) {
-                // Check exist
-                const exist = await db.dictionary.where({ workspaceId, original: item.src }).first();
-                if (!exist) {
-                    await db.dictionary.add({
-                        workspaceId,
-                        original: item.src,
-                        translated: item.dest,
-                        type: 'character',
-                        metadata: { reason: item.reason, gender: item.metadata?.gender, category: item.category },
-                        createdAt: new Date()
-                    });
-                    count++;
-                }
+
+            // Get existing originals for deduplication
+            const existingEntries = await db.dictionary.where({ workspaceId }).toArray();
+            const existingOriginals = new Set(existingEntries.map(e => e.original.toLowerCase().trim()));
+
+            const newEntities = results
+                .filter(item => !existingOriginals.has(item.src.toLowerCase().trim()))
+                .map(item => ({
+                    workspaceId,
+                    original: item.src,
+                    translated: item.dest,
+                    type: 'character',
+                    metadata: { reason: item.reason, gender: item.metadata?.gender, category: item.category },
+                    createdAt: new Date()
+                }));
+
+            if (newEntities.length > 0) {
+                await db.dictionary.bulkAdd(newEntities);
+                toast.success(`Đã tìm thấy và thêm ${newEntities.length} nhân vật mới!`);
+            } else {
+                toast.info("Không tìm thấy nhân vật mới nào.");
             }
-            if (count > 0) alert(`Đã tìm thấy và thêm ${count} nhân vật mới!`);
-            else alert("Không tìm thấy nhân vật mới nào.");
         } catch (e) {
             console.error(e);
-            alert("Lỗi khi quét nhân vật.");
+            toast.error("Lỗi khi quét nhân vật.");
         } finally {
             setAnalyzing(false);
         }

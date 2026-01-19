@@ -44,7 +44,7 @@ const statusConfig = {
     }
 };
 
-export function ChapterCard({
+export const ChapterCard = React.memo(function ChapterCard({
     chapter,
     isSelected,
     onSelect,
@@ -164,6 +164,8 @@ export function ChapterCard({
             )}
         </div>
     );
-}
+});
+
+ChapterCard.displayName = "ChapterCard";
 
 

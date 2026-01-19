@@ -16,6 +16,7 @@ interface ChapterTableProps {
     toggleSelect: (id: number) => void;
     toggleSelectAll: () => void;
     onRead: (id: number) => void;
+    onInspect: (id: number) => void;
     allChapterIds: number[];
 }
 
@@ -25,7 +26,8 @@ export function ChapterTable({
     setSelectedChapters,
     toggleSelect,
     toggleSelectAll,
-    onRead
+    onRead,
+    onInspect
 }: ChapterTableProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartId, setDragStartId] = useState<number | null>(null);
@@ -141,6 +143,7 @@ export function ChapterTable({
                             toggleSelect={toggleSelect}
                             onRead={onRead}
                             onDelete={handleDelete}
+                            onInspect={onInspect}
                         />
                     ))}
                 </TableBody>

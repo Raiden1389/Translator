@@ -13,6 +13,7 @@ import { ReaderModal } from "./ReaderModal";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
 import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
 import { TranslateConfigDialog } from "./TranslateConfigDialog";
+import { InspectionDialog } from "./InspectionDialog";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useChapterSelection } from "./hooks/useChapterSelection";
 import { useChapterImport } from "./hooks/useChapterImport";
@@ -20,7 +21,7 @@ import { useBatchTranslate } from "./hooks/useBatchTranslate";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 
 import { ReviewDialog } from "./ReviewDialog";
-import { extractGlossary } from "@/lib/gemini";
+import { extractGlossary, inspectChapter, InspectionIssue } from "@/lib/gemini";
 import { GlossaryCharacter, GlossaryTerm, ReviewData } from "@/lib/types";
 
 interface ChapterListProps {
@@ -41,6 +42,8 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
     const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(`workspace-${workspaceId}-viewMode`, "grid");
     const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
     const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+    const [inspectingChapter, setInspectingChapter] = useState<{ id: number, title: string, issues: InspectionIssue[] } | null>(null);
+    const [isInspectOpen, setIsInspectOpen] = useState(false);
 
     // Filtered Content
     const filtered = useMemo(() => {
@@ -191,6 +194,32 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
         }
     };
 
+    const handleInspect = async (id: number) => {
+        const chapter = await db.chapters.get(id);
+        if (!chapter || !chapter.content_translated) {
+            return toast.error("Chương này chưa dịch hoặc không tồn tại.");
+        }
+
+        toast.loading(`Đang rà soát chương: ${chapter.title}...`, {
+            id: "inspecting-toast",
+            icon: <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        });
+
+        try {
+            const issues = await inspectChapter(workspaceId, chapter.content_translated);
+            // Save results to DB
+            await db.chapters.update(id, { inspectionResults: issues });
+
+            setInspectingChapter({ id, title: chapter.title, issues });
+            setIsInspectOpen(true);
+
+            toast.success("Rà soát hoàn tất!", { id: "inspecting-toast" });
+        } catch (error) {
+            console.error("Inspect error:", error);
+            toast.error("Lỗi khi rà soát AI.", { id: "inspecting-toast" });
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -251,6 +280,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                         selectedChapters={selectedChapters}
                         toggleSelect={toggleSingleSelection}
                         onRead={setReadingChapterId}
+                        onInspect={handleInspect}
                         onImport={() => fileInputRef.current?.click()}
                     />
                 ) : (
@@ -261,10 +291,24 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                         toggleSelect={toggleSingleSelection}
                         toggleSelectAll={() => toggleSelectAll(filtered.map(c => c.id!))}
                         onRead={setReadingChapterId}
+                        onInspect={handleInspect}
                         allChapterIds={filtered.map(c => c.id!)}
                     />
                 )}
             </ErrorBoundary>
+
+            {inspectingChapter && (
+                <InspectionDialog
+                    open={isInspectOpen}
+                    onOpenChange={setIsInspectOpen}
+                    chapterTitle={inspectingChapter.title}
+                    issues={inspectingChapter.issues}
+                    onNavigateToIssue={(original) => {
+                        // For now just close or keep open, navigating would require editor context
+                        console.log("Navigate to:", original);
+                    }}
+                />
+            )}
 
             {readingChapterId && (
                 <ReaderModal

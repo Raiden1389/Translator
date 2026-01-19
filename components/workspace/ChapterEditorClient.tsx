@@ -272,7 +272,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
     const [isReviewOpen, setIsReviewOpen] = useState(false);
 
     // Render Tokenized Original Text
-    const renderOriginalText = () => {
+    const renderedOriginalText = React.useMemo(() => {
         if (!dictManager || !chapter.content_original) return chapter.content_original;
 
         const tokens = dictManager.tokenize(chapter.content_original);
@@ -307,7 +307,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
 
             return <span key={idx} className={isHighlighted ? "bg-purple-500 text-white" : ""}>{token.text}</span>;
         });
-    };
+    }, [dictManager, chapter.content_original, highlightedChar]);
 
     return (
         <main className="fixed inset-0 flex flex-col bg-[#1a0b2e] overflow-hidden selection:bg-primary/30">
@@ -473,7 +473,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
                             <ContextMenu>
                                 <ContextMenuTrigger asChild>
                                     <div className={cn("w-full min-h-full p-6 md:p-10 pb-0 text-lg leading-loose tracking-wide text-white/90 font-lora whitespace-pre-wrap", "reader-text")}>
-                                        {renderOriginalText()}
+                                        {renderedOriginalText}
                                     </div>
                                 </ContextMenuTrigger>
                                 <ContextMenuContent className="bg-[#2b2b40] border-white/10 text-white">

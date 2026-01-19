@@ -4,7 +4,7 @@ import React from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2, Book } from "lucide-react";
+import { Trash2, Book, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chapter } from "@/lib/db";
 
@@ -17,6 +17,7 @@ interface ChapterRowProps {
     toggleSelect: (id: number) => void;
     onRead: (id: number) => void;
     onDelete: (id: number) => void;
+    onInspect: (id: number) => void;
 }
 
 export const ChapterRow = React.memo(function ChapterRow({
@@ -28,7 +29,9 @@ export const ChapterRow = React.memo(function ChapterRow({
     toggleSelect,
     onRead,
     onDelete,
+    onInspect,
 }: ChapterRowProps) {
+    const issueCount = chapter.inspectionResults?.length || 0;
     return (
         <TableRow
             className={cn(
@@ -84,20 +87,27 @@ export const ChapterRow = React.memo(function ChapterRow({
                 </button>
             </TableCell>
             <TableCell className="text-center">
-                <span
-                    className={cn(
-                        "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider cursor-help",
-                        chapter.status === 'translated'
-                            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                            : "bg-amber-100 text-amber-700 border-amber-200"
+                <div className="flex flex-col items-center gap-1">
+                    <span
+                        className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider cursor-help",
+                            chapter.status === 'translated'
+                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                : "bg-amber-100 text-amber-700 border-amber-200"
+                        )}
+                        title={chapter.status === 'translated'
+                            ? `Model: ${chapter.translationModel || 'N/A'}\nTime: ${chapter.translationDurationMs ? (chapter.translationDurationMs / 1000).toFixed(1) + 's' : 'N/A'}\nDate: ${chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).toLocaleString() : 'N/A'}`
+                            : 'Chưa dịch'
+                        }
+                    >
+                        {chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
+                    </span>
+                    {issueCount > 0 && (
+                        <span className="text-[9px] text-rose-500 font-bold animate-pulse">
+                            {issueCount} lỗi AI
+                        </span>
                     )}
-                    title={chapter.status === 'translated'
-                        ? `Model: ${chapter.translationModel || 'N/A'}\nTime: ${chapter.translationDurationMs ? (chapter.translationDurationMs / 1000).toFixed(1) + 's' : 'N/A'}\nDate: ${chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).toLocaleString() : 'N/A'}`
-                        : 'Chưa dịch'
-                    }
-                >
-                    {chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
-                </span>
+                </div>
             </TableCell>
             <TableCell className="text-center text-xs text-muted-foreground/60 font-mono">
                 {chapter.wordCountOriginal?.toLocaleString() || 0}
@@ -108,6 +118,19 @@ export const ChapterRow = React.memo(function ChapterRow({
             </TableCell>
             <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-1 opacity-50 group-hover:opacity-100">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 action-button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onInspect(chapter.id!);
+                        }}
+                        title="Soi lỗi bản dịch"
+                        disabled={chapter.status !== 'translated'}
+                    >
+                        <Zap className="h-3 w-3" />
+                    </Button>
                     <Button
                         variant="ghost"
                         size="icon"

@@ -4,6 +4,7 @@ export class DictionaryManager {
     private entries: DictionaryEntry[] = [];
     // Cache sorted keys by length descending for "Longest Match" strategy
     private sortedKeys: string[] = [];
+    private cachedRegex: RegExp | null = null;
 
     constructor(entries: DictionaryEntry[]) {
         this.setEntries(entries);
@@ -15,6 +16,7 @@ export class DictionaryManager {
         this.sortedKeys = entries
             .map(e => e.original)
             .sort((a, b) => b.length - a.length);
+        this.cachedRegex = null; // Invalidate cache
     }
 
     getEntry(original: string): DictionaryEntry | undefined {
@@ -45,11 +47,13 @@ export class DictionaryManager {
             return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         };
 
-        const pattern = this.sortedKeys.map(escapeRegExp).join('|');
-        if (!pattern) return [{ text }];
+        if (!this.cachedRegex) {
+            const pattern = this.sortedKeys.map(escapeRegExp).join('|');
+            if (!pattern) return [{ text }];
+            this.cachedRegex = new RegExp(`(${pattern})`, 'g');
+        }
 
-        const regex = new RegExp(`(${pattern})`, 'g');
-        const parts = text.split(regex);
+        const parts = text.split(this.cachedRegex);
 
         for (const part of parts) {
             if (!part) continue;
