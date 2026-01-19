@@ -1,15 +1,14 @@
-"use client";
-
 import { useState, useCallback } from "react";
 import { extractGlossary, categorizeTerms } from "@/lib/gemini";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
+import { GlossaryCharacter, GlossaryTerm, GlossaryResult } from "@/lib/types";
 
 export function useDictionaryAI(workspaceId: string) {
     const [isExtracting, setIsExtracting] = useState(false);
     const [extractDialogOpen, setExtractDialogOpen] = useState(false);
-    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
-    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
+    const [pendingCharacters, setPendingCharacters] = useState<GlossaryCharacter[]>([]);
+    const [pendingTerms, setPendingTerms] = useState<GlossaryTerm[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
 
     const handleAIExtract = useCallback(async (source: "latest" | "current" | "select", dictionary: any[]) => {
@@ -39,17 +38,17 @@ export function useDictionaryAI(workspaceId: string) {
             }
 
             toast.info(`Đang quét: ${targetChapter.title}...`);
-            const result = await extractGlossary(targetChapter.content_original, (log: string) => console.log(log));
+            const result: GlossaryResult | null = await extractGlossary(targetChapter.content_original);
 
             if (result) {
                 const existingOriginals = new Set(dictionary.map(d => d.original));
 
-                const newChars = result.characters.map((c: any) => ({
+                const newChars: GlossaryCharacter[] = result.characters.map((c) => ({
                     ...c,
                     isExisting: existingOriginals.has(c.original)
                 }));
 
-                const newTerms = result.terms.map((t: any) => ({
+                const newTerms: GlossaryTerm[] = result.terms.map((t) => ({
                     ...t,
                     isExisting: existingOriginals.has(t.original)
                 }));
@@ -123,7 +122,12 @@ export function useDictionaryAI(workspaceId: string) {
         }
     }, [workspaceId]);
 
-    const handleConfirmSave = useCallback(async (saveChars: any[], saveTerms: any[], blacklistChars: any[], blacklistTerms: any[]) => {
+    const handleConfirmSave = useCallback(async (
+        saveChars: GlossaryCharacter[],
+        saveTerms: GlossaryTerm[],
+        blacklistChars: GlossaryCharacter[],
+        blacklistTerms: GlossaryTerm[]
+    ) => {
         let addedCount = 0;
         let updatedCount = 0;
         let blacklistCount = 0;

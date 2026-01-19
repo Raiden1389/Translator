@@ -19,6 +19,7 @@ import { usePersistedState } from "@/lib/hooks/usePersistedState";
 
 import { ReviewDialog } from "./ReviewDialog";
 import { extractGlossary } from "@/lib/gemini";
+import { GlossaryCharacter, GlossaryTerm, ReviewData } from "@/lib/types";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -37,7 +38,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
     const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
     const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(`workspace-${workspaceId}-viewMode`, "grid");
     const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
-    const [reviewData, setReviewData] = useState<{ chars: any[], terms: any[] } | null>(null);
+    const [reviewData, setReviewData] = useState<ReviewData | null>(null);
 
     // Filtered Content
     const filtered = useMemo(() => {
@@ -137,8 +138,8 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
 
         try {
             const selectedChaps = await db.chapters.where("id").anyOf(selectedChapters).toArray();
-            let allChars: any[] = [];
-            let allTerms: any[] = [];
+            let allChars: GlossaryCharacter[] = [];
+            let allTerms: GlossaryTerm[] = [];
 
             // Process sequentially to avoid rate limits
             for (const chapter of selectedChaps) {
@@ -148,7 +149,7 @@ export function ChapterList({ workspaceId }: ChapterListProps) {
                 });
                 if (!chapter.content_original) continue;
 
-                const result = await extractGlossary(chapter.content_original, (log: string) => console.log(log));
+                const result = await extractGlossary(chapter.content_original);
                 if (result) {
                     allChars = [...allChars, ...result.characters];
                     allTerms = [...allTerms, ...result.terms];

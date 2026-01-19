@@ -113,7 +113,7 @@ export function DictionaryEditDialog({
                         type: 'correction',
                         createdAt: new Date()
                     });
-                    console.log(`Saved correction rule: "${initialTranslated}" -> "${translated}"`);
+                    // Saved correction rule
                 }
             }
 

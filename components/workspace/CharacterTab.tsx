@@ -25,6 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, Plus, Trash2, User, Save, X, MoreHorizontal, Info, Check, Sparkles, Filter, FileText, ChevronRight } from "lucide-react";
 import { ReviewDialog } from "./ReviewDialog";
 import { extractGlossary } from "@/lib/gemini";
+import { GlossaryCharacter, GlossaryTerm, GlossaryResult } from "@/lib/types";
+import type { Chapter } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import * as Tooltip from "@radix-ui/react-tooltip";
@@ -138,7 +140,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                 return;
             }
 
-            let targetChapter: any;
+            let targetChapter: Chapter | undefined;
             if (source === "latest") {
                 chapters.sort((a, b) => b.order - a.order);
                 targetChapter = chapters[0];
@@ -158,11 +160,11 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
 
             if (result) {
                 const existingOriginals = new Set(dictionary.map(d => d.original));
-                const newChars = result.characters.map((c: any) => ({
+                const newChars: GlossaryCharacter[] = result.characters.map((c) => ({
                     ...c,
                     isExisting: existingOriginals.has(c.original)
                 }));
-                const newTerms = result.terms.map((t: any) => ({
+                const newTerms: GlossaryTerm[] = result.terms.map((t) => ({
                     ...t,
                     isExisting: existingOriginals.has(t.original)
                 }));
@@ -179,7 +181,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         }
     };
 
-    const handleConfirmSave = async (selectedChars: any[], selectedTerms: any[]) => {
+    const handleConfirmSave = async (selectedChars: GlossaryCharacter[], selectedTerms: GlossaryTerm[]) => {
         try {
             let addedCount = 0;
             let updatedCount = 0;

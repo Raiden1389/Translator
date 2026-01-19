@@ -2,10 +2,12 @@ import { useState } from "react";
 import { db } from "@/lib/db";
 import { translateChapter } from "@/lib/gemini";
 import { toast } from "sonner";
+import { GlossaryCharacter, GlossaryTerm, TranslationConfig, TranslationSettings, LogCallback } from "@/lib/types";
+import type { Chapter } from "@/lib/db";
 
 interface BatchTranslateProps {
     workspaceId: string; // Added
-    chapters: any[];
+    chapters: Chapter[];
     selectedChapters: number[];
     currentSettings: { apiKey: string, model: string };
     translateConfig: {
@@ -13,7 +15,7 @@ interface BatchTranslateProps {
         autoExtract: boolean;
     };
     onComplete?: () => void;
-    onReviewNeeded?: (chars: any[], terms: any[]) => void;
+    onReviewNeeded?: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => void;
 }
 
 export function useBatchTranslate() {
@@ -29,10 +31,10 @@ export function useBatchTranslate() {
         onComplete
     }: BatchTranslateProps) => {
         setIsTranslating(true);
-        console.log("Starting batch translate with selected IDs:", selectedChapters);
+        // Starting batch translate
 
         const chaptersToTranslate = chapters?.filter(c => selectedChapters.includes(c.id!)) || [];
-        console.log(`Found ${chaptersToTranslate.length} chapters to translate.`);
+        // Found chapters to translate
 
         if (chaptersToTranslate.length === 0) {
             setIsTranslating(false);
@@ -50,15 +52,15 @@ export function useBatchTranslate() {
         setBatchProgress({ current: 0, total: chaptersToTranslate.length, currentTitle: "Khởi tạo..." });
 
         const CONCURRENT_LIMIT = 5;
-        const accumulatedChars: any[] = [];
+        const accumulatedChars: GlossaryCharacter[] = [];
 
         const activePromises: Promise<void>[] = [];
 
-        const processChapter = async (chapter: any, corrections: any[], blacklistSet: Set<string>) => {
+        const processChapter = async (chapter: Chapter, corrections: any[], blacklistSet: Set<string>) => {
             const startTime = Date.now();
-            console.log(`Processing chapter ${chapter.id}: ${chapter.title}`);
+            // Processing chapter
 
-            const onLog = (log: any) => {
+            const onLog: LogCallback = (log) => {
                 setBatchProgress(prev => ({ ...prev, currentTitle: log.message }));
             };
 
@@ -101,7 +103,7 @@ export function useBatchTranslate() {
                                 }
                                 // --------------------
 
-                                console.log(`Updating DB for chapter ${chapter.id}...`);
+                                // Updating DB for chapter
                                 const updateResult = await db.chapters.update(chapter.id!, {
                                     content_translated: finalContent,
                                     title_translated: finalTitle,
@@ -111,17 +113,17 @@ export function useBatchTranslate() {
                                     translationModel: currentSettings.model,
                                     translationDurationMs: duration
                                 });
-                                console.log(`DB Update result for ${chapter.id}: ${updateResult}`);
+                                // DB Update complete
 
                                 resolve();
                             } catch (err) {
-                                console.error(`Error in onSuccess for ${chapter.id}:`, err);
+                                console.error(`Error in onSuccess for ${chapter.id}: `, err);
                                 reject(err);
                             }
                         },
                         translateConfig.customPrompt
                     ).catch(err => {
-                        console.error(`Error in translateChapter for ${chapter.id}:`, err);
+                        console.error(`Error in translateChapter for ${chapter.id}: `, err);
                         reject(err);
                     });
                 });
@@ -152,8 +154,8 @@ export function useBatchTranslate() {
                     }
                 }
             } catch (e: any) {
-                console.error(`Failed to process chapter ${chapter.id}:`, e);
-                toast.error(`Lỗi chương ${chapter.title}: ${e.message}`);
+                console.error(`Failed to process chapter ${chapter.id}: `, e);
+                toast.error(`Lỗi chương ${chapter.title}: ${e.message} `);
             } finally {
                 processed++;
                 setBatchProgress(prev => ({ ...prev, current: processed }));
@@ -184,7 +186,7 @@ export function useBatchTranslate() {
             await Promise.all(activePromises);
 
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
-            toast.success(`Dịch hoàn tất ${processed} chương trong ${totalBatchTime}s`, {
+            toast.success(`Dịch hoàn tất ${processed} chương trong ${totalBatchTime} s`, {
                 description: `Sử dụng ${totalUsedChars} nhân vật và ${totalUsedTerms} thuật ngữ từ từ điển.`,
                 duration: 10000
             });

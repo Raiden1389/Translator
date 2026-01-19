@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { GlossaryCharacter, GlossaryTerm } from "@/lib/types";
 import {
     Dialog,
     DialogContent,
@@ -20,9 +21,14 @@ import { cn } from "@/lib/utils";
 interface ReviewDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    characters: any[];
-    terms: any[];
-    onSave: (saveChars: any[], saveTerms: any[], blacklistChars: any[], blacklistTerms: any[]) => void;
+    characters: GlossaryCharacter[];
+    terms: GlossaryTerm[];
+    onSave: (
+        saveChars: GlossaryCharacter[],
+        saveTerms: GlossaryTerm[],
+        blacklistChars: GlossaryCharacter[],
+        blacklistTerms: GlossaryTerm[]
+    ) => void;
     title?: string;
     description?: string;
 }
@@ -36,8 +42,8 @@ export function ReviewDialog({
     title = "Duyệt kết quả quét AI",
     description = "Kiểm tra lại các nhân vật và thuật ngữ AI vừa tìm thấy trước khi lưu vào từ điển."
 }: ReviewDialogProps) {
-    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
-    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
+    const [pendingCharacters, setPendingCharacters] = useState<GlossaryCharacter[]>([]);
+    const [pendingTerms, setPendingTerms] = useState<GlossaryTerm[]>([]);
 
     useEffect(() => {
         if (open) {

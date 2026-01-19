@@ -54,20 +54,20 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
                     <div className={`h-32 p-6 relative flex flex-col justify-between transition-all duration-500 ${!ws.cover && (index % 2 === 0 ? 'bg-gradient-to-r from-orange-500 to-amber-600' : 'bg-gradient-to-r from-purple-600 to-indigo-600')}`}>
                         {ws.cover && (
                             <>
-                                <img src={ws.cover} alt={ws.title} className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 group-hover:scale-110" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#2d1b4e] via-[#2d1b4e]/60 to-transparent z-0" />
+                                <img src={ws.cover} alt={ws.title} className="absolute inset-0 w-full h-full object-cover scale-95 z-0 transition-transform duration-700 group-hover:scale-100" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/20 to-transparent z-0" />
                             </>
                         )}
 
                         <div className="flex justify-between items-start relative z-10 w-full">
-                            <span className="inline-flex items-center rounded-md bg-background/60 backdrop-blur-none px-2 py-1 text-xs font-medium text-foreground ring-1 ring-inset ring-border">
+                            <span className="inline-flex items-center rounded-md bg-background px-2 py-1 text-xs font-medium text-foreground ring-1 ring-inset ring-border">
                                 <BookOpen className="mr-1 h-3 w-3" />
                                 {ws.author || "N/A"}
                             </span>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-foreground/70 hover:text-foreground hover:bg-background/60 backdrop-blur-none -mt-1 -mr-1"
+                                className="h-6 w-6 text-foreground/70 hover:text-foreground hover:bg-background -mt-1 -mr-1"
                                 onClick={(e) => onDelete(e, ws.id)}
                             >
                                 <Trash2 className="h-3 w-3" />
