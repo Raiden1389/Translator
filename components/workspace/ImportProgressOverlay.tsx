@@ -11,12 +11,12 @@ export function ImportProgressOverlay({ importing, progress, importStatus }: Imp
     if (!importing) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-300">
             <div className="bg-card border border-border p-8 rounded-2xl max-w-md w-full text-center space-y-6 shadow-2xl">
                 <div className="relative inline-block">
                     <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
                     <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-                    <div className="h-20 w-20 flex items-center justify-center text-xl font-bold font-mono">
+                    <div className="h-20 w-20 flex items-center justify-center text-xl font-bold font-mono text-foreground">
                         {progress}%
                     </div>
                 </div>

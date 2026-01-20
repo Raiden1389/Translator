@@ -50,30 +50,64 @@ export function useCorrections(workspaceId: string) {
         setIsApplyingCorrections(true);
         try {
             const chapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
-            let totalReplacements = 0;
 
+            // 1. Snapshot for Persistent Undo
+            const snapshot = chapters.map(c => ({
+                chapterId: c.id!,
+                before: {
+                    title: c.title_translated || (c.title ? c.title.replace(/Chapter\s+(\d+)/i, "Chương $1") : ""),
+                    content: c.content_translated || ""
+                }
+            })).filter(s => s.before.content); // Only snapshots chapters with translation
+
+            if (snapshot.length === 0) {
+                toast.info("Không có chương nào đã dịch để áp dụng.");
+                return;
+            }
+
+            await db.history.add({
+                workspaceId,
+                actionType: 'batch_correction',
+                summary: `Áp dụng ${corrections.length} quy tắc cải chính`,
+                timestamp: new Date(),
+                affectedCount: snapshot.length,
+                snapshot
+            });
+
+            // 2. Perform Replacements
+            let totalReplacements = 0;
             for (const chapter of chapters) {
                 let content = chapter.content_translated || "";
+                let title = chapter.title_translated || (chapter.title ? chapter.title.replace(/Chapter\s+(\d+)/i, "Chương $1") : "");
                 let changed = false;
 
                 for (const correction of corrections) {
                     const regex = new RegExp(correction.original, 'g');
-                    const matches = content.match(regex);
-                    if (matches) {
+
+                    // Check content
+                    const contentMatches = content.match(regex);
+                    if (contentMatches) {
                         content = content.replace(regex, correction.replacement);
-                        totalReplacements += matches.length;
+                        totalReplacements += contentMatches.length;
+                        changed = true;
+                    }
+
+                    // Check title
+                    if (title.includes(correction.original)) {
+                        title = title.split(correction.original).join(correction.replacement);
                         changed = true;
                     }
                 }
 
                 if (changed) {
                     await db.chapters.update(chapter.id!, {
-                        content_translated: content
+                        content_translated: content,
+                        title_translated: title
                     });
                 }
             }
 
-            toast.success(`Đã áp dụng ${totalReplacements} thay thế cho ${chapters.length} chương.`);
+            toast.success(`Đã áp dụng ${totalReplacements} thay thế cho ${snapshot.length} chương.`);
         } catch (error) {
             console.error(error);
             toast.error("Lỗi khi áp dụng sửa lỗi.");

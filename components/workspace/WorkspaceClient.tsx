@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { ReviewData, GlossaryCharacter, GlossaryTerm } from "@/lib/types"; // Import types
@@ -10,12 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     ArrowLeft, BookOpen,
     Settings, Users, FileText,
-    Database, LayoutDashboard, Swords
+    Database, LayoutDashboard, Swords, Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { ChapterList } from "@/components/workspace/ChapterList";
 import { DictionaryTab } from "@/components/workspace/DictionaryTab";
+import { CorrectionsView } from "@/components/workspace/dictionary/tabs/CorrectionsView";
 import { CharacterTab } from "@/components/workspace/CharacterTab";
 import { PromptLab } from "@/components/workspace/PromptLab";
 import { AISettingsTab } from "./AISettingsTab";
@@ -116,7 +117,12 @@ export default function WorkspaceClient({ id }: { id: string }) {
         if (activeTabParam) {
             setActiveTab(activeTabParam);
         }
-    }, [activeTabParam]);
+
+        // Session Cleanup: Clear history when workspace is closed/unmounted
+        return () => {
+            db.history.where("workspaceId").equals(id).delete().catch(e => console.error("Failed to clear history", e));
+        };
+    }, [activeTabParam, id]);
 
     if (workspace === undefined) return <div className="p-10 text-center text-muted-foreground">Loading...</div>;
     if (workspace === null) return notFound();
@@ -126,6 +132,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
         { id: "chapters", label: "Chương", icon: FileText },
         { id: "dictionary", label: "Từ Điển", icon: BookOpen },
         { id: "characters", label: "Nhân Vật", icon: Users },
+        { id: "corrections", label: "Cải Chính", icon: Sparkles },
         { id: "promptLab", label: "Prompt Lab", icon: Swords },
 
         { id: "settings", label: "Cài Đặt", icon: Settings },
@@ -233,6 +240,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                             {activeTab === "chapters" && <ChapterList workspaceId={id} onShowScanResults={setReviewData} onTranslate={handleBatchTranslate} />}
                             {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
                             {activeTab === "characters" && <CharacterTab workspaceId={id} />}
+                            {activeTab === "corrections" && <CorrectionsView workspaceId={id} />}
                             {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
 
                             {activeTab === "settings" && (

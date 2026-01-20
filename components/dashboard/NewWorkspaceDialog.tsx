@@ -190,7 +190,7 @@ export function NewWorkspaceDialog() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-b border-border flex justify-between gap-4 bg-[#1e1e2e]">
+                <div className="p-6 border-t border-border flex justify-between gap-4 bg-muted/20">
                     <Button
                         type="button"
                         variant="ghost"

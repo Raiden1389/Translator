@@ -2,12 +2,13 @@
 
 import React from "react";
 import { useCorrections } from "../hooks/useCorrections";
+import { Search, Save, Trash2, Clock } from "lucide-react";
+import { db } from "@/lib/db";
+import { EditableCell } from "../../shared/EditableCell";
+import { HistoryDialog } from "../../HistoryDialog";
 import { CorrectionForm } from "../../corrections/CorrectionForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Save, Trash2 } from "lucide-react";
-import { db } from "@/lib/db";
-import { EditableCell } from "../../shared/EditableCell";
 
 interface CorrectionsViewProps {
     workspaceId: string;
@@ -28,6 +29,8 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
         handleApplyCorrections,
     } = useCorrections(workspaceId);
 
+    const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
+
     return (
         <div className="space-y-6">
             {/* Toolbar */}
@@ -41,6 +44,15 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
                         placeholder="Tìm kiếm..."
                     />
                 </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="flex items-center gap-2 border-border hover:bg-muted font-bold rounded-xl h-10 px-4"
+                >
+                    <Clock className="h-4 w-4" />
+                    Lịch sử
+                </Button>
             </div>
 
             {/* Add Form */}
@@ -53,18 +65,18 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
             />
 
             {/* Corrections List */}
-            <div className="rounded-md border border-border bg-card overflow-hidden flex flex-col">
-                <div className="divide-y divide-border h-[calc(100vh-350px)] overflow-y-auto scrollbar-hide">
+            <div className="rounded-md border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+                <div className="divide-y divide-border h-[calc(100vh-420px)] overflow-y-auto scrollbar-hide">
                     {filteredCorrections
                         .map((c) => (
-                            <div key={c.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted group">
+                            <div key={c.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 group">
                                 <div className="col-span-4 text-muted-foreground line-through decoration-red-500/50">{c.original}</div>
                                 <div className="col-span-1 text-center text-muted-foreground">➔</div>
                                 <div className="col-span-5">
                                     <EditableCell
                                         initialValue={c.replacement}
                                         onSave={(val) => db.corrections.update(c.id!, { replacement: val })}
-                                        className="text-emerald-400 font-bold"
+                                        className="text-emerald-600 font-bold"
                                     />
                                 </div>
                                 <div className="col-span-2 flex justify-end">
@@ -84,13 +96,19 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
 
             {/* Apply Button */}
             <Button
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-6 text-lg"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-6 text-lg shadow-lg"
                 onClick={handleApplyCorrections}
                 disabled={isApplyingCorrections || filteredCorrections.length === 0}
             >
                 <Save className="mr-2 h-5 w-5" />
                 {isApplyingCorrections ? "Đang áp dụng..." : `Áp dụng ${filteredCorrections.length} quy tắc cho tất cả chương`}
             </Button>
+
+            <HistoryDialog
+                workspaceId={workspaceId}
+                open={isHistoryOpen}
+                onOpenChange={setIsHistoryOpen}
+            />
         </div>
     );
 }

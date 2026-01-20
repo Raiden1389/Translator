@@ -14,6 +14,7 @@ import { ImportProgressOverlay } from "./ImportProgressOverlay";
 import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
 import { TranslateConfigDialog } from "./TranslateConfigDialog";
 import { InspectionDialog } from "./InspectionDialog";
+import { HistoryDialog } from "./HistoryDialog";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useChapterSelection } from "./hooks/useChapterSelection";
 import { useChapterImport } from "./hooks/useChapterImport";
@@ -45,6 +46,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     // Removed local reviewData state
     const [inspectingChapter, setInspectingChapter] = useState<{ id: number, title: string, issues: InspectionIssue[] } | null>(null);
     const [isInspectOpen, setIsInspectOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
 
     // Filtered Content
     const filtered = useMemo(() => {
@@ -219,6 +221,92 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         }
     };
 
+    const handleApplyCorrections = async () => {
+        if (selectedChapters.length === 0) return toast.error("Vui lòng chọn chương cần sửa.");
+
+        const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
+        if (corrections.length === 0) return toast.error("Chưa có dữ liệu Cải chính (Corrections).");
+
+        toast.loading(`Đang áp dụng cải chính cho ${selectedChapters.length} chương...`, { id: "applying-corrections" });
+
+        try {
+            const chaptersToFix = await db.chapters.where("id").anyOf(selectedChapters).toArray();
+            let updatedCount = 0;
+
+            const snapshotStr = JSON.stringify(chaptersToFix.map(c => ({
+                chapterId: c.id,
+                before: { title: c.title_translated || "", content: c.content_translated || "" }
+            })));
+            const snapshot = JSON.parse(snapshotStr); // Deep copy just in case
+
+            await db.transaction('rw', db.chapters, db.history, async () => {
+                let anyChange = false;
+
+                for (const chapter of chaptersToFix) {
+                    if (!chapter.content_translated) continue;
+
+                    let newContent = chapter.content_translated;
+                    let newTitle = chapter.title_translated || "";
+                    let hasChanges = false;
+
+                    // Apply all corrections
+                    for (const correction of corrections) {
+                        if (newContent.includes(correction.original)) {
+                            newContent = newContent.split(correction.original).join(correction.replacement);
+                            hasChanges = true;
+                        }
+                        if (newTitle && newTitle.includes(correction.original)) {
+                            newTitle = newTitle.split(correction.original).join(correction.replacement);
+                            hasChanges = true;
+                        }
+                    }
+
+                    if (hasChanges) {
+                        await db.chapters.update(chapter.id!, {
+                            content_translated: newContent,
+                            title_translated: newTitle,
+                            updatedAt: new Date()
+                        });
+                        updatedCount++;
+                        anyChange = true;
+                    }
+                }
+
+                if (anyChange) {
+                    // ROTATION STRATEGY: Delete ALL previous history for this workspace before adding new one.
+                    // This ensures we only keep the LATEST snapshot (Single Undo).
+                    await db.history.where("workspaceId").equals(workspaceId).delete();
+
+                    // Save New History
+                    await db.history.add({
+                        workspaceId,
+                        actionType: 'batch_correction',
+                        summary: `Áp dụng cải chính (${updatedCount} chương)`,
+                        timestamp: new Date(),
+                        affectedCount: updatedCount,
+                        snapshot: snapshot // Store PREVIOUS state
+                    });
+                }
+            });
+
+            if (updatedCount > 0) {
+                toast.success(`Đã cập nhật ${updatedCount} chương!`, {
+                    id: "applying-corrections",
+                    action: {
+                        label: "Lịch sử / Undo",
+                        onClick: () => setHistoryOpen(true)
+                    }
+                });
+            } else {
+                toast.info("Không có thay đổi nào cần áp dụng.", { id: "applying-corrections" });
+            }
+
+        } catch (error: any) {
+            console.error("Apply corrections error:", error);
+            toast.error("Lỗi khi áp dụng cải chính: " + error.message, { id: "applying-corrections" });
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -233,7 +321,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 open={translateDialogOpen}
                 onOpenChange={setTranslateDialogOpen}
                 selectedCount={selectedChapters.length}
-                onStart={(config, settings) => {
+                onStart={(config: { customPrompt: string; autoExtract: boolean; maxConcurrency: number }, settings: TranslationSettings) => {
                     setTranslateDialogOpen(false);
                     onTranslate({
                         workspaceId,
@@ -290,10 +378,19 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         selectedChapters={selectedChapters}
                         setSelectedChapters={setSelectedChapters}
                         toggleSelect={toggleSingleSelection}
-                        toggleSelectAll={() => toggleSelectAll(filtered.map(c => c.id!))}
+
+                        onSelectPage={() => {
+                            // Union current page IDs with existing selection
+                            const pageIds = currentChapters.map(c => c.id!);
+                            const newSet = new Set([...selectedChapters, ...pageIds]);
+                            setSelectedChapters(Array.from(newSet));
+                        }}
+                        onSelectGlobal={() => setSelectedChapters(filtered.map(c => c.id!))}
+                        onDeselectAll={() => setSelectedChapters([])}
+
                         onRead={setReadingChapterId}
                         onInspect={handleInspect}
-                        allChapterIds={filtered.map(c => c.id!)}
+                        onApplyCorrections={handleApplyCorrections}
                     />
                 )}
             </ErrorBoundary>
@@ -329,6 +426,12 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     }}
                 />
             )}
+
+            <HistoryDialog
+                workspaceId={workspaceId}
+                open={historyOpen}
+                onOpenChange={setHistoryOpen}
+            />
         </div>
     );
 }

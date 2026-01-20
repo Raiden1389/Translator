@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReviewDialog } from "./ReviewDialog";
 import { DictionaryView } from "./dictionary/tabs/DictionaryView";
 import { BlacklistView } from "./dictionary/tabs/BlacklistView";
-import { CorrectionsView } from "./dictionary/tabs/CorrectionsView";
 import { useDictionary } from "./dictionary/hooks/useDictionary";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 
@@ -25,10 +24,9 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
         <div className="h-full flex flex-col">
             <ErrorBoundary name="DictionaryTab">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                    <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+                    <TabsList className="grid w-full grid-cols-2 bg-muted/50">
                         <TabsTrigger value="dictionary">Từ điển</TabsTrigger>
                         <TabsTrigger value="blacklist">Blacklist</TabsTrigger>
-                        <TabsTrigger value="corrections">Chỉnh sửa</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="dictionary" className="flex-1 mt-6">
@@ -37,10 +35,6 @@ export function DictionaryTab({ workspaceId }: { workspaceId: string }) {
 
                     <TabsContent value="blacklist" className="flex-1 mt-6">
                         <BlacklistView workspaceId={workspaceId} />
-                    </TabsContent>
-
-                    <TabsContent value="corrections" className="flex-1 mt-6">
-                        <CorrectionsView workspaceId={workspaceId} />
                     </TabsContent>
                 </Tabs>
 

@@ -276,14 +276,14 @@ export const OverviewTab = ({ workspace }: { workspace: any }) => {
                                 <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest flex items-center gap-2 group-focus-within:text-primary transition-colors">
                                     <Database className="w-3 h-3" /> Thể Loại
                                 </label>
-                                <input
-                                    className="bg-transparent text-foreground text-base w-full border-b border-border focus:border-primary focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all"
+                                <AutoResizeTextarea
+                                    className="bg-transparent text-foreground text-base w-full border-b border-border focus:border-primary focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all min-h-[40px] resize-none"
                                     defaultValue={workspace.genre?.normalize('NFC')}
                                     placeholder="Chưa phân loại"
-                                    onBlur={(e) => {
-                                        const val = e.target.value.normalize('NFC');
-                                        if (val !== workspace.genre) {
-                                            db.workspaces.update(workspace.id, { genre: val });
+                                    onSave={(val) => {
+                                        const normalized = val.normalize('NFC');
+                                        if (normalized !== workspace.genre) {
+                                            db.workspaces.update(workspace.id, { genre: normalized });
                                         }
                                     }}
                                 />

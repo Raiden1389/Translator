@@ -31,6 +31,7 @@ export interface Chapter {
     glossaryExtractedAt?: Date; // Added: Track when glossary was extracted
     translationModel?: string; // e.g. "gemini-1.5-pro"
     translationDurationMs?: number; // e.g. 5000
+    updatedAt?: Date;
 }
 
 export interface DictionaryEntry {
@@ -79,7 +80,8 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     corrections: EntityTable<CorrectionEntry, 'id'>;
     prompts: EntityTable<PromptEntry, 'id'>;
     ttsCache: EntityTable<TTSCacheEntry, 'id'>;
-    apiUsage: EntityTable<APIUsageEntry, 'model'>; // Added
+    apiUsage: EntityTable<APIUsageEntry, 'model'>;
+    history: EntityTable<HistoryEntry, 'id'>; // Added
 };
 
 // Define Schema
@@ -191,6 +193,25 @@ db.version(18).stores({
     workspaces: 'id, title, updatedAt',
     chapters: '++id, workspaceId, order, updatedAt, [workspaceId+order]'
 });
+
+// V19: Add History table for Persistent Undo
+db.version(19).stores({
+    history: '++id, workspaceId, timestamp'
+});
+
+export interface HistoryEntry {
+    id?: number;
+    workspaceId: string;
+    actionType: 'batch_correction' | 'other';
+    summary: string;
+    timestamp: Date;
+    affectedCount: number;
+    snapshot: {
+        chapterId: number;
+        before: { title: string; content: string };
+        after?: { title: string; content: string }; // Optional, for Redo if needed
+    }[];
+}
 
 // Tauri Hook: Sync to local files on change
 if (typeof window !== 'undefined' && (window as any).__TAURI__) {

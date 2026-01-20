@@ -55,37 +55,25 @@
 
 :root {
   color-scheme: light;
-
-  /* Modern Light Palette (Snow & Silver) */
   --background: oklch(0.98 0.005 240);
   --foreground: oklch(0.25 0.02 240);
-
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.25 0.02 240);
-
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.25 0.02 240);
-
   --primary: oklch(0.60 0.18 260);
   --primary-foreground: oklch(0.98 0.005 240);
-
   --secondary: oklch(0.93 0.01 240);
   --secondary-foreground: oklch(0.25 0.02 240);
-
   --muted: oklch(0.93 0.01 240);
   --muted-foreground: oklch(0.55 0.02 240);
-
   --accent: oklch(0.93 0.01 240);
   --accent-foreground: oklch(0.25 0.02 240);
-
   --destructive: oklch(0.60 0.18 25);
   --destructive-foreground: oklch(0.98 0.005 240);
-
   --border: oklch(0.88 0.01 240);
   --input: oklch(0.88 0.01 240);
   --ring: oklch(0.60 0.18 260);
-
-  /* Sidebar Tokens */
   --sidebar: oklch(0.96 0.005 240);
   --sidebar-foreground: oklch(0.25 0.02 240);
   --sidebar-primary: oklch(0.60 0.18 260);

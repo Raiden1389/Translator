@@ -44,7 +44,6 @@ export const ChapterRow = React.memo(function ChapterRow({
             onMouseEnter={() => onMouseEnter(chapter.id!)}
             onContextMenu={(e) => {
                 e.preventDefault();
-                toggleSelect(chapter.id!);
             }}
             onClick={(e) => {
                 const target = e.target as HTMLElement;

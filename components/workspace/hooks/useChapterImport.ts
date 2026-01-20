@@ -51,6 +51,30 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
                 }
 
                 await db.chapters.bulkAdd(chaptersToAdd);
+
+                // Extract and save cover image if available
+                try {
+                    const coverUrl = await book.coverUrl();
+                    if (coverUrl) {
+                        const response = await fetch(coverUrl);
+                        const blob = await response.blob();
+                        const reader = new FileReader();
+                        reader.onloadend = async () => {
+                            if (typeof reader.result === 'string') {
+                                await db.workspaces.update(workspaceId, {
+                                    cover: reader.result,
+                                    updatedAt: new Date()
+                                });
+                                toast.success("Đã cập nhật ảnh bìa từ EPUB!");
+                            }
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                } catch (coverErr) {
+                    console.error("Failed to extract cover:", coverErr);
+                    // Non-critical, ignore
+                }
+
                 toast.success(`Đã nhập ${chaptersToAdd.length} chương thành công!`);
             } else if (file.name.endsWith(".txt")) {
                 const text = await file.text();
