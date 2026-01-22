@@ -32,15 +32,15 @@ interface ChapterCardProps {
 const statusConfig = {
     draft: {
         label: "Chưa dịch",
-        className: "bg-slate-100 text-slate-600 border-slate-200"
+        className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 raiden-mode:bg-[#a0a0a01a] raiden-mode:text-[#a0a0a0] raiden-mode:border-[#a0a0a033]"
     },
     translated: {
         label: "Đã dịch",
-        className: "bg-emerald-50 text-emerald-700 border-emerald-200"
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 raiden-mode:bg-[#00ff991a] raiden-mode:text-[#00ff99] raiden-mode:border-[#00ff9933]"
     },
     reviewing: {
         label: "Đang soi",
-        className: "bg-amber-50 text-amber-700 border-amber-200"
+        className: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033]"
     }
 };
 
@@ -133,7 +133,7 @@ export const ChapterCard = React.memo(function ChapterCard({
                     size="sm"
                     variant="ghost"
                     onClick={onTranslate}
-                    className="h-6 text-[10px] px-2 text-primary hover:text-primary-foreground hover:bg-primary/90"
+                    className="h-6 text-[10px] px-2 text-primary hover:text-primary-foreground hover:bg-primary/90 raiden-mode:hover:bg-primary raiden-mode:hover:text-black"
                 >
                     <Zap className="mr-1 h-3 w-3" />
                     Dịch
@@ -142,7 +142,7 @@ export const ChapterCard = React.memo(function ChapterCard({
                     size="sm"
                     variant="ghost"
                     onClick={onInspect}
-                    className="h-6 text-[10px] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                    className="h-6 text-[10px] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-500/10 raiden-mode:text-[#ffcc00] raiden-mode:hover:bg-[#ffcc00] raiden-mode:hover:text-black"
                 >
                     <ShieldCheck className="mr-1 h-3 w-3" />
                     Soi lỗi
@@ -151,7 +151,7 @@ export const ChapterCard = React.memo(function ChapterCard({
                     size="sm"
                     variant="ghost"
                     onClick={onDelete}
-                    className="h-6 text-[10px] px-2 text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                    className="h-6 text-[10px] px-2 text-destructive hover:text-destructive-foreground hover:bg-destructive raiden-mode:hover:bg-destructive raiden-mode:hover:text-white"
                 >
                     <Trash2 className="mr-1 h-3 w-3" />
                     Xóa

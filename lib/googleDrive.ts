@@ -63,7 +63,8 @@ export class GoogleDriveService {
 
         // 1. Start local server in Rust
         const port = await invoke<number>("start_auth_server");
-        const redirectUri = `http://127.0.0.1:${port}`;
+        // Use localhost if port 3000 (standard Web App), else 127.0.0.1 (Loopback/Desktop)
+        const redirectUri = port === 3000 ? `http://localhost:3000` : `http://127.0.0.1:${port}`;
 
         // 2. Construct OAuth URL
         const scope = encodeURIComponent("https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/userinfo.email");

@@ -86,7 +86,7 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
-                    if (/(Chương|Chapter|Tiết|Quyển|Episode)\s+\d+/i.test(line)) {
+                    if (/^\s*(Chương|Chapter|Tiết|Quyển|Episode)\s+\d+/i.test(line)) {
                         if (currentContent.length > 0) {
                             const contentStr = currentContent.join("\n").trim();
                             chaptersToAdd.push({

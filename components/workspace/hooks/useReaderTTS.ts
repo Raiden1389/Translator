@@ -1,158 +1,128 @@
+"use client";
+
 import { useState, useRef, useEffect, useMemo } from "react";
+import { toast } from "sonner";
+import { speak, prefetchTTS } from "@/lib/tts";
+import { ReaderConfig } from "../ReaderHeader";
 import { splitIntoParagraphs } from "../utils/readerFormatting";
-import { prefetchTTS } from "@/lib/tts";
 
-/**
- * Custom hook for managing TTS (Text-to-Speech) playback
- */
-export function useReaderTTS(
-    chapterId: number,
-    contentTranslated: string | undefined,
-    ttsVoice: string,
-    ttsPitch: number,
-    ttsRate: number
-) {
-    const [isTTSPlaying, setIsTTSPlaying] = useState(false);
-    const [isTTSLoading, setIsTTSLoading] = useState(false);
-    const [activeTTSIndex, setActiveTTSIndex] = useState<number | null>(null);
+export function useReaderTTS(chapterId: number, content: string, readerConfig: ReaderConfig) {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const audioUrlRef = useRef<string | null>(null);
 
-    const ttsSegments = useMemo(() => {
-        const text = (contentTranslated || "").normalize('NFC');
+    const segments = useMemo(() => {
+        const text = (content || "").normalize('NFC');
         return splitIntoParagraphs(text);
-    }, [contentTranslated]);
+    }, [content]);
 
-    // Warm up TTS cache for the first 3 segments
+    // Prefetch effect
     useEffect(() => {
-        if (chapterId && ttsSegments.length > 0) {
-            const pitchStr = `${ttsPitch >= 0 ? '+' : ''}${ttsPitch}Hz`;
-            const rateStr = `${ttsRate >= 0 ? '+' : ''}${ttsRate}%`;
+        if (chapterId && segments.length > 0) {
+            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
+            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
 
-            ttsSegments.slice(0, 3).forEach(seg => {
-                prefetchTTS(chapterId, seg, ttsVoice, pitchStr, rateStr);
+            segments.slice(0, 3).forEach(seg => {
+                prefetchTTS(chapterId, seg, readerConfig.ttsVoice, pitchStr, rateStr);
             });
         }
-    }, [chapterId, ttsSegments, ttsVoice, ttsPitch, ttsRate]);
+    }, [chapterId, segments, readerConfig.ttsVoice, readerConfig.ttsPitch, readerConfig.ttsRate]);
 
-    // Auto-scroll to highlighted TTS paragraph
+    // Scroll effect
     useEffect(() => {
-        if (activeTTSIndex !== null) {
-            const element = document.getElementById(`tts-para-${activeTTSIndex}`);
+        if (activeIndex !== null) {
+            const element = document.getElementById(`tts-para-${activeIndex}`);
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
-    }, [activeTTSIndex]);
+    }, [activeIndex]);
 
-    // Cleanup TTS on unmount
+    // Cleanup
     useEffect(() => {
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
             }
-            if (audioUrlRef.current) {
-                URL.revokeObjectURL(audioUrlRef.current);
-                audioUrlRef.current = null;
-            }
         };
     }, []);
 
-    const handleTTSStop = () => {
+    const stop = () => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
         }
-        setIsTTSPlaying(false);
-        setActiveTTSIndex(null);
+        setIsPlaying(false);
+        setActiveIndex(null);
     };
 
-    const handleTTSPlay = async (index: number) => {
-        if (isTTSLoading) return;
-
-        const segment = ttsSegments[index];
-        if (!segment) return;
-
-        setIsTTSLoading(true);
-        setActiveTTSIndex(index);
+    const playSegment = async (index: number) => {
+        if (index >= segments.length) {
+            stop();
+            return;
+        }
 
         try {
-            const pitchStr = `${ttsPitch >= 0 ? '+' : ''}${ttsPitch}Hz`;
-            const rateStr = `${ttsRate >= 0 ? '+' : ''}${ttsRate}%`;
+            setIsLoading(true);
+            const text = segments[index];
+            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
+            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
 
-            const response = await fetch('/api/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chapterId,
-                    text: segment,
-                    voice: ttsVoice,
-                    pitch: pitchStr,
-                    rate: rateStr
-                })
-            });
-
-            if (!response.ok) throw new Error('TTS request failed');
-
-            const audioBlob = await response.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
-
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.onended = null;
-                audioRef.current.onerror = null;
-            }
-            if (audioUrlRef.current) {
-                URL.revokeObjectURL(audioUrlRef.current);
-            }
-
+            const audioUrl = await speak(chapterId, text, readerConfig.ttsVoice, pitchStr, rateStr);
             const audio = new Audio(audioUrl);
             audioRef.current = audio;
-            audioUrlRef.current = audioUrl;
 
             audio.onended = () => {
-                if (audioUrlRef.current === audioUrl) {
-                    URL.revokeObjectURL(audioUrl);
-                    audioUrlRef.current = null;
-                }
-                if (index < ttsSegments.length - 1) {
-                    handleTTSPlay(index + 1);
-                } else {
-                    handleTTSStop();
-                }
+                const nextIndex = index + 1;
+                setActiveIndex(nextIndex);
+                playSegment(nextIndex);
             };
 
-            audio.onerror = () => {
-                console.error('Audio playback error');
-                handleTTSStop();
+            audio.onerror = (e) => {
+                console.error("Audio Error:", e);
+                setIsPlaying(false);
+                toast.error("Lỗi khi phát âm thanh!");
             };
 
             await audio.play();
-            setIsTTSPlaying(true);
+            setIsPlaying(true);
+            setIsLoading(false);
+
         } catch (error) {
-            console.error('TTS error:', error);
-            handleTTSStop();
-        } finally {
-            setIsTTSLoading(false);
+            console.error("TTS Error:", error);
+            toast.error("Lỗi tạo giọng đọc");
+            setIsLoading(false);
+            setIsPlaying(false);
         }
     };
 
-    const handleTTSToggle = () => {
-        if (isTTSPlaying) {
-            handleTTSStop();
+    const togglePlay = () => {
+        if (isPlaying && audioRef.current) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+            return;
+        }
+
+        if (activeIndex === null) {
+            setActiveIndex(0);
+            playSegment(0);
         } else {
-            handleTTSPlay(0);
+            if (audioRef.current) {
+                audioRef.current.play();
+                setIsPlaying(true);
+            } else {
+                playSegment(activeIndex);
+            }
         }
     };
 
     return {
-        isTTSPlaying,
-        isTTSLoading,
-        activeTTSIndex,
-        ttsSegments,
-        handleTTSPlay,
-        handleTTSStop,
-        handleTTSToggle,
+        isTTSPlaying: isPlaying,
+        isTTSLoading: isLoading,
+        activeTTSIndex: activeIndex,
+        toggleTTS: togglePlay,
+        stopTTS: stop
     };
 }

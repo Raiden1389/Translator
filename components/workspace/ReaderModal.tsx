@@ -1,24 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import { X, ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, FileText, Settings, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, ShieldCheck, Sparkles, AlertTriangle } from "lucide-react";
+import { db, Chapter } from "@/lib/db";
 import { inspectChapter, InspectionIssue } from "@/lib/gemini";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/types";
 import { toast } from "sonner";
 import { TextSelectionMenu } from "./TextSelectionMenu";
-import { speak, prefetchTTS, VIETNAMESE_VOICES } from "@/lib/tts";
 
 import { ReaderContextMenu } from "./ReaderContextMenu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ReaderHeader, ReaderConfig } from "./ReaderHeader";
-import { splitIntoParagraphs, formatReaderText } from "./utils/readerFormatting";
-import { ReaderProvider, useReaderContext } from "./context/ReaderContext";
+import { ReaderContent } from "./ReaderContent";
+import { ReaderDialogs } from "./ReaderDialogs";
+import { formatReaderText } from "./utils/readerFormatting";
+
+import { useReaderSettings } from "./hooks/useReaderSettings";
+import { useReaderTTS } from "./hooks/useReaderTTS";
+import { useReaderKeybinds } from "./hooks/useReaderKeybinds";
 
 interface ReaderModalProps {
     chapterId: number;
@@ -28,331 +26,151 @@ interface ReaderModalProps {
     onPrev?: () => void;
     hasPrev?: boolean;
     hasNext?: boolean;
-    workspaceChapters?: any[];
+    workspaceChapters?: Chapter[];
 }
-
-// Utility functions moved to ./utils/readerFormatting.ts
 
 export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNext }: ReaderModalProps) {
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
+
+    // UI State
     const [activeTab, setActiveTab] = useState<"translated" | "original">("translated");
     const [isParallel, setIsParallel] = useState(false);
     const [editContent, setEditContent] = useState("");
+    const [showSettings, setShowSettings] = useState(false);
 
-    // Selection Menu State
+    // Custom Hooks
+    const { readerConfig, setReaderConfig } = useReaderSettings();
+    const { isTTSPlaying, isTTSLoading, activeTTSIndex, toggleTTS, stopTTS } = useReaderTTS(chapterId, chapter?.content_translated || "", readerConfig);
+
+    const scrollViewportRef = useRef<HTMLDivElement>(null);
+    useReaderKeybinds({ onClose, onNext, onPrev, hasPrev, hasNext, scrollViewportRef });
+
+    // Selection & Menu State
     const [menuPosition, setMenuPosition] = useState<{ x: number, y: number } | null>(null);
     const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
     const [selectedText, setSelectedText] = useState("");
     const editorRef = useRef<HTMLDivElement>(null);
 
+    // Dialog States
     const [correctionOpen, setCorrectionOpen] = useState(false);
     const [correctionOriginal, setCorrectionOriginal] = useState("");
     const [correctionReplacement, setCorrectionReplacement] = useState("");
-
-    // Quick Dictionary Dialog State
     const [dictDialogOpen, setDictDialogOpen] = useState(false);
     const [dictOriginal, setDictOriginal] = useState("");
     const [dictTranslated, setDictTranslated] = useState("");
+    const [isAutoNavigating, setIsAutoNavigating] = useState(false);
 
-
-    // Reader Settings
-    const [showSettings, setShowSettings] = useState(false);
-    const [readerConfig, setReaderConfig] = useState<ReaderConfig>({
-        fontFamily: "'Bookerly', serif",
-        fontSize: 18,
-        lineHeight: 1.8,
-        textAlign: "justify",
-        textColor: "#262626",
-        backgroundColor: "#ffffff",
-        maxWidth: 800,
-        ttsPitch: 0,
-        ttsRate: 0,
-        ttsVoice: VIETNAMESE_VOICES[0].value,
-    });
-    const [configLoaded, setConfigLoaded] = useState(false);
-
-    // AI Inspector State
+    // Inspection State
     const [isInspecting, setIsInspecting] = useState(false);
     const [inspectionIssues, setInspectionIssues] = useState<InspectionIssue[]>([]);
     const [activeIssue, setActiveIssue] = useState<InspectionIssue | null>(null);
 
-    const scrollViewportRef = useRef<HTMLDivElement>(null);
-
-    // Load settings from localStorage on mount
-    useEffect(() => {
-        const savedConfig = localStorage.getItem("readerConfig");
-        if (savedConfig) {
-            try {
-                const config = JSON.parse(savedConfig);
-
-                // Migration: Reset textColor if it's too light (legacy dark mode setting)
-                // Also ensures backgroundColor exists
-                if (config.textColor && (config.textColor === "hsl(var(--foreground))" || config.textColor.startsWith("#f") || config.textColor.startsWith("#e"))) {
-                    config.textColor = "#262626";
-                }
-                if (!config.backgroundColor) {
-                    config.backgroundColor = "#ffffff";
-                }
-
-                setReaderConfig(prev => ({ ...prev, ...config }));
-            } catch (e) {
-                console.error("Failed to parse reader config", e);
-            }
-        }
-        setConfigLoaded(true);
-    }, []);
-
-    // Save settings to localStorage whenever they change (but only after initial load)
-    useEffect(() => {
-        if (configLoaded) {
-            localStorage.setItem("readerConfig", JSON.stringify(readerConfig));
-        }
-    }, [readerConfig, configLoaded]);
-
-    // TTS State
-    const [isTTSPlaying, setIsTTSPlaying] = useState(false);
-    const [isTTSLoading, setIsTTSLoading] = useState(false);
-    const [activeTTSIndex, setActiveTTSIndex] = useState<number | null>(null);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-
-    const ttsSegments = useMemo(() => {
-        const text = (chapter?.content_translated || "").normalize('NFC');
-        return splitIntoParagraphs(text);
-    }, [chapter?.content_translated]);
-
+    // Derived Logic
+    // OPTIMIZATION: We exclude chapter.content_translated from dependencies to prevent 
+    // cursor jumping when typing (which triggers DB save -> live query update).
+    // The content only updates conceptually when:
+    // 1. Chapter ID changes (Navigation)
+    // 2. Inspection issues change (User runs inspect)
+    // 3. TTS active index changes (Reading highlight)
     const htmlContent = useMemo(() => ({
         __html: formatReaderText((chapter?.content_translated || "").normalize('NFC'), inspectionIssues, activeTTSIndex)
-    }), [chapter?.content_translated, inspectionIssues, activeTTSIndex]);
+    }), [chapter?.id, inspectionIssues, activeTTSIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Sync inspection issues from DB on load
+    // Sync Edit Content
     useEffect(() => {
-        if (chapter?.inspectionResults) {
-            setInspectionIssues(chapter.inspectionResults);
+        if (chapter) {
+            // Only sync from DB to local state on chapter change to default, 
+            // or if we strictly want to support external updates (but that risks loops).
+            // For now, simple sync on mount/id change is safest.
+            setEditContent(chapter.content_translated || "");
+            setInspectionIssues(chapter.inspectionResults || []);
         }
+        return () => setInspectionIssues([]);
+    }, [chapter?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-        // Cleanup on unmount to prevent memory leaks
-        return () => {
-            setInspectionIssues([]);
-        };
-    }, [chapter]);
-
-    // Scroll to top when chapter changes
+    // Auto-Save Content
     useEffect(() => {
-        if (scrollViewportRef.current) {
-            scrollViewportRef.current.scrollTo(0, 0);
-        }
-        // Reset TTS on chapter change
-        handleTTSStop();
-    }, [chapterId]);
+        if (!chapter) return;
+        const timer = setTimeout(async () => {
+            if (editContent !== chapter.content_translated) {
+                await db.chapters.update(chapterId, { content_translated: editContent });
+            }
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [editContent, chapterId, chapter]);
 
-    // Warm up TTS cache for the first 3 segments of this chapter
+    // Reset Scroll on Chapter Change
     useEffect(() => {
-        if (chapterId && ttsSegments.length > 0) {
-            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
-            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
+        if (scrollViewportRef.current) scrollViewportRef.current.scrollTo(0, 0);
+        stopTTS();
+        setIsAutoNavigating(false);
+    }, [chapterId, stopTTS]);
 
-            ttsSegments.slice(0, 3).forEach(seg => {
-                prefetchTTS(chapterId, seg, readerConfig.ttsVoice, pitchStr, rateStr);
-            });
-        }
-    }, [chapterId, ttsSegments, readerConfig.ttsVoice, readerConfig.ttsPitch, readerConfig.ttsRate]);
+    // Handlers (Memoized for ReaderContent)
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        if (menuPosition) setMenuPosition(null);
+        if (contextMenuPosition) setContextMenuPosition(null);
 
-    // Auto-scroll to highlighted TTS paragraph
-    useEffect(() => {
-        if (activeTTSIndex !== null) {
-            const element = document.getElementById(`tts-para-${activeTTSIndex}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const target = e.currentTarget;
+        const { scrollTop, scrollHeight, clientHeight } = target;
+
+        if (scrollHeight - scrollTop - clientHeight < 50) {
+            if (hasNext && !isAutoNavigating && onNext) {
+                setIsAutoNavigating(true);
+                toast.info("Đang chuyển chương mới...", { duration: 2000 });
+                onNext();
             }
         }
-    }, [activeTTSIndex]);
+    }, [hasNext, isAutoNavigating, onNext, menuPosition, contextMenuPosition]);
 
-    // Cleanup TTS on unmount
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
+    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        if (e.deltaY < 0 && target.scrollTop <= 0) {
+            if (hasPrev && !isAutoNavigating && onPrev) {
+                setIsAutoNavigating(true);
+                toast.info("Đang về chương trước...", { duration: 1000 });
+                onPrev();
             }
-        };
-    }, []);
+        }
+    }, [hasPrev, isAutoNavigating, onPrev]);
 
-    // Keyboard Navigation
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                onClose();
-            } else if (e.key === 'ArrowLeft' && hasPrev) {
-                onPrev?.();
-            } else if (e.key === 'ArrowRight' && hasNext) {
-                onNext?.();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onClose, onPrev, onNext, hasPrev, hasNext]);
-
-    const handleTextSelection = () => {
+    const handleTextSelection = useCallback(() => {
         const selection = window.getSelection();
         if (selection && selection.toString().trim().length > 0 && editorRef.current?.contains(selection.anchorNode)) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
-            // Show menu centered above selection
-            setMenuPosition({
-                x: rect.left + rect.width / 2,
-                y: rect.top
-            });
+            setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top });
             setSelectedText(selection.toString().trim());
         } else {
             setMenuPosition(null);
             setSelectedText("");
         }
-    };
+    }, []);
 
-    // Clear selection menu when scrolling or resizing
-    useEffect(() => {
-        const handleScroll = () => {
-            if (menuPosition) setMenuPosition(null);
-            if (contextMenuPosition) setContextMenuPosition(null);
-        };
-        window.addEventListener("scroll", handleScroll, true);
-        window.addEventListener("resize", handleScroll);
-        return () => {
-            window.removeEventListener("scroll", handleScroll, true);
-            window.removeEventListener("resize", handleScroll);
-        };
-    }, [menuPosition, contextMenuPosition]);
-
-    const handleContextMenu = (e: React.MouseEvent) => {
+    const handleContextMenu = useCallback((e: React.MouseEvent) => {
         const selection = window.getSelection();
         if (selection && selection.toString().trim().length > 0) {
             e.preventDefault();
             setSelectedText(selection.toString().trim());
             setContextMenuPosition({ x: e.clientX, y: e.clientY });
-            setMenuPosition(null); // Hide standard selection menu if showing
-        } else {
+            setMenuPosition(null);
         }
-    };
+    }, []);
 
-    const handleTTSPlay = async () => {
-        if (isTTSPlaying && audioRef.current) {
-            audioRef.current.pause();
-            setIsTTSPlaying(false);
-            return;
-        }
-
-        if (activeTTSIndex === null) {
-            setActiveTTSIndex(0);
-            playSegment(0);
-        } else {
-            if (audioRef.current) {
-                audioRef.current.play();
-                setIsTTSPlaying(true);
-            } else {
-                playSegment(activeTTSIndex);
-            }
-        }
-    };
-
-    const handleTTSStop = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-        setIsTTSPlaying(false);
-        setActiveTTSIndex(null);
-    };
-
-    const playSegment = async (index: number) => {
-        if (index >= ttsSegments.length) {
-            handleTTSStop();
-            return;
-        }
-
-        // Prefetch logic for next chapter when starting current chapter
-        if (index === 0 && hasNext && chapter?.workspaceId && chapter?.order !== undefined) {
-            db.chapters
-                .where('workspaceId').equals(chapter.workspaceId)
-                .and(c => c.order > chapter.order)
-                .sortBy('order')
-                .then(list => {
-                    const next = list[0];
-                    if (next && next.content_translated) {
-                        const segments = splitIntoParagraphs(next.content_translated);
-                        if (segments.length > 0) {
-                            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
-                            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
-                            prefetchTTS(next.id, segments[0], readerConfig.ttsVoice, pitchStr, rateStr);
-                        }
-                    }
-                });
-        }
-
-        try {
-            setIsTTSLoading(true);
-            const text = ttsSegments[index];
-
-            const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
-            const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
-
-            const audioUrl = await speak(chapterId, text, readerConfig.ttsVoice, pitchStr, rateStr);
-
-            const audio = new Audio(audioUrl);
-            audioRef.current = audio;
-
-            // Trigger proactive pre-fetching for the next 2 segments
-            [index + 1, index + 2].forEach(nextIdx => {
-                if (nextIdx < ttsSegments.length) {
-                    prefetchTTS(chapterId, ttsSegments[nextIdx], readerConfig.ttsVoice, pitchStr, rateStr);
-                }
-            });
-
-            audio.onended = () => {
-                const nextIndex = index + 1;
-                setActiveTTSIndex(nextIndex);
-                playSegment(nextIndex);
-            };
-
-            audio.onerror = (e) => {
-                console.error("Audio Error:", e);
-                setIsTTSPlaying(false);
-                toast.error("Lỗi khi phát âm thanh!");
-            };
-
-            await audio.play();
-            setIsTTSPlaying(true);
-            setIsTTSLoading(false);
-
-        } catch (error) {
-            console.error("TTS Error:", error);
-            toast.error("Lỗi tạo giọng đọc");
-            setIsTTSLoading(false);
-            setIsTTSPlaying(false);
-        }
-    };
-
+    // Menu Actions
     const handleMenuAction = async (action: "dictionary" | "blacklist" | "correction" | "copy") => {
         if (!selectedText || !chapter) return;
-
         if (action === "copy") {
             navigator.clipboard.writeText(selectedText);
-            toast.success("Đã sao chép!", { duration: 4000 });
+            toast.success("Đã sao chép!");
             setContextMenuPosition(null);
             setMenuPosition(null);
             return;
         }
-
-
-
         if (action === "dictionary") {
-            // Quick add to dictionary - Open Dialog instead of instant save
             setDictOriginal(selectedText);
-            setDictTranslated(selectedText); // Default to selected text
+            setDictTranslated(selectedText);
             setDictDialogOpen(true);
-            setMenuPosition(null);
-            setContextMenuPosition(null);
-
         } else if (action === "blacklist") {
             if (!chapter.workspaceId) return;
             const existing = await db.blacklist.where({ word: selectedText, workspaceId: chapter.workspaceId }).first();
@@ -364,86 +182,55 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     source: 'manual',
                     createdAt: new Date()
                 });
-                toast.success(`Đã thêm "${selectedText}" vào Blacklist`, { duration: 8000 });
+                toast.success(`Đã thêm vào Blacklist`);
             }
-            setMenuPosition(null);
-            setContextMenuPosition(null);
         } else if (action === "correction") {
             setCorrectionOriginal(selectedText);
-            setCorrectionReplacement(selectedText); // Pre-fill with original
+            setCorrectionReplacement(selectedText);
             setCorrectionOpen(true);
-            setMenuPosition(null);
-            setContextMenuPosition(null);
         }
+        setMenuPosition(null);
+        setContextMenuPosition(null);
     };
 
+    // Dialog Handlers
     const handleSaveCorrection = async () => {
         if (!correctionOriginal || !correctionReplacement || !chapter) return;
-
-        // 1. Save to DB
         await db.corrections.add({
             workspaceId: chapter.workspaceId,
             original: correctionOriginal,
             replacement: correctionReplacement,
             createdAt: new Date()
         });
-
-        // 2. Apply to current text immediately
-        if (editContent) {
-            // Simple replace all occurrences
-            // Note: This operates on the RAW text (editContent), not the HTML.
-            // Since editContent is kept in sync via onInput logic (innerText), we have the plain text.
-            // But wait, the editor is uncontrolled now with dangerouslySetInnerHTML.
-            // 'editContent' state might be stale if we relied on contentEditable's onInput?
-            // Yes, onInput={(e) => setEditContent(e.currentTarget.innerText)} updates it.
-            // But updating 'editContent' state WON'T re-render the uncontrolled div unless key changes or we manually manipulate DOM.
-            // Since we key={chapter.id}, updating 'editContent' *state* doesn't force re-render of innerHTML if we don't pass it back.
-            // Actually, we ONLY pass `dangerouslySetInnerHTML` on mount (key change).
-            // So we must manually update the DOM content.
-
-            const newText = editContent.split(correctionOriginal).join(correctionReplacement);
-
-            // Update DB chapter immediately (for persistence)
-            await db.chapters.update(chapterId, { content_translated: newText });
-
-            // Update State
-            setEditContent(newText);
-
-            // Force re-render of content by manipulating DOM directly or triggering a "soft" reload?
-            // Or just let the auto-save logic handle it?
-            // The contentEditable div is showing `formatReaderText(chapter.content_translated)`. 
-            // If we update chapter in DB, `useLiveQuery` will trigger a re-render!
-            // `chapter` prop will update.
-            // `key={chapter.id}` won't change, so component re-uses.
-            // But `dangerouslySetInnerHTML` is a prop. Does React update it if it changes?
-            // Yes, React reconciles changes to dangerouslySetInnerHTML.
-            // So if `chapter.content_translated` updates in DB -> `chapter` object updates -> component re-renders -> `dangerouslySetInnerHTML` gets new HTML.
-            // Validated.
-        }
-
-        toast.success("Đã lưu quy tắc sửa lỗi và áp dụng!", { duration: 8000 });
+        const newText = editContent.split(correctionOriginal).join(correctionReplacement);
+        await db.chapters.update(chapterId, { content_translated: newText });
+        setEditContent(newText);
+        toast.success("Đã lưu quy tắc sửa lỗi!");
         setCorrectionOpen(false);
     };
 
-    // Sync content when chapter changes
-    useEffect(() => {
-        if (chapter) {
-            setEditContent(chapter.content_translated || "");
-        }
-    }, [chapter]);
-
-    // Auto-save debounced
-    useEffect(() => {
-        if (!chapter) return;
-        const timer = setTimeout(async () => {
-            if (editContent !== chapter.content_translated) {
-                await db.chapters.update(chapterId, { content_translated: editContent });
+    const handleSaveDictionary = async () => {
+        if (!dictOriginal || !dictTranslated || !chapter?.workspaceId) return;
+        const existing = await db.dictionary.where({ original: dictOriginal, workspaceId: chapter.workspaceId }).first();
+        if (!existing) {
+            await db.dictionary.add({
+                workspaceId: chapter.workspaceId,
+                original: dictOriginal,
+                translated: dictTranslated,
+                type: 'general',
+                createdAt: new Date()
+            });
+            toast.success("Đã thêm từ mới");
+        } else {
+            if (confirm(`"${dictOriginal}" đã có. Cập nhật nghĩa không?`)) {
+                await db.dictionary.update(existing.id!, { translated: dictTranslated });
+                toast.success("Đã cập nhật từ điển");
             }
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [editContent, chapterId]);
+        }
+        setDictDialogOpen(false);
+    };
 
-    // Inspector Logic
+    // Inspection
     const handleInspect = async () => {
         if (!editContent || isInspecting || !chapter) return;
         setIsInspecting(true);
@@ -451,10 +238,10 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             const issues = await inspectChapter(chapter.workspaceId, editContent);
             setInspectionIssues(issues);
             await db.chapters.update(chapterId, { inspectionResults: issues });
-            if (issues.length === 0) toast.success("Không tìm thấy lỗi nào!", { duration: 6000 });
-            else toast.warning(`Tìm thấy ${issues.length} vấn đề cần xem xét.`);
+            if (issues.length === 0) toast.success("Không tìm thấy lỗi nào!");
+            else toast.warning(`Tìm thấy ${issues.length} vấn đề.`);
         } catch (error) {
-            toast.error("Lỗi khi kiểm tra: " + (error as any).message);
+            toast.error("Lỗi kiểm tra: " + getErrorMessage(error));
         } finally {
             setIsInspecting(false);
         }
@@ -462,8 +249,6 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     const handleApplyFix = async (issue: InspectionIssue, saveToCorrections: boolean) => {
         if (!editContent || !chapter) return;
-
-        // 1. Save to Corrections if requested
         if (saveToCorrections) {
             await db.corrections.add({
                 workspaceId: chapter.workspaceId,
@@ -472,47 +257,22 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                 createdAt: new Date()
             });
         }
-
-        // 2. Apply fix to content
-        // Note: Using split/join is risky for short words, but fast. 
-        // For stricter replacement, we might need regex escaped.
         const newText = editContent.split(issue.original).join(issue.suggestion);
         setEditContent(newText);
         await db.chapters.update(chapterId, { content_translated: newText });
 
-        // 3. Remove this issue from list
         const newIssues = inspectionIssues.filter(i => i.original !== issue.original);
         setInspectionIssues(newIssues);
         await db.chapters.update(chapterId, { inspectionResults: newIssues });
         setActiveIssue(null);
-        toast.success("Đã sửa lỗi!", { duration: 6000 });
-    };
-
-    const handleAutoFixAll = async (type: string) => {
-        const targetIssues = inspectionIssues.filter(i => i.type === type);
-        if (targetIssues.length === 0) return;
-
-        let newText = editContent;
-        targetIssues.forEach(issue => {
-            newText = newText.split(issue.original).join(issue.suggestion);
-        });
-
-        setEditContent(newText);
-        await db.chapters.update(chapterId, { content_translated: newText });
-
-        const remainingIssues = inspectionIssues.filter(i => i.type !== type);
-        setInspectionIssues(remainingIssues);
-        await db.chapters.update(chapterId, { inspectionResults: remainingIssues });
-        toast.success(`Đã tự động sửa ${targetIssues.length} lỗi ${type}!`);
+        toast.success("Đã sửa lỗi!");
     };
 
     if (!chapter) return null;
 
     return (
         <div className="fixed inset-x-0 bottom-0 top-[31px] z-[100] flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
-            {/* Modal Inner Window: Premium rounded-t-3xl with glass-like border */}
             <div className="w-full h-full bg-background rounded-t-[32px] overflow-hidden flex flex-col border-t border-border shadow-2xl relative">
-
                 <ReaderHeader
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
@@ -533,93 +293,36 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     onClose={onClose}
                     isTTSPlaying={isTTSPlaying}
                     isTTSLoading={isTTSLoading}
-                    handleTTSPlay={handleTTSPlay}
-                    handleTTSStop={handleTTSStop}
+                    handleTTSPlay={toggleTTS}
+                    handleTTSStop={stopTTS}
                     selectedVoice={readerConfig.ttsVoice}
-                    setSelectedVoice={(voice) => setReaderConfig({ ...readerConfig, ttsVoice: voice })}
+                    setSelectedVoice={(voice) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsVoice: voice }))}
                     ttsPitch={readerConfig.ttsPitch}
-                    setTtsPitch={(pitch) => setReaderConfig({ ...readerConfig, ttsPitch: pitch })}
+                    setTtsPitch={(pitch) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsPitch: pitch }))}
                     ttsRate={readerConfig.ttsRate}
-                    setTtsRate={(rate) => setReaderConfig({ ...readerConfig, ttsRate: rate })}
+                    setTtsRate={(rate) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsRate: rate }))}
                 />
 
-                {/* Body Content */}
-                <div className="flex-1 overflow-hidden relative flex">
-
-                    {/* Main Content Area */}
-                    <div
-                        ref={scrollViewportRef}
-                        className={cn("flex-1 h-full overflow-y-auto custom-scrollbar p-0", isParallel && "grid grid-cols-2 divide-x divide-border")}
-                        style={{ backgroundColor: readerConfig.backgroundColor }}
-                    >
-
-                        {/* Column 1: Based on Active Tab or Always Original in Parallel */}
-                        {(activeTab === 'original' || isParallel) && (
-                            <div className="min-h-full p-8 md:p-12 pb-20">
-                                {isParallel && <div className="mb-4 text-xs font-bold text-muted-foreground/30 uppercase tracking-widest sticky top-0">Original Source</div>}
-                                <div className="text-lg leading-loose text-foreground/80 font-serif whitespace-pre-wrap">
-                                    {chapter.content_original}
-                                </div>
-                            </div>
-                        )}
-
-                        {(activeTab === 'translated' || isParallel) && (
-                            <div className="min-h-full flex flex-col relative" style={{ backgroundColor: readerConfig.backgroundColor }}>
-                                {isParallel && <div className="px-8 md:px-12 pt-8 text-xs font-black text-primary/50 uppercase tracking-[0.2em] shrink-0">Translation</div>}
-
-                                <div className={cn(
-                                    "font-bold text-4xl text-primary font-serif mb-12 text-center",
-                                    "max-w-[800px] mx-auto px-6",
-                                    "drop-shadow-sm", // Clean light shadow
-                                    isParallel ? "pt-6" : "pt-16 md:pt-24"
-                                )}
-                                    style={{
-                                        fontFamily: readerConfig.fontFamily,
-                                        maxWidth: isParallel ? "none" : `${readerConfig.maxWidth}px`
-                                    }}
-                                >
-                                    {(chapter.title_translated || chapter.title).normalize('NFC')}
-                                </div>
-
-                                <div
-                                    key={chapter.id}
-                                    contentEditable
-                                    suppressContentEditableWarning
-                                    onInput={(e) => setEditContent(e.currentTarget.innerText)}
-                                    onSelect={handleTextSelection}
-                                    onContextMenu={handleContextMenu}
-                                    className={cn(
-                                        "w-full h-full flex-1 bg-transparent focus:outline-none outline-none",
-                                        "max-w-[800px] mx-auto px-8 pb-32 transition-colors duration-500"
-                                    )}
-                                    style={{
-                                        fontFamily: readerConfig.fontFamily,
-                                        fontSize: `${readerConfig.fontSize}px`,
-                                        lineHeight: readerConfig.lineHeight,
-                                        textAlign: readerConfig.textAlign,
-                                        color: readerConfig.textColor,
-                                        maxWidth: isParallel ? "none" : `${readerConfig.maxWidth}px`
-                                    }}
-                                    spellCheck={false}
-                                    ref={editorRef}
-                                    onClick={(e) => {
-                                        const target = e.target as HTMLElement;
-                                        const issueOriginal = target.getAttribute('data-issue-original');
-                                        if (issueOriginal) {
-                                            const issue = inspectionIssues.find(i => i.original === issueOriginal);
-                                            if (issue) setActiveIssue(issue);
-                                        }
-                                    }}
-                                    dangerouslySetInnerHTML={htmlContent}
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                </div>
+                <ReaderContent
+                    key={chapter.id}
+                    activeTab={activeTab}
+                    isParallel={isParallel}
+                    readerConfig={readerConfig}
+                    chapter={chapter}
+                    inspectionIssues={inspectionIssues}
+                    activeTTSIndex={activeTTSIndex}
+                    htmlContent={htmlContent}
+                    setEditContent={setEditContent}
+                    handleTextSelection={handleTextSelection}
+                    handleContextMenu={handleContextMenu}
+                    setActiveIssue={setActiveIssue}
+                    scrollViewportRef={scrollViewportRef}
+                    editorRef={editorRef}
+                    handleScroll={handleScroll}
+                    handleWheel={handleWheel}
+                />
             </div>
 
-            {/* Extras */}
             <TextSelectionMenu
                 position={menuPosition}
                 selectedText={selectedText}
@@ -634,147 +337,26 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                 onClose={() => setContextMenuPosition(null)}
             />
 
-            <Dialog open={correctionOpen} onOpenChange={setCorrectionOpen}>
-                <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle>Sửa lỗi & Tự động thay thế</DialogTitle>
-                        <DialogDescription className="text-muted-foreground/60">
-                            Quy tắc này sẽ được lưu lại để dùng cho tính năng sửa lỗi tự động sau này.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Từ sai (Đang chọn)</Label>
-                            <Input value={correctionOriginal} disabled className="bg-muted border-border" />
-                        </div>
-                        <div className="flex justify-center text-muted-foreground/20">⬇</div>
-                        <div className="space-y-2">
-                            <Label>Từ đúng (Thay thế)</Label>
-                            <Input
-                                value={correctionReplacement}
-                                onChange={(e) => setCorrectionReplacement(e.target.value)}
-                                className="bg-background border-border"
-                                autoFocus
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setCorrectionOpen(false)}>Hủy</Button>
-                        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleSaveCorrection}>Lưu & Áp dụng</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <ReaderDialogs
+                correctionOpen={correctionOpen}
+                setCorrectionOpen={setCorrectionOpen}
+                correctionOriginal={correctionOriginal}
+                correctionReplacement={correctionReplacement}
+                setCorrectionReplacement={setCorrectionReplacement}
+                handleSaveCorrection={handleSaveCorrection}
 
-            <Dialog open={dictDialogOpen} onOpenChange={setDictDialogOpen}>
-                <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-primary" />
-                            Thêm vào Từ điển
-                        </DialogTitle>
-                        <DialogDescription className="text-muted-foreground/60">
-                            Thêm từ mới để AI dịch chuẩn hơn trong tương lai.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Từ gốc (Trung/Việt)</Label>
-                            <Input
-                                value={dictOriginal}
-                                onChange={(e) => setDictOriginal(e.target.value)}
-                                className="bg-background border-border"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Nghĩa (Dịch)</Label>
-                            <Input
-                                value={dictTranslated}
-                                onChange={(e) => setDictTranslated(e.target.value)}
-                                className="bg-background border-border"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setDictDialogOpen(false)}>Hủy</Button>
-                        <Button
-                            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                            onClick={async () => {
-                                if (!dictOriginal || !dictTranslated || !chapter.workspaceId) return;
-                                const existing = await db.dictionary.where({ original: dictOriginal, workspaceId: chapter.workspaceId }).first();
-                                if (!existing) {
-                                    await db.dictionary.add({
-                                        workspaceId: chapter.workspaceId,
-                                        original: dictOriginal,
-                                        translated: dictTranslated,
-                                        type: 'general',
-                                        createdAt: new Date()
-                                    });
-                                    toast.success(`Đã thêm "${dictOriginal}" = "${dictTranslated}"`);
-                                } else {
-                                    // Update existing?
-                                    if (confirm(`"${dictOriginal}" đã có nghĩa là "${existing.translated}". Bạn có muốn cập nhật thành "${dictTranslated}" không?`)) {
-                                        await db.dictionary.update(existing.id!, { translated: dictTranslated });
-                                        toast.success("Đã cập nhật từ điển!");
-                                    }
-                                }
-                                setDictDialogOpen(false);
-                            }}
-                        >
-                            Lưu từ
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                dictDialogOpen={dictDialogOpen}
+                setDictDialogOpen={setDictDialogOpen}
+                dictOriginal={dictOriginal}
+                setDictOriginal={setDictOriginal}
+                dictTranslated={dictTranslated}
+                setDictTranslated={setDictTranslated}
+                handleSaveDictionary={handleSaveDictionary}
 
-
-            <Dialog open={!!activeIssue} onOpenChange={(v) => !v && setActiveIssue(null)}>
-                <DialogContent className="bg-popover border-border text-popover-foreground sm:max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-primary">
-                            <AlertTriangle className="w-5 h-5 text-amber-500" />
-                            Phát hiện vấn đề
-                        </DialogTitle>
-                        <DialogDescription className="text-muted-foreground/60">
-                            AI phát hiện nội dung có thể cần chỉnh sửa.
-                        </DialogDescription>
-                    </DialogHeader>
-                    {activeIssue && (
-                        <div className="space-y-4 py-4">
-                            <div className="p-3 bg-red-100/50 border border-red-200 rounded-lg">
-                                <div className="text-xs text-red-600 font-bold uppercase mb-1">Nguyên văn (Lỗi)</div>
-                                <div className="text-lg font-serif text-foreground">{activeIssue.original}</div>
-                            </div>
-
-                            <div className="flex justify-center text-muted-foreground/20">⬇</div>
-
-                            <div className="p-3 bg-emerald-100/50 border border-emerald-200 rounded-lg">
-                                <div className="text-xs text-emerald-600 font-bold uppercase mb-1">Gợi ý sửa</div>
-                                <div className="text-lg font-bold text-emerald-800">{activeIssue.suggestion}</div>
-                            </div>
-
-                            <div className="text-sm text-muted-foreground italic border-l-2 border-border pl-3">
-                                "{activeIssue.reason}"
-                            </div>
-
-                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-                                <Button
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    onClick={() => handleApplyFix(activeIssue, false)}
-                                >
-                                    Sửa ngay
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    className="flex-1"
-                                    onClick={() => handleApplyFix(activeIssue, true)}
-                                >
-                                    Sửa & Lưu luật
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+                activeIssue={activeIssue}
+                setActiveIssue={setActiveIssue}
+                handleApplyFix={handleApplyFix}
+            />
         </div>
     );
 }

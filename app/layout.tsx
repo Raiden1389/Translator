@@ -38,6 +38,7 @@ import { TitleBar } from "@/components/layout/TitleBar";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Script from "next/script";
+import { RaidenProvider } from "@/components/theme/RaidenProvider";
 
 export default function RootLayout({
   children,
@@ -56,7 +57,9 @@ export default function RootLayout({
           <TitleBar />
           <main className="flex-1 overflow-hidden flex flex-col relative z-0">
             <ErrorBoundary>
-              {children}
+              <RaidenProvider>
+                {children}
+              </RaidenProvider>
             </ErrorBoundary>
           </main>
           <StatusBar />

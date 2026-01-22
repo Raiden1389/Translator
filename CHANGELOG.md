@@ -1,9 +1,42 @@
 # Changelog
 
+## [1.0.9] - 2026-01-22
+### Fixed
+- Standardized TTS command to `edge_tts_speak` across the app.
+- Fixed 404 errors when generating speech in Reader Modal by consolidating TTS logic.
+- Improved TTS error reporting and parameter validation.
+- Fixed inconsistent pitch/rate parameters between frontend and backend.
+
 All notable changes to Raiden AI Translator will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.8] - 2026-01-21
+### Fixed
+- **Dense Text Formatting**: Improved regex to split dialogues that follow special punctuation (colon, ellipsis, square brackets, dashes) more accurately.
+- **Safer Dialogue Splitting**: Now requires a whitespace before opening quotes (e.g., `. "`) to prevent splitting words like `Á!` or `ABC"` incorrectly.
+- **Translation Consistency**: Standardized logic between "Batch Translate" and "Editor Single Translate".
+
+## [1.0.7] - 2026-01-21
+### Fixed
+- **Dense Text Formatting**: Improved regex to split dialogues that follow special punctuation (colon, ellipsis, square brackets, dashes). (Reverted in 1.0.8 due to aggressive splitting).
+- **Translation Consistency**: Standardized logic between "Batch Translate" and "Editor Single Translate".
+
+## [1.0.6] - 2026-01-21
+
+### Added
+- **AI Punctuation Fix ("Solution King")**: Added a new option "Fix lỗi ngắt dòng (Văn phẩy)" in Translation Settings. When enabled, it injects a specific prompt to help AI correct Chinese-style comma usage and sentence breaks.
+- **Reader Navigation**:
+    - Added "Scroll Up to Previous Chapter": Continuing to scroll up when at the top of a chapter now navigates to the previous chapter.
+    - Added Keyboard Navigation: Up/Down arrow keys now scroll the reader content.
+
+### Fixed
+- **Chapter Parsing**: Improved regex to correctly identify "Chương X" only at the start of lines, preventing false positives mid-sentence.
+- **Text Formatting**: Implemented 4-layer text cleaning logic:
+    - Normalized spaces and newlines.
+    - Standardized punctuation (Smart quotes, Ellipsis).
+    - **Structure Repair**: Expanded "Safe Words" dictionary to accurately convert commas to periods for common sentence starters (Pronouns, Prepositions, Verbs like "Thấy", "Thở", "Vị"...).
 
 ## [1.0.5] - 2026-01-19
 

@@ -24,7 +24,8 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
     const [translateConfig, setTranslateConfig] = useState({
         customPrompt: "",
         autoExtract: false,
-        maxConcurrency: 5
+        maxConcurrency: 5,
+        fixPunctuation: false // New state
     });
     const [savedPrompts, setSavedPrompts] = useState<any[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -34,6 +35,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         const model = await db.settings.get("aiModel");
         const lastPrompt = await db.settings.get("lastCustomPrompt");
         const lastConcurrency = await db.settings.get("lastMaxConcurrency");
+        const lastFixPunctuation = await db.settings.get("lastFixPunctuation"); // Load 
         const prompts = await db.prompts.toArray();
 
         setCurrentSettings({
@@ -44,7 +46,8 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         setTranslateConfig(prev => ({
             ...prev,
             customPrompt: lastPrompt?.value || "",
-            maxConcurrency: lastConcurrency?.value || 5
+            maxConcurrency: lastConcurrency?.value || 5,
+            fixPunctuation: lastFixPunctuation?.value || false // Set
         }));
         setSavedPrompts(prompts);
     };
@@ -75,6 +78,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
     const handleStart = async () => {
         await db.settings.put({ key: "lastCustomPrompt", value: translateConfig.customPrompt });
         await db.settings.put({ key: "lastMaxConcurrency", value: translateConfig.maxConcurrency });
+        await db.settings.put({ key: "lastFixPunctuation", value: translateConfig.fixPunctuation }); // Save
         onStart(translateConfig, currentSettings);
     };
 
@@ -179,6 +183,17 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                             placeholder="Mô tả phong cách dịch, các ngôi xưng hô, văn phong kiếm hiệp/tiên hiệp..."
                             value={translateConfig.customPrompt}
                             onChange={(e) => setTranslateConfig({ ...translateConfig, customPrompt: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-bold">Fix lỗi ngắt dòng (Văn phẩy)</Label>
+                            <p className="text-[11px] text-muted-foreground font-medium">AI tự động sửa dấu phẩy thành dấu chấm khi ngắt ý</p>
+                        </div>
+                        <Switch
+                            checked={translateConfig.fixPunctuation}
+                            onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, fixPunctuation: val })}
                         />
                     </div>
 

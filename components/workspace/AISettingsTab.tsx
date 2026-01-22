@@ -293,7 +293,7 @@ export function AISettingsTab() {
                     <Label className="flex items-center gap-2 text-primary">
                         <Database className="h-4 w-4" />
                         Key Pool (Dự phòng)
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground raiden-mode:bg-primary/20 raiden-mode:text-primary raiden-mode:border raiden-mode:border-primary/40">
                             {poolKeys.split(/[\n,;]+/).filter(k => k.trim().length > 10).length} keys
                         </span>
                     </Label>
@@ -313,7 +313,7 @@ AIzaSy...`}
                             variant="secondary"
                             onClick={checkAllKeysSafe}
                             disabled={checkingKeys}
-                            className="w-full bg-muted/50 hover:bg-muted text-primary border border-primary/20"
+                            className="w-full bg-muted/50 hover:bg-muted text-primary border border-primary/20 raiden-mode:bg-primary/10 raiden-mode:hover:bg-primary raiden-mode:hover:text-black"
                         >
                             {checkingKeys ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                             Kiểm tra tình trạng toàn bộ Key
@@ -322,22 +322,22 @@ AIzaSy...`}
                         {keyStatuses.length > 0 && (
                             <div className="mt-2 space-y-1 max-h-[200px] overflow-y-auto p-2 bg-muted/30 rounded border border-border custom-scrollbar">
                                 {keyStatuses.map((k, i) => (
-                                    <div key={i} className="flex items-center justify-between text-xs px-2 py-2 rounded bg-muted/50">
+                                    <div key={i} className="flex items-center justify-between text-xs px-2 py-2 rounded bg-muted/50 raiden-mode:bg-[#0a0a0a] raiden-mode:border raiden-mode:border-white/5">
                                         <div className="flex items-center gap-2 truncate max-w-[70%]">
                                             <div className={cn("h-2 w-2 rounded-full flex-shrink-0",
                                                 k.status === 'valid' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" :
                                                     k.status === 'invalid' ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
                                                         "bg-yellow-500 animate-pulse"
                                             )} />
-                                            <span className="font-mono text-muted-foreground truncate">{k.key}</span>
+                                            <span className="font-mono text-muted-foreground truncate raiden-mode:text-foreground/70">{k.key}</span>
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                             {k.status === 'valid' ? (
-                                                <span className="text-green-400 font-mono">{k.ms}ms</span>
+                                                <span className="text-green-400 font-mono raiden-mode:text-[#00ff99]">{k.ms}ms</span>
                                             ) : k.status === 'invalid' ? (
-                                                <span className="text-red-400 text-[10px]">{k.error || "Lỗi"}</span>
+                                                <span className="text-red-400 text-[10px] raiden-mode:text-[#ff0044]">{k.error || "Lỗi"}</span>
                                             ) : (
-                                                <span className="text-amber-400">Checking...</span>
+                                                <span className="text-amber-400 raiden-mode:text-[#ffcc00]">Checking...</span>
                                             )}
                                         </div>
                                     </div>
@@ -368,7 +368,7 @@ AIzaSy...`}
                         variant="secondary"
                         onClick={fixAllWordCounts}
                         disabled={isFixingWordCount}
-                        className="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                        className="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033] raiden-mode:hover:bg-[#ffcc00] raiden-mode:hover:text-black"
                     >
                         {isFixingWordCount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
                         {isFixingWordCount ? "Đang sửa..." : "Sửa lại Word Count"}

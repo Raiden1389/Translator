@@ -114,6 +114,45 @@
   --sidebar-ring: oklch(0.70 0.15 260);
 }
 
+.raiden-mode {
+  color-scheme: dark;
+  --background: #000000;
+  /* Force pitch black background in Raiden Mode for reader area */
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #000000;
+  --popover: #0a0a0a;
+  --border: #bc13fe33;
+  --muted: #0a0a0a;
+  --muted-foreground: #a0a0a0;
+
+  /* Sidebar Overrides for Raiden Mode */
+  --sidebar: #000000;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #bc13fe;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a0b2e;
+  --sidebar-accent-foreground: #bc13fe;
+  --sidebar-border: #bc13fe33;
+  --sidebar-ring: #bc13fe;
+}
+
+
+
+.raiden-mode .raiden-border {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 10px var(--primary-foreground);
+}
+
+.raiden-mode .raiden-glow-text {
+  text-shadow: 0 0 8px var(--primary);
+}
+
+.raiden-mode .raiden-neon-line {
+  background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), transparent);
+  height: 1px;
+}
+
 @layer base {
   * {
     border-color: var(--border);

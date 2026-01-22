@@ -80,12 +80,12 @@ export function ReaderHeader({
     ttsRate,
     setTtsRate
 }: ReaderHeaderProps) {
-    if (!chapter) return null;
-
-    // TTS Local UI State
+    // Hooks must be called before early return
     const [showTTSSettings, setShowTTSSettings] = useState(false);
     const bgInputRef = useRef<HTMLInputElement>(null);
     const textInputRef = useRef<HTMLInputElement>(null);
+
+    if (!chapter) return null;
 
     return (
         <header className="h-[72px] border-b border-border bg-background flex items-center justify-between px-8 shrink-0 select-none z-[60]">
@@ -216,8 +216,8 @@ export function ReaderHeader({
                         </Button>
 
                         {showTTSSettings && (
-                            <div className="absolute top-full right-0 mt-3 w-56 bg-popover border border-border text-popover-foreground rounded-2xl shadow-xl p-4 z-[200] space-y-4 animate-in fade-in slide-in-from-top-2">
-                                <div className="text-xs text-muted-foreground/40 uppercase font-black tracking-widest">TTS Settings</div>
+                            <div className="absolute top-full right-0 mt-3 w-56 bg-popover border border-border text-popover-foreground rounded-2xl shadow-xl p-4 z-200 space-y-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="text-xs text-muted-foreground/70 uppercase font-black tracking-widest">TTS Settings</div>
                                 <div className="space-y-1">
                                     {VIETNAMESE_VOICES.map((voice) => (
                                         <button
@@ -240,14 +240,14 @@ export function ReaderHeader({
                                 <div className="h-px bg-white/5" />
                                 <div className="space-y-3 pt-1">
                                     <div className="space-y-2">
-                                        <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">
+                                        <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground/70 uppercase tracking-tighter">
                                             <span>Pitch</span>
                                             <span className="text-emerald-600">{ttsPitch > 0 ? `+${ttsPitch}` : ttsPitch}</span>
                                         </div>
                                         <input type="range" min="-20" max="20" value={ttsPitch} onChange={(e) => setTtsPitch(parseInt(e.target.value))} className="w-full h-1 bg-muted rounded-full appearance-none accent-primary" />
                                     </div>
                                     <div className="space-y-2">
-                                        <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground/40 uppercase tracking-tighter">
+                                        <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground/70 uppercase tracking-tighter">
                                             <span>Rate</span>
                                             <span className="text-emerald-600">{ttsRate > 0 ? `+${ttsRate}` : ttsRate}%</span>
                                         </div>
@@ -274,9 +274,9 @@ export function ReaderHeader({
                     </Button>
 
                     {showSettings && (
-                        <div className="absolute top-full right-0 mt-3 w-80 bg-popover border border-border text-popover-foreground rounded-2xl shadow-xl p-5 z-[200] space-y-5 animate-in fade-in slide-in-from-top-2">
+                        <div className="absolute top-full right-0 mt-3 w-80 bg-popover border border-border text-popover-foreground rounded-2xl shadow-xl p-5 z-200 space-y-5 animate-in fade-in slide-in-from-top-2">
                             <div className="flex items-center justify-between pb-1 border-b border-border/50">
-                                <div className="text-xs text-muted-foreground uppercase font-black tracking-widest">Cài đặt hiển thị</div>
+                                <div className="text-xs text-muted-foreground/80 uppercase font-black tracking-widest">Cài đặt hiển thị</div>
                                 <X className="w-4 h-4 text-muted-foreground/30 cursor-pointer hover:text-destructive" onClick={() => setShowSettings(false)} />
                             </div>
 

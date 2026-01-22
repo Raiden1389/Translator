@@ -244,6 +244,16 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
             setLogs(prev => [...prev, log]);
         };
 
+        // Fetch Custom Prompt & Punctuation Setting
+        const customPrompt = await db.settings.get("lastCustomPrompt");
+        const fixPunctuation = await db.settings.get("lastFixPunctuation");
+
+        let finalPrompt = customPrompt?.value || "";
+
+        if (fixPunctuation?.value) {
+            finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
+        }
+
         await translateChapter(
             id,
             chapter.content_original,
@@ -256,7 +266,8 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
                     wordCountTranslated: text.length,
                     status: 'translated'
                 });
-            }
+            },
+            finalPrompt
         );
 
         setIsTranslating(false);

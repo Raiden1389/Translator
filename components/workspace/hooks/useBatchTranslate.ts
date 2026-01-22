@@ -13,6 +13,7 @@ interface BatchTranslateProps {
     translateConfig: {
         customPrompt: string;
         autoExtract: boolean;
+        fixPunctuation?: boolean; // Added optional
     };
     onComplete?: () => void;
     onReviewNeeded?: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => void;
@@ -74,19 +75,25 @@ export function useBatchTranslate() {
             try {
                 // 1. Start Translation and Extraction in parallel
                 const translationPromise = new Promise<any>((resolve, reject) => {
+                    // Logic Inject Prompt "Vua"
+                    let finalPrompt = translateConfig.customPrompt || "";
+                    if (translateConfig.fixPunctuation) {
+                        finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
+                    }
+
                     translateChapter(
                         workspaceId,
                         chapter.content_original,
                         onLog,
                         (res) => resolve(res),
-                        translateConfig.customPrompt
+                        finalPrompt // Use finalPrompt instead of translateConfig.customPrompt
                     ).catch(reject);
                 });
 
-                let extractionPromise = Promise.resolve(null);
+                let extractionPromise: Promise<any> = Promise.resolve(null);
                 if (translateConfig.autoExtract) {
                     const { extractGlossary } = require("@/lib/gemini");
-                    extractionPromise = extractGlossary(chapter.content_original).catch(e => {
+                    extractionPromise = extractGlossary(chapter.content_original).catch((e: any) => {
                         console.warn("Background Extract Failed for chapter:", chapter.id, e);
                         return null;
                     });

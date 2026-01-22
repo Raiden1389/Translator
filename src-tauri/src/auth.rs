@@ -6,7 +6,11 @@ use std::io::Read;
 #[tauri::command]
 pub fn start_auth_server(app: AppHandle) -> Result<u16, String> {
     // Attempt to bind to a random free port
-    let server = Server::http("127.0.0.1:0").map_err(|e| format!("Failed to start server: {}", e))?;
+    // Attempt to bind to fixed port 3000 (for localhost:3000 redirect match), else random
+    let server = match Server::http("127.0.0.1:3000") {
+        Ok(s) => s,
+        Err(_) => Server::http("127.0.0.1:0").map_err(|e| format!("Failed to start server: {}", e))?,
+    };
     let port = server.server_addr().to_ip().unwrap().port();
 
     thread::spawn(move || {

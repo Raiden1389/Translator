@@ -70,7 +70,7 @@ export const ChapterRow = React.memo(function ChapterRow({
                     <div className="line-clamp-1 text-sm font-bold flex items-center gap-2">
                         {chapter.glossaryExtractedAt && (
                             <div
-                                className="flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded text-[10px] text-primary border border-primary/20 cursor-help"
+                                className="flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded text-[10px] text-primary border border-primary/20 cursor-help raiden-mode:bg-primary/20 raiden-mode:border-primary/40"
                                 title={`Đã trích xuất thuật ngữ: ${new Date(chapter.glossaryExtractedAt).toLocaleString()}`}
                             >
                                 <Book className="w-3 h-3" />
@@ -95,8 +95,8 @@ export const ChapterRow = React.memo(function ChapterRow({
                         className={cn(
                             "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider cursor-help",
                             chapter.status === 'translated'
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                : "bg-amber-100 text-amber-700 border-amber-200"
+                                ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 raiden-mode:bg-[#00ff991a] raiden-mode:text-[#00ff99] raiden-mode:border-[#00ff9933]"
+                                : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033]"
                         )}
                         title={chapter.status === 'translated'
                             ? `Model: ${chapter.translationModel || 'N/A'}\nTime: ${chapter.translationDurationMs ? (chapter.translationDurationMs / 1000).toFixed(1) + 's' : 'N/A'}\nDate: ${chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).toLocaleString() : 'N/A'}`

@@ -529,16 +529,20 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
                                                             const url = getManualAuthUrl();
                                                             if (url && url !== "#") {
                                                                 await open(url);
+                                                                toast.info("Sau khi đăng nhập, nếu thấy lỗi 'Connection Refused', hãy copy link trên thanh địa chỉ và dán vào bên dưới.");
                                                             } else {
                                                                 toast.error("Chưa có Client ID");
                                                             }
                                                         }}
                                                         className="text-amber-500 hover:text-amber-400 underline decoration-amber-500/50 font-medium cursor-pointer"
                                                     >
-                                                        Bấm vào đây để cấp quyền
+                                                        Bấm vào đây để lấy Token
                                                     </a> (trình duyệt sẽ mở).
                                                     <br />
-                                                    2. Sau khi đăng nhập, copy URL hoặc Access Token rồi dán vào dưới:
+                                                    <span className="opacity-70 italic block mt-1">
+                                                        * Lưu ý: Hãy thêm <b>http://localhost:3000</b> vào phần <b>Authorized redirect URIs</b> trong Google Cloud Console.
+                                                    </span>
+                                                    2. Sau khi đăng nhập (kể cả khi báo lỗi kết nối), hãy copy toàn bộ URL trên thanh địa chỉ và dán vào đây:
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <Input

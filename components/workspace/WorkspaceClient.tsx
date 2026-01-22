@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     ArrowLeft, BookOpen,
     Settings, Users, FileText,
-    Database, LayoutDashboard, Swords, Sparkles
+    Database, LayoutDashboard, Swords, Sparkles, Zap
 } from "lucide-react";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { storage } from "@/lib/storageBridge";
 import { useBatchTranslate } from "./hooks/useBatchTranslate";
 import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
+import { useRaiden } from "@/components/theme/RaidenProvider";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -57,12 +58,14 @@ export default function WorkspaceClient({ id }: { id: string }) {
     const progress = stats ? (stats.total > 0 ? (stats.translated / stats.total) * 100 : 0) : 0;
 
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState("overview");
+    const activeTab = activeTabParam || "overview";
+
     // Scan Results State (Lifted from ChapterList)
     const [reviewData, setReviewData] = useState<ReviewData | null>(null);
 
     // Batch Translate State (Lifted from ChapterList)
     const { isTranslating, batchProgress, handleBatchTranslate } = useBatchTranslate();
+    const { isRaidenMode, toggleRaidenMode } = useRaiden();
 
     const handleReviewSave = async (saveChars: GlossaryCharacter[], saveTerms: GlossaryTerm[], blacklistChars: GlossaryCharacter[], blacklistTerms: GlossaryTerm[]) => {
         // Save to Dictionary
@@ -93,17 +96,22 @@ export default function WorkspaceClient({ id }: { id: string }) {
 
     const handleDeleteWorkspace = async () => {
         try {
-            // Parallelize independent delete operations (Vercel Best Practice: Eliminate Waterfalls)
-            await Promise.all([
-                db.chapters.where("workspaceId").equals(id).delete(),
-                db.dictionary.where("workspaceId").equals(id).delete(),
-                db.blacklist.where("workspaceId").equals(id).delete(),
-                db.corrections.where("workspaceId").equals(id).delete(),
-                storage.deleteWorkspace(id)
-            ]);
+            // Transactional Integrity: Ensure all DB operations succeed together
+            await db.transaction('rw', [db.chapters, db.dictionary, db.blacklist, db.corrections, db.workspaces, db.history], async () => {
+                await Promise.all([
+                    db.chapters.where("workspaceId").equals(id).delete(),
+                    db.dictionary.where("workspaceId").equals(id).delete(),
+                    db.blacklist.where("workspaceId").equals(id).delete(),
+                    db.corrections.where("workspaceId").equals(id).delete(),
+                    db.history.where("workspaceId").equals(id).delete()
+                ]);
 
-            // Delete workspace itself last to ensure integrity until cleanup matches
-            await db.workspaces.delete(id);
+                // Delete workspace itself last in the same transaction
+                await db.workspaces.delete(id);
+            });
+
+            // External Storage (Filesystem) - Run after successful DB transaction
+            await storage.deleteWorkspace(id);
 
             toast.success("Đã xóa Workspace thành công!");
             router.push("/");
@@ -113,16 +121,12 @@ export default function WorkspaceClient({ id }: { id: string }) {
         }
     };
 
+    // Auto-cleanup hook for session history when unmounting or leaving
     useEffect(() => {
-        if (activeTabParam) {
-            setActiveTab(activeTabParam);
-        }
-
-        // Session Cleanup: Clear history when workspace is closed/unmounted
         return () => {
             db.history.where("workspaceId").equals(id).delete().catch(e => console.error("Failed to clear history", e));
         };
-    }, [activeTabParam, id]);
+    }, [id]);
 
     if (workspace === undefined) return <div className="p-10 text-center text-muted-foreground">Loading...</div>;
     if (workspace === null) return notFound();
@@ -142,7 +146,10 @@ export default function WorkspaceClient({ id }: { id: string }) {
     return (
         <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
             {/* Desktop Sidebar */}
-            <aside className="w-64 border-r border-sidebar-border bg-sidebar flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300">
+            <aside className={cn(
+                "w-64 border-r bg-sidebar flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300",
+                isRaidenMode ? "bg-[#000000] border-[#bc13fe33]" : "border-sidebar-border"
+            )}>
                 <div className="px-6 mb-6">
                     <Link href="/">
                         <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent -ml-2 gap-2 text-[10px] uppercase font-bold tracking-widest transition-colors group">
@@ -181,26 +188,38 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         return (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => {
+                                    const params = new URLSearchParams(searchParams.toString());
+                                    params.set("tab", tab.id);
+                                    router.push(`?${params.toString()}`, { scroll: false });
+                                }}
                                 className={cn(
                                     "w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all group relative",
                                     isActive
-                                        ? "text-primary"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                                        ? (isRaidenMode ? "text-[#bc13fe]" : "text-primary")
+                                        : (isRaidenMode ? "text-[#a0a0a0] hover:text-white hover:bg-[#1a0b2e]" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent")
                                 )}
                             >
                                 {isActive && (
-                                    <div className="absolute inset-0 bg-primary/5 border border-primary/20 rounded-2xl shadow-sm" />
+                                    <div className={cn(
+                                        "absolute inset-0 border rounded-2xl shadow-sm",
+                                        isRaidenMode ? "bg-[#bc13fe0d] border-[#bc13fe33]" : "bg-primary/5 border-primary/20"
+                                    )} />
                                 )}
                                 <div className={cn(
                                     "p-1.5 rounded-xl transition-all relative z-10",
-                                    isActive ? "bg-primary text-primary-foreground shadow-md" : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground"
+                                    isActive
+                                        ? (isRaidenMode ? "bg-[#bc13fe] text-white shadow-[0_0_10px_#bc13fe66]" : "bg-primary text-primary-foreground shadow-md")
+                                        : (isRaidenMode ? "bg-[#1a0b2e] text-[#a0a0a0] group-hover:bg-[#bc13fe1a] group-hover:text-white" : "bg-muted text-muted-foreground group-hover:bg-muted/80 group-hover:text-foreground")
                                 )}>
                                     <Icon className="h-3.5 w-3.5" />
                                 </div>
-                                <span className="relative z-10">{tab.label}</span>
+                                <span className={cn("relative z-10", isActive && isRaidenMode && "text-[#bc13fe]")}>{tab.label}</span>
                                 {isActive && (
-                                    <div className="ml-auto w-1 h-4 bg-primary rounded-full relative z-10" />
+                                    <div className={cn(
+                                        "ml-auto w-1 h-4 rounded-full relative z-10",
+                                        isRaidenMode ? "bg-[#bc13fe] shadow-[0_0_8px_#bc13fe]" : "bg-primary"
+                                    )} />
                                 )}
                             </button>
                         )
@@ -215,6 +234,20 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         <div className="flex flex-col">
                             <span className="text-[11px] font-black opacity-90 tracking-tight">AI Engine v3.0</span>
                         </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleRaidenMode}
+                            className={cn(
+                                "ml-auto w-8 h-8 rounded-xl transition-all duration-300",
+                                isRaidenMode
+                                    ? "bg-[#bc13fe33] text-[#bc13fe] shadow-[0_0_15px_rgba(188,19,254,0.3)]"
+                                    : "text-muted-foreground hover:text-[#bc13fe] hover:bg-[#bc13fe1a]"
+                            )}
+                            title="Toggle Raiden Mode"
+                        >
+                            <Zap className={cn("w-4 h-4", isRaidenMode && "fill-[#bc13fe] animate-pulse")} />
+                        </Button>
                     </div>
                 </div>
             </aside>

@@ -34,9 +34,10 @@ export async function generateSpeech(options: TTSOptions): Promise<Blob> {
 
     try {
         // Call Tauri command
-        const audioData = await invoke<number[]>("generate_speech", {
+        const audioData = await invoke<number[]>("edge_tts_speak", {
             text,
             voice,
+            pitch: "+0Hz", // Default pitch for generateSpeech interface
             rate
         });
 
