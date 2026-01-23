@@ -5,9 +5,11 @@
 export function normalizeVietnameseContent(text: string): string {
     if (!text) return "";
     return text
-        // 1. Normalize Brackets: 【 】 -> [ ]
+        // 1. Normalize Brackets: 【 】 ［ ］ -> [ ]
         .replace(/【/g, "[")
         .replace(/】/g, "]")
+        .replace(/［/g, "[")
+        .replace(/］/g, "]")
         // 2. Normalize Parentheses: （ ） -> ( )
         .replace(/（/g, "(")
         .replace(/）/g, ")")
@@ -44,9 +46,10 @@ export function normalizeVietnameseContent(text: string): string {
         .replace(/\](?=[^\s.,;!?\]])/g, "] ")
         .replace(/(?<=[^\s\[])\[/g, " [")
 
-        // 10. Fix double brackets (AI sometimes outputs [[text]] or ]])
-        .replace(/\[\[/g, "[")
-        .replace(/\]\]/g, "]")
+        // 10. Fix double/multiple brackets (AI sometimes outputs [[text]] or ]])
+        // Replace 2 or more [ with single [
+        .replace(/\[{2,}/g, "[")
+        .replace(/\]{2,}/g, "]")
 
         // 11. Fix double spaces (horizontal only)
         .replace(/[ \t]{2,}/g, " ")

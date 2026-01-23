@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.1.2] - 2026-01-23
+### Added
+- **Rich Dictionary Entries**: Enhanced AI Glossary Extraction to fetch meanings and context for every term and character. 
+- **Inline Meaning Editing**: Included a new "Micro-editor" for term descriptions directly in the Dictionary view. Users can now see and edit meanings in a small font below the translation to assist with fine-tuning.
+
+### Fixed
+- **UI Performance**: Fixed React rendering warnings in `EditableCell` using optimized animation frames.
+
+## [1.1.1] - 2026-01-23
+### Added
+- **Global Background Translation**: Re-engineered the translation engine to run globally via `TranslationProvider`. Translations now persist across application navigation, workspace switching, and reader usage.
+- **Persistent Translation HUD**: Moved the progress overlay to the root layout with a higher z-index (`z-200`), ensuring visibility over all UI layers including the Reader Modal.
+- **Smooth UI Updates**: Integrated `requestAnimationFrame` for progress simulation and timer state updates to prevent React render loops and ensure a smooth experience during multi-threaded background processing.
+
+### Fixed
+- **Build Stability**: Resolved Next.js Server/Client Component boundary errors encountered during production builds.
+- **Code Optimization**: Removed legacy `useBatchTranslate` hook and consolidated translation logic into a centralized provider.
+
+## [1.1.0] - 2026-01-23
+### Added
+- **UI/UX Overhaul**:
+    - **New Icon**: Updated app icon to "Raiden Theme" (Lightning/Katana aesthetic).
+    - **Header Redesign**: Compacted all header buttons and inputs to `h-8` for a cleaner, streamlined look.
+    - **Full Width Header**: Expanded header to edge-to-edge layout for better space utilization.
+    - **Translation Timestamp**: Added "Translation Time" display in Chapter Grid and Table views (e.g., "10:30 23/01").
+    - **Reader Navigation**: Improved "Continue Reading" button (Compact Mode).
+
+### Fixed
+- **JSON Parsing Logic**: Enhanced resilience against "Invalid JSON structure" errors from AI responses. Now attempts to salvage partial content or raw text if strictly valid JSON is missing.
+- **Header Layout**: Fixed duplicate padding/margin issues in ChapterListHeader.
+- **Reader Scroll**: Fixed annoying issue where reader auto-scrolled to top during reading by stabilizing TTS hooks.
+- **Normalization**: Enhanced bracket normalization to handle fullwidth brackets `【 】` and double brackets `[[ ]]`.
+
 ## [1.0.9] - 2026-01-22
 ### Fixed
 - Standardized TTS command to `edge_tts_speak` across the app.

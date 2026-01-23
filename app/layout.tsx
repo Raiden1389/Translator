@@ -37,8 +37,9 @@ import { Toaster } from "sonner";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import Script from "next/script";
 import { RaidenProvider } from "@/components/theme/RaidenProvider";
+import { TranslationProvider } from "@/components/workspace/hooks/TranslationProvider";
+import { GlobalTranslationProgress } from "@/components/layout/GlobalTranslationProgress";
 
 export default function RootLayout({
   children,
@@ -58,7 +59,10 @@ export default function RootLayout({
           <main className="flex-1 overflow-hidden flex flex-col relative z-0">
             <ErrorBoundary>
               <RaidenProvider>
-                {children}
+                <TranslationProvider>
+                  {children}
+                  <GlobalTranslationProgress />
+                </TranslationProvider>
               </RaidenProvider>
             </ErrorBoundary>
           </main>

@@ -11,9 +11,10 @@ import { extractResponseText } from "./helpers";
 export const extractGlossary = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL) => {
     return withKeyRotation(async (ai) => {
         const prompt = `Trích xuất thực thể từ văn bản truyện để làm từ điển:
-- Characters: Tên người (xác định Nam/Nữ, Vai trò).
-- Terms: Chiêu thức, địa danh, vật phẩm đặc biệt.
-- Yêu cầu: Trả về tên Hán Việt chuẩn.`;
+- Characters: Tên người (Nam/Nữ, Vai trò, giải nghĩa ngắn gọn nếu là tên hiệu/biệt danh).
+- Terms: Chiêu thức, địa danh, vật phẩm đặc biệt, vật liệu, đẳng cấp.
+- Yêu cầu: Luôn ưu tiên tên Hán Việt chuẩn. 
+- QUAN TRỌNG: Cung cấp giải nghĩa ngắn gọn (description) cho từng mục để người dùng hiểu rõ ý nghĩa/ngữ cảnh.`;
 
         const response = await ai.models.generateContent({
             model: model,
@@ -44,7 +45,8 @@ export const extractGlossary = async (text: string, onLog?: (msg: string) => voi
                                 properties: {
                                     original: { type: Type.STRING },
                                     translated: { type: Type.STRING },
-                                    type: { type: Type.STRING }
+                                    type: { type: Type.STRING },
+                                    description: { type: Type.STRING }
                                 },
                                 required: ["original", "translated"]
                             }

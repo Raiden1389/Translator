@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import { RefreshCw } from "lucide-react";
 
@@ -16,38 +18,37 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const [displayPercent, setDisplayPercent] = useState(0);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-    // Sync state when progress changes or translation starts/stops
+    // Sync displayPercent with base progress
     useEffect(() => {
-        if (!isTranslating) {
-            setDisplayPercent(0);
-            setElapsedSeconds(0);
-        } else {
-            setDisplayPercent(basePercent);
+        if (isTranslating) {
+            const frame = requestAnimationFrame(() => {
+                setDisplayPercent(prev => {
+                    if (prev < basePercent) return basePercent;
+                    return prev;
+                });
+            });
+            return () => cancelAnimationFrame(frame);
         }
-    }, [isTranslating, current, total, basePercent]);
+    }, [basePercent, isTranslating]);
 
-    // Timer for elapsed time
+    // Timer and Smooth Creep
     useEffect(() => {
         if (!isTranslating) return;
+
+        // Reset elapsed time on start
+        const frame = requestAnimationFrame(() => {
+            setElapsedSeconds(0);
+        });
 
         const timer = setInterval(() => {
             setElapsedSeconds(prev => prev + 1);
         }, 1000);
 
-        return () => clearInterval(timer);
-    }, [isTranslating]);
-
-    // Smooth creep simulation: provides a sense of "activity" during long API calls
-    useEffect(() => {
-        if (!isTranslating) return;
-
-        const interval = setInterval(() => {
+        const progressInterval = setInterval(() => {
             setDisplayPercent(prev => {
-                // Aim for slightly before the next step to keep the "jump" meaningful
                 const limit = Math.min(nextStepPercent - 0.5, 99.5);
                 if (prev < limit) {
                     const gap = limit - prev;
-                    // Decay step: fast movement initially, slowing down as it nears the limit
                     const step = Math.max(0.04, gap / 30);
                     return prev + step;
                 }
@@ -55,8 +56,11 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
             });
         }, 1000);
 
-        return () => clearInterval(interval);
-    }, [isTranslating, nextStepPercent]);
+        return () => {
+            clearInterval(timer);
+            clearInterval(progressInterval);
+        };
+    }, [isTranslating, nextStepPercent]); // Removed basePercent to avoid loops
 
     const formatTime = (seconds: number) => {
         const h = Math.floor(seconds / 3600);
@@ -74,7 +78,7 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const percent = Math.floor(displayPercent);
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-auto">
+        <div className="fixed bottom-6 right-6 z-200 animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-auto">
             <div className="bg-card border border-border p-6 rounded-3xl w-[400px] shadow-2xl space-y-6 relative overflow-hidden ring-1 ring-white/10 glass">
                 {/* Background glow effects */}
                 <div className="absolute -top-24 -left-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl"></div>

@@ -26,8 +26,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storageBridge";
-import { useBatchTranslate } from "./hooks/useBatchTranslate";
-import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
+import { useTranslation } from "./hooks/TranslationProvider";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import {
     AlertDialog,
@@ -63,8 +62,8 @@ export default function WorkspaceClient({ id }: { id: string }) {
     // Scan Results State (Lifted from ChapterList)
     const [reviewData, setReviewData] = useState<ReviewData | null>(null);
 
-    // Batch Translate State (Lifted from ChapterList)
-    const { isTranslating, batchProgress, handleBatchTranslate } = useBatchTranslate();
+    // Batch Translate State (Now from Global Provider)
+    const { startBatchTranslate } = useTranslation();
     const { isRaidenMode, toggleRaidenMode } = useRaiden();
 
     const handleReviewSave = async (saveChars: GlossaryCharacter[], saveTerms: GlossaryTerm[], blacklistChars: GlossaryCharacter[], blacklistTerms: GlossaryTerm[]) => {
@@ -270,7 +269,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                     <div className="max-w-6xl mx-auto">
                         <ErrorBoundary name="WorkspaceTabContent">
                             {activeTab === "overview" && <OverviewTab workspace={workspace} />}
-                            {activeTab === "chapters" && <ChapterList workspaceId={id} onShowScanResults={setReviewData} onTranslate={handleBatchTranslate} />}
+                            {activeTab === "chapters" && <ChapterList workspaceId={id} onShowScanResults={setReviewData} onTranslate={startBatchTranslate} />}
                             {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
                             {activeTab === "characters" && <CharacterTab workspaceId={id} />}
                             {activeTab === "corrections" && <CorrectionsView workspaceId={id} />}
@@ -325,7 +324,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                 onSave={handleReviewSave}
             />
 
-            <TranslationProgressOverlay isTranslating={isTranslating} progress={batchProgress} />
+            {/* TranslationProgressOverlay is now global in layout.tsx */}
         </div >
     );
 }

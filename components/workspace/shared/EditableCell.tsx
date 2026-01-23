@@ -7,16 +7,19 @@ interface EditableCellProps {
     initialValue: string;
     onSave: (val: string) => void;
     className?: string;
+    placeholder?: string;
 }
 
 export function EditableCell({ initialValue, onSave, className }: EditableCellProps) {
     const [value, setValue] = useState(initialValue);
 
     // Sync if external prop changes (e.g. bulk update)
-    // Don't include value in deps to avoid infinite loop
     useEffect(() => {
         if (initialValue !== value) {
-            setValue(initialValue);
+            const frame = requestAnimationFrame(() => {
+                setValue(initialValue);
+            });
+            return () => cancelAnimationFrame(frame);
         }
     }, [initialValue]); // Removed 'value' from deps
 

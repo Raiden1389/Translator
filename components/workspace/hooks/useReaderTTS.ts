@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { speak, prefetchTTS } from "@/lib/tts";
 import { ReaderConfig } from "../ReaderHeader";
@@ -49,14 +49,14 @@ export function useReaderTTS(chapterId: number, content: string, readerConfig: R
         };
     }, []);
 
-    const stop = () => {
+    const stop = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
         }
         setIsPlaying(false);
         setActiveIndex(null);
-    };
+    }, []);
 
     const playSegment = async (index: number) => {
         if (index >= segments.length) {
@@ -113,7 +113,7 @@ export function useReaderTTS(chapterId: number, content: string, readerConfig: R
                 audioRef.current.play();
                 setIsPlaying(true);
             } else {
-                playSegment(activeIndex);
+                playSegment(activeIndex!);
             }
         }
     };

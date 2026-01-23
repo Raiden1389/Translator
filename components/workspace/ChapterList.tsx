@@ -18,7 +18,6 @@ import { HistoryDialog } from "./HistoryDialog";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useChapterSelection } from "./hooks/useChapterSelection";
 import { useChapterImport } from "./hooks/useChapterImport";
-import { useBatchTranslate } from "./hooks/useBatchTranslate";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 
 import { extractGlossary, inspectChapter, InspectionIssue } from "@/lib/gemini";
@@ -314,11 +313,9 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 relative pb-10">
+            {/* TranslationProgressOverlay for imports */}
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
-
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
-
-            {/* TranslationProgressOverlay removed (lifted to WorkspaceClient) */}
 
             <TranslateConfigDialog
                 open={translateDialogOpen}

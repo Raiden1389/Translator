@@ -58,16 +58,16 @@ export const DictionaryRow = React.memo(function DictionaryRow({
             </div>
             <div className="col-span-1 text-center text-muted-foreground text-xs font-mono">{index + 1}</div>
             <div className="col-span-3 text-foreground font-serif text-lg select-all">{entry.original}</div>
-            <div className="col-span-3">
+            <div className="col-span-3 space-y-0.5">
                 <EditableCell
                     initialValue={entry.translated}
                     onSave={(val: string) => db.dictionary.update(entry.id!, { translated: val })}
                 />
-                {entry.description && (
-                    <div className="text-[10px] text-muted-foreground italic mt-1 font-sans line-clamp-1" title={entry.description}>
-                        {entry.description}
-                    </div>
-                )}
+                <EditableCell
+                    initialValue={entry.description || ""}
+                    onSave={(val: string) => db.dictionary.update(entry.id!, { description: val })}
+                    className="h-5 text-[10px] text-muted-foreground italic bg-transparent border-transparent hover:border-border focus:border-cyan-500/50 p-0 px-2 focus-visible:ring-0 font-sans line-clamp-1"
+                />
             </div>
             <div className="col-span-2">
                 <Select
