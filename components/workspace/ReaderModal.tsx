@@ -109,6 +109,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     // Handlers (Memoized for ReaderContent)
     const [isReadyToNext, setIsReadyToNext] = useState(false);
+    const [readyTimestamp, setReadyTimestamp] = useState(0);
 
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
         if (menuPosition) setMenuPosition(null);
@@ -118,22 +119,16 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         const { scrollTop, scrollHeight, clientHeight } = target;
         const distanceToBottom = scrollHeight - scrollTop - clientHeight;
 
-        // "Double Scroll" Logic
+        // "Double Scroll" Logic - Part 1: Show Toast
         if (distanceToBottom < 10) {
-            if (hasNext && !isAutoNavigating && onNext) {
-                if (!isReadyToNext) {
-                    setIsReadyToNext(true);
-                    toast("Cuộn thêm lần nữa để chuyển chương", {
-                        position: "bottom-center",
-                        duration: 1500,
-                        className: "bg-primary text-primary-foreground font-bold"
-                    });
-                } else {
-                    // Reduce sensitivity for the second confirm
-                    // User must be REALLY at the bottom
-                    setIsAutoNavigating(true);
-                    onNext();
-                }
+            if (hasNext && !isAutoNavigating && onNext && !isReadyToNext) {
+                setIsReadyToNext(true);
+                setReadyTimestamp(Date.now());
+                toast("Cuộn thêm lần nữa để chuyển chương", {
+                    position: "bottom-center",
+                    duration: 1500,
+                    className: "bg-primary text-primary-foreground font-bold"
+                });
             }
         } else if (distanceToBottom > 100) {
             // Reset if user scrolls up significantly
@@ -142,8 +137,22 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     }, [hasNext, isAutoNavigating, onNext, menuPosition, contextMenuPosition, isReadyToNext]);
 
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-        // Removed auto-prev/next on wheel
-    }, []);
+        // "Double Scroll" Logic - Part 2: Actual Navigation
+        // onScroll doesn't fire when already at bottom, so we use onWheel
+        if (e.deltaY > 0 && isReadyToNext && !isAutoNavigating && hasNext && onNext) {
+            // Prevent accidental trigger from the same initial scroll (need ~300ms gap)
+            if (Date.now() - readyTimestamp < 300) return;
+
+            const target = e.currentTarget;
+            const { scrollTop, scrollHeight, clientHeight } = target;
+            const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+
+            if (distanceToBottom < 20) {
+                setIsAutoNavigating(true);
+                onNext();
+            }
+        }
+    }, [hasNext, isAutoNavigating, onNext, isReadyToNext, readyTimestamp]);
 
     const handleTextSelection = useCallback(() => {
         const selection = window.getSelection();

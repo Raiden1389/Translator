@@ -122,7 +122,7 @@ export function finalSweep(text: string): string {
     if (!text) return "";
 
     // 1. Clean up AI chatter and standard formatting first
-    let cleaned = scrubAIChatter(normalizeVietnameseContent(text));
+    const cleaned = scrubAIChatter(normalizeVietnameseContent(text));
 
     // 2. THE ABSOLUTE FINAL SWEEP (The Broom)
     // Exactly as requested by the user: "Và KHÔNG CÓ BẤT KỲ replace nào sau dòng này"
