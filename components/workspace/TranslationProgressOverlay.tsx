@@ -31,18 +31,23 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
         }
     }, [basePercent, isTranslating]);
 
-    // Timer and Smooth Creep
+    // 1. Stable Timer Effect: only resets when isTranslating switches to true
     useEffect(() => {
-        if (!isTranslating) return;
-
-        // Reset elapsed time on start
-        const frame = requestAnimationFrame(() => {
-            setElapsedSeconds(0);
-        });
+        if (!isTranslating) {
+            requestAnimationFrame(() => setElapsedSeconds(0));
+            return;
+        }
 
         const timer = setInterval(() => {
             setElapsedSeconds(prev => prev + 1);
         }, 1000);
+
+        return () => clearInterval(timer);
+    }, [isTranslating]);
+
+    // 2. Reactive Progress Creep Effect
+    useEffect(() => {
+        if (!isTranslating) return;
 
         const progressInterval = setInterval(() => {
             setDisplayPercent(prev => {
@@ -56,12 +61,8 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
             });
         }, 1000);
 
-        return () => {
-            clearInterval(timer);
-            clearInterval(progressInterval);
-        };
-    }, [isTranslating, nextStepPercent]); // Removed basePercent to avoid loops
-
+        return () => clearInterval(progressInterval);
+    }, [isTranslating, nextStepPercent]);
     const formatTime = (seconds: number) => {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);

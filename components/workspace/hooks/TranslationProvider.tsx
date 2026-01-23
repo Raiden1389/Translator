@@ -2,9 +2,9 @@
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { db } from "@/lib/db";
-import { translateChapter } from "@/lib/gemini";
 import { toast } from "sonner";
-import { GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
+import { TranslationSettings } from "@/lib/types";
+import { translateChapter, translateWithChunking, TranslationLog, TranslationResult } from "@/lib/gemini";
 import type { Chapter } from "@/lib/db";
 
 interface BatchTranslateProps {
@@ -17,9 +17,11 @@ interface BatchTranslateProps {
         autoExtract: boolean;
         fixPunctuation?: boolean;
         maxConcurrency?: number;
+        enableChunking: boolean;
+        maxConcurrentChunks: number;
+        chunkSize?: number;
     };
     onComplete?: () => void;
-    onReviewNeeded?: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => void;
 }
 
 interface TranslationProgress {
@@ -46,8 +48,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         selectedChapters,
         currentSettings,
         translateConfig,
-        onComplete,
-        onReviewNeeded
+        onComplete
     }: BatchTranslateProps) => {
         if (isTranslating) {
             toast.error("Một tiến trình dịch khác đang chạy.");
@@ -69,97 +70,68 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         const batchStartTime = Date.now();
         setBatchProgress({ current: 0, total: chaptersToTranslate.length, currentTitle: "Khởi tạo..." });
 
-        const CONCURRENT_LIMIT = translateConfig.maxConcurrency || 5;
+        // Limit to 1-2 chapters at a time to prevent API saturation and UI lag
+        const CONCURRENT_LIMIT = Math.min(translateConfig.maxConcurrency || 2, 2);
         const activePromises: Promise<void>[] = [];
-        const allExtractedChars: GlossaryCharacter[] = [];
-        const allExtractedTerms: GlossaryTerm[] = [];
 
-        const [corrections, blacklist] = await Promise.all([
-            db.corrections.where('workspaceId').equals(workspaceId).toArray(),
-            db.blacklist.where('workspaceId').equals(workspaceId).toArray()
-        ]);
-        const blacklistSet = new Set(blacklist.map(b => b.word.toLowerCase()));
 
         const processChapter = async (chapter: Chapter) => {
             const startTime = Date.now();
-            const onLog = (log: any) => {
+            const onLog = (log: TranslationLog | string) => {
                 setBatchProgress(prev => ({ ...prev, currentTitle: typeof log === 'string' ? log : log.message }));
             };
 
             try {
-                const translationPromise = new Promise<any>((resolve, reject) => {
+                const translationPromise = new Promise<TranslationResult>((resolve, reject) => {
                     let finalPrompt = translateConfig.customPrompt || "";
                     if (translateConfig.fixPunctuation) {
                         finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
                     }
 
-                    const { translateWithChunking } = require("@/lib/gemini");
                     translateWithChunking(
                         workspaceId,
                         chapter.content_original,
                         translateChapter,
                         onLog,
-                        undefined,
+                        {
+                            maxCharsPerChunk: translateConfig.chunkSize || 800,
+                            maxConcurrent: translateConfig.maxConcurrentChunks || 3,
+                            enabled: translateConfig.enableChunking
+                        },
                         finalPrompt
                     ).then(resolve).catch(reject);
                 });
 
-                let extractionPromise: Promise<any> = Promise.resolve(null);
-                if (translateConfig.autoExtract) {
-                    const { extractGlossary } = require("@/lib/gemini");
-                    extractionPromise = extractGlossary(chapter.content_original).catch((e: any) => {
-                        console.warn("Background Extract Failed for chapter:", chapter.id, e);
-                        return null;
-                    });
-                }
-
-                const [result, extractionResult] = await Promise.all([translationPromise, extractionPromise]);
-
+                const result = await translationPromise;
                 const duration = Date.now() - startTime;
-                if (result.stats) {
-                    totalUsedTerms += result.stats.terms;
-                    totalUsedChars += result.stats.characters;
-                }
 
-                let finalTitle = result.translatedTitle || chapter.title;
+                let finalTitle = result.translatedTitle || chapter.title || "";
                 if (!result.translatedTitle && finalTitle) {
                     finalTitle = finalTitle.replace(/Chapter\s+(\d+)/i, "Chương $1")
                         .replace(/第\s*(\d+)\s*章/, "Chương $1")
                         .replace(/第\s*([0-9]+)\s*章/, "Chương $1");
                 }
 
-                let finalContent = result.translatedText;
-                if (corrections.length > 0) {
-                    for (const correction of corrections) {
-                        finalContent = finalContent.split(correction.original).join(correction.replacement);
-                        if (finalTitle) finalTitle = finalTitle.split(correction.original).join(correction.replacement);
-                    }
-                }
-
                 await db.chapters.update(chapter.id!, {
-                    content_translated: finalContent,
+                    content_translated: result.translatedText,
                     title_translated: finalTitle,
-                    wordCountTranslated: finalContent.trim().split(/\s+/).length,
+                    wordCountTranslated: result.translatedText.trim().split(/\s+/).length,
                     status: 'translated',
                     lastTranslatedAt: new Date(),
                     translationModel: currentSettings.model,
                     translationDurationMs: duration
                 });
 
-                if (extractionResult) {
-                    for (const char of extractionResult.characters) {
-                        if (blacklistSet.has(char.original.toLowerCase())) continue;
-                        allExtractedChars.push({ ...char, type: 'name' });
-                    }
-                    for (const term of extractionResult.terms) {
-                        if (blacklistSet.has(term.original.toLowerCase())) continue;
-                        allExtractedTerms.push({ ...term, type: term.category || 'other' });
-                    }
+                if (result.stats) {
+                    totalUsedTerms += result.stats.terms;
+                    totalUsedChars += result.stats.characters;
                 }
 
-            } catch (e: any) {
-                console.error(`Failed to process chapter ${chapter.id}: `, e);
-                toast.error(`Lỗi chương ${chapter.title}: ${e.message}`);
+                // Auto Extract results are no longer processed to save time and prevent UI lag
+            } catch (error: unknown) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                console.error(`Failed to process chapter ${chapter.id}: `, error);
+                toast.error(`Lỗi chương ${chapter.title}: ${errorMsg}`);
             } finally {
                 processed++;
                 setBatchProgress(prev => ({ ...prev, current: processed }));
@@ -180,28 +152,16 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             }
             await Promise.all(activePromises);
 
-            if (translateConfig.autoExtract && (allExtractedChars.length > 0 || allExtractedTerms.length > 0)) {
-                const uniqueChars = Array.from(new Map(allExtractedChars.map(item => [item.original.toLowerCase().trim(), item])).values());
-                const uniqueTerms = Array.from(new Map(allExtractedTerms.map(item => [item.original.toLowerCase().trim(), item])).values());
-                const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
-                const existingOriginals = new Set(dictionary.map(d => d.original.toLowerCase().trim()));
-
-                const finalChars = uniqueChars.filter(c => !existingOriginals.has(c.original.toLowerCase().trim()));
-                const finalTerms = uniqueTerms.filter(t => !existingOriginals.has(t.original.toLowerCase().trim()));
-
-                if (finalChars.length > 0 || finalTerms.length > 0) {
-                    onReviewNeeded?.(finalChars, finalTerms);
-                }
-            }
 
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
             toast.success(`Dịch hoàn tất ${processed} chương trong ${totalBatchTime}s`, {
                 description: `Đã áp dụng ${totalUsedChars} lượt nhân vật và ${totalUsedTerms} thuật ngữ.`,
                 duration: 5000
             });
-        } catch (fatalErr: any) {
+        } catch (fatalErr: unknown) {
+            const errorMsg = fatalErr instanceof Error ? fatalErr.message : String(fatalErr);
             console.error("Fatal error in batch translation:", fatalErr);
-            toast.error("Lỗi nghiêm trọng: " + fatalErr.message);
+            toast.error("Lỗi nghiêm trọng: " + errorMsg);
         } finally {
             setIsTranslating(false);
             setBatchProgress({ current: 0, total: 0, currentTitle: "" });

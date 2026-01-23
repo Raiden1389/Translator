@@ -1,9 +1,9 @@
-import { Type } from "@google/genai";
+import { HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { db } from "../db";
 import { DEFAULT_MODEL } from "../ai-models";
 import { TranslationResult, TranslationLog } from "./types";
 import { withKeyRotation, recordUsage } from "./client";
-import { normalizeVietnameseContent, scrubAIChatter, extractResponseText, cleanJsonResponse } from "./helpers";
+import { extractResponseText } from "./helpers";
 import { buildSystemInstruction } from "./constants";
 
 /**
@@ -17,7 +17,7 @@ export const translateChapter = async (
     customInstruction?: string
 ) => {
     const modelSetting = await db.settings.get("aiModel");
-    let aiModel = modelSetting?.value || DEFAULT_MODEL;
+    const aiModel = modelSetting?.value || DEFAULT_MODEL;
 
     // Clean text: Remove excessive whitespace to save tokens
     text = text.trim().replace(/\n\s*\n/g, '\n\n');
@@ -27,11 +27,11 @@ export const translateChapter = async (
     const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
     const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
-    // Filter glossary: Remove blacklisted, only keep terms that appear, LIMIT 50 terms
+    // Filter glossary: Remove blacklisted, only keep terms that appear, LIMIT 30 terms
     const relevantDict = dict
         .filter(d => !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original))
         .sort((a, b) => b.original.length - a.original.length)
-        .slice(0, 50);
+        .slice(0, 30);
 
     const glossaryContext = relevantDict.length > 0
         ? `\n\nTHUẬT NGỮ (ƯU TIÊN DÙNG):\n${relevantDict.map(d => `${d.original} -> ${d.translated}`).join('\n')}`
@@ -41,106 +41,80 @@ export const translateChapter = async (
     const fullInstruction = buildSystemInstruction(customInstruction, glossaryContext);
 
     try {
-        onLog({ timestamp: new Date(), message: `Đang dịch với model: ${aiModel}...`, type: 'info' });
+        console.log(`📡 [PAYLOAD] Model: ${aiModel} | Content Size: ${text.length} chars | System Instruction Size: ${fullInstruction.length} chars`);
 
         const result = await withKeyRotation(async (ai) => {
+            const start = performance.now();
             const response = await ai.models.generateContent({
                 model: aiModel.trim(),
                 contents: [{ role: 'user', parts: [{ text: text }] }],
                 config: {
                     systemInstruction: fullInstruction,
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            translatedTitle: {
-                                type: Type.STRING,
-                                description: "Tiêu đề chương dịch sang Tiếng Việt (Vietnamese Title)"
-                            },
-                            translatedText: {
-                                type: Type.STRING,
-                                description: "Nội dung chương dịch sang Tiếng Việt (Vietnamese Content). Không được chứa tiếng Anh."
-                            }
-                        },
-                        required: ["translatedTitle", "translatedText"]
-                    }
+                    temperature: 0.1,
+                    topP: 0.95,
+                    safetySettings: [
+                        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE }
+                    ]
                 }
             });
+            const duration = (performance.now() - start) / 1000;
+            console.log(`⏱️ Latency thực tế: ${duration.toFixed(2)}s`);
 
             // Track usage
             recordUsage(aiModel, response.usageMetadata);
 
-            // Extract and clean JSON
-            let jsonText = extractResponseText(response);
-            jsonText = cleanJsonResponse(jsonText);
-
-            if (!jsonText) throw new Error("Empty response from AI");
-
+            const rawText = extractResponseText(response).trim();
             let parsed: TranslationResult;
-            try {
-                parsed = JSON.parse(jsonText);
-            } catch (e) {
-                // FALLBACK: If JSON parse fails, assume the entire text is the translation
-                // but only if it doesn't look like a JSON error message or totally garbage
-                console.warn("JSON Parse Failed, falling back to raw text:", jsonText);
-                const rawText = extractResponseText(response).trim();
 
-                // If raw text is just the JSON string that failed, stripping it might help?
-                // For now, treat raw text as content, but scrub it
+            try {
+                // Try to find if there's any JSON block
+                const jsonMatched = rawText.match(/\{[\s\S]*\}/);
+                if (jsonMatched) {
+                    const raw = JSON.parse(jsonMatched[0]);
+                    parsed = {
+                        translatedTitle: raw.title || raw.translatedTitle || "",
+                        translatedText: raw.content || raw.translatedText || raw.text || ""
+                    };
+                } else {
+                    throw new Error("No JSON found");
+                }
+            } catch {
+                // FALLBACK: Treat whole text as content if JSON fails
                 parsed = {
                     translatedTitle: "",
                     translatedText: rawText
                 };
             }
 
-            if (!parsed.translatedText) {
-                // FALLBACK STRATEGY for valid JSON but wrong schema
-                // 1. Check for common alternative keys
-                const candidate = (parsed as any).text || (parsed as any).content || (parsed as any).translation || (parsed as any).response;
-                if (typeof candidate === 'string') {
-                    parsed.translatedText = candidate;
-                } else if (typeof parsed === 'string') {
-                    // 2. If the JSON itself turned out to be a string
-                    parsed = { translatedTitle: "", translatedText: parsed };
-                } else {
-                    // 3. Last resort: If we can't find the text, maybe the parsing was "too successful" on a non-JSON structure?
-                    // Actually, let's treat the original cleaned text as the content if it's long enough
-                    console.warn("JSON schema violation. Salvaging content...");
-                    const rawCleaned = cleanJsonResponse(extractResponseText(response));
-                    if (rawCleaned && rawCleaned.length > 0) {
-                        parsed.translatedText = rawCleaned;
-                    } else {
-                        throw new Error(`Invalid JSON structure: missing translatedText. Keys found: ${Object.keys(parsed).join(", ")}`);
-                    }
+            if (!parsed.translatedText || parsed.translatedText.length < 50) {
+                parsed.translatedText = rawText;
+            }
+
+            // 3. Apply Auto-Corrections (Optimized Regex Replacement)
+            const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
+            if (corrections.length > 0) {
+                const sortedCorrections = [...corrections].sort((a, b) => b.original.length - a.original.length);
+                const replacementMap = new Map(sortedCorrections.map(c => [c.original, c.replacement]));
+                const pattern = new RegExp(
+                    sortedCorrections
+                        .map(c => c.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                        .join('|'),
+                    'g'
+                );
+
+                parsed.translatedText = parsed.translatedText.replace(pattern, (match) => replacementMap.get(match) || match);
+                if (parsed.translatedTitle) {
+                    parsed.translatedTitle = parsed.translatedTitle.replace(pattern, (match) => replacementMap.get(match) || match);
                 }
             }
 
-            // Normalize content
-            parsed.translatedText = scrubAIChatter(normalizeVietnameseContent(parsed.translatedText));
-            if (parsed.translatedTitle) parsed.translatedTitle = scrubAIChatter(normalizeVietnameseContent(parsed.translatedTitle));
-
-            // 3. Apply Auto-Corrections (Hard overrides)
-            const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
-            if (corrections.length > 0) {
-                let finalContent = parsed.translatedText;
-                let finalTitle = parsed.translatedTitle || "";
-
-                // Sort by length descending to avoid partial replacements
-                corrections.sort((a, b) => b.original.length - a.original.length).forEach(c => {
-                    if (finalContent.includes(c.original)) {
-                        finalContent = finalContent.split(c.original).join(c.replacement);
-                    }
-                    if (finalTitle.includes(c.original)) {
-                        finalTitle = finalTitle.split(c.original).join(c.replacement);
-                    }
-                });
-
-                parsed.translatedText = finalContent;
-                if (parsed.translatedTitle) parsed.translatedTitle = finalTitle;
-            }
-
-            return parsed as TranslationResult;
-        }, (msg) => onLog({ timestamp: new Date(), message: msg, type: 'info' }));
+            // NOTE: Normalization moved to chunking.ts / batch-correction end-point
+            return parsed;
+        }, (msg: string) => onLog({ timestamp: new Date(), message: msg, type: 'info' }));
 
         // 4. Calculate Stats
         let termUsage = 0;
@@ -159,8 +133,9 @@ export const translateChapter = async (
         onLog({ timestamp: new Date(), message: "Dịch hoàn tất!", type: 'success' });
         onSuccess(result);
 
-    } catch (e: any) {
-        onLog({ timestamp: new Date(), message: `Lỗi: ${e.message}`, type: 'error' });
-        throw e;
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        onLog({ timestamp: new Date(), message: `Lỗi: ${message}`, type: 'error' });
+        throw error;
     }
 };

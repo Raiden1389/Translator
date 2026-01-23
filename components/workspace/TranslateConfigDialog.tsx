@@ -15,7 +15,22 @@ interface TranslateConfigDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     selectedCount: number;
-    onStart: (config: any, settings: any) => void;
+    onStart: (config: TranslationConfig, settings: TranslationSettingsManual) => void;
+}
+
+interface TranslationConfig {
+    customPrompt: string;
+    autoExtract: boolean;
+    maxConcurrency: number;
+    fixPunctuation: boolean;
+    enableChunking: boolean;
+    maxConcurrentChunks: number;
+    chunkSize: number;
+}
+
+interface TranslationSettingsManual {
+    apiKey: string;
+    model: string;
 }
 
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
@@ -27,41 +42,44 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         maxConcurrency: 5,
         fixPunctuation: false,
         enableChunking: false,
-        maxConcurrentChunks: 3
+        maxConcurrentChunks: 3,
+        chunkSize: 800
     });
-    const [savedPrompts, setSavedPrompts] = useState<any[]>([]);
+    const [savedPrompts, setSavedPrompts] = useState<{ id?: number, title: string, content: string }[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
-    const loadAll = async () => {
-        const key = await db.settings.get("apiKeyPrimary");
-        const model = await db.settings.get("aiModel");
-        const lastPrompt = await db.settings.get("lastCustomPrompt");
-        const lastConcurrency = await db.settings.get("lastMaxConcurrency");
-        const lastFixPunctuation = await db.settings.get("lastFixPunctuation");
-        const lastEnableChunking = await db.settings.get("enableChunking");
-        const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
-        const prompts = await db.prompts.toArray();
-
-        setCurrentSettings({
-            apiKey: key?.value || "",
-            model: migrateModelId(model?.value || DEFAULT_MODEL)
-        });
-
-        setTranslateConfig(prev => ({
-            ...prev,
-            customPrompt: lastPrompt?.value || "",
-            maxConcurrency: lastConcurrency?.value || 5,
-            fixPunctuation: lastFixPunctuation?.value || false,
-            enableChunking: lastEnableChunking?.value || false,
-            maxConcurrentChunks: lastMaxConcurrentChunks?.value || 3
-        }));
-        setSavedPrompts(prompts);
-    };
-
     useEffect(() => {
-        if (open) {
-            loadAll();
-        }
+        if (!open) return;
+
+        const load = async () => {
+            const key = await db.settings.get("apiKeyPrimary");
+            const model = await db.settings.get("aiModel");
+            const lastPrompt = await db.settings.get("lastCustomPrompt");
+            const lastConcurrency = await db.settings.get("lastMaxConcurrency");
+            const lastFixPunctuation = await db.settings.get("lastFixPunctuation");
+            const lastEnableChunking = await db.settings.get("enableChunking");
+            const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
+            const lastChunkSize = await db.settings.get("chunkSize");
+            const prompts = await db.prompts.toArray();
+
+            setCurrentSettings({
+                apiKey: key?.value || "",
+                model: migrateModelId(model?.value || DEFAULT_MODEL)
+            });
+
+            setTranslateConfig(prev => ({
+                ...prev,
+                customPrompt: lastPrompt?.value || "",
+                maxConcurrency: lastConcurrency?.value || 5,
+                fixPunctuation: lastFixPunctuation?.value || false,
+                enableChunking: lastEnableChunking?.value || false,
+                maxConcurrentChunks: lastMaxConcurrentChunks?.value || 3,
+                chunkSize: lastChunkSize?.value || 800
+            }));
+            setSavedPrompts(prompts);
+        };
+
+        load();
     }, [open]);
 
     const saveSettings = async () => {
@@ -87,6 +105,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         await db.settings.put({ key: "lastFixPunctuation", value: translateConfig.fixPunctuation });
         await db.settings.put({ key: "enableChunking", value: translateConfig.enableChunking });
         await db.settings.put({ key: "maxConcurrentChunks", value: translateConfig.maxConcurrentChunks || 3 });
+        await db.settings.put({ key: "chunkSize", value: translateConfig.chunkSize || 800 });
         onStart(translateConfig, currentSettings);
     };
 
@@ -205,16 +224,6 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border">
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-bold">Tự động trích xuất</Label>
-                            <p className="text-[11px] text-muted-foreground font-medium">Tự động cập nhật Dictionary sau khi dịch xong</p>
-                        </div>
-                        <Switch
-                            checked={translateConfig.autoExtract}
-                            onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, autoExtract: val })}
-                        />
-                    </div>
 
                     {/* Chunking Toggle with Parallel Selection */}
                     <div className="space-y-4 p-4 bg-muted/20 rounded-xl border border-border">
@@ -244,6 +253,22 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                     className="py-1"
                                 />
                                 <p className="text-[10px] text-muted-foreground italic font-medium">Tier 1 API: Khuyến nghị 3-5 chunks. Quá cao có thể bị rate limit.</p>
+
+                                <div className="space-y-2 pt-2 border-t border-border/50">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-medium text-muted-foreground">Kích thước Chunk (ký tự)</Label>
+                                        <span className="text-primary font-black text-sm bg-primary/10 px-2 py-0.5 rounded-md">{translateConfig.chunkSize || 800}</span>
+                                    </div>
+                                    <Slider
+                                        value={[translateConfig.chunkSize || 800]}
+                                        min={500}
+                                        max={4000}
+                                        step={100}
+                                        onValueChange={(val: number[]) => setTranslateConfig({ ...translateConfig, chunkSize: val[0] })}
+                                        className="py-1"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground italic font-medium">Lag mạng: Hãy dùng chunk to (2000+). Mạng nhanh: Dùng chunk nhỏ (800-1200).</p>
+                                </div>
                             </div>
                         )}
                     </div>

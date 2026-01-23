@@ -4,12 +4,15 @@ import { useState, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
+import { finalSweep } from "@/lib/gemini/helpers";
 
 export function useCorrections(workspaceId: string) {
-    const corrections = useLiveQuery(
+    const liveCorrections = useLiveQuery(
         () => db.corrections.where('workspaceId').equals(workspaceId).toArray(),
         [workspaceId]
-    ) || [];
+    );
+
+    const corrections = useMemo(() => liveCorrections || [], [liveCorrections]);
 
     const [correctionSearch, setCorrectionSearch] = useState("");
     const [newWrong, setNewWrong] = useState("");
@@ -82,7 +85,8 @@ export function useCorrections(workspaceId: string) {
                 let changed = false;
 
                 for (const correction of corrections) {
-                    const regex = new RegExp(correction.original, 'g');
+                    const escaped = correction.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(escaped, 'g');
 
                     // Check content
                     const contentMatches = content.match(regex);
@@ -100,6 +104,10 @@ export function useCorrections(workspaceId: string) {
                 }
 
                 if (changed) {
+                    // ABSOLUTE FINAL SWEEP: Quét cửa lúc đi ra
+                    content = finalSweep(content);
+                    title = finalSweep(title);
+
                     await db.chapters.update(chapter.id!, {
                         content_translated: content,
                         title_translated: title

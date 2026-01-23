@@ -8,7 +8,7 @@ export { recordUsage, getAvailableKeys, withKeyRotation } from "./client";
 export { normalizeVietnameseContent, scrubAIChatter, extractResponseText, cleanJsonResponse } from "./helpers";
 
 // Re-export constants
-export { PRONOUN_MAPPING, LINE_ALIGNMENT_RULE, CORE_RULES, buildSystemInstruction } from "./constants";
+export { PRONOUN_RULE, STRUCTURE_RULE, CORE_RULES, buildSystemInstruction } from "./constants";
 
 // Re-export main translation
 export { translateChapter } from "./translate";

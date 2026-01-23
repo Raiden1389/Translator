@@ -46,10 +46,9 @@ export function normalizeVietnameseContent(text: string): string {
         .replace(/\](?=[^\s.,;!?\]])/g, "] ")
         .replace(/(?<=[^\s\[])\[/g, " [")
 
-        // 10. Fix double/multiple brackets (AI sometimes outputs [[text]] or ]])
-        // Replace 2 or more [ with single [
-        .replace(/\[{2,}/g, "[")
-        .replace(/\]{2,}/g, "]")
+        // 10. Fix double/multiple brackets (AI or corrections output [[text]] or [ [text] ])
+        .replace(/\[\s*\[+/g, "[")
+        .replace(/\]\s*\]+/g, "]")
 
         // 11. Fix double spaces (horizontal only)
         .replace(/[ \t]{2,}/g, " ")
@@ -113,4 +112,23 @@ export function cleanJsonResponse(jsonText: string): string {
     }
 
     return jsonText;
+}
+
+/**
+ * THE ABSOLUTE FINAL SWEEP (The Broom)
+ * This should be the very last function called before saving/rendering.
+ */
+export function finalSweep(text: string): string {
+    if (!text) return "";
+
+    // 1. Clean up AI chatter and standard formatting first
+    let cleaned = scrubAIChatter(normalizeVietnameseContent(text));
+
+    // 2. THE ABSOLUTE FINAL SWEEP (The Broom)
+    // Exactly as requested by the user: "Và KHÔNG CÓ BẤT KỲ replace nào sau dòng này"
+    return cleaned
+        .replace(/\[{2,}/g, '[')
+        .replace(/\]{2,}/g, ']')
+        .replace(/（{2,}/g, '（')
+        .replace(/）{2,}/g, '）');
 }

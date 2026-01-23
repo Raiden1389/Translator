@@ -18,7 +18,7 @@ export const extractGlossary = async (text: string, onLog?: (msg: string) => voi
 
         const response = await ai.models.generateContent({
             model: model,
-            contents: text.substring(0, 30000),
+            contents: [{ role: 'user', parts: [{ text: text.substring(0, 10000) }] }],
             config: {
                 systemInstruction: prompt,
                 responseMimeType: "application/json",

@@ -1,39 +1,32 @@
 /**
- * System Instruction Constants
+ * System Instruction Constants (Optimized)
  */
 
-// Pronoun mapping table (硬性规则)
-export const PRONOUN_MAPPING = `
-ÁNH XẠ ĐẠI TỪ NHÂN XƯNG (BẮT BUỘC):
-| Tiếng Trung | Phiên âm    | Tiếng Việt  |
-|-------------|-------------|-------------|
-| 我          | Ngã (Wǒ)    | Ta          |
-| 你          | Nhĩ (Nǐ)    | Ngươi       |
-| 我们        | Ngã môn     | Chúng ta    |
-| 你们        | Nhĩ môn     | Các ngươi   |
-| 他          | Tha         | Hắn         |
-| 她          | Tha         | Nàng        |
-| 它          | Tha         | Nó          |
+// Pronoun rules (hard mapping)
+export const PRONOUN_RULE = `
+ĐẠI TỪ BẮT BUỘC:
+我=Ta, 我们=Chúng ta
+你=Ngươi, 你们=Các ngươi
+他=Hắn, 她=Nàng, 它=Nó
 `;
 
-// Line alignment rules
-export const LINE_ALIGNMENT_RULE = `
-CĂN CHỈNH XUỐNG DÒNG (CRITICAL):
-- Giữ NGUYÊN CẤU TRÚC ĐOẠN VĂN của bản gốc
-- Mỗi dòng input → 1 dòng output (không gộp/tách dòng)
-- Giữ nguyên blank lines (\\n\\n) như bản gốc
-- Tuyệt đối KHÔNG gộp nhiều dòng thành 1 dòng
+// Line & structure rules
+export const STRUCTURE_RULE = `
+CẤU TRÚC:
+- 1 dòng input = 1 dòng output.
+- Giữ nguyên \\n\\n.
+- KHÔNG gộp/tách dòng.
 `;
 
-// Core translation rules
+// Core translation rules (Minified)
 export const CORE_RULES = `
-QUY TẮC BẮT BUỘC:
-1. 100% TIẾNG VIỆT - Tuyệt đối không trả về tiếng Anh.
-2. Dịch sát nghĩa, đầy đủ, không bỏ sót.
-3. Giữ nguyên cấu trúc danh sách và ký hiệu hệ thống []. KHÔNG xuống dòng sau ].
-4. Chỉ trả về JSON hợp lệ, CẤM văn bản thừa.
-
-VÍ DỤ: "...mắt hắn chợt sáng lên. [Phát hiện công thức vũ khí 'Trường mâu'] Công thức chế tạo!"
+QUY TẮC:
+1. Trả về JSON với 2 key: "title" và "content".
+2. Chỉ trả về TIẾNG VIỆT. Cấm tiếng Anh.
+3. Dịch sát nghĩa, đầy đủ, không bỏ sót.
+4. Giữ nguyên [] và cấu trúc danh sách.
+5. KHÔNG xuống dòng sau ].
+6. Chỉ trả về JSON hợp lệ. Không kèm văn bản thừa.
 `;
 
 /**
@@ -43,13 +36,16 @@ export function buildSystemInstruction(
     customInstruction?: string,
     glossaryContext?: string
 ): string {
-    const styleInstruction = customInstruction || "Dịch giả chuyên nghiệp Trung - Việt. Dịch tự nhiên, văn phong Hán Việt chuẩn.";
+    const styleInstruction =
+        customInstruction ||
+        "Dịch Trung–Việt chuyên nghiệp. Văn phong Hán Việt chuẩn, tự nhiên.";
 
     return `${styleInstruction}
 
 ${CORE_RULES}
 
-${PRONOUN_MAPPING}
+${PRONOUN_RULE}
 
-${LINE_ALIGNMENT_RULE}${glossaryContext || ''}`;
+${STRUCTURE_RULE}
+${glossaryContext || ""}`;
 }

@@ -276,9 +276,9 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
 </container>`);
 
         zip.file("OEBPS/style.css", `
-body { font-family: "Georgia", serif; padding: 5% 8%; line-height: 1.8; color: #1a1a1a; background-color: #fdfdfd; }
-h1 { text-align: center; color: #333; margin-bottom: 2em; font-family:  serif; }
-h2 { text-align: center; color: #000; margin-top: 2em; margin-bottom: 2em; border-bottom: 1px solid #eee; padding-bottom: 1em; font-family: serif; }
+body { font-family: "Georgia", serif; padding: 5% 8%; line-height: 1.8; }
+h1 { text-align: center; margin-bottom: 2em; font-family: serif; }
+h2 { text-align: center; margin-top: 2em; margin-bottom: 2em; padding-bottom: 1em; font-family: serif; }
 p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
 .chapter-content { margin-top: 2em; }
 `);
