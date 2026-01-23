@@ -105,6 +105,11 @@ export const ChapterRow = React.memo(function ChapterRow({
                     >
                         {chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
                     </span>
+                    {chapter.status === 'translated' && chapter.lastTranslatedAt && (
+                        <span className="text-[9px] text-muted-foreground/60 font-mono">
+                            {new Date(chapter.lastTranslatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}  {new Date(chapter.lastTranslatedAt).getDate()}/{new Date(chapter.lastTranslatedAt).getMonth() + 1}
+                        </span>
+                    )}
                     {issueCount > 0 && (
                         <span className="text-[9px] text-rose-500 font-bold animate-pulse">
                             {issueCount} lỗi AI

@@ -94,8 +94,25 @@ export const translateChapter = async (
             }
 
             if (!parsed.translatedText) {
-                // Double check if we can salvage 
-                throw new Error("Invalid JSON structure: missing translatedText");
+                // FALLBACK STRATEGY for valid JSON but wrong schema
+                // 1. Check for common alternative keys
+                const candidate = (parsed as any).text || (parsed as any).content || (parsed as any).translation || (parsed as any).response;
+                if (typeof candidate === 'string') {
+                    parsed.translatedText = candidate;
+                } else if (typeof parsed === 'string') {
+                    // 2. If the JSON itself turned out to be a string
+                    parsed = { translatedTitle: "", translatedText: parsed };
+                } else {
+                    // 3. Last resort: If we can't find the text, maybe the parsing was "too successful" on a non-JSON structure?
+                    // Actually, let's treat the original cleaned text as the content if it's long enough
+                    console.warn("JSON schema violation. Salvaging content...");
+                    const rawCleaned = cleanJsonResponse(extractResponseText(response));
+                    if (rawCleaned && rawCleaned.length > 0) {
+                        parsed.translatedText = rawCleaned;
+                    } else {
+                        throw new Error(`Invalid JSON structure: missing translatedText. Keys found: ${Object.keys(parsed).join(", ")}`);
+                    }
+                }
             }
 
             // Normalize content

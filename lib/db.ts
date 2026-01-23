@@ -11,6 +11,7 @@ export interface Workspace {
     genre?: string; // Added
     sourceLang?: string; // Added (e.g., 'zh')
     targetLang?: string; // Added (e.g., 'vi')
+    lastReadChapterId?: number; // Added: Track last read chapter
     createdAt: Date;
     updatedAt: Date;
 }

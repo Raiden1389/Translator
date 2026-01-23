@@ -43,6 +43,8 @@ interface ChapterListHeaderProps {
     onSelectRange: (range: string) => void;
     onScan: () => void;
     workspaceId: string;
+    lastReadChapterId?: number;
+    onReadContinue?: (id: number) => void;
 }
 
 export function ChapterListHeader({
@@ -70,10 +72,13 @@ export function ChapterListHeader({
     onViewModeChange,
     onSelectRange,
     onScan,
-    workspaceId
+    workspaceId,
+    lastReadChapterId,
+    onReadContinue
 }: ChapterListHeaderProps) {
     return (
-        <div className="sticky top-2 z-30 bg-card/95 border border-border rounded-2xl shadow-lg mb-6 mx-1 px-4 pb-4 transition-all duration-300">
+
+        <div className="sticky top-2 z-30 bg-card/95 border border-border rounded-xl shadow-md mb-6 -mx-2 px-6 pb-2 transition-all duration-300 backdrop-blur-sm">
             {/* Main Header Row */}
             <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-4">
@@ -82,6 +87,23 @@ export function ChapterListHeader({
                         {totalChapters} chương
                     </h2>
 
+                    {/* Continue Reading Button - Compact */}
+                    {lastReadChapterId && onReadContinue && (
+                        <div className="flex items-center">
+                            <Button
+                                onClick={() => onReadContinue(lastReadChapterId)}
+                                size="sm"
+                                className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20 font-bold text-xs h-8 px-2 animate-in fade-in slide-in-from-left-2 shadow-none"
+                                variant="outline"
+                                title="Đọc tiếp chương đang dở"
+                            >
+                                <span className="mr-1">🚀</span> Đọc Tiếp
+                            </Button>
+                        </div>
+                    )}
+
+                    <div className="h-4 w-px bg-border/40 mx-2" />
+
                     {/* Search */}
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
@@ -89,7 +111,7 @@ export function ChapterListHeader({
                             placeholder="Tìm chương..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 w-64 bg-background border-border text-foreground placeholder:text-muted-foreground/30 h-9"
+                            className="pl-9 w-64 bg-background border-border text-foreground placeholder:text-muted-foreground/30 h-8"
                         />
                     </div>
 
@@ -98,7 +120,7 @@ export function ChapterListHeader({
                         value={filterStatus}
                         onValueChange={(value) => setFilterStatus(value as any)}
                     >
-                        <SelectTrigger className="h-9 w-[130px] bg-background border-border text-foreground focus:ring-primary">
+                        <SelectTrigger className="h-8 w-[130px] bg-background border-border text-foreground focus:ring-primary">
                             <div className="flex items-center gap-2">
                                 <Filter className="h-3 w-3 text-muted-foreground/50" />
                                 <SelectValue placeholder="Trạng thái" />
@@ -117,8 +139,8 @@ export function ChapterListHeader({
                             <span className="text-muted-foreground/40 text-[10px] font-mono">#</span>
                         </div>
                         <Input
-                            placeholder="1-10, 20..."
-                            className="pl-7 w-[100px] bg-background border-border text-foreground placeholder:text-muted-foreground/30 h-9 text-xs focus:w-[140px] transition-all"
+                            placeholder="1-10..."
+                            className="pl-7 w-[90px] bg-background border-border text-foreground placeholder:text-muted-foreground/30 h-8 text-xs focus:w-[130px] transition-all"
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     onSelectRange((e.target as HTMLInputElement).value);
@@ -129,7 +151,7 @@ export function ChapterListHeader({
                     </div>
 
                     {/* View Mode Toggle */}
-                    <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border ml-2">
+                    <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border ml-2">
                         <Button
                             variant="ghost"
                             size="icon"
@@ -139,7 +161,7 @@ export function ChapterListHeader({
                             )}
                             onClick={() => onViewModeChange("grid")}
                         >
-                            <LayoutGrid className="h-4 w-4" />
+                            <LayoutGrid className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                             variant="ghost"
@@ -150,7 +172,7 @@ export function ChapterListHeader({
                             )}
                             onClick={() => onViewModeChange("table")}
                         >
-                            <LayoutList className="h-4 w-4" />
+                            <LayoutList className="h-3.5 w-3.5" />
                         </Button>
                     </div>
                 </div>
@@ -161,7 +183,7 @@ export function ChapterListHeader({
                         size="sm"
                         variant="outline"
                         onClick={onExport}
-                        className="border-primary/20 text-primary hover:bg-primary/5 h-9 font-medium"
+                        className="border-primary/20 text-primary hover:bg-primary/5 h-8 font-medium px-3 text-xs"
                     >
                         <Download className="mr-2 h-3.5 w-3.5" />
                         Xuất
@@ -177,7 +199,7 @@ export function ChapterListHeader({
                         size="sm"
                         variant="outline"
                         onClick={onImport}
-                        className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/5 h-9 font-medium"
+                        className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/5 h-8 font-medium px-3 text-xs"
                     >
                         <Upload className="mr-2 h-3.5 w-3.5" />
                         Nhập
@@ -194,7 +216,7 @@ export function ChapterListHeader({
                         variant="outline"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={importing}
-                        className="border-amber-500/30 text-amber-600 hover:bg-amber-500/5 h-9 font-medium"
+                        className="border-amber-500/30 text-amber-600 hover:bg-amber-500/5 h-8 font-medium px-3 text-xs"
                     >
                         {importing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
                         EPUB/TXT

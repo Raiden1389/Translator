@@ -104,35 +104,46 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         if (scrollViewportRef.current) scrollViewportRef.current.scrollTo(0, 0);
         stopTTS();
         setIsAutoNavigating(false);
+        setIsReadyToNext(false);
     }, [chapterId, stopTTS]);
 
     // Handlers (Memoized for ReaderContent)
+    const [isReadyToNext, setIsReadyToNext] = useState(false);
+
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
         if (menuPosition) setMenuPosition(null);
         if (contextMenuPosition) setContextMenuPosition(null);
 
         const target = e.currentTarget;
         const { scrollTop, scrollHeight, clientHeight } = target;
+        const distanceToBottom = scrollHeight - scrollTop - clientHeight;
 
-        if (scrollHeight - scrollTop - clientHeight < 50) {
+        // "Double Scroll" Logic
+        if (distanceToBottom < 10) {
             if (hasNext && !isAutoNavigating && onNext) {
-                setIsAutoNavigating(true);
-                toast.info("Đang chuyển chương mới...", { duration: 2000 });
-                onNext();
+                if (!isReadyToNext) {
+                    setIsReadyToNext(true);
+                    toast("Cuộn thêm lần nữa để chuyển chương", {
+                        position: "bottom-center",
+                        duration: 1500,
+                        className: "bg-primary text-primary-foreground font-bold"
+                    });
+                } else {
+                    // Reduce sensitivity for the second confirm
+                    // User must be REALLY at the bottom
+                    setIsAutoNavigating(true);
+                    onNext();
+                }
             }
+        } else if (distanceToBottom > 100) {
+            // Reset if user scrolls up significantly
+            if (isReadyToNext) setIsReadyToNext(false);
         }
-    }, [hasNext, isAutoNavigating, onNext, menuPosition, contextMenuPosition]);
+    }, [hasNext, isAutoNavigating, onNext, menuPosition, contextMenuPosition, isReadyToNext]);
 
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-        const target = e.currentTarget;
-        if (e.deltaY < 0 && target.scrollTop <= 0) {
-            if (hasPrev && !isAutoNavigating && onPrev) {
-                setIsAutoNavigating(true);
-                toast.info("Đang về chương trước...", { duration: 1000 });
-                onPrev();
-            }
-        }
-    }, [hasPrev, isAutoNavigating, onPrev]);
+        // Removed auto-prev/next on wheel
+    }, []);
 
     const handleTextSelection = useCallback(() => {
         const selection = window.getSelection();
@@ -320,6 +331,8 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     editorRef={editorRef}
                     handleScroll={handleScroll}
                     handleWheel={handleWheel}
+                    onNext={onNext}
+                    hasNext={hasNext}
                 />
             </div>
 

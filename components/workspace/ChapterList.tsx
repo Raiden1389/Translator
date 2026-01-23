@@ -31,10 +31,13 @@ interface ChapterListProps {
 }
 
 export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: ChapterListProps) {
+    const workspace = useLiveQuery(() => db.workspaces.get(workspaceId), [workspaceId]);
     const chapters = useLiveQuery(
         () => db.chapters.where("[workspaceId+order]").between([workspaceId, Dexie.minKey], [workspaceId, Dexie.maxKey]).toArray(),
         [workspaceId]
     );
+
+
 
     const [search, setSearch] = useState("");
     const [readingChapterId, setReadingChapterId] = useState<number | null>(null);
@@ -360,6 +363,8 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onSelectRange={handleSelectRange}
                 onScan={handleScan}
                 workspaceId={workspaceId}
+                lastReadChapterId={workspace?.lastReadChapterId}
+                onReadContinue={(id) => setReadingChapterId(id)}
             />
 
             <ErrorBoundary name="ChapterListView">
@@ -368,7 +373,10 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         chapters={currentChapters}
                         selectedChapters={selectedChapters}
                         toggleSelect={toggleSingleSelection}
-                        onRead={setReadingChapterId}
+                        onRead={(id) => {
+                            setReadingChapterId(id);
+                            db.workspaces.update(workspaceId, { lastReadChapterId: id });
+                        }}
                         onInspect={handleInspect}
                         onImport={() => fileInputRef.current?.click()}
                     />
@@ -388,7 +396,10 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         onSelectGlobal={() => setSelectedChapters(filtered.map(c => c.id!))}
                         onDeselectAll={() => setSelectedChapters([])}
 
-                        onRead={setReadingChapterId}
+                        onRead={(id) => {
+                            setReadingChapterId(id);
+                            db.workspaces.update(workspaceId, { lastReadChapterId: id });
+                        }}
                         onInspect={handleInspect}
                         onApplyCorrections={handleApplyCorrections}
                     />
@@ -418,11 +429,19 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     hasNext={filtered.findIndex(c => c.id === readingChapterId) < filtered.length - 1}
                     onPrev={() => {
                         const idx = filtered.findIndex(c => c.id === readingChapterId);
-                        if (idx > 0) setReadingChapterId(filtered[idx - 1].id!);
+                        if (idx > 0) {
+                            const newId = filtered[idx - 1].id!;
+                            setReadingChapterId(newId);
+                            db.workspaces.update(workspaceId, { lastReadChapterId: newId });
+                        }
                     }}
                     onNext={() => {
                         const idx = filtered.findIndex(c => c.id === readingChapterId);
-                        if (idx < filtered.length - 1) setReadingChapterId(filtered[idx + 1].id!);
+                        if (idx < filtered.length - 1) {
+                            const newId = filtered[idx + 1].id!;
+                            setReadingChapterId(newId);
+                            db.workspaces.update(workspaceId, { lastReadChapterId: newId });
+                        }
                     }}
                 />
             )}

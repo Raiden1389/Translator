@@ -4,10 +4,12 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-    FileText, BookOpen, Zap, ShieldCheck, AlertCircle, Trash2
+    FileText, BookOpen, Zap, ShieldCheck, AlertCircle, Trash2, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Chapter } from "@/lib/db";
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 
 // Inline Badge component
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -118,6 +120,13 @@ export const ChapterCard = React.memo(function ChapterCard({
                 <Badge className={cn("text-xs border", statusConfig[status].className)}>
                     {statusConfig[status].label}
                 </Badge>
+
+                {chapter.lastTranslatedAt && (
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50 ml-auto" title={`Dịch lúc: ${format(chapter.lastTranslatedAt, "PPpp", { locale: vi })}${chapter.translationDurationMs ? ` (${(chapter.translationDurationMs / 1000).toFixed(1)}s)` : ''}`}>
+                        <Clock className="h-3 w-3" />
+                        {format(chapter.lastTranslatedAt, "HH:mm dd/MM", { locale: vi })}
+                    </span>
+                )}
 
                 {issueCount > 0 && (
                     <span className="flex items-center gap-1 text-amber-400">

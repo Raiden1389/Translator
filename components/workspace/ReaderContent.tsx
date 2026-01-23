@@ -25,6 +25,9 @@ interface ReaderContentProps {
     // Scroll Handlers
     handleScroll: (e: React.UIEvent<HTMLDivElement>) => void;
     handleWheel: (e: React.WheelEvent<HTMLDivElement>) => void;
+    // Navigation
+    onNext?: () => void;
+    hasNext?: boolean;
 }
 
 export const ReaderContent = React.memo(function ReaderContent({
@@ -32,7 +35,8 @@ export const ReaderContent = React.memo(function ReaderContent({
     inspectionIssues, htmlContent, setEditContent,
     handleTextSelection, handleContextMenu, setActiveIssue,
     scrollViewportRef, editorRef,
-    handleScroll, handleWheel
+    handleScroll, handleWheel,
+    onNext, hasNext
 }: ReaderContentProps) {
 
     return (
@@ -92,8 +96,8 @@ export const ReaderContent = React.memo(function ReaderContent({
                             onSelect={handleTextSelection}
                             onContextMenu={handleContextMenu}
                             className={cn(
-                                "w-full h-full flex-1 bg-transparent focus:outline-none outline-none",
-                                "max-w-[800px] mx-auto px-8 pb-32 transition-colors duration-500"
+                                "w-full flex-1 bg-transparent focus:outline-none outline-none",
+                                "max-w-[800px] mx-auto px-8 pb-12 transition-colors duration-500"
                             )}
                             style={{
                                 fontFamily: readerConfig.fontFamily,
@@ -115,6 +119,21 @@ export const ReaderContent = React.memo(function ReaderContent({
                             }}
                             dangerouslySetInnerHTML={htmlContent}
                         />
+
+                        {/* Explicit Next Chapter Navigation */}
+                        <div className="max-w-[800px] mx-auto px-8 pb-32 pt-8 w-full flex items-center justify-center">
+                            {hasNext ? (
+                                <button
+                                    onClick={onNext}
+                                    className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-primary font-serif rounded-full hover:bg-primary/90 hover:scale-105 hover:shadow-lg focus:outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                >
+                                    <span>Chương Tiếp Theo &rarr;</span>
+                                    <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all" />
+                                </button>
+                            ) : (
+                                <div className="text-muted-foreground/50 font-serif italic">Hết chương</div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
