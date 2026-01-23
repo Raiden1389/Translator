@@ -132,3 +132,19 @@ export function finalSweep(text: string): string {
         .replace(/（{2,}/g, '（')
         .replace(/）{2,}/g, '）');
 }
+
+/**
+ * Generate a deterministic hash for caching translation results
+ */
+export async function generateCacheKey(
+    text: string,
+    model: string,
+    instruction: string,
+    glossaryContext: string = ""
+): Promise<string> {
+    const data = `${text}|${model}|${instruction}|${glossaryContext}`;
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}

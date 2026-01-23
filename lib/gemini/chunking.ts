@@ -1,6 +1,8 @@
 import { db } from "../db";
 import { ChunkOptions, TranslationResult, TranslationLog } from "./types";
-import { finalSweep } from "./helpers";
+import { finalSweep, generateCacheKey } from "./helpers";
+import pLimit from "p-limit";
+import { DEFAULT_MODEL } from "../ai-models";
 
 /**
  * Split text into BALANCED chunks by paragraph boundaries
@@ -71,12 +73,40 @@ export async function translateSingleChunk(
     translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string) => Promise<void>,
     customInstruction?: string
 ): Promise<TranslationResult> {
+    const modelSetting = await db.settings.get("aiModel");
+    const aiModel = modelSetting?.value || DEFAULT_MODEL;
+
+    // 1. Generate Cache Key
+    // NOTE: Simplified context (we assume glossary is implicit in workspace or handle it separately if needed)
+    // Ideally we would pass the full glossary context string here, but for now we hash without it 
+    // or rely on the fact that glossary doesn't change THAT often. 
+    // A robust solution would read glossary here or pass it in.
+    const cacheKey = await generateCacheKey(chunk, aiModel, customInstruction || "");
+
+    // 2. Check Cache
+    const cached = await db.translationCache.get(cacheKey);
+    if (cached) {
+        console.log(`⚡ [CACHE HIT] Skip translation for chunk (${chunk.length} chars)`);
+        return cached.result;
+    }
+
+    // 3. Translate & Cache
     return new Promise((resolve, reject) => {
         translateFn(
             workspaceId,
             chunk,
             () => { },  // Ignore logs for individual chunks
-            (result) => resolve(result),
+            (result) => {
+                // Save to Cache
+                db.translationCache.put({
+                    key: cacheKey,
+                    result: result,
+                    model: aiModel,
+                    timestamp: new Date()
+                }).catch(console.error);
+
+                resolve(result);
+            },
             customInstruction
         ).catch(reject);
     });
@@ -119,31 +149,25 @@ export async function translateWithChunking(
 
     try {
         const CONCURRENCY = finalOptions.maxConcurrent || 3;
-        const results: TranslationResult[] = new Array(chunks.length);
-        let currentIndex = 0;
-
-        async function processNext(): Promise<void> {
-            while (currentIndex < chunks.length) {
-                const chunkIdx = currentIndex++;
-                const chunk = chunks[chunkIdx];
+        const limit = pLimit(CONCURRENCY);
+        const promises = chunks.map((chunk, index) => {
+            return limit(async () => {
                 const chunkStart = Date.now();
-
-                console.log(`📦 [${batchId}] Chunk ${chunkIdx + 1}/${chunks.length} Bắt đầu (${chunk.length} ký tự)`);
-                finalOptions.onProgress?.(chunkIdx + 1, chunks.length);
+                console.log(`📦 [${batchId}] Chunk ${index + 1}/${chunks.length} Bắt đầu (${chunk.length} ký tự)`);
+                finalOptions.onProgress?.(index + 1, chunks.length);
 
                 try {
                     const res = await translateSingleChunk(workspaceId, chunk, translateFn, customInstruction);
-                    console.log(`✅ [${batchId}] Chunk ${chunkIdx + 1}/${chunks.length} xong sau ${Date.now() - chunkStart}ms`);
-                    results[chunkIdx] = res;
+                    console.log(`✅ [${batchId}] Chunk ${index + 1}/${chunks.length} xong sau ${Date.now() - chunkStart}ms`);
+                    return res;
                 } catch (err) {
-                    console.error(`❌ [${batchId}] Chunk ${chunkIdx + 1} thất bại:`, err);
+                    console.error(`❌ [${batchId}] Chunk ${index + 1} thất bại:`, err);
                     throw err;
                 }
-            }
-        }
+            });
+        });
 
-        const workers = Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, () => processNext());
-        await Promise.all(workers);
+        const results = await Promise.all(promises);
 
         let translatedText = results.map(r => r.translatedText).join('\n\n');
         // ABSOLUTE FINAL SWEEP: Quét cửa lúc đi ra

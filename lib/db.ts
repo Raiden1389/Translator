@@ -72,6 +72,8 @@ export interface APIUsageEntry {
     updatedAt: Date;
 }
 
+import { TranslationResult } from './gemini/types';
+
 const db = new Dexie('AITranslatorDB') as Dexie & {
     workspaces: EntityTable<Workspace, 'id'>;
     chapters: EntityTable<Chapter, 'id'>;
@@ -82,7 +84,8 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     prompts: EntityTable<PromptEntry, 'id'>;
     ttsCache: EntityTable<TTSCacheEntry, 'id'>;
     apiUsage: EntityTable<APIUsageEntry, 'model'>;
-    history: EntityTable<HistoryEntry, 'id'>; // Added
+    history: EntityTable<HistoryEntry, 'id'>;
+    translationCache: EntityTable<TranslationCacheEntry, 'key'>; // New Cache Table
 };
 
 // Define Schema
@@ -197,8 +200,16 @@ db.version(18).stores({
 
 // V19: Add History table for Persistent Undo
 db.version(19).stores({
-    history: '++id, workspaceId, timestamp'
+    history: '++id, workspaceId, timestamp',
+    translationCache: 'key' // PRIMARY KEY: hash key
 });
+
+export interface TranslationCacheEntry {
+    key: string; // Hash(chunk + model + instruction + glossary)
+    result: TranslationResult;
+    timestamp: Date;
+    model: string;
+}
 
 export interface HistoryEntry {
     id?: number;
@@ -322,5 +333,56 @@ export const rehydrateFromStorage = async () => {
         // Silent fail or minimal error reporting
     }
 };
+
+/**
+ * Clear the entire translation cache (Manual Trigger)
+ */
+export const clearTranslationCache = async () => {
+    await db.translationCache.clear();
+};
+
+/**
+ * Cleanup old/large cache (Auto Trigger)
+ * - Removes items older than 30 days
+ * - Keeps max 5000 items
+ */
+export const cleanupCache = async () => {
+    try {
+        const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+        const MAX_ITEMS = 5000;
+        const now = Date.now();
+
+        // 1. Get all keys and timestamps
+        // Since we didn't index timestamp, we fetch all. 
+        // For 5000 items this is fine. If it grows to 100k, we need an index.
+        const allItems = await db.translationCache.toArray();
+
+        // 2. Identify expired items
+        const expiredKeys = allItems
+            .filter(item => (now - item.timestamp.getTime()) > MAX_AGE_MS)
+            .map(item => item.key);
+
+        // 3. Size limit enforcement
+        let excessKeys: string[] = [];
+        if (allItems.length - expiredKeys.length > MAX_ITEMS) {
+            // Sort by timestamp asc (oldest first)
+            const sorted = allItems
+                .filter(item => !expiredKeys.includes(item.key))
+                .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+            const toRemoveCount = sorted.length - MAX_ITEMS;
+            excessKeys = sorted.slice(0, toRemoveCount).map(item => item.key);
+        }
+
+        const keysToDelete = [...expiredKeys, ...excessKeys];
+
+        if (keysToDelete.length > 0) {
+            await db.translationCache.bulkDelete(keysToDelete);
+            console.log(`🧹 [Cache Cleanup] Removed ${keysToDelete.length} items.`);
+        }
+    } catch (error) {
+        console.error("Cache cleanup failed:", error);
+    }
+}
 
 export { db };

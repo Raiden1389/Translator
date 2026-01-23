@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Edit, X, Save, ChevronDown, Zap } from "lucide-react";
-import { db } from "@/lib/db";
+import { Edit, X, Save, ChevronDown, Zap, Trash2 } from "lucide-react";
+import { db, clearTranslationCache } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
 import { toast } from "sonner";
 
@@ -47,6 +47,8 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
     });
     const [savedPrompts, setSavedPrompts] = useState<{ id?: number, title: string, content: string }[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [cacheSize, setCacheSize] = useState(0);
+
 
     useEffect(() => {
         if (!open) return;
@@ -61,6 +63,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
             const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
             const lastChunkSize = await db.settings.get("chunkSize");
             const prompts = await db.prompts.toArray();
+            const cacheCount = await db.translationCache.count();
 
             setCurrentSettings({
                 apiKey: key?.value || "",
@@ -77,6 +80,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                 chunkSize: lastChunkSize?.value || 800
             }));
             setSavedPrompts(prompts);
+            setCacheSize(cacheCount);
         };
 
         load();
@@ -107,6 +111,14 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         await db.settings.put({ key: "maxConcurrentChunks", value: translateConfig.maxConcurrentChunks || 3 });
         await db.settings.put({ key: "chunkSize", value: translateConfig.chunkSize || 800 });
         onStart(translateConfig, currentSettings);
+    };
+
+    const handleClearCache = async () => {
+        if (confirm(`Bạn có chắc muốn xóa toàn bộ ${cacheSize} bản ghi cache? Việc này không thể hoàn tác.`)) {
+            await clearTranslationCache();
+            setCacheSize(0);
+            toast.success("Đã xóa cache thành công");
+        }
     };
 
     return (
@@ -152,6 +164,16 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                     </select>
                                 </div>
                                 <Button className="w-full font-bold" onClick={saveSettings}>Lưu cấu hình</Button>
+                                <div className="pt-4 border-t border-border mt-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Label className="text-xs font-semibold text-muted-foreground uppercase">Translation Cache</Label>
+                                        <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{cacheSize} items</span>
+                                    </div>
+                                    <Button variant="destructive" size="sm" className="w-full text-xs font-bold" onClick={handleClearCache} disabled={cacheSize === 0}>
+                                        <Trash2 className="h-3 w-3 mr-2" /> Xóa Cache Dịch
+                                    </Button>
+                                    <p className="text-[10px] text-muted-foreground mt-2 italic text-center">Xóa cache sẽ khiến việc dịch lại tốn tiền API hơn.</p>
+                                </div>
                             </div>
                         </div>
                     )}

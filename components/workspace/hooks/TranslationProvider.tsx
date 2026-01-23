@@ -1,7 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
-import { db } from "@/lib/db";
+import { db, cleanupCache } from "@/lib/db";
 import { toast } from "sonner";
 import { TranslationSettings } from "@/lib/types";
 import { translateChapter, translateWithChunking, TranslationLog, TranslationResult } from "@/lib/gemini";
@@ -41,6 +40,11 @@ const TranslationContext = createContext<TranslationContextType | undefined>(und
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
     const [isTranslating, setIsTranslating] = useState(false);
     const [batchProgress, setBatchProgress] = useState<TranslationProgress>({ current: 0, total: 0, currentTitle: "" });
+
+    // Auto cleanup cache on mount
+    React.useEffect(() => {
+        cleanupCache();
+    }, []);
 
     const startBatchTranslate = useCallback(async ({
         workspaceId,
