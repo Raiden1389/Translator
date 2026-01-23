@@ -99,7 +99,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                 fontFamily: readerConfig.fontFamily,
                                 fontSize: `${readerConfig.fontSize}px`,
                                 lineHeight: readerConfig.lineHeight,
-                                textAlign: readerConfig.textAlign,
+                                // textAlign: readerConfig.textAlign, // Removed to let Vbook CSS handle alignment
                                 color: readerConfig.textColor,
                                 maxWidth: isParallel ? "none" : `${readerConfig.maxWidth}px`
                             }}

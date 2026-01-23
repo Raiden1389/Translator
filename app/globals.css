@@ -262,3 +262,42 @@ main {
   user-select: text !important;
   -webkit-user-select: text !important;
 }
+
+/* --- VBOOK READER STYLES --- */
+
+/* Unified TXT Style for everything (Narrative, Dialogue, System) */
+.reader-txt-style {
+  text-indent: 2em !important;
+  /* Thụt đầu dòng 2 chữ chuẩn TXT Trung */
+  margin-bottom: 2.2rem !important;
+  /* KHOẢNG CÁCH GIỮA CÁC ĐOẠN: Đây là thứ giúp nó giống Vbook */
+  line-height: inherit !important;
+  /* Inherit from parent (controlled by slider) */
+  text-align: left !important;
+  /* Ragged Right - Cleaner looking */
+  white-space: pre-line !important;
+  /* Safety Net: Respect all newlines */
+  color: inherit !important;
+  /* Forces picking up the inline color from User Settings */
+  font-family: inherit;
+  font-size: inherit;
+  /* Inherit from parent (controlled by slider) */
+}
+
+/* Ensure no lingering styles affect these if they appear */
+.reader-dialogue,
+.system-msg {
+  color: var(--foreground) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-indent: 2em !important;
+  padding: 0 !important;
+  margin-bottom: 1rem !important;
+}
+
+/* Fix "invisible text" in Raiden Mode by forcing high contrast */
+.raiden-mode {
+  --background: #000000;
+  --foreground: #ffffff;
+}

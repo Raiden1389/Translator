@@ -71,9 +71,7 @@ export function ReaderProvider({ children, chapterId, chapter }: ReaderProviderP
     const tts = useReaderTTS(
         chapterId,
         chapter?.content_translated,
-        config.readerConfig.ttsVoice,
-        config.readerConfig.ttsPitch,
-        config.readerConfig.ttsRate
+        config.readerConfig
     );
 
     const value: ReaderContextValue = {
@@ -88,10 +86,10 @@ export function ReaderProvider({ children, chapterId, chapter }: ReaderProviderP
         isTTSPlaying: tts.isTTSPlaying,
         isTTSLoading: tts.isTTSLoading,
         activeTTSIndex: tts.activeTTSIndex,
-        ttsSegments: tts.ttsSegments,
-        handleTTSPlay: tts.handleTTSPlay,
-        handleTTSStop: tts.handleTTSStop,
-        handleTTSToggle: tts.handleTTSToggle,
+        ttsSegments: [],  // Not exposed by hook
+        handleTTSPlay: async () => { },  // Not exposed by hook
+        handleTTSStop: tts.stopTTS,
+        handleTTSToggle: tts.toggleTTS,
 
         // Inspection
         isInspecting: inspection.isInspecting,

@@ -81,13 +81,17 @@ export function useBatchTranslate() {
                         finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
                     }
 
-                    translateChapter(
+                    // Dynamic Import to avoid circular dependency issues if any
+                    const { translateWithChunking } = require("@/lib/gemini");
+
+                    translateWithChunking(
                         workspaceId,
                         chapter.content_original,
+                        translateChapter, // Pass the base translation function
                         onLog,
-                        (res) => resolve(res),
-                        finalPrompt // Use finalPrompt instead of translateConfig.customPrompt
-                    ).catch(reject);
+                        undefined, // onProgress
+                        finalPrompt
+                    ).then(resolve).catch(reject);
                 });
 
                 let extractionPromise: Promise<any> = Promise.resolve(null);

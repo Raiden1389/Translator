@@ -4,8 +4,10 @@ export interface ReaderConfig {
     fontFamily: string;
     fontSize: number;
     lineHeight: number;
-    textAlign: string;
+    textAlign: "left" | "center" | "right" | "justify";
     textColor: string;
+    backgroundColor: string;
+    maxWidth: number;
     ttsPitch: number;
     ttsRate: number;
     ttsVoice: string;
@@ -17,6 +19,8 @@ const DEFAULT_CONFIG: ReaderConfig = {
     lineHeight: 1.8,
     textAlign: "justify",
     textColor: "#e2e8f0",
+    backgroundColor: "#1e293b",
+    maxWidth: 800,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: "vi-VN-HoaiMyNeural", // Default Vietnamese voice
