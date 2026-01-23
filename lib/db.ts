@@ -204,6 +204,23 @@ db.version(19).stores({
     translationCache: 'key' // PRIMARY KEY: hash key
 });
 
+// V20: Refactor Corrections to be Type-Aware
+db.version(20).stores({
+    corrections: '++id, workspaceId, type'
+}).upgrade(async (trans) => {
+    // Migration: Convert all existing corrections to type 'replace'
+    await trans.table('corrections').toCollection().modify(c => {
+        if (!c.type) {
+            c.type = 'replace';
+            c.from = c.original;
+            c.to = c.replacement;
+            // We keep original/replacement as backup or clear them?
+            // Let's keep them synced for now or just rely on from/to.
+            // But strict migration suggests we just populate the new fields.
+        }
+    });
+});
+
 export interface TranslationCacheEntry {
     key: string; // Hash(chunk + model + instruction + glossary)
     result: TranslationResult;
@@ -297,9 +314,26 @@ export interface BlacklistEntry {
 
 export interface CorrectionEntry {
     id?: number;
-    workspaceId: string; // Added for isolation
-    original: string; // The wrong phrase (e.g., "Thiên Linh Kiếm")
-    replacement: string; // The correct phrase (e.g., "Thiên Minh Kiếm")
+    workspaceId: string;
+    type: 'replace' | 'wrap' | 'regex';
+
+    // Type: replace
+    from?: string; // previously original
+    to?: string;   // previously replacement
+
+    // Type: wrap
+    target?: string;
+    open?: string;
+    close?: string;
+
+    // Type: regex
+    pattern?: string;
+    replace?: string;
+
+    // Legacy fields (kept for migration or reference)
+    original?: string;
+    replacement?: string;
+
     createdAt: Date;
 }
 

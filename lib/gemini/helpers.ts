@@ -5,11 +5,19 @@
 export function normalizeVietnameseContent(text: string): string {
     if (!text) return "";
     return text
-        // 1. Normalize Brackets: 【 】 ［ ］ -> [ ]
-        .replace(/【/g, "[")
-        .replace(/】/g, "]")
-        .replace(/［/g, "[")
-        .replace(/］/g, "]")
+        // 0. Nuke invisible characters (Zero-width space, etc)
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+
+        // 1. Normalize Brackets: 【 】 ［ ］ 〔 〕 -> [ ]
+        // Explicitly handle single occurrences first
+        .replace(/[【［〔]/g, "[")
+        .replace(/[】］〕]/g, "]")
+
+        // 1.5. "Unicode Camouflage" & Double Render Fix (The Nuclear Option)
+        // Collapses sequences of mixed Latin/Unicode brackets into a single ASCII bracket
+        .replace(/[\u005B\uFF3B\u3014\u3010]{2,}/g, '[')
+        .replace(/[\u005D\uFF3D\u3015\u3011]{2,}/g, ']')
+
         // 2. Normalize Parentheses: （ ） -> ( )
         .replace(/（/g, "(")
         .replace(/）/g, ")")
@@ -122,15 +130,31 @@ export function finalSweep(text: string): string {
     if (!text) return "";
 
     // 1. Clean up AI chatter and standard formatting first
-    const cleaned = scrubAIChatter(normalizeVietnameseContent(text));
+    let cleaned = scrubAIChatter(normalizeVietnameseContent(text));
 
     // 2. THE ABSOLUTE FINAL SWEEP (The Broom)
-    // Exactly as requested by the user: "Và KHÔNG CÓ BẤT KỲ replace nào sau dòng này"
+    // Recursive cleanup to ensure no double brackets survive
+    let prev = "";
+    let loopCount = 0;
+    while (cleaned !== prev && loopCount < 5) {
+        prev = cleaned;
+        // String replacement for absolute certainty (bypassing Regex quirks)
+        cleaned = cleaned
+            .split('[[').join('[')
+            .split(']]').join(']')
+            .split('[ [').join('[')
+            .split('] ]').join(']')
+            .replace(/（\s*（/g, '（')
+            .replace(/）\s*）/g, '）')
+            .replace(/\(\s*\(/g, '(')
+            .replace(/\)\s*\)/g, ')');
+        loopCount++;
+    }
+
     return cleaned
-        .replace(/\[{2,}/g, '[')
-        .replace(/\]{2,}/g, ']')
-        .replace(/（{2,}/g, '（')
-        .replace(/）{2,}/g, '）');
+        // Final polish for spacing
+        .replace(/\[\s+/g, '[')
+        .replace(/\s+\]/g, ']');
 }
 
 /**
@@ -148,3 +172,65 @@ export async function generateCacheKey(
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+/**
+ * Escapes special characters for use in RegExp
+ */
+export function escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
+// ----------------------------------------------------------------------
+// CORRECTION ENGINE UTILS
+// ----------------------------------------------------------------------
+
+export function safeReplace(text: string, from: string, to: string) {
+    if (!from || !to) return text;
+    const escaped = escapeRegExp(from);
+    const regex = new RegExp(escaped, 'g');
+    return text.replace(regex, to);
+}
+
+export function safeWrap(text: string, target: string, open: string, close: string) {
+    if (!target || !open || !close) return text;
+    const escaped = escapeRegExp(target);
+    const regex = new RegExp(escaped, 'g');
+
+    return text.replace(regex, (match, offset, full) => {
+        const before = full[offset - 1];
+        const after = full[offset + match.length];
+
+        // Check if already wrapped
+        if (before === open && after === close) return match;
+
+        return `${open}${match}${close}`;
+    });
+}
+
+/**
+ * Universal dispatcher for all correction types
+ */
+export function applyCorrectionRule(text: string, rule: any): string {
+    if (!text || !rule) return text;
+
+    try {
+        if (rule.type === 'wrap') {
+            return safeWrap(text, rule.target, rule.open, rule.close);
+        } else if (rule.type === 'regex') {
+            const pattern = rule.pattern || rule.original;
+            const replacement = rule.replace || rule.replacement;
+            if (!pattern) return text;
+            return text.replace(new RegExp(pattern, 'g'), replacement || "");
+        } else {
+            // Default: replace (legacy support for items without type)
+            const from = rule.from || rule.original;
+            const to = rule.to || rule.replacement;
+            if (!from) return text;
+            return safeReplace(text, from, to || "");
+        }
+    } catch (e) {
+        console.error("Failed to apply correction rule:", e, rule);
+        return text;
+    }
+}
+

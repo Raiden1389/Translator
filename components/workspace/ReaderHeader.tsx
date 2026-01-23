@@ -138,12 +138,6 @@ export function ReaderHeader({
                 )}
             </div>
 
-            {/* Chapter Title - Floating in Center */}
-            <div className="absolute left-1/2 -translate-x-1/2 max-w-[30%] hidden 2xl:block pointer-events-none">
-                <div className="text-sm font-semibold text-muted-foreground/60 truncate text-center font-serif italic">
-                    {chapter.title_translated || chapter.title}
-                </div>
-            </div>
 
             <div className="flex items-center gap-2">
                 <Button

@@ -12,9 +12,14 @@ interface ReaderDialogsProps {
     // Correction Dialog
     correctionOpen: boolean;
     setCorrectionOpen: (open: boolean) => void;
-    correctionOriginal: string;
-    correctionReplacement: string;
+    correctionType: 'replace' | 'wrap' | 'regex';
+    setCorrectionType: (t: 'replace' | 'wrap' | 'regex') => void;
+    correctionOriginal: string; // Used as Field 1 (From / Target / Pattern)
+    setCorrectionOriginal: (val: string) => void;
+    correctionReplacement: string; // Used as Field 2 (To / Open / Replace)
     setCorrectionReplacement: (val: string) => void;
+    correctionField3: string; // Used as Field 3 (Close - only for wrap)
+    setCorrectionField3: (val: string) => void;
     handleSaveCorrection: () => void;
 
     // Dictionary Dialog
@@ -34,7 +39,10 @@ interface ReaderDialogsProps {
 
 export function ReaderDialogs({
     correctionOpen, setCorrectionOpen,
-    correctionOriginal, correctionReplacement, setCorrectionReplacement,
+    correctionType, setCorrectionType,
+    correctionOriginal, setCorrectionOriginal,
+    correctionReplacement, setCorrectionReplacement,
+    correctionField3, setCorrectionField3,
     handleSaveCorrection,
     dictDialogOpen, setDictDialogOpen,
     dictOriginal, setDictOriginal,
@@ -54,20 +62,106 @@ export function ReaderDialogs({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
+                        {/* Type Selector */}
                         <div className="space-y-2">
-                            <Label>Từ sai (Đang chọn)</Label>
-                            <Input value={correctionOriginal} disabled className="bg-muted border-border" />
+                            <Label>Loại quy tắc</Label>
+                            <div className="flex bg-muted p-1 rounded-lg">
+                                {[
+                                    { value: 'replace', label: 'Thay thế' },
+                                    { value: 'wrap', label: 'Bọc (Wrap)' },
+                                    { value: 'regex', label: 'Regex' }
+                                ].map((t) => (
+                                    <button
+                                        key={t.value}
+                                        onClick={() => setCorrectionType(t.value as any)}
+                                        className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all ${correctionType === t.value ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex justify-center text-muted-foreground/20">⬇</div>
-                        <div className="space-y-2">
-                            <Label>Từ đúng (Thay thế)</Label>
-                            <Input
-                                value={correctionReplacement}
-                                onChange={(e) => setCorrectionReplacement(e.target.value)}
-                                className="bg-background border-border"
-                                autoFocus
-                            />
-                        </div>
+
+                        {/* Fields based on Type */}
+                        {correctionType === 'replace' && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label>Từ sai (Tìm kiếm)</Label>
+                                    <Input
+                                        value={correctionOriginal}
+                                        onChange={(e) => setCorrectionOriginal(e.target.value)}
+                                        className="bg-muted border-border"
+                                    />
+                                </div>
+                                <div className="flex justify-center text-muted-foreground/20">⬇</div>
+                                <div className="space-y-2">
+                                    <Label>Từ đúng (Thay thế)</Label>
+                                    <Input
+                                        value={correctionReplacement}
+                                        onChange={(e) => setCorrectionReplacement(e.target.value)}
+                                        className="bg-background border-border"
+                                        autoFocus
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {correctionType === 'wrap' && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label>Từ khóa (Target)</Label>
+                                    <Input
+                                        value={correctionOriginal}
+                                        onChange={(e) => setCorrectionOriginal(e.target.value)}
+                                        placeholder="Ví dụ: Hiệu ứng:"
+                                        className="bg-muted border-border"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Mở (Open)</Label>
+                                        <Input
+                                            value={correctionReplacement}
+                                            onChange={(e) => setCorrectionReplacement(e.target.value)}
+                                            placeholder="["
+                                            className="bg-background border-border"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Đóng (Close)</Label>
+                                        <Input
+                                            value={correctionField3}
+                                            onChange={(e) => setCorrectionField3(e.target.value)}
+                                            placeholder="]"
+                                            className="bg-background border-border"
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {correctionType === 'regex' && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label>Pattern (Regex)</Label>
+                                    <Input
+                                        value={correctionOriginal}
+                                        onChange={(e) => setCorrectionOriginal(e.target.value)}
+                                        placeholder="(\d+) phút"
+                                        className="font-mono text-xs bg-muted border-border"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Replacement ($1, $2...)</Label>
+                                    <Input
+                                        value={correctionReplacement}
+                                        onChange={(e) => setCorrectionReplacement(e.target.value)}
+                                        placeholder="$1 phút"
+                                        className="font-mono text-xs bg-background border-border"
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setCorrectionOpen(false)}>Hủy</Button>

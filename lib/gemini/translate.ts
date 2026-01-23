@@ -94,21 +94,53 @@ export const translateChapter = async (
                 parsed.translatedText = rawText;
             }
 
-            // 3. Apply Auto-Corrections (Optimized Regex Replacement)
+            // 3. Apply Auto-Corrections (Optimized Regex Replacement for simple replacements)
             const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
             if (corrections.length > 0) {
-                const sortedCorrections = [...corrections].sort((a, b) => b.original.length - a.original.length);
-                const replacementMap = new Map(sortedCorrections.map(c => [c.original, c.replacement]));
-                const pattern = new RegExp(
-                    sortedCorrections
-                        .map(c => c.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                        .join('|'),
-                    'g'
+                // 3a. Batch replacement for 'replace' types (Efficient)
+                const replaceRules = corrections.filter(c =>
+                    (c.type === 'replace' || !c.type) &&
+                    (c.from || c.original)
                 );
 
-                parsed.translatedText = parsed.translatedText.replace(pattern, (match) => replacementMap.get(match) || match);
-                if (parsed.translatedTitle) {
-                    parsed.translatedTitle = parsed.translatedTitle.replace(pattern, (match) => replacementMap.get(match) || match);
+                if (replaceRules.length > 0) {
+                    const sorted = [...replaceRules].sort((a, b) => {
+                        const lenA = (a.from || a.original || "").length;
+                        const lenB = (b.from || b.original || "").length;
+                        return lenB - lenA;
+                    });
+
+                    const replacementMap = new Map(sorted.map(c => [
+                        c.from || c.original || "",
+                        c.to ?? c.replacement ?? ""
+                    ]));
+
+                    const pattern = new RegExp(
+                        sorted
+                            .map(c => (c.from || c.original || "").replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                            .filter(p => p.length > 0)
+                            .join('|'),
+                        'g'
+                    );
+
+                    if (pattern.source !== "(?:)" && pattern.source !== "") {
+                        parsed.translatedText = parsed.translatedText.replace(pattern, (match) => replacementMap.get(match) || match);
+                        if (parsed.translatedTitle) {
+                            parsed.translatedTitle = parsed.translatedTitle.replace(pattern, (match) => replacementMap.get(match) || match);
+                        }
+                    }
+                }
+
+                // 3b. Individual application for 'wrap' and 'regex' types
+                const complexRules = corrections.filter(c => c.type === 'wrap' || c.type === 'regex');
+                if (complexRules.length > 0) {
+                    const { applyCorrectionRule } = await import("./helpers");
+                    for (const rule of complexRules) {
+                        parsed.translatedText = applyCorrectionRule(parsed.translatedText, rule);
+                        if (parsed.translatedTitle) {
+                            parsed.translatedTitle = applyCorrectionRule(parsed.translatedTitle, rule);
+                        }
+                    }
                 }
             }
 

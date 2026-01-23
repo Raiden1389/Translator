@@ -21,6 +21,7 @@ import { useChapterImport } from "./hooks/useChapterImport";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 
 import { extractGlossary, inspectChapter, InspectionIssue } from "@/lib/gemini";
+import { applyCorrectionRule } from "@/lib/gemini/helpers";
 import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types"; // Kept ReviewData for prop type
 
 interface ChapterListProps {
@@ -251,14 +252,17 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     let newTitle = chapter.title_translated || "";
                     let hasChanges = false;
 
-                    // Apply all corrections
+                    // Apply all corrections (Batch)
                     for (const correction of corrections) {
-                        if (newContent.includes(correction.original)) {
-                            newContent = newContent.split(correction.original).join(correction.replacement);
-                            hasChanges = true;
+                        const originalContent = newContent;
+                        const originalTitle = newTitle;
+
+                        newContent = applyCorrectionRule(newContent, correction);
+                        if (newTitle) {
+                            newTitle = applyCorrectionRule(newTitle, correction);
                         }
-                        if (newTitle && newTitle.includes(correction.original)) {
-                            newTitle = newTitle.split(correction.original).join(correction.replacement);
+
+                        if (newContent !== originalContent || newTitle !== originalTitle) {
                             hasChanges = true;
                         }
                     }

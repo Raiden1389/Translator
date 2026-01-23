@@ -33,6 +33,9 @@ export function useReaderInspection(chapterId: number, chapter: any) {
         if (!existingCorrection) {
             await db.corrections.add({
                 workspaceId: chapter.workspaceId,
+                type: 'replace',
+                from: issue.original,
+                to: issue.suggestion,
                 original: issue.original,
                 replacement: issue.suggestion,
                 createdAt: new Date()

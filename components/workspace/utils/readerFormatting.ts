@@ -1,4 +1,5 @@
 import { InspectionIssue } from "@/lib/gemini";
+import { normalizeVietnameseContent } from "@/lib/gemini/helpers";
 
 /**
  * Split text into paragraphs lines using absolute strict newline splitting.
@@ -7,14 +8,18 @@ import { InspectionIssue } from "@/lib/gemini";
 export function splitIntoParagraphs(text: string): string[] {
     if (!text) return [];
 
-    // 1. Chuẩn hóa xuống dòng
-    let cleanedText = text.replace(/\r\n/g, "\n");
+    // 0. Auto-nuke "Phantom Brackets" & Unicode garbage before formatting
+    // This ensures that even old chapters in DB get cleaned visually
+    let cleanedText = normalizeVietnameseContent(text);
 
-    // 2. CHẶT CƯỠNG BÁCH: Tìm những chỗ dấu đóng ngoặc dính với dấu mở ngoặc ][ 
-    // Hoặc dấu ] dính với chữ cái, ép chúng xuống dòng để rã đám.
+    // 1. Chuẩn hóa xuống dòng
+    cleanedText = cleanedText.replace(/\r\n/g, "\n");
+
+    // 2. CHẶT CƯỠNG BÁCH: Chỉ thêm dấu xuống dòng, KHÔNG được nhét thêm dấu [ hay ] vào chuỗi thay thế
+    // Lookahead (?=...) giúp ta nhìn thấy dấu [ mà không "nuốt" mất nó, nên không được viết lặp lại [ ở phần replace.
     cleanedText = cleanedText
-        .replace(/\]\s*\[/g, "]\n[") // Tách các khối [ ][ ]
-        .replace(/([.!?;:…])\s+(?=\[)/g, "$1\n["); // Tách câu trước khi vào khối [
+        .replace(/\]\s*(?=\[)/g, "]\n")       // Tìm ] mà đằng sau là [ thì chỉ xuống dòng sau ]
+        .replace(/([.!?;:…])\s+(?=\[)/g, "$1\n"); // Tìm dấu câu mà đằng sau là [ thì chỉ xuống dòng sau dấu câu
 
     // 3. Bây giờ mới split theo dấu xuống dòng
     return cleanedText

@@ -133,7 +133,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-6 py-4 relative">
+                <div className="space-y-6 py-4 relative max-h-[60vh] overflow-y-auto pr-2">
                     {/* Active Config Display */}
                     <div className="p-4 rounded-xl bg-muted/30 border border-border flex justify-between items-center text-sm">
                         <div>

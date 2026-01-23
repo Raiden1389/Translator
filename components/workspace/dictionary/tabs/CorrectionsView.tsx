@@ -19,10 +19,11 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
         filteredCorrections,
         correctionSearch,
         setCorrectionSearch,
-        newWrong,
-        setNewWrong,
-        newRight,
-        setNewRight,
+        ruleType,
+        setRuleType,
+        field1, setField1,
+        field2, setField2,
+        field3, setField3,
         isApplyingCorrections,
         handleAddCorrection,
         handleDeleteCorrection,
@@ -56,11 +57,16 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
             </div>
 
             {/* Add Form */}
+            {/* Add Form */}
             <CorrectionForm
-                newWrong={newWrong}
-                newRight={newRight}
-                onWrongChange={setNewWrong}
-                onRightChange={setNewRight}
+                type={ruleType}
+                setType={setRuleType}
+                field1={field1}
+                field2={field2}
+                field3={field3}
+                onField1Change={setField1}
+                onField2Change={setField2}
+                onField3Change={setField3}
                 onAdd={handleAddCorrection}
             />
 
@@ -68,29 +74,53 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
             <div className="rounded-md border border-border bg-card shadow-sm overflow-hidden flex flex-col">
                 <div className="divide-y divide-border h-[calc(100vh-420px)] overflow-y-auto scrollbar-hide">
                     {filteredCorrections
-                        .map((c) => (
-                            <div key={c.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 group">
-                                <div className="col-span-4 text-muted-foreground line-through decoration-red-500/50">{c.original}</div>
-                                <div className="col-span-1 text-center text-muted-foreground">➔</div>
-                                <div className="col-span-5">
-                                    <EditableCell
-                                        initialValue={c.replacement}
-                                        onSave={(val) => db.corrections.update(c.id!, { replacement: val })}
-                                        className="text-emerald-600 font-bold"
-                                    />
+                        .map((c) => {
+                            const cType = c.type || 'replace';
+                            let displayLeft = "";
+                            let displayRight = "";
+
+                            if (cType === 'replace') {
+                                displayLeft = c.from || c.original || "";
+                                displayRight = c.to || c.replacement || "";
+                            } else if (cType === 'wrap') {
+                                displayLeft = c.target || c.original || "";
+                                displayRight = `${c.open || "["}...${c.close || "]"}`;
+                            } else if (cType === 'regex') {
+                                displayLeft = c.pattern || c.original || "";
+                                displayRight = c.replace || c.replacement || "";
+                            }
+
+                            return (
+                                <div key={c.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 group">
+                                    <div className="col-span-1 flex justify-center">
+                                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded text-white ${cType === 'replace' ? 'bg-blue-500' :
+                                                cType === 'wrap' ? 'bg-amber-500' : 'bg-purple-500'
+                                            }`}>
+                                            {cType === 'replace' ? 'RPL' : cType === 'wrap' ? 'WRP' : 'RGX'}
+                                        </span>
+                                    </div>
+                                    <div className="col-span-3 text-muted-foreground line-through decoration-red-500/50 truncate" title={displayLeft}>
+                                        {displayLeft}
+                                    </div>
+                                    <div className="col-span-1 text-center text-muted-foreground">➔</div>
+                                    <div className="col-span-5">
+                                        <div className="font-bold text-emerald-600 truncate" title={displayRight}>
+                                            {displayRight}
+                                        </div>
+                                    </div>
+                                    <div className="col-span-2 flex justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                                            onClick={() => handleDeleteCorrection(c.id!)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="col-span-2 flex justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                                        onClick={() => handleDeleteCorrection(c.id!)}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                 </div>
             </div>
 

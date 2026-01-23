@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, Chapter } from "@/lib/db";
 import { inspectChapter, InspectionIssue } from "@/lib/gemini";
+import { safeWrap, safeReplace } from "@/lib/gemini/helpers";
 import { getErrorMessage } from "@/lib/types";
 import { toast } from "sonner";
 import { TextSelectionMenu } from "./TextSelectionMenu";
@@ -53,8 +54,10 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
     // Dialog States
     const [correctionOpen, setCorrectionOpen] = useState(false);
+    const [correctionType, setCorrectionType] = useState<'replace' | 'wrap' | 'regex'>('replace');
     const [correctionOriginal, setCorrectionOriginal] = useState("");
     const [correctionReplacement, setCorrectionReplacement] = useState("");
+    const [correctionField3, setCorrectionField3] = useState("");
     const [dictDialogOpen, setDictDialogOpen] = useState(false);
     const [dictOriginal, setDictOriginal] = useState("");
     const [dictTranslated, setDictTranslated] = useState("");
@@ -214,19 +217,86 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     };
 
     // Dialog Handlers
+    // Dialog Handlers
     const handleSaveCorrection = async () => {
-        if (!correctionOriginal || !correctionReplacement || !chapter) return;
-        await db.corrections.add({
+        if (!chapter) return;
+
+        // Guardrails
+        if (correctionType === 'wrap') {
+            if (!correctionOriginal || !correctionReplacement || !correctionField3) {
+                toast.error("Vui lòng nhập đủ Target, Open, Close");
+                return;
+            }
+            if (correctionOriginal.includes('[') || correctionOriginal.includes(']')) {
+                toast.error("Target không được chứa dấu ngoặc [ ]");
+                return;
+            }
+            if (correctionReplacement === correctionField3) {
+                toast.error("Open và Close không được giống nhau");
+                return;
+            }
+        } else if (correctionType === 'regex') {
+            if (!correctionOriginal || !correctionReplacement) {
+                toast.error("Vui lòng nhập Regex và Replacement");
+                return;
+            }
+        } else {
+            // Replace
+            if (!correctionOriginal || !correctionReplacement) {
+                toast.error("Vui lòng nhập Từ sai và Từ đúng");
+                return;
+            }
+        }
+
+        const entry: any = {
             workspaceId: chapter.workspaceId,
-            original: correctionOriginal,
-            replacement: correctionReplacement,
+            type: correctionType,
             createdAt: new Date()
-        });
-        const newText = editContent.split(correctionOriginal).join(correctionReplacement);
+        };
+
+        if (correctionType === 'replace') {
+            entry.from = correctionOriginal;
+            entry.to = correctionReplacement;
+            entry.original = correctionOriginal;
+            entry.replacement = correctionReplacement;
+        } else if (correctionType === 'wrap') {
+            entry.target = correctionOriginal;
+            entry.open = correctionReplacement;
+            entry.close = correctionField3;
+            entry.original = correctionOriginal;
+            entry.replacement = `${correctionReplacement}${correctionOriginal}${correctionField3}`;
+        } else if (correctionType === 'regex') {
+            entry.pattern = correctionOriginal;
+            entry.replace = correctionReplacement;
+            entry.original = correctionOriginal;
+            entry.replacement = correctionReplacement;
+        }
+
+        await db.corrections.add(entry);
+
+        // Apply locally for immediate feedback
+        let newText = editContent;
+        if (correctionType === 'replace') {
+            newText = editContent.split(correctionOriginal).join(correctionReplacement);
+        } else if (correctionType === 'wrap') {
+            // Simple replace for visual feedback (exact match)
+            newText = editContent.split(correctionOriginal).join(`${correctionReplacement}${correctionOriginal}${correctionField3}`);
+        } else if (correctionType === 'regex') {
+            try {
+                newText = editContent.replace(new RegExp(correctionOriginal, 'g'), correctionReplacement);
+            } catch { }
+        }
+
         await db.chapters.update(chapterId, { content_translated: newText });
         setEditContent(newText);
         toast.success("Đã lưu quy tắc sửa lỗi!");
         setCorrectionOpen(false);
+
+        // Reset fields
+        setCorrectionType('replace');
+        setCorrectionOriginal("");
+        setCorrectionReplacement("");
+        setCorrectionField3("");
     };
 
     const handleSaveDictionary = async () => {
@@ -272,6 +342,9 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         if (saveToCorrections) {
             await db.corrections.add({
                 workspaceId: chapter.workspaceId,
+                type: 'replace',
+                from: issue.original,
+                to: issue.suggestion,
                 original: issue.original,
                 replacement: issue.suggestion,
                 createdAt: new Date()
@@ -362,9 +435,14 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             <ReaderDialogs
                 correctionOpen={correctionOpen}
                 setCorrectionOpen={setCorrectionOpen}
+                correctionType={correctionType}
+                setCorrectionType={setCorrectionType}
                 correctionOriginal={correctionOriginal}
+                setCorrectionOriginal={setCorrectionOriginal}
                 correctionReplacement={correctionReplacement}
                 setCorrectionReplacement={setCorrectionReplacement}
+                correctionField3={correctionField3}
+                setCorrectionField3={setCorrectionField3}
                 handleSaveCorrection={handleSaveCorrection}
 
                 dictDialogOpen={dictDialogOpen}
