@@ -18,6 +18,12 @@ import { db, clearTranslationCache } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Eraser } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ChapterListHeaderProps {
     totalChapters: number;
@@ -79,7 +85,6 @@ export function ChapterListHeader({
     onReadContinue
 }: ChapterListHeaderProps) {
     return (
-
         <div className="sticky top-2 z-30 bg-card/95 border border-border rounded-xl shadow-md mb-6 -mx-2 px-6 pb-2 transition-all duration-300 backdrop-blur-sm">
             {/* Main Header Row */}
             <div className="flex items-center justify-between py-3 flex-wrap gap-y-3">
@@ -177,75 +182,96 @@ export function ChapterListHeader({
                             <LayoutList className="h-3.5 w-3.5" />
                         </Button>
                     </div>
-
-                    <div className="h-4 w-px bg-border/40 mx-2" />
-
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-[10px] text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 px-2 gap-1.5"
-                        onClick={async () => {
-                            if (confirm("Xóa TOÀN BỘ bộ nhớ cache dịch thuật? Thao tác này sẽ ép buộc tất cả các chương phải dịch mới từ đầu (không tốn thêm Token nếu nội dung không đổi).")) {
-                                try {
-                                    await clearTranslationCache();
-                                    toast.success("Đã dọn dẹp bộ nhớ Cache!");
-                                } catch (e) {
-                                    toast.error("Lỗi khi dọn dẹp Cache.");
-                                }
-                            }
-                        }}
-                        title="Dọn dẹp bộ nhớ Cache dịch thuật (Global)"
-                    >
-                        <Eraser className="w-3.5 h-3.5" />
-                        <span className="hidden xl:inline">Dọn Cache</span>
-                    </Button>
                 </div>
 
-                {/* Export/Import Buttons */}
-                <div className="flex items-center gap-2">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={onExport}
-                        className="border-primary/20 text-primary hover:bg-primary/5 h-8 font-medium px-3 text-xs"
-                    >
-                        <Download className="mr-2 h-3.5 w-3.5" />
-                        Xuất
-                    </Button>
-                    <input
-                        ref={importInputRef}
-                        type="file"
-                        accept=".json"
-                        onChange={onImportJSON}
-                        className="hidden"
-                    />
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={onImport}
-                        className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/5 h-8 font-medium px-3 text-xs"
-                    >
-                        <Upload className="mr-2 h-3.5 w-3.5" />
-                        Nhập
-                    </Button>
-                    <input
-                        type="file"
-                        accept=".txt,.text,.html,.epub"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={onFileUpload}
-                    />
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={importing}
-                        className="border-amber-500/30 text-amber-600 hover:bg-amber-500/5 h-8 font-medium px-3 text-xs"
-                    >
-                        {importing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
-                        EPUB/TXT
-                    </Button>
-                </div>
+                {/* Utility Action Hub - 2x2 Grid Box */}
+                <TooltipProvider>
+                    <div className="grid grid-cols-2 gap-1 bg-muted/30 p-1.5 rounded-xl border border-border/50 shadow-sm transition-all hover:bg-muted/40 h-fit">
+                        {/* Clear Cache */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+                                    onClick={async () => {
+                                        if (confirm("Xóa TOÀN BỘ bộ nhớ cache dịch thuật?")) {
+                                            try {
+                                                await clearTranslationCache();
+                                                toast.success("Đã dọn dẹp bộ nhớ Cache!");
+                                            } catch (e) {
+                                                toast.error("Lỗi khi dọn dẹp Cache.");
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <Eraser className="w-3.5 h-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Dọn dẹp Cache</TooltipContent>
+                        </Tooltip>
+
+                        {/* Export JSON */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={onExport}
+                                    className="h-7 w-7 text-primary hover:bg-primary/10"
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Xuất dữ liệu</TooltipContent>
+                        </Tooltip>
+
+                        {/* Import JSON */}
+                        <input
+                            ref={importInputRef}
+                            type="file"
+                            accept=".json"
+                            onChange={onImportJSON}
+                            className="hidden"
+                        />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={onImport}
+                                    className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                                >
+                                    <Upload className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Nhập dữ liệu JSON</TooltipContent>
+                        </Tooltip>
+
+                        {/* Import EPUB/TXT */}
+                        <input
+                            type="file"
+                            accept=".txt,.text,.html,.epub"
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={onFileUpload}
+                        />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={importing}
+                                    className="h-7 w-7 text-amber-600 hover:bg-amber-500/10"
+                                >
+                                    {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Nhập truyện (EPUB/TXT)</TooltipContent>
+                        </Tooltip>
+                    </div>
+                </TooltipProvider>
             </div>
 
             {/* Pagination Row */}
@@ -337,7 +363,7 @@ export function ChapterListHeader({
                                     db.chapters.bulkDelete(selectedChapters).then(() => setSelectedChapters([]));
                                 }
                             }}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 font-medium"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 font-medium hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"
                         >
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Xóa
                         </Button>
