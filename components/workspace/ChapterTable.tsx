@@ -23,6 +23,7 @@ interface ChapterTableProps {
     // Actions
     onRead: (id: number) => void;
     onInspect: (id: number) => void;
+    onClearTranslation: (id: number) => void;
     onApplyCorrections: () => void;
 }
 
@@ -36,6 +37,7 @@ export function ChapterTable({
     onDeselectAll,
     onRead,
     onInspect,
+    onClearTranslation,
     onApplyCorrections
 }: ChapterTableProps) {
     // Refs for Drag Logic
@@ -189,6 +191,7 @@ export function ChapterTable({
                             onRead={onRead}
                             onDelete={handleDelete}
                             onInspect={onInspect}
+                            onClearTranslation={onClearTranslation}
                         />
                     ))}
                 </TableBody>

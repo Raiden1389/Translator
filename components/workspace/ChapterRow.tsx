@@ -4,7 +4,7 @@ import React from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2, Book, Zap } from "lucide-react";
+import { Trash2, Book, Zap, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chapter } from "@/lib/db";
 
@@ -18,6 +18,7 @@ interface ChapterRowProps {
     onRead: (id: number) => void;
     onDelete: (id: number) => void;
     onInspect: (id: number) => void;
+    onClearTranslation: (id: number) => void;
 }
 
 export const ChapterRow = React.memo(function ChapterRow({
@@ -30,6 +31,7 @@ export const ChapterRow = React.memo(function ChapterRow({
     onRead,
     onDelete,
     onInspect,
+    onClearTranslation,
 }: ChapterRowProps) {
     const issueCount = chapter.inspectionResults?.length || 0;
     return (
@@ -138,6 +140,19 @@ export const ChapterRow = React.memo(function ChapterRow({
                         disabled={chapter.status !== 'translated'}
                     >
                         <Zap className="h-3 w-3" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 action-button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClearTranslation(chapter.id!);
+                        }}
+                        title="Xóa bản dịch (giữ bản gốc)"
+                        disabled={chapter.status !== 'translated'}
+                    >
+                        <Eraser className="h-3 w-3" />
                     </Button>
                     <Button
                         variant="ghost"

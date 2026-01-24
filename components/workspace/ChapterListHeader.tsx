@@ -14,8 +14,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { db } from "@/lib/db";
+import { db, clearTranslationCache } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { Eraser } from "lucide-react";
 
 interface ChapterListHeaderProps {
     totalChapters: number;
@@ -80,7 +82,7 @@ export function ChapterListHeader({
 
         <div className="sticky top-2 z-30 bg-card/95 border border-border rounded-xl shadow-md mb-6 -mx-2 px-6 pb-2 transition-all duration-300 backdrop-blur-sm">
             {/* Main Header Row */}
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3 flex-wrap gap-y-3">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                         <FileText className="h-5 w-5 text-primary" />
@@ -175,6 +177,28 @@ export function ChapterListHeader({
                             <LayoutList className="h-3.5 w-3.5" />
                         </Button>
                     </div>
+
+                    <div className="h-4 w-px bg-border/40 mx-2" />
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-[10px] text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 px-2 gap-1.5"
+                        onClick={async () => {
+                            if (confirm("Xóa TOÀN BỘ bộ nhớ cache dịch thuật? Thao tác này sẽ ép buộc tất cả các chương phải dịch mới từ đầu (không tốn thêm Token nếu nội dung không đổi).")) {
+                                try {
+                                    await clearTranslationCache();
+                                    toast.success("Đã dọn dẹp bộ nhớ Cache!");
+                                } catch (e) {
+                                    toast.error("Lỗi khi dọn dẹp Cache.");
+                                }
+                            }
+                        }}
+                        title="Dọn dẹp bộ nhớ Cache dịch thuật (Global)"
+                    >
+                        <Eraser className="w-3.5 h-3.5" />
+                        <span className="hidden xl:inline">Dọn Cache</span>
+                    </Button>
                 </div>
 
                 {/* Export/Import Buttons */}
@@ -276,7 +300,7 @@ export function ChapterListHeader({
             {selectedChapters.length > 0 && (
                 <div className="mt-3 flex items-center justify-between bg-primary/5 p-3 rounded-xl border border-primary/20 animate-in slide-in-from-top-2 shadow-md">
                     <div className="flex items-center gap-3">
-                        <div className="bg-primary px-3 py-1 rounded-full text-primary-foreground text-[10px] uppercase font-black tracking-widest">
+                        <div className="bg-primary px-4 py-1.5 rounded-full text-primary-foreground text-[10px] uppercase font-bold tracking-wider shadow-sm">
                             {selectedChapters.length} Selected
                         </div>
                         <Button

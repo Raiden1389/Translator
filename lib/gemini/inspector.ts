@@ -24,49 +24,21 @@ export const inspectChapter = async (workspaceId: string, text: string, onLog?: 
         ? `\n\nDANH SÁCH THUẬT NGỮ ĐÚNG (KHÔNG BÁO LỖI): \n${relevantDict.map(d => `- "${d.translated}" (Gốc: ${d.original})`).join('\n')}`
         : '';
 
-    return withKeyRotation(async (ai) => {
-        const prompt = `Bạn là biên tập viên khó tính (Strict Editor). Hãy rà soát văn bản dịch này và tìm lỗi:
-- Untranslated: Những chữ Hán hoặc cụm từ chưa được dịch (tuyệt đối ưu tiên).
-- Pronoun: Xưng hô bất nhất (đang huynh đệ chuyển sang anh em, hoặc ngôi thứ loạn).
-- Grammar: Lỗi ngữ pháp nghiêm trọng khiến câu vô nghĩa.
-
-${glossaryContext}
+    return withKeyRotation<any>({
+        model: "gemini-2.0-flash-exp",
+        systemInstruction: "Bạn là biên tập viên truyện Trung-Việt khó tính. Hãy tìm lỗi Untranslated, Pronoun, Grammar.",
+        prompt: `${glossaryContext}
 
 Input:
 "${text.substring(0, 30000)}"
 
-Yêu cầu:
-- Chỉ báo lỗi nếu chắc chắn 100%. Nếu nghi ngờ thì bỏ qua.
-- Strict Mode: Không báo những lỗi nhỏ nhặt về văn phong.
-- BỎ QUA các từ có trong "DANH SÁCH THUẬT NGỮ ĐÚNG".
-
-Output JSON:
-[
-  { "original": "text lỗi", "suggestion": "đề xuất sửa", "type": "untranslated", "reason": "chưa dịch" }
-]`;
-
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            original: { type: Type.STRING },
-                            suggestion: { type: Type.STRING },
-                            type: { type: Type.STRING },
-                            reason: { type: Type.STRING }
-                        },
-                        required: ["original", "suggestion", "type", "reason"]
-                    }
-                }
-            }
-        });
-
-        const jsonText = extractResponseText(response);
+Yêu cầu output JSON mảng các object: { original, suggestion, type, reason }.`,
+        generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json"
+        }
+    }, onLog).then(raw => {
+        const jsonText = extractResponseText(raw);
         return JSON.parse(jsonText || "[]");
-    }, onLog);
+    });
 };

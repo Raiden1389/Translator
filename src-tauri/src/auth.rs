@@ -1,10 +1,18 @@
 use tiny_http::{Server, Response, Header};
 use tauri::{AppHandle, Emitter};
 use std::thread;
-use std::io::Read;
+
+#[derive(serde::Serialize)]
+pub struct AuthServerInfo {
+    pub port: u16,
+    pub state: String,
+}
 
 #[tauri::command]
-pub fn start_auth_server(app: AppHandle) -> Result<u16, String> {
+pub fn start_auth_server(app: AppHandle) -> Result<AuthServerInfo, String> {
+    let state = uuid::Uuid::new_v4().to_string();
+    let state_clone = state.clone();
+
     // Attempt to bind to a random free port
     // Attempt to bind to fixed port 3000 (for localhost:3000 redirect match), else random
     let server = match Server::http("127.0.0.1:3000") {
@@ -17,19 +25,21 @@ pub fn start_auth_server(app: AppHandle) -> Result<u16, String> {
         println!("Auth server listening on {}", port);
         for mut request in server.incoming_requests() {
             let url = request.url().to_string();
-            let method = request.method().to_string();
-            println!("Incoming request: {} {}", method, url);
-            
-            // 1. Capture Token Fragment via POST
-            if url == "/token" && request.method() == &tiny_http::Method::Post {
-                println!("Token POST received!");
+            // Basic path match
+            if url.starts_with("/token") && request.method() == &tiny_http::Method::Post {
+                // Check state in query param
+                let is_valid = url.contains(&format!("state={}", state_clone));
+                
+                if !is_valid {
+                    let _ = request.respond(Response::from_string("Unauthorized: State mismatch").with_status_code(403));
+                    continue;
+                }
+
                 let mut content = String::new();
                 if let Err(e) = request.as_reader().read_to_string(&mut content) {
                     println!("Failed to read request body: {}", e);
                 }
                 
-                println!("Emitting oauth_token_received event...");
-                // Emit event to frontend with the raw hash/fragment
                 let _ = app.emit("oauth_token_received", content);
                 
                 let html = r#"
@@ -72,8 +82,12 @@ pub fn start_auth_server(app: AppHandle) -> Result<u16, String> {
                     <script>
                         // Captured Google's Auth Fragment
                         const hash = window.location.hash;
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const state = urlParams.get('state');
+
                         if (hash && hash.includes('access_token')) {
-                            fetch('/token', {
+                            // Forward the state we received from Google back to our server
+                            fetch(`/token?state=${state}`, {
                                 method: 'POST',
                                 body: hash
                             }).catch(err => {
@@ -96,5 +110,5 @@ pub fn start_auth_server(app: AppHandle) -> Result<u16, String> {
         }
     });
 
-    Ok(port)
+    Ok(AuthServerInfo { port, state })
 }

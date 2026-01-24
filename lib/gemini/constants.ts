@@ -1,6 +1,6 @@
 // Update this version whenever CORE_RULES, PRONOUN_RULE or STRUCTURE_RULE changes
 // to force cache invalidation for all users.
-export const SYSTEM_VERSION = "v1.3";
+export const SYSTEM_VERSION = "v1.5";
 
 /**
  * System Instruction Constants (Optimized)
@@ -41,7 +41,7 @@ export function buildSystemInstruction(
 ): string {
     const styleInstruction =
         customInstruction ||
-        "Dịch Trung–Việt chuyên nghiệp. Ưu tiên văn phong Thuần Việt tự nhiên, dễ hiểu. Chỉ giữ lại Hán Việt cho tên riêng, chiêu thức hoặc danh xưng đặc biệt. Tránh dịch kiểu 'Convert' khó hiểu.";
+        "Dịch Trung–Việt chuyên nghiệp, văn phong tiểu thuyết mượt mà. Ưu tiên từ ngữ Thuần Việt tự nhiên, diễn đạt trôi chảy, thoát ý nhưng vẫn sát nội dung. Chỉ giữ Hán Việt cho tên riêng, chiêu thức. Tuyệt đối tránh hành văn kiểu 'Convert' thô cứng.";
 
     return `${styleInstruction}
 

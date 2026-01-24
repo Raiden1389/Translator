@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, Chapter } from "@/lib/db";
+import { db, Chapter, clearChapterTranslation } from "@/lib/db";
 import { inspectChapter, InspectionIssue } from "@/lib/gemini";
 import { getErrorMessage } from "@/lib/types";
 import { toast } from "sonner";
@@ -137,6 +137,18 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             if (isReadyToNext) setIsReadyToNext(false);
         }
     }, [hasNext, isAutoNavigating, onNext, menuPosition, contextMenuPosition, isReadyToNext]);
+
+    const handleClearTranslation = async () => {
+        if (!confirm("Xóa bản dịch của chương này để dịch lại? (Bản gốc vẫn được giữ nguyên)")) return;
+        try {
+            await clearChapterTranslation(chapterId);
+            toast.success("Đã xóa bản dịch.");
+            // The live query 'chapter' will update automatically
+        } catch (error) {
+            console.error("Clear translation error:", error);
+            toast.error("Lỗi khi xóa bản dịch.");
+        }
+    };
 
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         // "Double Scroll" Logic - Part 2: Actual Navigation
@@ -393,6 +405,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     setTtsPitch={(pitch) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsPitch: pitch }))}
                     ttsRate={readerConfig.ttsRate}
                     setTtsRate={(rate) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsRate: rate }))}
+                    onClearTranslation={handleClearTranslation}
                 />
 
                 <ReaderContent

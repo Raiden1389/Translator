@@ -12,6 +12,7 @@ interface ChapterCardGridProps {
     toggleSelect: (id: number) => void;
     onRead: (id: number) => void;
     onInspect: (id: number) => void;
+    onClearTranslation: (id: number) => void;
     onImport?: () => void;
 }
 
@@ -21,6 +22,7 @@ export function ChapterCardGrid({
     toggleSelect,
     onRead,
     onInspect,
+    onClearTranslation,
     onImport
 }: ChapterCardGridProps) {
     if (chapters.length === 0) {
@@ -62,6 +64,7 @@ export function ChapterCardGrid({
                         onRead={() => onRead(chapter.id!)}
                         onTranslate={() => {/* Handle via multi-select or single translate */ }}
                         onInspect={() => onInspect(chapter.id!)}
+                        onClearTranslation={() => onClearTranslation(chapter.id!)}
                         onDelete={async () => {
                             if (confirm("Xóa chương này?")) {
                                 await db.chapters.delete(chapter.id!);

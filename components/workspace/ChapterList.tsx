@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Dexie from "dexie";
-import { db } from "@/lib/db";
+import { db, clearChapterTranslation } from "@/lib/db";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ChapterListHeader } from "./ChapterListHeader";
@@ -313,6 +313,18 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         }
     };
 
+    const handleClearTranslation = async (id: number) => {
+        if (!confirm("Xóa bản dịch của chương này để dịch lại? (Bản gốc Trung Quốc vẫn được giữ nguyên)")) return;
+
+        try {
+            await clearChapterTranslation(id);
+            toast.success("Đã xóa bản dịch. Bạn có thể dịch lại chương này.");
+        } catch (error) {
+            console.error("Clear translation error:", error);
+            toast.error("Lỗi khi xóa bản dịch.");
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -379,6 +391,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                             db.workspaces.update(workspaceId, { lastReadChapterId: id });
                         }}
                         onInspect={handleInspect}
+                        onClearTranslation={handleClearTranslation}
                         onImport={() => fileInputRef.current?.click()}
                     />
                 ) : (
@@ -402,6 +415,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                             db.workspaces.update(workspaceId, { lastReadChapterId: id });
                         }}
                         onInspect={handleInspect}
+                        onClearTranslation={handleClearTranslation}
                         onApplyCorrections={handleApplyCorrections}
                     />
                 )}

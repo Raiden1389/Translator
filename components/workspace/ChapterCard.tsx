@@ -4,7 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-    FileText, BookOpen, Zap, ShieldCheck, AlertCircle, Trash2, Clock
+    FileText, BookOpen, Zap, ShieldCheck, AlertCircle, Trash2, Clock, Eraser
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Chapter } from "@/lib/db";
@@ -25,6 +25,7 @@ interface ChapterCardProps {
     onRead: () => void;
     onTranslate: () => void;
     onInspect: () => void;
+    onClearTranslation: () => void;
     onDelete: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     onMouseEnter?: () => void;
@@ -53,6 +54,7 @@ export const ChapterCard = React.memo(function ChapterCard({
     onRead,
     onTranslate,
     onInspect,
+    onClearTranslation,
     onDelete,
     onContextMenu,
     onMouseEnter,
@@ -155,6 +157,16 @@ export const ChapterCard = React.memo(function ChapterCard({
                 >
                     <ShieldCheck className="mr-1 h-3 w-3" />
                     Soi lỗi
+                </Button>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={onClearTranslation}
+                    className="h-6 text-[10px] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-500/10 raiden-mode:text-[#ffcc00] raiden-mode:hover:bg-[#ffcc00] raiden-mode:hover:text-black"
+                    title="Xóa bản dịch (giữ bản gốc)"
+                >
+                    <Eraser className="mr-1 h-3 w-3" />
+                    Reset
                 </Button>
                 <Button
                     size="sm"

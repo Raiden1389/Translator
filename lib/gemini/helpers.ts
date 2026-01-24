@@ -163,7 +163,27 @@ export function finalSweep(text: string): string {
         loopCount++;
     }
 
-    return cleaned
+    // 3. Conditional Pronoun Lowercasing: Ta -> ta
+    // Rule: Lowercase if not at start of sentence AND not inside brackets [...]
+    const swept = cleaned
+        .replace(/\[([\s\S]*?)\]/g, (match) => {
+            // Temporarily mask brackets to avoid processing inside
+            return `\uE000${match.slice(1, -1)}\uE001`;
+        })
+        .replace(/\bTa\b/g, (match, offset, fullText) => {
+            const preceding = fullText.substring(0, offset).trim();
+            // Start of string OR preceded by sentence terminator OR dialogue markers
+            // Includes: . ! ? " “ ” - —
+            const isStartOfSentence = preceding === "" ||
+                /[.!?]$/.test(preceding) ||
+                /[“"‘\-\—\u2013\u2014]$/.test(preceding);
+            return isStartOfSentence ? "Ta" : "ta";
+        })
+        // Unmask
+        .replace(/\uE000/g, "[")
+        .replace(/\uE001/g, "]");
+
+    return swept
         // Final polish for spacing
         .replace(/\[\s+/g, '[')
         .replace(/\s+\]/g, ']');
@@ -232,6 +252,7 @@ export function applyCorrectionRule(text: string, rule: any): string {
             const pattern = rule.pattern || rule.original;
             const replacement = rule.replace || rule.replacement;
             if (!pattern) return text;
+            // UNSAFE: Using raw user input in RegExp. Mitigating via try-catch.
             return text.replace(new RegExp(pattern, 'g'), replacement || "");
         } else {
             // Default: replace (legacy support for items without type)

@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import { db } from "../db";
 import { AI_MODELS, DEFAULT_MODEL } from "../ai-models";
 
@@ -53,24 +52,71 @@ export const getAvailableKeys = async (): Promise<string[]> => {
     return Array.from(new Set(keys)).filter(k => !!k);
 };
 
+import { invoke } from "@tauri-apps/api/core";
+
 /**
- * Execute a function with key rotation fallback
+ * Execute a function with key rotation fallback using the NATIVE bridge
  */
-export async function withKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>, onLog?: (message: string) => void): Promise<T> {
+/**
+ * Execute a Gemini request using the NATIVE bridge (Key stays in Rust)
+ */
+export async function withKeyRotation<T>(
+    params: {
+        model: string,
+        systemInstruction?: string,
+        prompt: string,
+        generationConfig?: any
+    },
+    onLog?: (message: string) => void
+): Promise<T> {
     const keys = await getAvailableKeys();
-    if (keys.length === 0) throw new Error("Missing API Key.");
+
+    const payloadObj: any = {
+        contents: [{ parts: [{ text: params.prompt }] }],
+    };
+
+    if (params.systemInstruction) {
+        payloadObj.systemInstruction = { parts: [{ text: params.systemInstruction }] };
+    }
+
+    if (params.generationConfig) {
+        payloadObj.generationConfig = params.generationConfig;
+    } else {
+        payloadObj.generationConfig = {
+            temperature: 0.2,
+            topP: 0.95,
+            maxOutputTokens: 4096,
+            responseMimeType: "text/plain",
+        };
+    }
+
+    const payload = JSON.stringify(payloadObj);
     let lastError: any = null;
-    for (const key of keys) {
+
+    // Try primary first (undefined means the backend will use its .env GEMINI_API_KEY)
+    const keyQueue = [undefined, ...keys];
+
+    for (const key of keyQueue) {
         try {
-            // Standardizing on v1beta for feature support
-            const ai = new GoogleGenAI({
-                apiKey: key,
-                apiVersion: 'v1beta'
+            if (onLog) onLog(`Trying ${key ? 'Pool Key' : 'Primary/Env Key'}...`);
+
+            const responseText = await invoke<string>("native_gemini_request", {
+                payload,
+                model: params.model.trim(),
+                apiKey: key
             });
 
-            return await fn(ai);
+            const parsed = JSON.parse(responseText);
+            if (parsed.error) {
+                const msg = parsed.error.message || "Gemini API Error";
+                if (onLog) onLog(`Error: ${msg}`);
+                throw new Error(msg);
+            }
+
+            return parsed as T;
         } catch (error: any) {
             lastError = error;
+            if (onLog) onLog(`Failed: ${error.message}`);
             continue;
         }
     }

@@ -376,6 +376,22 @@ export const clearTranslationCache = async () => {
 };
 
 /**
+ * Clear translation for a specific chapter
+ */
+export const clearChapterTranslation = async (chapterId: number) => {
+    await db.chapters.update(chapterId, {
+        content_translated: undefined,
+        title_translated: undefined,
+        status: 'draft',
+        lastTranslatedAt: undefined,
+        translationDurationMs: undefined,
+        translationModel: undefined,
+        inspectionResults: undefined,
+        updatedAt: new Date()
+    });
+};
+
+/**
  * Cleanup old/large cache (Auto Trigger)
  * - Removes items older than 30 days
  * - Keeps max 5000 items

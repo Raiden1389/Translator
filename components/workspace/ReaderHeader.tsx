@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, Search, ShieldCheck, Sparkles, X, Volume2, VolumeX, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, Search, ShieldCheck, Sparkles, X, Volume2, VolumeX, Pause, Play, Eraser } from "lucide-react";
 import { toast } from "sonner";
 import { speak, prefetchTTS, VIETNAMESE_VOICES } from "@/lib/tts";
 import { db } from "@/lib/db";
@@ -49,6 +49,7 @@ interface ReaderHeaderProps {
     setTtsPitch: (v: number) => void;
     ttsRate: number;
     setTtsRate: (v: number) => void;
+    onClearTranslation: () => void;
 }
 
 export function ReaderHeader({
@@ -78,7 +79,8 @@ export function ReaderHeader({
     ttsPitch,
     setTtsPitch,
     ttsRate,
-    setTtsRate
+    setTtsRate,
+    onClearTranslation
 }: ReaderHeaderProps) {
     // Hooks must be called before early return
     const [showTTSSettings, setShowTTSSettings] = useState(false);
@@ -158,6 +160,18 @@ export function ReaderHeader({
                         </span>
                     )}
                 </Button>
+
+                {activeTab === 'translated' && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onClearTranslation}
+                        className="w-11 h-11 rounded-xl transition-all duration-300 border border-border text-muted-foreground hover:text-amber-500 hover:bg-amber-500/5 shadow-sm"
+                        title="Xóa bản dịch (giữ bản gốc)"
+                    >
+                        <Eraser className="w-5 h-5" />
+                    </Button>
+                )}
 
                 <div className="flex items-center bg-muted/50 rounded-xl border border-border p-1 mx-1">
                     <div className="relative group">

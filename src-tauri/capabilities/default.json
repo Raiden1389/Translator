@@ -16,10 +16,62 @@
     "log:default",
     "shell:default",
     {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        {
+          "path": "$APP_DATA/**"
+        },
+        {
+          "path": "$DOWNLOADS/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DESKTOP/**"
+        },
+        {
+          "path": "H:/**"
+        }
+      ]
+    },
+    {
       "identifier": "fs:allow-write-file",
       "allow": [
         {
-          "path": "**"
+          "path": "$APP_DATA/**"
+        },
+        {
+          "path": "$DOWNLOADS/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DESKTOP/**"
+        },
+        {
+          "path": "H:/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        {
+          "path": "$APP_DATA/**"
+        },
+        {
+          "path": "$DOWNLOADS/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DESKTOP/**"
+        },
+        {
+          "path": "H:/**"
         }
       ]
     }
