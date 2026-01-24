@@ -20,9 +20,9 @@ import { useChapterSelection } from "./hooks/useChapterSelection";
 import { useChapterImport } from "./hooks/useChapterImport";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 
-import { extractGlossary, inspectChapter, InspectionIssue } from "@/lib/gemini";
+import { extractGlossary, inspectChapter } from "@/lib/gemini";
 import { applyCorrectionRule } from "@/lib/gemini/helpers";
-import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types"; // Kept ReviewData for prop type
+import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings, InspectionIssue } from "@/lib/types"; // Consolidated InspectionIssue
 
 interface ChapterListProps {
     workspaceId: string;

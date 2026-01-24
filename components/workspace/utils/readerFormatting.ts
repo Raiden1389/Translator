@@ -1,4 +1,4 @@
-import { InspectionIssue } from "@/lib/gemini";
+import { InspectionIssue } from "@/lib/types";
 import { normalizeVietnameseContent } from "@/lib/gemini/helpers";
 
 const escapeHTML = (str: string) => {

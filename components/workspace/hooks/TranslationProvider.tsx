@@ -1,16 +1,15 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import pLimit from "p-limit";
 import { db, cleanupCache } from "@/lib/db";
 import { toast } from "sonner";
 import { TranslationSettings } from "@/lib/types";
 import {
     translateChapter,
     translateWithChunking,
-    TranslationLog,
-    TranslationResult
+    TranslationLog
 } from "@/lib/gemini";
+import { aiQueue } from "@/lib/services/ai-queue";
 import type { Chapter } from "@/lib/db";
 
 interface BatchTranslateProps {
@@ -81,7 +80,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             return;
         }
 
-        let totalUsedTerms = 0;
         let totalUsedChars = 0;
         const batchStartTime = Date.now();
         setBatchProgress({
@@ -103,9 +101,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             .sort((a, b) => b.original.length - a.original.length)
             .slice(0, 100); // 100 terms for Max Ping (shared across all chapters)
 
-        // 2. Parallel Queue Management (p-limit)
-        const CONCURRENT_LIMIT = translateConfig.maxConcurrency || 5;
-        const limit = pLimit(CONCURRENT_LIMIT);
+        // 2. Global Queue Integration
         let processedCount = 0;
 
         const processChapter = async (chapter: Chapter) => {
@@ -178,7 +174,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                 });
 
                 if (result.stats) {
-                    totalUsedTerms += result.stats.terms;
                     totalUsedChars += result.stats.characters;
                 }
 
@@ -194,12 +189,12 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         };
 
         try {
-            const tasks = chaptersToTranslate.map(chapter => limit(() => processChapter(chapter)));
+            const tasks = chaptersToTranslate.map(chapter => aiQueue.enqueue('MEDIUM', () => processChapter(chapter), `translate-chap-${chapter.id}`));
             await Promise.all(tasks);
 
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
             toast.success(`Dịch hoàn tất ${processedCount} chương trong ${totalBatchTime}s`, {
-                description: `Sử dụng ${sharedGlossary.length} thuật ngữ chung. Áp dụng ${totalUsedChars} lượt nhân vật.`,
+                description: `Sử dụng ${totalUsedChars} ký tự.`,
                 duration: 5000
             });
         } catch (fatalErr: unknown) {

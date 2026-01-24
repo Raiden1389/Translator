@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, Chapter, clearChapterTranslation } from "@/lib/db";
-import { inspectChapter, InspectionIssue } from "@/lib/gemini";
-import { getErrorMessage } from "@/lib/types";
+import { inspectChapter } from "@/lib/gemini";
+import { getErrorMessage, InspectionIssue } from "@/lib/types";
 import { toast } from "sonner";
 import { TextSelectionMenu } from "./TextSelectionMenu";
 
@@ -12,7 +12,6 @@ import { ReaderContextMenu } from "./ReaderContextMenu";
 import { ReaderHeader, ReaderConfig } from "./ReaderHeader";
 import { ReaderContent } from "./ReaderContent";
 import { ReaderDialogs } from "./ReaderDialogs";
-import { formatReaderText } from "./utils/readerFormatting";
 
 import { useReaderSettings } from "./hooks/useReaderSettings";
 import { useReaderTTS } from "./hooks/useReaderTTS";
@@ -67,28 +66,42 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     const [inspectionIssues, setInspectionIssues] = useState<InspectionIssue[]>([]);
     const [activeIssue, setActiveIssue] = useState<InspectionIssue | null>(null);
 
-    // Derived Logic
-    // OPTIMIZATION: We exclude chapter.content_translated from dependencies to prevent 
-    // cursor jumping when typing (which triggers DB save -> live query update).
-    // The content only updates conceptually when:
-    // 1. Chapter ID changes (Navigation)
-    // 2. Inspection issues change (User runs inspect)
-    // 3. TTS active index changes (Reading highlight)
-    const htmlContent = useMemo(() => ({
-        __html: formatReaderText((chapter?.content_translated || "").normalize('NFC'), inspectionIssues, activeTTSIndex)
-    }), [chapter?.id, chapter?.content_translated, inspectionIssues, activeTTSIndex]);
+    // Web Worker for High Performance Formatting
+    const [htmlContent, setHtmlContent] = useState({ __html: "" });
+    const workerRef = useRef<Worker | null>(null);
+
+    useEffect(() => {
+        workerRef.current = new Worker(new URL('../../lib/workers/text.worker.ts', import.meta.url));
+        workerRef.current.onmessage = (e) => {
+            const { action, result } = e.data;
+            if (action === 'formatReaderText') {
+                setHtmlContent({ __html: result });
+            }
+        };
+        return () => workerRef.current?.terminate();
+    }, []);
+
+    useEffect(() => {
+        if (workerRef.current) {
+            workerRef.current.postMessage({
+                action: 'formatReaderText',
+                payload: {
+                    text: (chapter?.content_translated || "").normalize('NFC'),
+                    inspectionIssues,
+                    activeTTSIndex
+                }
+            });
+        }
+    }, [chapter?.id, chapter?.content_translated, inspectionIssues, activeTTSIndex]);
 
     // Sync Edit Content
     useEffect(() => {
         if (chapter) {
-            // Only sync from DB to local state on chapter change to default, 
-            // or if we strictly want to support external updates (but that risks loops).
-            // For now, simple sync on mount/id change is safest.
             setEditContent(chapter.content_translated || "");
             setInspectionIssues(chapter.inspectionResults || []);
         }
         return () => setInspectionIssues([]);
-    }, [chapter?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [chapter?.id]);
 
     // Auto-Save Content
     useEffect(() => {
@@ -107,7 +120,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         stopTTS();
         setIsAutoNavigating(false);
         setIsReadyToNext(false);
-    }, [chapterId, stopTTS]);
+    }, [chapterId, stopTTS, chapter]);
 
     // Handlers (Memoized for ReaderContent)
     const [isReadyToNext, setIsReadyToNext] = useState(false);
@@ -259,11 +272,11 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             }
         }
 
-        const entry: any = {
+        const entry = {
             workspaceId: chapter.workspaceId,
             type: correctionType,
             createdAt: new Date()
-        };
+        } as any;
 
         if (correctionType === 'replace') {
             entry.from = correctionOriginal;
@@ -361,6 +374,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                 createdAt: new Date()
             });
         }
+        if (!issue.original || !issue.suggestion) return;
         const newText = editContent.split(issue.original).join(issue.suggestion);
         setEditContent(newText);
         await db.chapters.update(chapterId, { content_translated: newText });

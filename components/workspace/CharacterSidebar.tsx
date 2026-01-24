@@ -122,7 +122,7 @@ export function CharacterSidebar({
                             </div>
                             <div className="text-xs text-white/50 pl-8 truncate">{char.original}</div>
                             {char.metadata?.gender && (
-                                <div className="text-[10px] text-white/30 pl-8 mt-1 italic uppercase">{char.metadata.gender}</div>
+                                <div className="text-[10px] text-white/30 pl-8 mt-1 italic uppercase">{char.metadata.gender as React.ReactNode}</div>
                             )}
                         </div>
                     ))}

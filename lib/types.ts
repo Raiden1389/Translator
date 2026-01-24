@@ -73,11 +73,13 @@ export interface BatchTranslateOptions {
  * Inspection issue found in chapter
  */
 export interface InspectionIssue {
-    type: 'bracket' | 'quote' | 'punctuation' | 'spacing';
+    type: 'bracket' | 'quote' | 'punctuation' | 'spacing' | 'untranslated' | 'pronoun' | 'grammar' | 'spelling' | 'other';
     severity: 'error' | 'warning' | 'info';
     message: string;
-    position?: number;
+    original?: string;
     suggestion?: string;
+    reason?: string;
+    position?: number;
 }
 
 /**

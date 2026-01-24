@@ -3,7 +3,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { ReaderConfig } from "./ReaderHeader";
-import { InspectionIssue } from "@/lib/gemini";
+import { InspectionIssue } from "@/lib/types";
 import { Chapter } from "@/lib/db";
 
 interface ReaderContentProps {

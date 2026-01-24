@@ -84,7 +84,7 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
     // Initialize GIS if clientId exists
     React.useEffect(() => {
         if (clientIdSetting?.value) {
-            gdrive.init(clientIdSetting.value).catch(console.error);
+            gdrive.init(clientIdSetting.value as string).catch(console.error);
         }
     }, [clientIdSetting?.value]);
 
@@ -516,7 +516,7 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; color: inherit; }
                                                 <Input
                                                     type="password"
                                                     placeholder="Lấy ở Google Cloud Console"
-                                                    defaultValue={clientIdSetting?.value || ""}
+                                                    defaultValue={(clientIdSetting?.value as string) || ""}
                                                     className="h-9 text-xs bg-black/20 border-white/5"
                                                     onBlur={async (e) => {
                                                         if (e.target.value) {
@@ -587,10 +587,10 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; color: inherit; }
                                         <div className="flex items-center justify-between p-2 px-3 bg-primary/5 rounded-lg border border-primary/10">
                                             <div className="flex items-center gap-2 overflow-hidden">
                                                 <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[10px] text-primary shrink-0">
-                                                    {driveUser?.value?.email?.[0].toUpperCase() || "G"}
+                                                    {((driveUser?.value as any)?.email?.[0].toUpperCase() || "G")}
                                                 </div>
                                                 <span className="text-[10px] text-white/70 truncate font-medium">
-                                                    {driveUser?.value?.email || "Đã kết nối"}
+                                                    {((driveUser?.value as any)?.email || "Đã kết nối")}
                                                 </span>
                                             </div>
                                             <Button

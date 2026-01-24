@@ -55,8 +55,8 @@ export async function shouldUseChunking(text: string): Promise<ChunkOptions> {
     const enabled = chunkingSetting?.value === true || chunkingSetting?.value === "true";
 
     // DEFAULT to 1000 chars per chunk to engage parallel slots efficiently
-    const maxCharsPerChunk = parseInt(chunkSizeSetting?.value || "1000");
-    const maxConcurrent = parseInt(maxConcurrentSetting?.value || "3");
+    const maxCharsPerChunk = parseInt((chunkSizeSetting?.value as string) || "1000");
+    const maxConcurrent = parseInt((maxConcurrentSetting?.value as string) || "3");
 
     return {
         enabled: enabled && text.length > maxCharsPerChunk,
@@ -76,7 +76,7 @@ export async function translateSingleChunk(
     sharedGlossary?: any[]
 ): Promise<TranslationResult> {
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = modelSetting?.value || DEFAULT_MODEL;
+    const aiModel = (modelSetting?.value as string) || DEFAULT_MODEL;
 
     // 1. Generate Cache Key
     const cacheKey = await generateCacheKey(chunk, aiModel, (customInstruction || "") + SYSTEM_VERSION + (sharedGlossary ? JSON.stringify(sharedGlossary) : ""));
@@ -148,10 +148,10 @@ export async function translateWithChunking(
     onLog({ timestamp: new Date(), message: msg, type: 'info' });
 
     try {
-        const CONCURRENCY = finalOptions.maxConcurrent || 3;
-        const limit = pLimit(CONCURRENCY);
+        const { aiQueue } = await import("../services/ai-queue");
+
         const promises = chunks.map((chunk, index) => {
-            return limit(async () => {
+            return aiQueue.enqueue('MEDIUM', async () => {
                 const chunkStart = Date.now();
                 console.log(`📦 [${batchId}] Chunk ${index + 1}/${chunks.length} Bắt đầu (${chunk.length} ký tự)`);
                 finalOptions.onProgress?.(index + 1, chunks.length);
@@ -164,7 +164,7 @@ export async function translateWithChunking(
                     console.error(`❌ [${batchId}] Chunk ${index + 1} thất bại:`, err);
                     throw err;
                 }
-            });
+            }, `${batchId}-chunk-${index}`);
         });
 
         const results = await Promise.all(promises);

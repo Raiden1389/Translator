@@ -1,29 +1,30 @@
 import { useState, useEffect } from "react";
-import { InspectionIssue } from "@/lib/gemini";
-import { db } from "@/lib/db";
+import { InspectionIssue } from "@/lib/types";
+import { db, Chapter } from "@/lib/db";
 import { toast } from "sonner";
 
 /**
  * Custom hook for managing AI inspection state and operations
  */
-export function useReaderInspection(chapterId: number, chapter: any) {
+export function useReaderInspection(chapterId: number, chapter: Chapter | undefined) {
     const [isInspecting, setIsInspecting] = useState(false);
+    // Initialize with chapter results if available
     const [inspectionIssues, setInspectionIssues] = useState<InspectionIssue[]>([]);
     const [activeIssue, setActiveIssue] = useState<InspectionIssue | null>(null);
 
-    // Sync inspection issues from DB on load
+    // Sync inspection issues from DB on load - only when it actually changes
     useEffect(() => {
-        if (chapter?.inspectionResults) {
-            setInspectionIssues(chapter.inspectionResults);
-        }
+        const issues = chapter?.inspectionResults || [];
+        setInspectionIssues(issues);
 
-        // Cleanup on unmount to prevent memory leaks
         return () => {
             setInspectionIssues([]);
         };
-    }, [chapter]);
+    }, [chapter?.id, chapter?.inspectionResults]);
 
     const handleFixIssue = async (issue: InspectionIssue, editContent: string, setEditContent: (content: string) => void) => {
+        if (!issue.original || !issue.suggestion || !chapter) return;
+
         // 1. Add to corrections table
         const existingCorrection = await db.corrections
             .where('[workspaceId+original]')
@@ -56,12 +57,14 @@ export function useReaderInspection(chapterId: number, chapter: any) {
     };
 
     const handleAutoFixAll = async (type: string, editContent: string, setEditContent: (content: string) => void) => {
-        const targetIssues = inspectionIssues.filter(i => i.type === type);
-        if (targetIssues.length === 0) return;
+        const targetIssues = inspectionIssues.filter(i => i.type === type && i.original && i.suggestion);
+        if (targetIssues.length === 0 || !chapter) return;
 
         let newText = editContent;
         targetIssues.forEach(issue => {
-            newText = newText.split(issue.original).join(issue.suggestion);
+            if (issue.original && issue.suggestion) {
+                newText = newText.split(issue.original).join(issue.suggestion);
+            }
         });
 
         setEditContent(newText);

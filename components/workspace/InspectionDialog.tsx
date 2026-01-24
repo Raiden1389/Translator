@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, CheckCircle2, Search, Zap, AlertTriangle, Languages, MessageSquareQuote } from "lucide-react";
-import { InspectionIssue } from "@/lib/gemini";
+import { InspectionIssue } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface InspectionDialogProps {
@@ -94,7 +94,7 @@ export function InspectionDialog({
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-6 px-2 text-[10px] uppercase font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={() => onNavigateToIssue?.(issue.original)}
+                                                    onClick={() => issue.original && onNavigateToIssue?.(issue.original)}
                                                 >
                                                     <Search className="w-3 h-3 mr-1" /> Tìm trong chương
                                                 </Button>

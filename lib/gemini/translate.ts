@@ -51,7 +51,7 @@ export const translateChapter = async (
 
         const rawResult = await withKeyRotation<any>(
             {
-                model: aiModel.trim(),
+                model: (aiModel as string).trim(),
                 systemInstruction: fullInstruction,
                 prompt: text,
                 generationConfig: {
@@ -66,7 +66,7 @@ export const translateChapter = async (
 
         // Track usage (if available in bridge response)
         if (rawResult.usageMetadata) {
-            recordUsage(aiModel, rawResult.usageMetadata);
+            recordUsage(aiModel as string, rawResult.usageMetadata);
         }
 
         const rawText = extractResponseText(rawResult).trim();

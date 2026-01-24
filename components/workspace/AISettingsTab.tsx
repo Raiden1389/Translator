@@ -40,9 +40,9 @@ export function AISettingsTab() {
         const k2 = await db.settings.get("apiKeyPool");
         const m = await db.settings.get("aiModel");
 
-        if (k1) setPrimaryKey(k1.value);
-        if (k2) setPoolKeys(k2.value);
-        if (m) setModel(migrateModelId(m.value));
+        if (k1) setPrimaryKey(k1.value as string);
+        if (k2) setPoolKeys(k2.value as string);
+        if (m) setModel(migrateModelId(m.value as string));
     };
 
     const handleSavePrimary = (val: string) => {

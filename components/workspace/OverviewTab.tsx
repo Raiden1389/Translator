@@ -47,7 +47,7 @@ export const OverviewTab = ({ workspace }: { workspace: any }) => {
             }
 
             const modelSetting = await db.settings.get("aiModel");
-            const aiModel = modelSetting?.value || "gemini-2.0-flash-exp";
+            const aiModel = (modelSetting?.value as string) || "gemini-2.0-flash-exp";
 
             const summary = await generateBookSummary(contextText, aiModel);
 

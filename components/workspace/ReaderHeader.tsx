@@ -5,7 +5,7 @@ import { speak, prefetchTTS, VIETNAMESE_VOICES } from "@/lib/tts";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { InspectionIssue } from "@/lib/gemini";
+import { InspectionIssue } from "@/lib/types";
 
 export interface ReaderConfig {
     fontFamily: string;

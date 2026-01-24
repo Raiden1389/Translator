@@ -1,5 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { storage } from './storageBridge';
+import { InspectionIssue } from './types';
+import { TranslationResult } from './gemini/types';
 
 export interface Workspace {
     id: string; // UUID
@@ -27,7 +29,7 @@ export interface Chapter {
     wordCountTranslated?: number; // Added
     order: number;
     status: 'draft' | 'translated' | 'reviewing'; // Expanded status
-    inspectionResults?: any; // JSON array of issues
+    inspectionResults?: InspectionIssue[]; // CORRECTED TYPE
     lastTranslatedAt?: Date;
     glossaryExtractedAt?: Date; // Added: Track when glossary was extracted
     translationModel?: string; // e.g. "gemini-1.5-pro"
@@ -37,20 +39,25 @@ export interface Chapter {
 
 export interface DictionaryEntry {
     id?: number;
-    workspaceId: string; // Added for isolation
+    workspaceId: string;
     original: string;
     translated: string;
-    type: 'name' | 'term' | 'phrase' | 'correction' | string; // Expanded to support AI categories
+    type: 'name' | 'character' | 'term' | 'phrase' | 'correction' | string;
     gender?: 'male' | 'female' | 'unknown';
-    role?: 'main' | 'support' | 'villain' | 'mob';
+    role?: 'main' | 'support' | 'villain' | 'mob' | string;
     description?: string;
-    metadata?: any; // Added for rich data (relations, n-grams, etc.)
+    metadata?: {
+        reason?: string;
+        gender?: string;
+        category?: string;
+        [key: string]: unknown;
+    };
     createdAt: Date;
 }
 
 export interface Setting {
     key: string;
-    value: any;
+    value: unknown; // Fixed any
 }
 
 export interface TTSCacheEntry {
@@ -72,155 +79,6 @@ export interface APIUsageEntry {
     updatedAt: Date;
 }
 
-import { TranslationResult } from './gemini/types';
-
-const db = new Dexie('AITranslatorDB') as Dexie & {
-    workspaces: EntityTable<Workspace, 'id'>;
-    chapters: EntityTable<Chapter, 'id'>;
-    dictionary: EntityTable<DictionaryEntry, 'id'>;
-    settings: EntityTable<Setting, 'key'>;
-    blacklist: EntityTable<BlacklistEntry, 'id'>;
-    corrections: EntityTable<CorrectionEntry, 'id'>;
-    prompts: EntityTable<PromptEntry, 'id'>;
-    ttsCache: EntityTable<TTSCacheEntry, 'id'>;
-    apiUsage: EntityTable<APIUsageEntry, 'model'>;
-    history: EntityTable<HistoryEntry, 'id'>;
-    translationCache: EntityTable<TranslationCacheEntry, 'key'>; // New Cache Table
-};
-
-// Define Schema
-db.version(1).stores({
-    workspaces: 'id, title, updatedAt',
-    chapters: '++id, workspaceId, order',
-    dictionary: '++id, original, type', // Index for fast lookup
-    settings: 'key'
-});
-
-// V2: Add 'translated' index for Reverse Lookup
-db.version(2).stores({
-    workspaces: 'id, title, updatedAt',
-    chapters: '++id, workspaceId, order',
-    dictionary: '++id, original, translated, type',
-    settings: 'key'
-});
-
-// V3: Add Character fields
-db.version(3).stores({
-    dictionary: '++id, original, translated, type, gender, role' // Index for filtering
-});
-
-// V4: Add Blacklist
-db.version(4).stores({
-    blacklist: '++id, word'
-});
-
-// V5: Add translated to Blacklist
-db.version(5).stores({
-    blacklist: '++id, word, translated'
-});
-
-// V6: Add Corrections
-db.version(6).stores({
-    corrections: '++id, original'
-});
-
-// V7: Add Prompts
-db.version(7).stores({
-    prompts: '++id, title'
-});
-
-// V8: Add TTS Cache
-db.version(8).stores({
-    ttsCache: '++id, chapterId, voice'
-});
-
-// V9: Correct TTS Cache (Include textHash to avoid segment collisions)
-db.version(9).stores({
-    ttsCache: '++id, chapterId, voice, textHash'
-});
-
-// V10: Add pitch and rate to TTS Cache
-db.version(10).stores({
-    ttsCache: '++id, chapterId, voice, textHash, pitch, rate'
-});
-
-// V11: Workspace Isolation for Dictionary, Blacklist and Corrections
-db.version(11).stores({
-    dictionary: '++id, workspaceId, original, translated, type, gender, role',
-    blacklist: '++id, workspaceId, word, translated',
-    corrections: '++id, workspaceId, original'
-}).upgrade(async (trans) => {
-    // Migration: Assign existing global data to the first workspace (usually "Dạ Vô Cương")
-    const workspaces = await trans.table('workspaces').toArray();
-    if (workspaces.length > 0) {
-        // Heuristic: Try to find "Dạ Vô Cương" or just take the most recent one
-        const targetWs = workspaces.find(w => w.title.includes("Dạ Vô Cương")) || workspaces[0];
-        const wsId = targetWs.id;
-
-        await trans.table('dictionary').toCollection().modify({ workspaceId: wsId });
-        await trans.table('blacklist').toCollection().modify({ workspaceId: wsId });
-        await trans.table('corrections').toCollection().modify({ workspaceId: wsId });
-    }
-});
-
-// V12: Add glossaryExtractedAt for tracking extraction status
-db.version(12).stores({
-    chapters: '++id, workspaceId, order' // update schema if necessary, though no index change needed for this field
-});
-
-// V13: Compound index for TTS Cache optimization
-db.version(13).stores({
-    ttsCache: '++id, chapterId, voice, textHash, pitch, rate, [chapterId+voice+textHash+pitch+rate]'
-});
-
-// V14: Add Token Usage tracking
-db.version(14).stores({
-    apiUsage: 'model' // Model is the primary key
-});
-
-// V15: Auto-Summary support
-db.version(15).stores({}); // No new indexes, just a schema iteration
-
-// V16: Compound index for chapters and dictionary optimization
-db.version(16).stores({
-    chapters: '++id, workspaceId, order, [workspaceId+order]',
-    dictionary: '++id, workspaceId, original, translated, type, gender, role, [workspaceId+original]'
-});
-
-// V17: Compound index for character filtering isolation
-db.version(17).stores({
-    dictionary: '++id, workspaceId, original, translated, type, gender, role, [workspaceId+original], [workspaceId+type]'
-});
-
-// V18: Optimize sorting by updatedAt
-db.version(18).stores({
-    workspaces: 'id, title, updatedAt',
-    chapters: '++id, workspaceId, order, updatedAt, [workspaceId+order]'
-});
-
-// V19: Add History table for Persistent Undo
-db.version(19).stores({
-    history: '++id, workspaceId, timestamp',
-    translationCache: 'key' // PRIMARY KEY: hash key
-});
-
-// V20: Refactor Corrections to be Type-Aware
-db.version(20).stores({
-    corrections: '++id, workspaceId, type'
-}).upgrade(async (trans) => {
-    // Migration: Convert all existing corrections to type 'replace'
-    await trans.table('corrections').toCollection().modify(c => {
-        if (!c.type) {
-            c.type = 'replace';
-            c.from = c.original;
-            c.to = c.replacement;
-            // We keep original/replacement as backup or clear them?
-            // Let's keep them synced for now or just rely on from/to.
-            // But strict migration suggests we just populate the new fields.
-        }
-    });
-});
-
 export interface TranslationCacheEntry {
     key: string; // Hash(chunk + model + instruction + glossary)
     result: TranslationResult;
@@ -240,67 +98,6 @@ export interface HistoryEntry {
         before: { title: string; content: string };
         after?: { title: string; content: string }; // Optional, for Redo if needed
     }[];
-}
-
-// Tauri Hook: Sync to local files on change
-if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-    const syncTimers: Record<string, any> = {};
-
-    const syncWorkspace = async (workspaceId: string) => {
-        // Clear any existing timer for this workspace
-        if (syncTimers[workspaceId]) {
-            clearTimeout(syncTimers[workspaceId]);
-        }
-
-        // Debounce: Wait 2 seconds of inactivity before writing to disk
-        syncTimers[workspaceId] = setTimeout(async () => {
-            try {
-                const workspace = await db.workspaces.get(workspaceId);
-                if (!workspace) return;
-
-                const chapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
-                const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
-
-                await storage.saveWorkspace(workspaceId, {
-                    workspace,
-                    chapters,
-                    dictionary
-                });
-
-                delete syncTimers[workspaceId];
-            } catch (err) {
-                console.error("Sync error:", err);
-            }
-        }, 2000);
-    };
-
-    db.workspaces.hook('updating', (mods, prim, obj) => {
-        syncWorkspace(obj.id);
-    });
-
-    db.chapters.hook('creating', (prim, obj) => {
-        syncWorkspace(obj.workspaceId);
-    });
-
-    db.chapters.hook('updating', (mods, prim, obj) => {
-        syncWorkspace(obj.workspaceId);
-    });
-
-    db.chapters.hook('deleting', (prim, obj) => {
-        syncWorkspace(obj.workspaceId);
-    });
-
-    db.dictionary.hook('creating', (prim, obj) => {
-        syncWorkspace(obj.workspaceId);
-    });
-
-    db.dictionary.hook('updating', (mods, prim, obj) => {
-        syncWorkspace(obj.workspaceId);
-    });
-
-    db.dictionary.hook('deleting', (prim, obj) => {
-        syncWorkspace(obj.workspaceId);
-    });
 }
 
 export interface BlacklistEntry {
@@ -345,26 +142,187 @@ export interface PromptEntry {
 }
 
 
+const db = new Dexie('AITranslatorDB') as Dexie & {
+    workspaces: EntityTable<Workspace, 'id'>;
+    chapters: EntityTable<Chapter, 'id'>;
+    dictionary: EntityTable<DictionaryEntry, 'id'>;
+    settings: EntityTable<Setting, 'key'>;
+    blacklist: EntityTable<BlacklistEntry, 'id'>;
+    corrections: EntityTable<CorrectionEntry, 'id'>;
+    prompts: EntityTable<PromptEntry, 'id'>;
+    ttsCache: EntityTable<TTSCacheEntry, 'id'>;
+    apiUsage: EntityTable<APIUsageEntry, 'model'>;
+    history: EntityTable<HistoryEntry, 'id'>;
+    translationCache: EntityTable<TranslationCacheEntry, 'key'>; // New Cache Table
+};
+
+// ----------------------------------------------------------------------
+// SCHEMA CONSOLIDATION (v100)
+// ----------------------------------------------------------------------
+db.version(100).stores({
+    workspaces: 'id, title, updatedAt',
+    chapters: '++id, workspaceId, order, updatedAt, [workspaceId+order]',
+    dictionary: '++id, workspaceId, original, type, gender, role, [workspaceId+original], [workspaceId+type], [workspaceId+createdAt]', // Bỏ index 'translated' để tối ưu tốc độ ghi
+    blacklist: '++id, workspaceId, word, translated',
+    corrections: '++id, workspaceId, type',
+    prompts: '++id, title',
+    ttsCache: '++id, chapterId, voice, textHash, pitch, rate, [chapterId+voice+textHash+pitch+rate]',
+    apiUsage: 'model',
+    history: '++id, workspaceId, timestamp',
+    translationCache: 'key, timestamp', // Thêm index timestamp để dọn dẹp thần tốc
+    settings: 'key'
+}).upgrade(async (trans) => {
+    // Legacy Migration to V100: Consolidating history
+    const workspaces = await trans.table('workspaces').toArray();
+    if (workspaces.length > 0) {
+        // 1. From V11: Ensure isolation for Dictionary, Blacklist, and Corrections
+        const firstWsId = workspaces[0].id;
+
+        await trans.table('dictionary').toCollection().modify((item: any) => {
+            if (!item.workspaceId) item.workspaceId = firstWsId;
+        });
+        await trans.table('blacklist').toCollection().modify((item: any) => {
+            if (!item.workspaceId) item.workspaceId = firstWsId;
+        });
+        await trans.table('corrections').toCollection().modify((item: any) => {
+            if (!item.workspaceId) item.workspaceId = firstWsId;
+        });
+
+        // 2. From V20: Refactor Corrections to be Type-Aware
+        await trans.table('corrections').toCollection().modify((c: any) => {
+            if (!c.type) {
+                c.type = 'replace';
+                c.from = c.original;
+                c.to = c.replacement;
+            }
+        });
+    }
+    console.log("🚀 Database migrated to Stable V100 architecture with legacy support.");
+});
+
+// ----------------------------------------------------------------------
+// DIRTY FLAG SYNC SYSTEM (High Performance Incremental)
+// ----------------------------------------------------------------------
+const dirtyWorkspaces = new Set<string>();
+const dirtyChapters = new Set<string>(); // Format: "wsId:chapId"
+const dirtyDictionaries = new Set<string>();
+
+// Content cache to avoid redundant IO (Dictionary can be large)
+const lastSavedDictContent = new Map<string, string>();
+
+let isRehydrated = false;
+
+export const markWorkspaceDirty = (workspaceId: string) => {
+    if (!workspaceId) return;
+    dirtyWorkspaces.add(workspaceId);
+};
+
+export const markChapterDirty = (workspaceId: string, chapterId: number) => {
+    if (!workspaceId || !chapterId) return;
+    dirtyChapters.add(`${workspaceId}:${chapterId}`);
+};
+
+export const markDictionaryDirty = (workspaceId: string) => {
+    if (!workspaceId) return;
+    dirtyDictionaries.add(workspaceId);
+};
+
+// Sync Worker: Process granular dirty flags every 5 seconds
+if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    setInterval(async () => {
+        // RACE CONDITION GUARD: Don't start syncing until rehydration is complete
+        if (!isRehydrated) return;
+
+        // 1. Process Metadata
+        if (dirtyWorkspaces.size > 0) {
+            const ids = Array.from(dirtyWorkspaces);
+            dirtyWorkspaces.clear();
+            for (const id of ids) {
+                const ws = await db.workspaces.get(id);
+                if (ws) await storage.saveMetadata(id, ws);
+            }
+        }
+
+        // 2. Process Dictionary (with Content Check)
+        if (dirtyDictionaries.size > 0) {
+            const ids = Array.from(dirtyDictionaries);
+            dirtyDictionaries.clear();
+            for (const id of ids) {
+                const dict = await db.dictionary.where('workspaceId').equals(id).toArray();
+                const contentStr = JSON.stringify(dict);
+
+                // Only save if content actually changed
+                if (lastSavedDictContent.get(id) !== contentStr) {
+                    await storage.saveDictionary(id, dict);
+                    lastSavedDictContent.set(id, contentStr);
+                    console.log(`💾 [Sync Worker] Dictionary for ${id} saved (content changed).`);
+                }
+            }
+        }
+
+        // 3. Process Chapters (Coalesced via Set already)
+        if (dirtyChapters.size > 0) {
+            const compoundIds = Array.from(dirtyChapters);
+            dirtyChapters.clear();
+            for (const cid of compoundIds) {
+                const [wsId, chapIdStr] = cid.split(':');
+                const chapId = parseInt(chapIdStr);
+                const chap = await db.chapters.get(chapId);
+                if (chap) await storage.saveChapter(wsId, chapId, chap);
+            }
+        }
+    }, 5000);
+}
+
+// Hooks: Targeting specific components
+db.workspaces.hook('creating', (_prim, obj) => markWorkspaceDirty(obj.id));
+db.workspaces.hook('updating', (_mods, _prim, obj) => markWorkspaceDirty(obj.id));
+db.workspaces.hook('deleting', (_prim, obj) => markWorkspaceDirty(obj.id));
+
+db.chapters.hook('creating', (_prim, obj) => markChapterDirty(obj.workspaceId, obj.id!));
+db.chapters.hook('updating', (_mods, _prim, obj) => markChapterDirty(obj.workspaceId, obj.id!));
+db.chapters.hook('deleting', (_prim, obj) => markChapterDirty(obj.workspaceId, obj.id!));
+
+db.dictionary.hook('creating', (_prim, obj) => markDictionaryDirty(obj.workspaceId));
+db.dictionary.hook('updating', (_mods, _prim, obj) => markDictionaryDirty(obj.workspaceId));
+db.dictionary.hook('deleting', (_prim, obj) => markDictionaryDirty(obj.workspaceId));
+
 export const rehydrateFromStorage = async () => {
-    if (typeof window === 'undefined' || !(window as any).__TAURI__) return;
+    if (typeof window === 'undefined' || !(window as any).__TAURI__) {
+        isRehydrated = true;
+        return;
+    }
 
     try {
         const count = await db.workspaces.count();
-        if (count > 0) return; // Already has data
+        if (count > 0) {
+            isRehydrated = true;
+            return;
+        }
 
         const workspaceIds = await storage.listWorkspaces();
-        if (workspaceIds.length === 0) return;
+        if (workspaceIds.length === 0) {
+            isRehydrated = true;
+            return;
+        }
 
         for (const id of workspaceIds) {
-            const data = await storage.loadWorkspace(id);
+            const data = await storage.loadWorkspaceData(id);
             if (!data) continue;
 
             if (data.workspace) await db.workspaces.put(data.workspace);
             if (data.chapters && data.chapters.length > 0) await db.chapters.bulkPut(data.chapters);
-            if (data.dictionary && data.dictionary.length > 0) await db.dictionary.bulkPut(data.dictionary);
+            if (data.dictionary && data.dictionary.length > 0) {
+                await db.dictionary.bulkPut(data.dictionary);
+                // Initialize cache for dictionary to avoid instant re-save
+                lastSavedDictContent.set(id, JSON.stringify(data.dictionary));
+            }
         }
     } catch (e) {
-        // Silent fail or minimal error reporting
+        console.error("Rehydration failed:", e);
+    } finally {
+        isRehydrated = true;
+        console.log("🏁 Rehydration complete. Sync worker active.");
     }
 };
 
@@ -401,34 +359,28 @@ export const cleanupCache = async () => {
         const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
         const MAX_ITEMS = 5000;
         const now = Date.now();
+        const cutoff = new Date(now - MAX_AGE_MS);
 
-        // 1. Get all keys and timestamps
-        // Since we didn't index timestamp, we fetch all. 
-        // For 5000 items this is fine. If it grows to 100k, we need an index.
-        const allItems = await db.translationCache.toArray();
+        // 1. Fast delete older than 30 days using index
+        const expiredCount = await db.translationCache
+            .where('timestamp')
+            .below(cutoff)
+            .delete();
 
-        // 2. Identify expired items
-        const expiredKeys = allItems
-            .filter(item => (now - item.timestamp.getTime()) > MAX_AGE_MS)
-            .map(item => item.key);
-
-        // 3. Size limit enforcement
-        let excessKeys: string[] = [];
-        if (allItems.length - expiredKeys.length > MAX_ITEMS) {
-            // Sort by timestamp asc (oldest first)
-            const sorted = allItems
-                .filter(item => !expiredKeys.includes(item.key))
-                .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-
-            const toRemoveCount = sorted.length - MAX_ITEMS;
-            excessKeys = sorted.slice(0, toRemoveCount).map(item => item.key);
+        if (expiredCount > 0) {
+            console.log(`🧹 [Cache Cleanup] Deleted ${expiredCount} expired items via index.`);
         }
 
-        const keysToDelete = [...expiredKeys, ...excessKeys];
+        // 2. Size limit enforcement (only if still over limit)
+        const totalCount = await db.translationCache.count();
+        if (totalCount > MAX_ITEMS) {
+            const excessKeys = await db.translationCache
+                .orderBy('timestamp')
+                .limit(totalCount - MAX_ITEMS)
+                .primaryKeys();
 
-        if (keysToDelete.length > 0) {
-            await db.translationCache.bulkDelete(keysToDelete);
-            console.log(`🧹 [Cache Cleanup] Removed ${keysToDelete.length} items.`);
+            await db.translationCache.bulkDelete(excessKeys);
+            console.log(`🧹 [Cache Cleanup] Trimmed ${excessKeys.length} excess items.`);
         }
     } catch (error) {
         console.error("Cache cleanup failed:", error);

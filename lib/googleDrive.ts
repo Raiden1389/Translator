@@ -42,7 +42,7 @@ export class GoogleDriveService {
 
         const savedToken = await db.settings.get("gdrive_token");
         if (savedToken?.value) {
-            this.accessToken = savedToken.value;
+            this.accessToken = savedToken.value as string;
             return this.accessToken!;
         }
 
@@ -53,7 +53,7 @@ export class GoogleDriveService {
         if (!this.clientId) {
             const clientIdSetting = await db.settings.get("gdrive_client_id");
             if (clientIdSetting?.value) {
-                this.clientId = clientIdSetting.value;
+                this.clientId = clientIdSetting.value as string;
             }
         }
 
@@ -91,7 +91,7 @@ export class GoogleDriveService {
                 const expiresIn = params.get("expires_in");
 
                 if (token) {
-                    this.accessToken = token;
+                    this.accessToken = token as string;
                     this.expiresAt = Date.now() + (parseInt(expiresIn || "3600") * 1000);
 
                     await db.settings.put({ key: "gdrive_token", value: this.accessToken });

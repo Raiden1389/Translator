@@ -44,9 +44,9 @@ export const getAvailableKeys = async (): Promise<string[]> => {
     const primaryKey = await db.settings.get("apiKeyPrimary");
     const poolKeys = await db.settings.get("apiKeyPool");
     const keys: string[] = [];
-    if (primaryKey?.value) keys.push(primaryKey.value);
+    if (primaryKey?.value) keys.push(primaryKey.value as string);
     if (poolKeys?.value) {
-        const pool = poolKeys.value.split(/[\n,;]+/).map((k: string) => k.trim()).filter((k: string) => k.length > 10);
+        const pool = (poolKeys.value as string).split(/[\n,;]+/).map((k: string) => k.trim()).filter((k: string) => k.length > 10);
         keys.push(...pool);
     }
     return Array.from(new Set(keys)).filter(k => !!k);

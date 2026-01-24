@@ -66,18 +66,18 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
             const cacheCount = await db.translationCache.count();
 
             setCurrentSettings({
-                apiKey: key?.value || "",
-                model: migrateModelId(model?.value || DEFAULT_MODEL)
+                apiKey: (key?.value as string) || "",
+                model: migrateModelId((model?.value as string) || DEFAULT_MODEL)
             });
 
             setTranslateConfig(prev => ({
                 ...prev,
-                customPrompt: lastPrompt?.value || "",
-                maxConcurrency: lastConcurrency?.value || 5,
-                fixPunctuation: lastFixPunctuation?.value || false,
-                enableChunking: lastEnableChunking?.value || false,
-                maxConcurrentChunks: lastMaxConcurrentChunks?.value || 3,
-                chunkSize: lastChunkSize?.value || 800
+                customPrompt: (lastPrompt?.value as string) || "",
+                maxConcurrency: (lastConcurrency?.value as number) || 5,
+                fixPunctuation: (lastFixPunctuation?.value as boolean) || false,
+                enableChunking: (lastEnableChunking?.value as boolean) || false,
+                maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
+                chunkSize: (lastChunkSize?.value as number) || 800
             }));
             setSavedPrompts(prompts);
             setCacheSize(cacheCount);

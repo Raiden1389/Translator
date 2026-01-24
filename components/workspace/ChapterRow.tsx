@@ -4,9 +4,10 @@ import React from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2, Book, Zap, Eraser } from "lucide-react";
+import { Trash2, Book, Zap, Eraser, Loader2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chapter } from "@/lib/db";
+import { useAiQueueStatus } from "./hooks/useAiQueueStatus";
 
 interface ChapterRowProps {
     chapter: Chapter;
@@ -33,7 +34,9 @@ export const ChapterRow = React.memo(function ChapterRow({
     onInspect,
     onClearTranslation,
 }: ChapterRowProps) {
+    const queueStatus = useAiQueueStatus(`translate-chap-${chapter.id}`);
     const issueCount = chapter.inspectionResults?.length || 0;
+
     return (
         <TableRow
             className={cn(
@@ -95,17 +98,28 @@ export const ChapterRow = React.memo(function ChapterRow({
                 <div className="flex flex-col items-center gap-1">
                     <span
                         className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider cursor-help",
-                            chapter.status === 'translated'
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 raiden-mode:bg-[#00ff991a] raiden-mode:text-[#00ff99] raiden-mode:border-[#00ff9933]"
-                                : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033]"
+                            "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider cursor-help gap-1",
+                            queueStatus === 'running'
+                                ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 raiden-mode:bg-[#00ccff1a] raiden-mode:text-[#00ccff] raiden-mode:border-[#00ccff33]"
+                                : queueStatus === 'queued'
+                                    ? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 raiden-mode:bg-white/5 raiden-mode:text-slate-400 raiden-mode:border-white/10"
+                                    : chapter.status === 'translated'
+                                        ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 raiden-mode:bg-[#00ff991a] raiden-mode:text-[#00ff99] raiden-mode:border-[#00ff9933]"
+                                        : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033]"
                         )}
-                        title={chapter.status === 'translated'
-                            ? `Model: ${chapter.translationModel || 'N/A'}\nTime: ${chapter.translationDurationMs ? (chapter.translationDurationMs / 1000).toFixed(1) + 's' : 'N/A'}\nDate: ${chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).toLocaleString() : 'N/A'}`
-                            : 'Chưa dịch'
+                        title={queueStatus !== 'none'
+                            ? "Đang nằm trong hàng đợi AI..."
+                            : chapter.status === 'translated'
+                                ? `Model: ${chapter.translationModel || 'N/A'}\nTime: ${chapter.translationDurationMs ? (chapter.translationDurationMs / 1000).toFixed(1) + 's' : 'N/A'}\nDate: ${chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).toLocaleString() : 'N/A'}`
+                                : 'Chưa dịch'
                         }
                     >
-                        {chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
+                        {queueStatus === 'running' && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                        {queueStatus === 'queued' && <Clock className="w-2.5 h-2.5" />}
+
+                        {queueStatus === 'running' ? "Đang dịch" :
+                            queueStatus === 'queued' ? "Xếp hàng" :
+                                chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
                     </span>
                     {chapter.status === 'translated' && chapter.lastTranslatedAt && (
                         <span className="text-[9px] text-muted-foreground/60 font-mono">

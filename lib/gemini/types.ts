@@ -24,13 +24,7 @@ export interface AnalyzedEntity {
     metadata?: any;
 }
 
-// --- Quality Inspection ---
-export interface InspectionIssue {
-    original: string;
-    suggestion: string;
-    type: 'untranslated' | 'pronoun' | 'grammar' | 'spelling' | 'other';
-    reason: string;
-}
+// --- Quality Inspection moved to /lib/types.ts ---
 
 // --- Style DNA ---
 export interface StyleDNA {

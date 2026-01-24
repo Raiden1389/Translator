@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { writeTextFile, readTextFile, exists, mkdir, BaseDirectory, readDir, remove } from "@tauri-apps/plugin-fs";
+import { writeTextFile, readTextFile, exists, mkdir, BaseDirectory, readDir, remove, rename } from "@tauri-apps/plugin-fs";
 
 export class StorageBridge {
     private static instance: StorageBridge;
@@ -18,91 +18,123 @@ export class StorageBridge {
         return StorageBridge.instance;
     }
 
-    async ensureDataDir() {
+    private async ensureDir(path: string) {
         if (!this.isTauri) return;
-
         try {
-            // In Tauri v2, we check/create relative to AppData base directory
-            if (!(await exists("workspaces", { baseDir: BaseDirectory.AppData }))) {
-                await mkdir("workspaces", { baseDir: BaseDirectory.AppData, recursive: true });
+            if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) {
+                await mkdir(path, { baseDir: BaseDirectory.AppData, recursive: true });
             }
         } catch (e) {
-            // Silently fail - non-critical operation
+            console.error(`StorageBridge: Failed to create directory ${path}`, e);
         }
     }
 
-    async saveWorkspace(workspaceId: string, data: any) {
+    /**
+     * Internal Atomic Write: .tmp -> rename
+     * Prevents file corruption during crashes
+     */
+    private async saveAtomic(filePath: string, data: any) {
         if (!this.isTauri) return;
-
-        await this.ensureDataDir();
-
         try {
-            const fileName = `workspaces/${workspaceId}.json`;
-            await writeTextFile(fileName, JSON.stringify(data, null, 2), {
+            const content = JSON.stringify(data);
+            const tmpPath = `${filePath}.tmp`;
+
+            // 1. Write to temp file
+            await writeTextFile(tmpPath, content, {
                 baseDir: BaseDirectory.AppData
             });
+
+            // 2. Rename to target (Atomic on most OS)
+            await rename(tmpPath, filePath, {
+                newPathBaseDir: BaseDirectory.AppData,
+                oldPathBaseDir: BaseDirectory.AppData
+            });
         } catch (e) {
-            // Silently fail - non-critical operation
+            console.error(`StorageBridge: Atomic save failed for ${filePath}`, e);
+            // Attempt to cleanup tmp file?
+            try { await remove(`${filePath}.tmp`, { baseDir: BaseDirectory.AppData }); } catch { }
         }
     }
 
-    async loadWorkspace(workspaceId: string) {
+    async saveMetadata(workspaceId: string, metadata: any) {
+        const wsDir = `workspaces/${workspaceId}`;
+        await this.ensureDir(wsDir);
+        await this.saveAtomic(`${wsDir}/metadata.json`, metadata);
+    }
+
+    async saveChapter(workspaceId: string, chapterId: number, data: any) {
+        const chapDir = `workspaces/${workspaceId}/chapters`;
+        await this.ensureDir(chapDir);
+        await this.saveAtomic(`${chapDir}/${chapterId}.json`, data);
+    }
+
+    async saveDictionary(workspaceId: string, data: any[]) {
+        const wsDir = `workspaces/${workspaceId}`;
+        await this.ensureDir(wsDir);
+        await this.saveAtomic(`${wsDir}/dictionary.json`, data);
+    }
+
+    async loadWorkspaceData(workspaceId: string) {
         if (!this.isTauri) return null;
 
-        await this.ensureDataDir();
-
+        const wsDir = `workspaces/${workspaceId}`;
         try {
-            const fileName = `workspaces/${workspaceId}.json`;
-            if (!(await exists(fileName, { baseDir: BaseDirectory.AppData }))) return null;
+            if (!(await exists(wsDir, { baseDir: BaseDirectory.AppData }))) return null;
 
-            const content = await readTextFile(fileName, {
-                baseDir: BaseDirectory.AppData
-            });
-            return JSON.parse(content);
+            // Load Metadata
+            const metadataStr = await readTextFile(`${wsDir}/metadata.json`, { baseDir: BaseDirectory.AppData }).catch(() => null);
+            const metadata = metadataStr ? JSON.parse(metadataStr) : null;
+
+            // Load Dictionary
+            const dictStr = await readTextFile(`${wsDir}/dictionary.json`, { baseDir: BaseDirectory.AppData }).catch(() => null);
+            const dictionary = dictStr ? JSON.parse(dictStr) : [];
+
+            // Load Chapters
+            const chapters: any[] = [];
+            const chapDir = `${wsDir}/chapters`;
+            if (await exists(chapDir, { baseDir: BaseDirectory.AppData })) {
+                const entries = await readDir(chapDir, { baseDir: BaseDirectory.AppData });
+                for (const entry of entries) {
+                    if (entry.isFile && entry.name.endsWith('.json')) {
+                        const content = await readTextFile(`${chapDir}/${entry.name}`, { baseDir: BaseDirectory.AppData });
+                        chapters.push(JSON.parse(content));
+                    }
+                }
+            }
+
+            return { workspace: metadata, dictionary, chapters };
         } catch (e) {
-            // Silently fail - return null
+            console.error("StorageBridge: Failed to load workspace data", e);
             return null;
         }
     }
 
     async listWorkspaces() {
         if (!this.isTauri) return [];
-
-        await this.ensureDataDir();
-
         try {
-            const entries = await readDir("workspaces", { baseDir: BaseDirectory.AppData });
-            return entries
-                .filter(e => e.isFile && e.name.endsWith('.json'))
-                .map(e => e.name.replace('.json', ''));
+            const path = "workspaces";
+            if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) return [];
+            const entries = await readDir(path, { baseDir: BaseDirectory.AppData });
+            return entries.filter(e => e.isDirectory).map(e => e.name);
         } catch (e) {
-            // Silently fail - return empty array
+            console.error("StorageBridge: Failed to list workspaces", e);
             return [];
         }
     }
 
     async deleteWorkspace(workspaceId: string) {
         if (!this.isTauri) return;
-
         try {
-            const fileName = `workspaces/${workspaceId}.json`;
-            if (await exists(fileName, { baseDir: BaseDirectory.AppData })) {
-                // In Tauri v2, we can just use remove for files too if it exists, 
-                // but let's check the actually imported functions. 
-                // Wait, line 2 imports 'exists', 'mkdir', etc. but NOT 'remove'.
-                // I need to add 'remove' to imports.
-                await invoke("plugin:fs|remove", { path: fileName, baseDir: BaseDirectory.AppData });
-                // Actually, I'll just use the plugin-fs exported function once I add it to imports.
+            const wsDir = `workspaces/${workspaceId}`;
+            if (await exists(wsDir, { baseDir: BaseDirectory.AppData })) {
+                await remove(wsDir, { baseDir: BaseDirectory.AppData, recursive: true });
             }
         } catch (e) {
-            console.error("StorageBridge: Failed to delete local file:", e);
+            console.error("StorageBridge: Failed to delete workspace directory:", e);
         }
     }
 
-    // Helper to check if running in Tauri environment
-    inTauri() {
-        return this.isTauri;
-    }
+    inTauri() { return this.isTauri; }
 }
 
 export const storage = StorageBridge.getInstance();

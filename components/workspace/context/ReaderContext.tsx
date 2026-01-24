@@ -1,5 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useReaderConfig } from "../hooks/useReaderConfig";
+import { InspectionIssue } from "@/lib/types";
 import { useReaderTTS } from "../hooks/useReaderTTS";
 import { useReaderInspection } from "../hooks/useReaderInspection";
 import { useReaderSelection } from "../hooks/useReaderSelection";
