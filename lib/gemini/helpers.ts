@@ -5,6 +5,10 @@
 export function normalizeVietnameseContent(text: string): string {
     if (!text) return "";
     return text
+        // -1. Normalize all line endings to \n first
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+
         // 0. Nuke invisible characters (Zero-width space, etc)
         .replace(/[\u200B-\u200D\uFEFF]/g, "")
 
@@ -21,6 +25,7 @@ export function normalizeVietnameseContent(text: string): string {
         // 2. Normalize Parentheses: （ ） -> ( )
         .replace(/（/g, "(")
         .replace(/）/g, ")")
+        .replace(/：/g, ":")
 
         // 3. MOST CRITICAL: Remove ANY amount of whitespace/newlines before ]
         .replace(/[\s\n]+\]/g, "]")
@@ -40,11 +45,13 @@ export function normalizeVietnameseContent(text: string): string {
         // 5. AGGRESSIVE: Remove newlines/spaces *around* brackets
         .replace(/\[[\s\n]+/g, "[")
 
-        // 6. Fix: Squash newline between brackets: ] \n [ -> ] [
-        .replace(/\]\s*\n+\s*\[/g, "] [")
+        // 6. [REMOVED] Fix: Squash newline between brackets: ] \n [ -> ] [
+        // Bỏ rule này vì nó làm gộp các dòng độc lập có ngoặc vuông (như thông báo hệ thống)
+        // .replace(/\]\s*\n+\s*\[/g, "] [")
 
-        // 7. Fix: Remove newline after ] if it's not a paragraph break
-        .replace(/\]\n(?!\n)/g, "] ")
+        // 7. [REMOVED] Fix: Remove newline after ] if it's not a paragraph break
+        // Bỏ rule này để tránh việc tự ý gộp dòng khi có 1 dấu xuống dòng duy nhất
+        // .replace(/\]\n(?!\n)/g, "] ")
 
         // 8. Same for parentheses
         .replace(/\s*\)/g, ")")
@@ -62,6 +69,11 @@ export function normalizeVietnameseContent(text: string): string {
         .replace(/[ \t]{2,}/g, " ")
         // 12. Ensure max 2 newlines (paragraph break)
         .replace(/\n{3,}/g, "\n\n")
+
+        // 13. HEALING LOGIC: Squash unnecessary newlines in dialogues to keep 1:1 parity with source
+        // Example: "Linh Độ:\n\n[abc]" -> "Linh Độ: [abc]"
+        .replace(/:\s*\n+\s*\[/g, ": [")
+
         .trim();
 }
 

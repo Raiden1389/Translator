@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, Chapter } from "@/lib/db";
 import { inspectChapter, InspectionIssue } from "@/lib/gemini";
-import { safeWrap, safeReplace } from "@/lib/gemini/helpers";
 import { getErrorMessage } from "@/lib/types";
 import { toast } from "sonner";
 import { TextSelectionMenu } from "./TextSelectionMenu";
@@ -77,7 +76,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     // 3. TTS active index changes (Reading highlight)
     const htmlContent = useMemo(() => ({
         __html: formatReaderText((chapter?.content_translated || "").normalize('NFC'), inspectionIssues, activeTTSIndex)
-    }), [chapter?.id, inspectionIssues, activeTTSIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+    }), [chapter?.id, chapter?.content_translated, inspectionIssues, activeTTSIndex]);
 
     // Sync Edit Content
     useEffect(() => {

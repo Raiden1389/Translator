@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { ChunkOptions, TranslationResult, TranslationLog } from "./types";
 import { finalSweep, generateCacheKey } from "./helpers";
+import { SYSTEM_VERSION } from "./constants";
 import pLimit from "p-limit";
 import { DEFAULT_MODEL } from "../ai-models";
 
@@ -81,7 +82,7 @@ export async function translateSingleChunk(
     // Ideally we would pass the full glossary context string here, but for now we hash without it 
     // or rely on the fact that glossary doesn't change THAT often. 
     // A robust solution would read glossary here or pass it in.
-    const cacheKey = await generateCacheKey(chunk, aiModel, customInstruction || "");
+    const cacheKey = await generateCacheKey(chunk, aiModel, (customInstruction || "") + SYSTEM_VERSION);
 
     // 2. Check Cache
     const cached = await db.translationCache.get(cacheKey);

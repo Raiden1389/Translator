@@ -71,27 +71,52 @@ export const translateChapter = async (
             let parsed: TranslationResult;
 
             try {
-                // Try to find if there's any JSON block
-                const jsonMatched = rawText.match(/\{[\s\S]*\}/);
-                if (jsonMatched) {
-                    const raw = JSON.parse(jsonMatched[0]);
-                    parsed = {
-                        translatedTitle: raw.title || raw.translatedTitle || "",
-                        translatedText: raw.content || raw.translatedText || raw.text || ""
-                    };
+                // 1. Cleaner extraction: catch the first { and last }
+                const firstBrace = rawText.indexOf('{');
+                const lastBrace = rawText.lastIndexOf('}');
+
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    let jsonStr = rawText.substring(firstBrace, lastBrace + 1);
+
+                    // 2. Try Standard Parse
+                    try {
+                        const raw = JSON.parse(jsonStr);
+                        parsed = {
+                            translatedTitle: raw.title || raw.translatedTitle || raw.chapter_title || "",
+                            translatedText: raw.content || raw.translatedText || raw.text || raw.translated_content || ""
+                        };
+                    } catch (e) {
+                        // 3. Last ditch: JSON is malformed, try regex-based extraction
+                        const titleMatch = jsonStr.match(/"(?:title|translatedTitle|chapter_title)":\s*"([^"]*)"/);
+                        const contentMatch = jsonStr.match(/"(?:content|translatedText|text|translated_content)":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
+
+                        parsed = {
+                            translatedTitle: titleMatch ? titleMatch[1] : "",
+                            translatedText: contentMatch ? contentMatch[1] : rawText
+                        };
+                    }
+
+                    // 4. Critical Fix: Some AI models return literal "\n" strings instead of real newlines
+                    if (parsed.translatedText && parsed.translatedText.includes('\\n')) {
+                        parsed.translatedText = parsed.translatedText
+                            .replace(/\\n/g, '\n')
+                            .replace(/\\r/g, '');
+                    }
                 } else {
-                    throw new Error("No JSON found");
+                    throw new Error("Missing JSON braces");
                 }
-            } catch {
-                // FALLBACK: Treat whole text as content if JSON fails
+            } catch (err) {
+                console.error("❌ Deep JSON failure. Using raw text.", err);
                 parsed = {
                     translatedTitle: "",
                     translatedText: rawText
                 };
             }
 
-            if (!parsed.translatedText || parsed.translatedText.length < 50) {
-                parsed.translatedText = rawText;
+            // High-confidence filter: If we ended up with raw JSON as the content, it's a failure
+            if (parsed.translatedText.trim().startsWith('{') && parsed.translatedText.includes('"content"')) {
+                const lastMatch = parsed.translatedText.match(/"content":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
+                if (lastMatch) parsed.translatedText = lastMatch[1].replace(/\\n/g, '\n');
             }
 
             // 3. Apply Auto-Corrections (Optimized Regex Replacement for simple replacements)

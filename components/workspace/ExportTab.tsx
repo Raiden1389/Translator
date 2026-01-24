@@ -264,6 +264,15 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
         return { blob, filename };
     };
 
+    const escapeHTML = (str: string) => {
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    };
+
     const exportAsEPUB = async (ws: Workspace, chs: Chapter[], language: ContentLang) => {
         const JSZip = (await import("jszip")).default;
         const zip = new JSZip();
@@ -275,12 +284,19 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
   </rootfiles>
 </container>`);
 
+        // Enhanced CSS for better reader compatibility
         zip.file("OEBPS/style.css", `
-body { font-family: "Georgia", serif; padding: 5% 8%; line-height: 1.8; }
-h1 { text-align: center; margin-bottom: 2em; font-family: serif; }
-h2 { text-align: center; margin-top: 2em; margin-bottom: 2em; padding-bottom: 1em; font-family: serif; }
-p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
-.chapter-content { margin-top: 2em; }
+body { 
+    font-family: "Georgia", "Times New Roman", serif; 
+    padding: 5% 8%; 
+    line-height: 1.8; 
+    color: inherit; 
+    background-color: transparent;
+}
+h1 { text-align: center; margin-bottom: 2em; font-family: serif; color: inherit; }
+h2 { text-align: center; margin-top: 2em; margin-bottom: 2em; padding-bottom: 1em; font-family: serif; color: inherit; border-bottom: 1px solid rgba(128,128,128,0.2); }
+p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; color: inherit; }
+.chapter-content { margin-top: 2em; color: inherit; }
 `);
 
         const manifestArr: string[] = [];
@@ -316,17 +332,20 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
             const title = language === 'vi' ? (ch.title_translated || ch.title) : ch.title;
             const rawContent = language === 'vi' ? (ch.content_translated || "[Chưa dịch]") : ch.content_original;
             const paragraphs = splitIntoParagraphs(rawContent);
-            const contentHtml = paragraphs.map(p => `<p>${p}</p>`).join('\n');
+
+            // ESCAPE HTML for content
+            const contentHtml = paragraphs.map(p => `<p>${escapeHTML(p)}</p>`).join('\n');
+            const escapedTitle = escapeHTML(title);
 
             const html = `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <title>${title}</title>
+    <title>${escapedTitle}</title>
     <link rel="stylesheet" type="text/css" href="style.css"/>
 </head>
 <body>
-    <h2>${title}</h2>
+    <h2>${escapedTitle}</h2>
     <div class="chapter-content">
         ${contentHtml}
     </div>
@@ -336,7 +355,7 @@ p { margin-bottom: 1.5em; text-indent: 0; text-align: justify; }
             zip.file(`OEBPS/${fileName}`, html);
             manifestArr.push(`<item id="ch${ch.id}" href="${fileName}" media-type="application/xhtml+xml"/>`);
             spineArr.push(`<itemref idref="ch${ch.id}"/>`);
-            tocEntries.push(`<navPoint id="navPoint-${i + 1}" playOrder="${i + 1}"><navLabel><text>${title}</text></navLabel><content src="${fileName}"/></navPoint>`);
+            tocEntries.push(`<navPoint id="navPoint-${i + 1}" playOrder="${i + 1}"><navLabel><text>${escapedTitle}</text></navLabel><content src="${fileName}"/></navPoint>`);
 
             setExportProgress(20 + Math.round((i / chs.length) * 70));
         }

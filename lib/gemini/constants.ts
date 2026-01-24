@@ -1,3 +1,7 @@
+// Update this version whenever CORE_RULES, PRONOUN_RULE or STRUCTURE_RULE changes
+// to force cache invalidation for all users.
+export const SYSTEM_VERSION = "v1.2";
+
 /**
  * System Instruction Constants (Optimized)
  */
@@ -25,8 +29,7 @@ QUY TẮC:
 2. Chỉ trả về TIẾNG VIỆT. Cấm tiếng Anh.
 3. Dịch sát nghĩa, đầy đủ, không bỏ sót.
 4. Giữ nguyên [] và cấu trúc danh sách.
-5. KHÔNG xuống dòng sau ].
-6. Chỉ trả về JSON hợp lệ. Không kèm văn bản thừa.
+5. Chỉ trả về JSON hợp lệ. Không kèm văn bản thừa.
 `;
 
 /**
