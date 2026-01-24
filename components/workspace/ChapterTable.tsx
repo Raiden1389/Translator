@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -45,6 +45,16 @@ export function ChapterTable({
     const dragStartIdRef = useRef<number | null>(null);
     const isDraggingRef = useRef(false);
 
+    // Performance: Precompute ID -> Index map
+    const chapterIndexMap = React.useMemo(() => {
+        const map = new Map<number, number>();
+        chapters.forEach((c, i) => map.set(c.id!, i));
+        return map;
+    }, [chapters]);
+
+    // Performance: Selected Set for O(1) checks
+    const selectedSet = React.useMemo(() => new Set(selectedChapters), [selectedChapters]);
+
     // Global Mouse Up to reset
     useEffect(() => {
         const handleGlobalMouseUp = () => {
@@ -87,10 +97,10 @@ export function ChapterTable({
         // 4. NOW we are dragging
         isDraggingRef.current = true;
 
-        const startIndex = chapters.findIndex(c => c.id === dragStartIdRef.current);
-        const currentIndex = chapters.findIndex(c => c.id === id);
+        const startIndex = chapterIndexMap.get(dragStartIdRef.current!);
+        const currentIndex = chapterIndexMap.get(id);
 
-        if (startIndex === -1 || currentIndex === -1) return;
+        if (startIndex === undefined || currentIndex === undefined) return;
 
         // Calculate Range strictly between Start and Current
         const start = Math.min(startIndex, currentIndex);
@@ -106,7 +116,7 @@ export function ChapterTable({
         // Apply Selection
         setSelectedChapters(newSelectedIds);
 
-    }, [chapters, setSelectedChapters]);
+    }, [chapters, chapterIndexMap, setSelectedChapters]);
 
     const handleDelete = useCallback(async (id: number) => {
         if (confirm("Xóa chương này?")) {
@@ -114,8 +124,8 @@ export function ChapterTable({
         }
     }, []);
 
-    const isPageAllSelected = chapters.length > 0 && chapters.every(c => selectedChapters.includes(c.id!));
-    const isPageSomeSelected = chapters.some(c => selectedChapters.includes(c.id!));
+    const isPageAllSelected = chapters.length > 0 && chapters.every(c => selectedSet.has(c.id!));
+    const isPageSomeSelected = chapters.some(c => selectedSet.has(c.id!));
 
     return (
         <div className="rounded-md border bg-card">
@@ -183,7 +193,7 @@ export function ChapterTable({
                         <ChapterRow
                             key={chapter.id}
                             chapter={chapter}
-                            isSelected={selectedChapters.includes(chapter.id!)}
+                            isSelected={selectedSet.has(chapter.id!)}
                             isInDrag={false} // Removed ref access, relying on isSelected update
                             onMouseDown={handleMouseDown}
                             onMouseEnter={handleMouseEnter}
@@ -196,6 +206,7 @@ export function ChapterTable({
                     ))}
                 </TableBody>
             </Table>
+            {/* TODO: If chapters.length > 300, consider official virtualization with @tanstack/react-virtual */}
         </div>
     );
 }

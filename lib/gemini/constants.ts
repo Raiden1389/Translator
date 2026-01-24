@@ -22,6 +22,13 @@ CẤU TRÚC:
 - KHÔNG gộp/tách dòng.
 `;
 
+// Idiom rules (Chengyu)
+export const IDIOM_RULE = `
+BẢO VỆ THÀNH NGỮ (CHENGYU):
+- Giữ nguyên dạng Hán Việt cho các thành ngữ bộ 4 chữ hoặc các câu cổ ngữ nổi tiếng (VD: Thiên ngoại hữu thiên, Mã trung xích thố, Nhân trung lữ bố...).
+- TUYỆT ĐỐI KHÔNG thuần Việt hóa các thành ngữ này sang nghĩa giải thích (VD: Không dịch "Thiên ngoại hữu thiên" thành "Ngoài trời còn có trời").
+`;
+
 // Core translation rules (Minified)
 export const CORE_RULES = `
 QUY TẮC:
@@ -48,6 +55,8 @@ export function buildSystemInstruction(
 ${CORE_RULES}
 
 ${PRONOUN_RULE}
+
+${IDIOM_RULE}
 
 ${STRUCTURE_RULE}
 ${glossaryContext || ""}`;

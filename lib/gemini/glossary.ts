@@ -1,78 +1,92 @@
-import { Type } from "@google/genai";
 import { db } from "../db";
 import { DEFAULT_MODEL } from "../ai-models";
 import { AnalyzedEntity } from "./types";
 import { withKeyRotation } from "./client";
-import { extractResponseText } from "./helpers";
+import { extractResponseText, cleanJsonResponse } from "./helpers";
 
 /**
  * Extract Glossary (Characters + Terms)
  */
-export const extractGlossary = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL) => {
-    return withKeyRotation(async (ai) => {
-        const prompt = `Trích xuất thực thể từ văn bản truyện để làm từ điển:
-- Characters: Tên người (Nam/Nữ, Vai trò, giải nghĩa ngắn gọn nếu là tên hiệu/biệt danh).
-- Terms: Chiêu thức, địa danh, vật phẩm đặc biệt, vật liệu, đẳng cấp.
-- Yêu cầu: Luôn ưu tiên tên Hán Việt chuẩn. 
-- QUAN TRỌNG: Cung cấp giải nghĩa ngắn gọn (description) cho từng mục để người dùng hiểu rõ ý nghĩa/ngữ cảnh.`;
+export const extractGlossary = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL): Promise<{
+    characters: any[],
+    terms: any[]
+}> => {
+    const prompt = `Trích xuất thực thể từ văn bản truyện để làm từ điển dịch thuật Hán-Việt chuyên nghiệp.
+YÊU CẦU:
+1. "characters": Danh sách các nhân vật riêng biệt (tên người).
+2. "terms": Danh sách các thuật ngữ đặc biệt (địa danh, công pháp, vật phẩm, tổ chức).
+3. LUÔN ƯU TIÊN tên Hán Việt chuẩn cho phần "translated".
+4. "description": Giải nghĩa ngắn gọn ngữ cảnh của từ đó trong chương này.
+5. "type": Phân loại cụ thể (cho terms: location, skill, item, organization, other).
 
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: [{ role: 'user', parts: [{ text: text.substring(0, 10000) }] }],
-            config: {
-                systemInstruction: prompt,
+MẪU PHẢN HỒI (JSON BẮT BUỘC):
+{
+  "characters": [
+    { "original": "tên gốc", "translated": "tên Hán Việt", "gender": "male|female|unknown", "description": "vai trò/ngữ cảnh" }
+  ],
+  "terms": [
+    { "original": "từ gốc", "translated": "nghĩa Hán Việt", "type": "skill", "description": "mô tả chiêu thức" }
+  ]
+}
+
+LƯU Ý: Nếu không tìm thấy thực thể nào đáng chú ý, trả về các mảng trống. Không được thêm bất kỳ lời dẫn nào ngoài JSON.`;
+
+    try {
+        const response: any = await withKeyRotation({
+            model,
+            systemInstruction: prompt,
+            prompt: `TRÍCH XUẤT TỪ ĐOẠN VĂN SAU:\n\n${text.substring(0, 15000)}`,
+            generationConfig: {
                 responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        characters: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    original: { type: Type.STRING },
-                                    translated: { type: Type.STRING },
-                                    gender: { type: Type.STRING },
-                                    description: { type: Type.STRING }
-                                },
-                                required: ["original", "translated"]
-                            }
-                        },
-                        terms: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    original: { type: Type.STRING },
-                                    translated: { type: Type.STRING },
-                                    type: { type: Type.STRING },
-                                    description: { type: Type.STRING }
-                                },
-                                required: ["original", "translated"]
-                            }
-                        }
-                    }
-                }
             }
-        });
+        }, onLog);
 
-        const jsonText = extractResponseText(response);
-        const result = JSON.parse(jsonText);
+        const rawText = extractResponseText(response);
+        const jsonStr = cleanJsonResponse(rawText);
 
-        // Enforce type="name" for characters
-        if (result.characters && Array.isArray(result.characters)) {
-            result.characters = result.characters.map((c: any) => ({ ...c, type: 'name' }));
+        let glossaryData = { characters: [], terms: [] };
+
+        try {
+            glossaryData = JSON.parse(jsonStr);
+        } catch (e) {
+            console.error("Failed to parse glossary JSON", e, jsonStr);
+            // Fallback: If JSON fail but we have raw text, we might try regex here?
+            // For now, return empty to avoid crashes
         }
-        return result;
-    }, onLog);
+
+        // Clean and normalize
+        const finalCharacters = (Array.isArray(glossaryData.characters) ? glossaryData.characters : [])
+            .map((c: any) => ({
+                ...c,
+                type: 'name',
+                original: c.original?.trim(),
+                translated: c.translated?.trim()
+            }))
+            .filter(c => c.original && c.translated);
+
+        const finalTerms = (Array.isArray(glossaryData.terms) ? glossaryData.terms : [])
+            .map((t: any) => ({
+                ...t,
+                original: t.original?.trim(),
+                translated: t.translated?.trim()
+            }))
+            .filter(t => t.original && t.translated);
+
+        return {
+            characters: finalCharacters,
+            terms: finalTerms
+        };
+    } catch (error) {
+        console.error("Glossary extraction fatal error:", error);
+        return { characters: [], terms: [] };
+    }
 };
 
 /**
  * Categorize Terms
  */
 export const categorizeTerms = async (terms: string[], onLog?: (msg: string) => void): Promise<{ original: string, category: string }[]> => {
-    return withKeyRotation(async (ai) => {
-        const prompt = `Classify terms:
+    const prompt = `Classify terms:
 - character (Tên người)
 - location (Địa danh)
 - organization (Tổ chức)
@@ -89,62 +103,45 @@ ${terms.join('\n')}
 
 Output: JSON array { "original", "category" }`;
 
-        const response = await ai.models.generateContent({
-            model: DEFAULT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            original: { type: Type.STRING },
-                            category: { type: Type.STRING }
-                        },
-                        required: ["original", "category"]
-                    }
-                }
-            }
-        });
-
-        const jsonText = extractResponseText(response);
-        return JSON.parse(jsonText || "[]");
+    const response: any = await withKeyRotation({
+        model: DEFAULT_MODEL,
+        prompt,
+        generationConfig: {
+            responseMimeType: "application/json",
+        }
     }, onLog);
+
+    try {
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+        return JSON.parse(text);
+    } catch {
+        return [];
+    }
 };
 
 /**
  * Translate Terms
  */
 export const translateTerms = async (terms: string[], onLog?: (msg: string) => void): Promise<{ original: string, translated: string }[]> => {
-    return withKeyRotation(async (ai) => {
-        const prompt = `Translate terms to Vietnamese Hán Việt:
+    const prompt = `Translate terms to Vietnamese Hán Việt:
 ${terms.join('\n')}
 
 Output: JSON array { "original", "translated" }`;
 
-        const response = await ai.models.generateContent({
-            model: DEFAULT_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            original: { type: Type.STRING },
-                            translated: { type: Type.STRING }
-                        },
-                        required: ["original", "translated"]
-                    }
-                }
-            }
-        });
-
-        const jsonText = extractResponseText(response);
-        return JSON.parse(jsonText || "[]");
+    const response: any = await withKeyRotation({
+        model: DEFAULT_MODEL,
+        prompt,
+        generationConfig: {
+            responseMimeType: "application/json",
+        }
     }, onLog);
+
+    try {
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+        return JSON.parse(text);
+    } catch {
+        return [];
+    }
 };
 
 /**

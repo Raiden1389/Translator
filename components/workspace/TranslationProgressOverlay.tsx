@@ -5,11 +5,16 @@ import { RefreshCw } from "lucide-react";
 
 interface TranslationProgressOverlayProps {
     isTranslating: boolean;
-    progress: { current: number; total: number; currentTitle: string };
+    progress: {
+        current: number;
+        total: number;
+        currentTitle: string;
+        logs?: { id: string, message: string, type: 'info' | 'success' | 'error', order: number }[];
+    };
 }
 
 export function TranslationProgressOverlay({ isTranslating, progress }: TranslationProgressOverlayProps) {
-    const { current, total, currentTitle } = progress;
+    const { current, total, currentTitle, logs = [] } = progress;
 
     // Calculate base percentage based on chapter-level progress
     const basePercent = total > 0 ? Math.round((current / total) * 100) : 0;
@@ -125,6 +130,24 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                         </div>
                     </div>
                 </div>
+
+                {/* Intelligent Batching Logs (Max Ping Console) */}
+                {logs.length > 0 && (
+                    <div className="pt-2 border-t border-border/50 max-h-[120px] overflow-y-auto custom-scrollbar space-y-1.5 font-mono text-[9px]">
+                        {logs.map((log) => (
+                            <div key={log.id} className="flex items-start gap-2 animate-in fade-in slide-in-from-left-1">
+                                <span className="bg-muted px-1 rounded text-muted-foreground shrink-0">CH {log.order}</span>
+                                <span className={
+                                    log.type === 'error' ? 'text-red-400' :
+                                        log.type === 'success' ? 'text-emerald-400' :
+                                            'text-white/60'
+                                }>
+                                    {log.message}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

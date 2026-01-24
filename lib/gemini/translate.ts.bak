@@ -13,8 +13,7 @@ export const translateChapter = async (
     text: string,
     onLog: (log: TranslationLog) => void,
     onSuccess: (result: TranslationResult) => void,
-    customInstruction?: string,
-    sharedGlossary?: any[]
+    customInstruction?: string
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
@@ -23,21 +22,15 @@ export const translateChapter = async (
     text = text.trim().replace(/\n\s*\n/g, '\n\n');
 
     // 1. Get Glossary & Blacklist
-    let relevantDict: any[] = [];
+    const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
+    const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
+    const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
-    if (sharedGlossary && sharedGlossary.length > 0) {
-        relevantDict = sharedGlossary;
-    } else {
-        const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
-        const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
-        const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
-
-        // Filter glossary: Remove blacklisted, only keep terms that appear, LIMIT 30 terms
-        relevantDict = dict
-            .filter(d => !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original))
-            .sort((a, b) => b.original.length - a.original.length)
-            .slice(0, 30);
-    }
+    // Filter glossary: Remove blacklisted, only keep terms that appear, LIMIT 30 terms
+    const relevantDict = dict
+        .filter(d => !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original))
+        .sort((a, b) => b.original.length - a.original.length)
+        .slice(0, 30);
 
     const glossaryContext = relevantDict.length > 0
         ? `\n\nTHUẬT NGỮ (ƯU TIÊN DÙNG):\n${relevantDict.map(d => `${d.original} -> ${d.translated}`).join('\n')}`
@@ -70,10 +63,7 @@ export const translateChapter = async (
         }
 
         const rawText = extractResponseText(rawResult).trim();
-        let parsed: TranslationResult = {
-            translatedTitle: "",
-            translatedText: rawText
-        };
+        let parsed: TranslationResult;
 
         try {
             // 1. Cleaner extraction: catch the first { and last }
@@ -107,9 +97,11 @@ export const translateChapter = async (
                         .replace(/\\n/g, '\n')
                         .replace(/\\r/g, '');
                 }
+            } else {
+                throw new Error("Missing JSON braces");
             }
         } catch (err) {
-            console.error("❌ JSON extraction failed. Falling back to raw text.", err);
+            console.error("❌ Deep JSON failure. Using raw text.", err);
             parsed = {
                 translatedTitle: "",
                 translatedText: rawText

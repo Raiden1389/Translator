@@ -165,11 +165,11 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
             const result = await extractGlossary(chapter.content_original);
             if (result) {
                 const existingOriginals = new Set(dictEntries?.map(d => d.original) || []);
-                const newChars = result.characters.map((c: any) => ({
+                const newChars = (result.characters || []).map((c: any) => ({
                     ...c,
                     isExisting: existingOriginals.has(c.original)
                 }));
-                const newTerms = result.terms.map((t: any) => ({
+                const newTerms = (result.terms || []).map((t: any) => ({
                     ...t,
                     isExisting: existingOriginals.has(t.original)
                 }));
