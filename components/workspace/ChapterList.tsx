@@ -25,9 +25,25 @@ import { inspectChapter } from "@/lib/gemini";
 import { applyCorrectionRule } from "@/lib/gemini/helpers";
 import { TranslationSettings, InspectionIssue } from "@/lib/types"; // Consolidated InspectionIssue
 
+interface BatchTranslateHandlerProps {
+    workspaceId: string;
+    chapters: Chapter[];
+    selectedChapters: number[];
+    currentSettings: TranslationSettings;
+    translateConfig: {
+        customPrompt: string;
+        autoExtract: boolean;
+        fixPunctuation?: boolean;
+        maxConcurrency?: number;
+        enableChunking: boolean;
+        maxConcurrentChunks: number;
+        chunkSize?: number;
+    };
+}
+
 interface ChapterListProps {
     workspaceId: string;
-    onTranslate: (props: TranslationSettings & { chapterIds: number[] }) => void;
+    onTranslate: (props: BatchTranslateHandlerProps) => void;
 }
 
 export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
@@ -285,17 +301,20 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 open={translateDialogOpen}
                 onOpenChange={setTranslateDialogOpen}
                 selectedCount={selectedChapters.length}
-                onStart={(config: { customPrompt: string; autoExtract: boolean; maxConcurrency: number }, settings: TranslationSettings) => {
+                onStart={(config, settings) => {
                     setTranslateDialogOpen(false);
                     onTranslate({
-                        ...settings,
-                        chapterIds: selectedChapters,
-                        // The following are not part of TranslationSettings & { chapterIds: number[] }
-                        // and should be handled by the parent component if needed.
-                        // workspaceId,
-                        // chapters: filtered,
-                        // translateConfig: config,
-                        // onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
+                        workspaceId,
+                        chapters: filtered,
+                        selectedChapters,
+                        currentSettings: settings,
+                        translateConfig: {
+                            ...config,
+                            fixPunctuation: config.fixPunctuation,
+                            enableChunking: config.enableChunking,
+                            maxConcurrentChunks: config.maxConcurrentChunks || 3,
+                            chunkSize: config.chunkSize || 800
+                        }
                     });
                 }}
             />
@@ -423,6 +442,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 textToScan=""
                 workspaceId={workspaceId}
                 totalChapters={chapters.length}
+                selectedCount={selectedChapters.length}
                 onScanRequest={async (config) => {
                     let targetChapters: Chapter[] = [];
 

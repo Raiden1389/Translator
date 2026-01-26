@@ -521,29 +521,30 @@ export function ReaderHeader({
                 onAddTerm={async (candidate) => {
                     try {
                         const typeMap: Record<string, string> = {
-                            'Person': 'names',
-                            'Location': 'locations',
-                            'Organization': 'orgs',
-                            'Skill': 'skills',
-                            'Term': 'terms'
+                            'Person': 'name',
+                            'Location': 'location',
+                            'Organization': 'organization',
+                            'Skill': 'skill',
+                            'Term': 'term'
                         };
 
-                        const category = typeMap[candidate.type] || 'names';
+                        const entryType = typeMap[candidate.type || 'Unknown'] || 'term';
 
                         // Check if exists
-                        const existing = await db.names.where('original').equals(candidate.original).first();
+                        const existing = await db.dictionary.where('[workspaceId+original]').equals([chapter.workspaceId, candidate.original]).first();
                         if (existing) {
                             toast.info(`Từ "${candidate.original}" đã có trong từ điển.`);
                             return;
                         }
 
                         // Add to DB
-                        await db.names.add({
+                        await db.dictionary.add({
+                            workspaceId: chapter.workspaceId,
                             original: candidate.original,
-                            vietnamese: candidate.original, // Default to original
-                            type: category, // Map NameHunter type to DB type
+                            translated: candidate.original, // Default to original
+                            type: entryType as any,
                             description: `Auto-detected as ${candidate.type}`,
-                            created_at: new Date()
+                            createdAt: new Date()
                         });
                         toast.success(`Đã thêm "${candidate.original}" vào từ điển.`);
                     } catch (error) {

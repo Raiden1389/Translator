@@ -96,24 +96,51 @@ export async function withKeyRotation<T>(
     // Try primary first (undefined means the backend will use its .env GEMINI_API_KEY)
     const keyQueue = [undefined, ...keys];
 
+    // Environment Check: Are we in Tauri?
+    // @ts-ignore
+    const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+
     for (const key of keyQueue) {
         try {
             if (onLog) onLog(`Trying ${key ? 'Pool Key' : 'Primary/Env Key'}...`);
 
-            const responseText = await invoke<string>("native_gemini_request", {
-                payload,
-                model: params.model.trim(),
-                apiKey: key
-            });
+            if (isTauri) {
+                // TAURI NATIVE REQUEST
+                const responseText = await invoke<string>("native_gemini_request", {
+                    payload,
+                    model: params.model.trim(),
+                    apiKey: key
+                });
 
-            const parsed = JSON.parse(responseText);
-            if (parsed.error) {
-                const msg = parsed.error.message || "Gemini API Error";
-                if (onLog) onLog(`Error: ${msg}`);
-                throw new Error(msg);
+                const parsed = JSON.parse(responseText);
+                if (parsed.error) {
+                    const msg = parsed.error.message || "Gemini API Error (Native)";
+                    if (onLog) onLog(`Error: ${msg}`);
+                    throw new Error(msg);
+                }
+                return parsed as T;
+            } else {
+                // BROWSER DIRECT REQUEST (FALLBACK)
+                if (!key) {
+                    throw new Error("Missing API Key for browser request. (Env keys not leakable to client)");
+                }
+
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${params.model.trim()}:generateContent?key=${key}`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || res.statusText);
+                }
+
+                const data = await res.json();
+                return data as T;
             }
 
-            return parsed as T;
         } catch (error: any) {
             lastError = error;
             if (onLog) onLog(`Failed: ${error.message}`);

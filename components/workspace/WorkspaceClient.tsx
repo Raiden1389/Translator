@@ -269,7 +269,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                     <div className="max-w-6xl mx-auto">
                         <ErrorBoundary name="WorkspaceTabContent">
                             {activeTab === "overview" && <OverviewTab workspace={workspace} />}
-                            {activeTab === "chapters" && <ChapterList workspaceId={id} onShowScanResults={setReviewData} onTranslate={startBatchTranslate} />}
+                            {activeTab === "chapters" && <ChapterList workspaceId={id} onTranslate={startBatchTranslate} />}
                             {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
                             {activeTab === "characters" && <CharacterTab workspaceId={id} />}
                             {activeTab === "corrections" && <CorrectionsView workspaceId={id} />}

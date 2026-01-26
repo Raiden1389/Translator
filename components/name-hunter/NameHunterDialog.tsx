@@ -37,6 +37,7 @@ interface NameHunterDialogProps {
     onScanRequest?: (config: ScanConfig) => Promise<string[]>;
     onAddTerm?: (candidate: TermCandidate) => void;
     totalChapters?: number;
+    selectedCount?: number;
 }
 
 export function NameHunterDialog({
@@ -47,6 +48,7 @@ export function NameHunterDialog({
     onScanRequest,
     onAddTerm,
     totalChapters = 0,
+    selectedCount = 0,
 }: NameHunterDialogProps) {
     const {
         scan,
@@ -130,9 +132,10 @@ export function NameHunterDialog({
         if (activeTab === 'manual') {
             textsToProcess = [manualText];
         } else if (onScanRequest) {
+            const isSelectedScope = rangeInput === 'selected';
             const config: ScanConfig = {
-                scope: rangeInput ? 'range' : 'all_chapters',
-                range: rangeInput,
+                scope: isSelectedScope ? 'selected_chapters' : (rangeInput ? 'range' : 'all_chapters'),
+                range: isSelectedScope ? undefined : rangeInput,
                 filters: filters,
             };
             textsToProcess = await onScanRequest(config);
@@ -244,18 +247,54 @@ export function NameHunterDialog({
                     {step === 'config' ? (
                         <div className="space-y-8 max-w-2xl mx-auto">
                             <div className="space-y-4 bg-card p-6 rounded-xl border">
-                                <div className="grid grid-cols-[100px_1fr] items-center gap-4">
-                                    <label className="text-sm font-medium">Phạm vi:</label>
-                                    <div className="space-y-1">
-                                        <input
-                                            type="text"
-                                            placeholder="Ví dụ: 1-10, 15, 20-30"
-                                            className="w-full h-10 px-3 rounded-md border bg-background"
-                                            value={rangeInput}
-                                            onChange={(e) => setRangeInput(e.target.value)}
-                                        />
-                                        <p className="text-xs text-muted-foreground">
-                                            Để trống = Quét tất cả {totalChapters} chương.
+                                <div className="grid grid-cols-[100px_1fr] gap-4">
+                                    <label className="text-sm font-medium pt-2">Phạm vi:</label>
+                                    <div className="space-y-3">
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                variant={(!rangeInput && activeTab !== 'manual') ? "secondary" : "outline"}
+                                                size="sm"
+                                                onClick={() => {
+                                                    setRangeInput("");
+                                                    setActiveTab('auto');
+                                                }}
+                                                className="h-8"
+                                            >
+                                                Tất cả ({totalChapters})
+                                            </Button>
+                                            {selectedCount > 0 && (
+                                                <Button
+                                                    variant={rangeInput === 'selected' ? "secondary" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setRangeInput("selected");
+                                                        setActiveTab('auto');
+                                                    }}
+                                                    className="h-8"
+                                                >
+                                                    Đang chọn ({selectedCount})
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Hoặc nhập range: 1-10, 15"
+                                                className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
+                                                value={rangeInput === 'selected' ? '' : rangeInput}
+                                                onChange={(e) => {
+                                                    setRangeInput(e.target.value);
+                                                    setActiveTab('auto');
+                                                }}
+                                            />
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            {rangeInput === 'selected'
+                                                ? "Quét các chương đã chọn trong danh sách."
+                                                : rangeInput
+                                                    ? "Quét theo dải chương chỉ định."
+                                                    : "Quét toàn bộ workspace (Tốn thời gian)."}
                                         </p>
                                     </div>
                                 </div>

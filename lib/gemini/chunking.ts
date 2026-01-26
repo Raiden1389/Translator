@@ -148,10 +148,11 @@ export async function translateWithChunking(
     onLog({ timestamp: new Date(), message: msg, type: 'info' });
 
     try {
-        const { aiQueue } = await import("../services/ai-queue");
+        // Use local limit for chunks to avoid Global Queue Deadlock
+        const chunkLimit = pLimit(finalOptions.maxConcurrent || 3);
 
         const promises = chunks.map((chunk, index) => {
-            return aiQueue.enqueue('MEDIUM', async () => {
+            return chunkLimit(async () => {
                 const chunkStart = Date.now();
                 console.log(`📦 [${batchId}] Chunk ${index + 1}/${chunks.length} Bắt đầu (${chunk.length} ký tự)`);
                 finalOptions.onProgress?.(index + 1, chunks.length);
@@ -164,7 +165,7 @@ export async function translateWithChunking(
                     console.error(`❌ [${batchId}] Chunk ${index + 1} thất bại:`, err);
                     throw err;
                 }
-            }, `${batchId}-chunk-${index}`);
+            });
         });
 
         const results = await Promise.all(promises);
