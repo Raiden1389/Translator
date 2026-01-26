@@ -29,17 +29,18 @@ const DIC_TYPES = [
 
 interface DictionaryToolbarProps {
     search: string;
-    onSearchChange: (value: string) => void;
+    onSearchChange: (search: string) => void;
     filterType: string;
-    onFilterTypeChange: (value: string) => void;
-    onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onFilterTypeChange: (type: string) => void;
+    onImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onExport: () => void;
-    onAIExtract: (source: "latest" | "current" | "select") => void;
+    onAIExtract: (source: string) => void;
     isExtracting: boolean;
     extractDialogOpen: boolean;
     onExtractDialogChange: (open: boolean) => void;
     onAddClick: () => void;
     onSelectFromList: () => void;
+    workspaceId: string;
 }
 
 export function DictionaryToolbar({
@@ -54,7 +55,8 @@ export function DictionaryToolbar({
     extractDialogOpen,
     onExtractDialogChange,
     onAddClick,
-    onSelectFromList
+    onSelectFromList,
+    workspaceId
 }: DictionaryToolbarProps) {
     return (
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -103,6 +105,40 @@ export function DictionaryToolbar({
                     onClick={onExport}
                 >
                     <Download className="mr-2 h-4 w-4" /> Export VP
+                </Button>
+
+                <Button
+                    onClick={async () => {
+                        if (confirm("Nạp danh sách địa điểm và nhân vật Tam Quốc kinh điển vào từ điển?")) {
+                            const { TK_LOCATIONS, TK_PERSONS } = await import("@/lib/services/name-hunter/data/three-kingdoms");
+                            const { db } = await import("@/lib/db");
+                            const { toast } = await import("sonner");
+
+                            let added = 0;
+                            // Import Locations
+                            for (const loc of TK_LOCATIONS) {
+                                const exist = await db.dictionary.where({ original: loc, workspaceId }).first();
+                                if (!exist) {
+                                    await db.dictionary.add({ workspaceId, original: loc, translated: loc, type: 'location', description: 'Tam Quốc Location', createdAt: new Date() });
+                                    added++;
+                                }
+                            }
+                            // Import Persons
+                            for (const per of TK_PERSONS) {
+                                const exist = await db.dictionary.where({ original: per, workspaceId }).first();
+                                if (!exist) {
+                                    await db.dictionary.add({ workspaceId, original: per, translated: per, type: 'name', description: 'Tam Quốc Person', createdAt: new Date() });
+                                    added++;
+                                }
+                            }
+                            toast.success(`Đã nạp ${added} mục Tam Quốc!`);
+                        }
+                    }}
+                    variant="outline"
+                    className="bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                >
+                    <Download className="mr-2 h-4 w-4" />
+                    Nạp Tam Quốc 3K
                 </Button>
 
                 <Button

@@ -5,22 +5,9 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { DictionaryToolbar } from "../DictionaryToolbar";
 import { DictionaryAddForm } from "../DictionaryAddForm";
 import { DictionaryBulkActions } from "../DictionaryBulkActions";
-import { EditableCell } from "../../shared/EditableCell";
 import { useDictionary } from "../hooks/useDictionary";
-import { DIC_TYPES } from "../DictionaryToolbar";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-} from "@/components/ui/select";
-import { ShieldBan, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { db } from "@/lib/db";
 import { toast } from "sonner";
-
 import { DictionaryRow } from "../DictionaryRow";
 
 interface DictionaryViewProps {
@@ -73,8 +60,8 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
     });
 
     const handleSelectChange = React.useCallback((id: number, checked: boolean) => {
-        if (checked) setSelectedEntries(prev => [...prev, id]);
-        else setSelectedEntries(prev => prev.filter(eId => eId !== id));
+        if (checked) setSelectedEntries((prev: number[]) => [...prev, id]);
+        else setSelectedEntries((prev: number[]) => prev.filter((eId: number) => eId !== id));
     }, [setSelectedEntries]);
 
     return (
@@ -86,7 +73,7 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
                 onFilterTypeChange={setFilterType}
                 onImport={handleImport}
                 onExport={handleExport}
-                onAIExtract={(source) => handleAIExtract(source, dictionary)}
+                onAIExtract={(source: string) => handleAIExtract(source as any, dictionary)}
                 isExtracting={isExtracting}
                 extractDialogOpen={extractDialogOpen}
                 onExtractDialogChange={setExtractDialogOpen}
@@ -96,6 +83,7 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
                     onChangeTab("chapters");
                     toast.info("Mày hãy chọn các chương muốn quét ở danh sách rồi bấm Quét nhé!");
                 }}
+                workspaceId={workspaceId}
             />
 
             {isAdding && (

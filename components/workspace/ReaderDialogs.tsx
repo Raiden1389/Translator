@@ -29,7 +29,7 @@ interface ReaderDialogsProps {
     setDictOriginal: (val: string) => void;
     dictTranslated: string;
     setDictTranslated: (val: string) => void;
-    handleSaveDictionary: () => void;
+    handleSaveDictionary: (targetType: 'character' | 'term') => void;
 
     // Inspection Dialog
     activeIssue: InspectionIssue | null;
@@ -199,14 +199,22 @@ export function ReaderDialogs({
                             />
                         </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="gap-2 sm:gap-0">
                         <Button variant="ghost" onClick={() => setDictDialogOpen(false)}>Hủy</Button>
-                        <Button
-                            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                            onClick={handleSaveDictionary}
-                        >
-                            Lưu từ
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                onClick={() => handleSaveDictionary('character')}
+                            >
+                                Lưu nhân vật
+                            </Button>
+                            <Button
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => handleSaveDictionary('term')}
+                            >
+                                Lưu từ điển
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -226,12 +234,12 @@ export function ReaderDialogs({
                         <div className="space-y-4 py-4">
                             <div className="p-3 bg-red-100/50 border border-red-200 rounded-lg">
                                 <div className="text-xs text-red-600 font-bold uppercase mb-1">Nguyên văn (Lỗi)</div>
-                                <div className="text-lg font-serif text-foreground">{activeIssue.original}</div>
+                                <div className="text-lg font-serif text-foreground">&quot;{activeIssue.original}&quot;</div>
                             </div>
                             <div className="flex justify-center text-muted-foreground/20">⬇</div>
                             <div className="p-3 bg-emerald-100/50 border border-emerald-200 rounded-lg">
                                 <div className="text-xs text-emerald-600 font-bold uppercase mb-1">Gợi ý sửa</div>
-                                <div className="text-lg font-bold text-emerald-800">{activeIssue.suggestion}</div>
+                                <div className="text-lg font-bold text-emerald-800">&quot;{activeIssue.suggestion}&quot;</div>
                             </div>
                             <div className="text-sm text-muted-foreground italic border-l-2 border-border pl-3">
                                 "{activeIssue.reason}"

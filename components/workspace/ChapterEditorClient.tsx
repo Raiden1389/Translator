@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, Sparkles, Settings, ArrowRight, ArrowLeft as ArrowPrev, BookOpen } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, ArrowRight, ArrowLeft as ArrowPrev, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/context-menu";
 
 import { translateChapter, TranslationLog, extractGlossary } from "@/lib/gemini";
-import { Loader2, Terminal, X, CheckCircle2, AlertCircle, Copy, FileSearch } from "lucide-react";
+import { Loader2, Terminal, FileSearch } from "lucide-react";
 import { ReviewDialog } from "@/components/workspace/ReviewDialog";
 import {
     Dialog,
@@ -83,6 +83,17 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
     // Manager
     const [dictManager, setDictManager] = useState<DictionaryManager | null>(null);
 
+    // Translation State
+    const [isTranslating, setIsTranslating] = useState(false);
+    const [statusOpen, setStatusOpen] = useState(false);
+    const [logs, setLogs] = useState<TranslationLog[]>([]);
+
+    // AI Extraction State
+    const [isAIExtracting, setIsAIExtracting] = useState(false);
+    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
+    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
+    const [isReviewOpen, setIsReviewOpen] = useState(false);
+
     // Initialize Manager when dictionary loads
     useEffect(() => {
         if (dictEntries) {
@@ -96,8 +107,45 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
         }
     }, [chapter]);
 
-    if (!workspace || !chapter) return <div className="h-screen flex items-center justify-center text-white/50">Loading...</div>;
+    // Render Tokenized Original Text
+    const renderedOriginalText = React.useMemo(() => {
+        if (!dictManager || !chapter || !chapter.content_original) return chapter?.content_original || "";
 
+        const tokens = dictManager.tokenize(chapter.content_original);
+        return tokens.map((token, idx) => {
+            const isHighlighted = highlightedChar && token.text === highlightedChar;
+
+            if (token.isEntry) {
+                return (
+                    <span
+                        key={idx}
+                        className={cn(
+                            "cursor-pointer rounded px-0.5 border-b border-dashed transition-all",
+                            isHighlighted
+                                ? "bg-purple-500 text-white border-white animate-pulse font-bold"
+                                : "text-amber-400 border-amber-400/50 hover:bg-white/10"
+                        )}
+                        title={`Nghĩa: ${token.translation}`}
+                        onContextMenu={(e) => {
+                            setSelectedText(token.text);
+                            setSelectedTranslatedText("");
+                        }}
+                        onClick={() => {
+                            setSelectedText(token.text);
+                            setSelectedTranslatedText("");
+                            setDicOpen(true);
+                        }}
+                    >
+                        {token.text}
+                    </span>
+                );
+            }
+
+            return <span key={idx} className={isHighlighted ? "bg-purple-500 text-white" : ""}>{token.text}</span>;
+        });
+    }, [dictManager, chapter, highlightedChar]);
+
+    if (!workspace || !chapter) return <div className="h-screen flex items-center justify-center text-white/50">Loading...</div>;
     const handleSave = async () => {
         setIsSaving(true);
         try {
@@ -254,73 +302,29 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
             finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
         }
 
-        await translateChapter(
-            id,
-            chapter.content_original,
-            addLog,
-            (result) => {
-                const text = result.translatedText;
-                setTranslatedContent(text);
-                db.chapters.update(parseInt(chapterId), {
-                    content_translated: text,
-                    wordCountTranslated: text.length,
-                    status: 'translated'
-                });
-            },
-            finalPrompt
-        );
+        const { aiQueue } = await import("@/lib/services/ai-queue");
+        await aiQueue.enqueue('HIGH', async () => {
+            return translateChapter(
+                id,
+                chapter.content_original,
+                addLog,
+                (result) => {
+                    const text = result.translatedText;
+                    setTranslatedContent(text);
+                    db.chapters.update(parseInt(chapterId), {
+                        content_translated: text,
+                        wordCountTranslated: text.length,
+                        status: 'translated'
+                    });
+                },
+                finalPrompt
+            );
+        }, `single-translate-${chapterId}`);
 
         setIsTranslating(false);
     };
 
-    // Translation State
-    const [isTranslating, setIsTranslating] = useState(false);
-    const [statusOpen, setStatusOpen] = useState(false);
-    const [logs, setLogs] = useState<TranslationLog[]>([]);
 
-    // AI Extraction State
-    const [isAIExtracting, setIsAIExtracting] = useState(false);
-    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
-    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
-    const [isReviewOpen, setIsReviewOpen] = useState(false);
-
-    // Render Tokenized Original Text
-    const renderedOriginalText = React.useMemo(() => {
-        if (!dictManager || !chapter.content_original) return chapter.content_original;
-
-        const tokens = dictManager.tokenize(chapter.content_original);
-        return tokens.map((token, idx) => {
-            const isHighlighted = highlightedChar && token.text === highlightedChar;
-
-            if (token.isEntry) {
-                return (
-                    <span
-                        key={idx}
-                        className={cn(
-                            "cursor-pointer rounded px-0.5 border-b border-dashed transition-all",
-                            isHighlighted
-                                ? "bg-purple-500 text-white border-white animate-pulse font-bold"
-                                : "text-amber-400 border-amber-400/50 hover:bg-white/10"
-                        )}
-                        title={`Nghĩa: ${token.translation}`}
-                        onContextMenu={(e) => {
-                            setSelectedText(token.text);
-                            setSelectedTranslatedText("");
-                        }}
-                        onClick={() => {
-                            setSelectedText(token.text);
-                            setSelectedTranslatedText("");
-                            setDicOpen(true);
-                        }}
-                    >
-                        {token.text}
-                    </span>
-                );
-            }
-
-            return <span key={idx} className={isHighlighted ? "bg-purple-500 text-white" : ""}>{token.text}</span>;
-        });
-    }, [dictManager, chapter.content_original, highlightedChar]);
 
     return (
         <main className="fixed inset-0 flex flex-col bg-[#1a0b2e] overflow-hidden selection:bg-primary/30">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
     Search, ChevronLeft, ChevronRight, Download, Upload, Loader2,
-    FileText, X, Sparkles, Trash2, Filter, LayoutGrid, LayoutList
+    FileText, X, Sparkles, Trash2, Filter, LayoutGrid, LayoutList, ScanSearch
 } from "lucide-react";
 import {
     Select,
@@ -184,9 +184,9 @@ export function ChapterListHeader({
                     </div>
                 </div>
 
-                {/* Utility Action Hub - 2x2 Grid Box */}
+                {/* Utility Action Hub - Autosizing Grid */}
                 <TooltipProvider>
-                    <div className="grid grid-cols-2 gap-1 bg-muted/30 p-1.5 rounded-xl border border-border/50 shadow-sm transition-all hover:bg-muted/40 h-fit">
+                    <div className="grid grid-cols-3 gap-1 bg-muted/30 p-1.5 rounded-xl border border-border/50 shadow-sm transition-all hover:bg-muted/40 h-fit">
                         {/* Clear Cache */}
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -269,6 +269,20 @@ export function ChapterListHeader({
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="left">Nhập truyện (EPUB/TXT)</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={onScan}
+                                    className="h-7 w-7 text-indigo-500 hover:bg-indigo-500/10"
+                                >
+                                    <ScanSearch className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Name Hunter (Mới)</TooltipContent>
                         </Tooltip>
                     </div>
                 </TooltipProvider>

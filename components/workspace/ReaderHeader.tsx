@@ -1,11 +1,12 @@
 import React, { useState, useRef } from "react";
-import { ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, Search, ShieldCheck, Sparkles, X, Volume2, VolumeX, Pause, Play, Eraser } from "lucide-react";
+import { ChevronLeft, ChevronRight, SplitSquareHorizontal, Edit3, BookOpen, Type, AlignLeft, AlignCenter, AlignRight, AlignJustify, Search, ShieldCheck, Sparkles, X, Volume2, VolumeX, Pause, Play, Eraser, ScanSearch } from "lucide-react";
 import { toast } from "sonner";
 import { speak, prefetchTTS, VIETNAMESE_VOICES } from "@/lib/tts";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InspectionIssue } from "@/lib/types";
+import { NameHunterDialog } from "@/components/name-hunter/NameHunterDialog";
 
 export interface ReaderConfig {
     fontFamily: string;
@@ -84,6 +85,7 @@ export function ReaderHeader({
 }: ReaderHeaderProps) {
     // Hooks must be called before early return
     const [showTTSSettings, setShowTTSSettings] = useState(false);
+    const [showNameHunter, setShowNameHunter] = useState(false);
     const bgInputRef = useRef<HTMLInputElement>(null);
     const textInputRef = useRef<HTMLInputElement>(null);
 
@@ -141,7 +143,19 @@ export function ReaderHeader({
             </div>
 
 
+
+
             <div className="flex items-center gap-2">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowNameHunter(true)}
+                    className="w-11 h-11 rounded-xl transition-all duration-300 border border-border text-muted-foreground hover:text-blue-600 hover:bg-blue-500/5 shadow-sm"
+                    title="Săn Tên (Name Hunter)"
+                >
+                    <ScanSearch className="w-5 h-5" />
+                </Button>
+
                 <Button
                     variant="ghost"
                     size="icon"
@@ -499,6 +513,45 @@ export function ReaderHeader({
                     <X className="w-5 h-5" />
                 </Button>
             </div>
-        </header>
+
+            <NameHunterDialog
+                isOpen={showNameHunter}
+                onOpenChange={setShowNameHunter}
+                textToScan={activeTab === 'translated' ? (chapter.content_translated || "") : chapter.content_original}
+                onAddTerm={async (candidate) => {
+                    try {
+                        const typeMap: Record<string, string> = {
+                            'Person': 'names',
+                            'Location': 'locations',
+                            'Organization': 'orgs',
+                            'Skill': 'skills',
+                            'Term': 'terms'
+                        };
+
+                        const category = typeMap[candidate.type] || 'names';
+
+                        // Check if exists
+                        const existing = await db.names.where('original').equals(candidate.original).first();
+                        if (existing) {
+                            toast.info(`Từ "${candidate.original}" đã có trong từ điển.`);
+                            return;
+                        }
+
+                        // Add to DB
+                        await db.names.add({
+                            original: candidate.original,
+                            vietnamese: candidate.original, // Default to original
+                            type: category, // Map NameHunter type to DB type
+                            description: `Auto-detected as ${candidate.type}`,
+                            created_at: new Date()
+                        });
+                        toast.success(`Đã thêm "${candidate.original}" vào từ điển.`);
+                    } catch (error) {
+                        console.error("Failed to add term", error);
+                        toast.error("Lỗi khi thêm từ mới.");
+                    }
+                }}
+            />
+        </header >
     );
 }

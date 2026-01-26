@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, Chapter, clearChapterTranslation } from "@/lib/db";
+import { db, Chapter, clearChapterTranslation, CorrectionEntry } from "@/lib/db";
 import { inspectChapter } from "@/lib/gemini";
 import { getErrorMessage, InspectionIssue } from "@/lib/types";
 import { toast } from "sonner";
@@ -66,34 +66,6 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
     const [inspectionIssues, setInspectionIssues] = useState<InspectionIssue[]>([]);
     const [activeIssue, setActiveIssue] = useState<InspectionIssue | null>(null);
 
-    // Web Worker for High Performance Formatting
-    const [htmlContent, setHtmlContent] = useState({ __html: "" });
-    const workerRef = useRef<Worker | null>(null);
-
-    useEffect(() => {
-        workerRef.current = new Worker(new URL('../../lib/workers/text.worker.ts', import.meta.url));
-        workerRef.current.onmessage = (e) => {
-            const { action, result } = e.data;
-            if (action === 'formatReaderText') {
-                setHtmlContent({ __html: result });
-            }
-        };
-        return () => workerRef.current?.terminate();
-    }, []);
-
-    useEffect(() => {
-        if (workerRef.current) {
-            workerRef.current.postMessage({
-                action: 'formatReaderText',
-                payload: {
-                    text: (chapter?.content_translated || "").normalize('NFC'),
-                    inspectionIssues,
-                    activeTTSIndex
-                }
-            });
-        }
-    }, [chapter?.id, chapter?.content_translated, inspectionIssues, activeTTSIndex]);
-
     // Sync Edit Content
     useEffect(() => {
         if (chapter) {
@@ -101,7 +73,44 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             setInspectionIssues(chapter.inspectionResults || []);
         }
         return () => setInspectionIssues([]);
-    }, [chapter?.id]);
+    }, [chapter]); // Fix dependency to auto-update when content changes
+
+    // High Performance Formatting (Main Thread)
+    // Worker was causing issues with missing content in some environments.
+    // Moving back to main thread is safe for chapter-sized content.
+    const htmlContent = React.useMemo(() => {
+        const text = (editContent || "").normalize('NFC');
+        if (!text) return { __html: "" };
+
+        // Simple formatting to ensure text appears
+        // 1. Normalize
+        const cleaned = text
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n")
+            .replace(/:\s*\n+\s*\[/g, ": [") // Fix dialogue breaks
+            .trim();
+
+        // 2. Split paragraphs
+        const paragraphs = cleaned.split('\n').filter(p => p.trim().length > 0);
+
+        // 3. Render HTML
+        const html = paragraphs.map((para, index) => {
+            const isHighlighted = activeTTSIndex === index;
+            const finalClass = isHighlighted
+                ? "reader-txt-style bg-yellow-500/20 rounded transition-colors duration-300"
+                : "reader-txt-style transition-colors duration-500";
+
+            // Simple escape (reduced overhead)
+            const escaped = para
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            return `<p id="tts-para-${index}" class="${finalClass}">${escaped}</p>`;
+        }).join('');
+
+        return { __html: html };
+    }, [editContent, activeTTSIndex]);
 
     // Auto-Save Content
     useEffect(() => {
@@ -272,11 +281,11 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
             }
         }
 
-        const entry = {
+        const entry: CorrectionEntry = {
             workspaceId: chapter.workspaceId,
             type: correctionType,
             createdAt: new Date()
-        } as any;
+        };
 
         if (correctionType === 'replace') {
             entry.from = correctionOriginal;
@@ -323,21 +332,27 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         setCorrectionField3("");
     };
 
-    const handleSaveDictionary = async () => {
+    const handleSaveDictionary = async (targetType: 'character' | 'term') => {
         if (!dictOriginal || !dictTranslated || !chapter?.workspaceId) return;
-        const existing = await db.dictionary.where({ original: dictOriginal, workspaceId: chapter.workspaceId }).first();
+        const normOriginal = dictOriginal.trim();
+        const normTranslated = dictTranslated.trim();
+
+        const existing = await db.dictionary.where({ original: normOriginal, workspaceId: chapter.workspaceId }).first();
         if (!existing) {
             await db.dictionary.add({
                 workspaceId: chapter.workspaceId,
-                original: dictOriginal,
-                translated: dictTranslated,
-                type: 'general',
+                original: normOriginal,
+                translated: normTranslated,
+                type: targetType === 'character' ? 'name' : 'general',
                 createdAt: new Date()
             });
-            toast.success("Đã thêm từ mới");
+            toast.success(`Đã thêm vào ${targetType === 'character' ? 'Nhân vật' : 'Từ điển'}`);
         } else {
-            if (confirm(`"${dictOriginal}" đã có. Cập nhật nghĩa không?`)) {
-                await db.dictionary.update(existing.id!, { translated: dictTranslated });
+            if (confirm(`"${normOriginal}" đã có. Cập nhật nghĩa không?`)) {
+                await db.dictionary.update(existing.id!, {
+                    translated: normTranslated,
+                    type: targetType // Update type too? Usually yes
+                });
                 toast.success("Đã cập nhật từ điển");
             }
         }

@@ -51,14 +51,6 @@ export function normalizeVietnameseContent(text: string): string {
         // 5. AGGRESSIVE: Remove newlines/spaces *around* brackets
         .replace(/\[[\s\n]+/g, "[")
 
-        // 6. [REMOVED] Fix: Squash newline between brackets: ] \n [ -> ] [
-        // Bỏ rule này vì nó làm gộp các dòng độc lập có ngoặc vuông (như thông báo hệ thống)
-        // .replace(/\]\s*\n+\s*\[/g, "] [")
-
-        // 7. [REMOVED] Fix: Remove newline after ] if it's not a paragraph break
-        // Bỏ rule này để tránh việc tự ý gộp dòng khi có 1 dấu xuống dòng duy nhất
-        // .replace(/\]\n(?!\n)/g, "] ")
-
         // 8. Same for parentheses
         .replace(/\s*\)/g, ")")
         .replace(/\(\s*/g, "(")
@@ -102,15 +94,17 @@ export function scrubAIChatter(text: string): string {
 /**
  * Extract text from Gemini API response (handles multiple SDK versions)
  */
-export function extractResponseText(response: any): string {
+export function extractResponseText(response: unknown): string {
     try {
-        if (typeof response.text === 'function') {
-            return response.text();
-        } else if (typeof response.response?.text === 'function') {
-            return response.response.text();
+        const res = response as any;
+        if (typeof res?.text === 'function') {
+            return res.text();
+        } else if (typeof res?.response?.text === 'function') {
+            return res.response.text();
         }
         // Fallback for different SDK versions
-        const candidates = response.candidates || response.response?.candidates;
+        const responseData = res?.response as { candidates?: any[] } | undefined;
+        const candidates = res?.candidates || responseData?.candidates;
         return candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch {
         return "";
@@ -121,23 +115,34 @@ export function extractResponseText(response: any): string {
  * Clean JSON response from AI (remove markdown code blocks and extra text)
  */
 export function cleanJsonResponse(jsonText: string): string {
-    if (!jsonText) return "{}";
+    if (!jsonText) return "[]";
 
     // 1. Remove markdown code blocks (```json ... ```)
-    jsonText = jsonText.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
+    const cleaned = jsonText.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
 
-    // 2. Find the first '{' and last '}' to extract the JSON object
-    const firstBrace = jsonText.indexOf('{');
-    const lastBrace = jsonText.lastIndexOf('}');
+    // 2. Find the start and end of either an object { } or an array [ ]
+    const firstBrace = cleaned.indexOf('{');
+    const firstBracket = cleaned.indexOf('[');
+    const lastBrace = cleaned.lastIndexOf('}');
+    const lastBracket = cleaned.lastIndexOf(']');
 
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
-        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-    } else if (firstBrace !== -1) {
-        // Truncated JSON? Try to close it (Desperate measure)
-        jsonText = jsonText.substring(firstBrace) + '"}';
+    // Find the actual start (earliest of { or [)
+    let start = -1;
+    let end = -1;
+
+    if (firstBrace !== -1 && (firstBracket === -1 || (firstBrace !== -1 && firstBrace < firstBracket))) {
+        start = firstBrace;
+        end = lastBrace;
+    } else if (firstBracket !== -1) {
+        start = firstBracket;
+        end = lastBracket;
     }
 
-    return jsonText;
+    if (start !== -1 && end !== -1 && end > start) {
+        return cleaned.substring(start, end + 1);
+    }
+
+    return cleaned;
 }
 
 /**
@@ -248,28 +253,39 @@ export function safeWrap(text: string, target: string, open: string, close: stri
 /**
  * Universal dispatcher for all correction types
  */
-export function applyCorrectionRule(text: string, rule: any): string {
+export function applyCorrectionRule(text: string, rule: {
+    type?: string,
+    target?: string,
+    open?: string,
+    close?: string,
+    pattern?: string,
+    original?: string,
+    replace?: string,
+    replacement?: string,
+    from?: string,
+    to?: string
+}): string {
     if (!text || !rule) return text;
 
     try {
-        if (rule.type === 'wrap') {
+        if (rule.type === 'wrap' && rule.target && rule.open && rule.close) {
             return safeWrap(text, rule.target, rule.open, rule.close);
         } else if (rule.type === 'regex') {
             const pattern = rule.pattern || rule.original;
             const replacement = rule.replace || rule.replacement;
             if (!pattern) return text;
-            // UNSAFE: Using raw user input in RegExp. Mitigating via try-catch.
             return text.replace(new RegExp(pattern, 'g'), replacement || "");
         } else {
             // Default: replace (legacy support for items without type)
             const from = rule.from || rule.original;
             const to = rule.to || rule.replacement;
-            if (!from) return text;
-            return safeReplace(text, from, to || "");
+            if (from) {
+                return safeReplace(text, from, to || "");
+            }
+            return text;
         }
     } catch (e) {
         console.error("Failed to apply correction rule:", e, rule);
         return text;
     }
 }
-

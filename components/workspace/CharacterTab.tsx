@@ -42,13 +42,11 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         description: ""
     });
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
-    const [isSelecting, setIsSelecting] = useState(false);
-    const [selectionMode, setSelectionMode] = useState<boolean | null>(null); // true = selecting, false = deselecting
 
     // AI Extraction State
     const [isExtracting, setIsExtracting] = useState(false);
-    const [pendingCharacters, setPendingCharacters] = useState<any[]>([]);
-    const [pendingTerms, setPendingTerms] = useState<any[]>([]);
+    const [pendingCharacters, setPendingCharacters] = useState<GlossaryCharacter[]>([]);
+    const [pendingTerms, setPendingTerms] = useState<GlossaryTerm[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [extractDialogOpen, setExtractDialogOpen] = useState(false);
 
@@ -87,7 +85,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         }
 
         if (checked) {
-            setSelectedIds(prev => [...prev, id]);
+            setSelectedIds(prev => Array.from(new Set([...prev, id])));
         } else {
             setSelectedIds(prev => prev.filter(i => i !== id));
         }
@@ -133,11 +131,11 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
 
             if (result) {
                 const existingOriginals = new Set(dictionary.map(d => d.original));
-                const newChars: GlossaryCharacter[] = result.characters.map((c: any) => ({
+                const newChars: GlossaryCharacter[] = result.characters.map((c: GlossaryCharacter) => ({
                     ...c,
                     isExisting: existingOriginals.has(c.original)
                 }));
-                const newTerms: GlossaryTerm[] = result.terms.map((t: any) => ({
+                const newTerms: GlossaryTerm[] = result.terms.map((t: GlossaryTerm) => ({
                     ...t,
                     isExisting: existingOriginals.has(t.original)
                 }));
@@ -145,16 +143,20 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                 setPendingTerms(newTerms);
                 setIsReviewOpen(true);
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
             console.error(e);
-            toast.error("Lỗi khi trích xuất: " + e.message);
+            toast.error("Lỗi khi trích xuất: " + msg);
         } finally {
             setIsExtracting(false);
             setExtractDialogOpen(false);
         }
     };
 
-    const handleConfirmSave = async (selectedChars: GlossaryCharacter[], selectedTerms: GlossaryTerm[]) => {
+    const handleConfirmSave = async (
+        selectedChars: GlossaryCharacter[],
+        selectedTerms: GlossaryTerm[]
+    ) => {
         try {
             let addedCount = 0;
             let updatedCount = 0;
@@ -164,8 +166,8 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                 if (existing) {
                     await db.dictionary.update(existing.id!, {
                         translated: char.translated,
-                        gender: char.gender,
-                        role: char.role,
+                        gender: char.gender as any,
+                        role: char.role as any,
                         description: char.description,
                         createdAt: new Date()
                     });
@@ -176,8 +178,8 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                         original: char.original,
                         translated: char.translated,
                         type: 'name',
-                        gender: char.gender,
-                        role: char.role,
+                        gender: char.gender as any,
+                        role: char.role as any,
                         description: char.description,
                         createdAt: new Date()
                     });
@@ -259,6 +261,34 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                             <Sparkles className="mr-2 h-4 w-4" />
                             Quét AI
                         </Button>
+                        <Button
+                            onClick={async () => {
+                                if (confirm("Nạp danh sách nhân vật Tam Quốc kinh điển vào từ điển?")) {
+                                    const { TK_PERSONS } = await import("@/lib/services/name-hunter/data/three-kingdoms");
+                                    let added = 0;
+                                    for (const p of TK_PERSONS) {
+                                        const existing = await db.dictionary.where({ original: p, workspaceId }).first();
+                                        if (!existing) {
+                                            await db.dictionary.add({
+                                                workspaceId,
+                                                original: p,
+                                                translated: p,
+                                                type: 'name',
+                                                description: 'Tam Quốc Diễn Nghĩa Core',
+                                                createdAt: new Date()
+                                            });
+                                            added++;
+                                        }
+                                    }
+                                    toast.success(`Đã nạp ${added} nhân vật Tam Quốc!`);
+                                }
+                            }}
+                            variant="outline"
+                            className="bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                        >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Nạp Tam Quốc 3K
+                        </Button>
                         <DialogContent className="sm:max-w-[400px] bg-popover border-border text-popover-foreground">
                             <DialogHeader>
                                 <DialogTitle>Chọn nguồn quét AI</DialogTitle>
@@ -304,9 +334,6 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                     className="justify-start h-16 border-border hover:bg-muted bg-transparent group"
                                     onClick={() => {
                                         setExtractDialogOpen(false);
-                                        // Since we don't have tab switching here easily without passing props, 
-                                        // we'll just show a toast or rely on the user knowing.
-                                        // Actually CharacterTab is usually inside a Tabs parent.
                                         toast.info("Mày hãy sang tab Chương, chọn các chương muốn quét rồi bấm Quét nhé!");
                                     }}
                                     disabled={isExtracting}
@@ -381,8 +408,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
             )}
 
             {/* Table */}
-            <div className="rounded-md border border-border bg-card overflow-hidden"
-                onMouseUp={() => { setIsSelecting(false); setSelectionMode(null); }}>
+            <div className="rounded-md border border-border bg-card overflow-hidden">
                 <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/50 text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     <div className="col-span-1 flex justify-center items-center gap-2">
                         <Checkbox
@@ -418,18 +444,6 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                         <Checkbox
                                             checked={isSelected}
                                             onCheckedChange={(checked) => handleSelect(char.id!, !!checked)}
-                                            onMouseDown={(e: any) => {
-                                                if (e.button !== 0) return; // Only left click
-                                                setIsSelecting(true);
-                                                const nextMode = !isSelected;
-                                                setSelectionMode(nextMode);
-                                                handleSelect(char.id!, nextMode, e.shiftKey);
-                                            }}
-                                            onMouseEnter={() => {
-                                                if (isSelecting && selectionMode !== null) {
-                                                    handleSelect(char.id!, selectionMode);
-                                                }
-                                            }}
                                             className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                         />
                                         <span className="text-muted-foreground text-[10px] font-mono w-4 text-center">{index + 1}</span>

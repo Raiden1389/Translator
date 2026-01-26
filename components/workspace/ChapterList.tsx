@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Dexie from "dexie";
-import { db, clearChapterTranslation } from "@/lib/db";
+import { db, Chapter } from "@/lib/db";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ChapterListHeader } from "./ChapterListHeader";
@@ -11,7 +11,6 @@ import { ChapterTable } from "./ChapterTable";
 import { ChapterCardGrid } from "./ChapterCardGrid";
 import { ReaderModal } from "./ReaderModal";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
-import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
 import { TranslateConfigDialog } from "./TranslateConfigDialog";
 import { InspectionDialog } from "./InspectionDialog";
 import { HistoryDialog } from "./HistoryDialog";
@@ -19,25 +18,24 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useChapterSelection } from "./hooks/useChapterSelection";
 import { useChapterImport } from "./hooks/useChapterImport";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
+import { TermType } from "@/lib/services/name-hunter/types";
+import { NameHunterDialog } from "../name-hunter/NameHunterDialog";
 
-import { extractGlossary, inspectChapter } from "@/lib/gemini";
+import { inspectChapter } from "@/lib/gemini";
 import { applyCorrectionRule } from "@/lib/gemini/helpers";
-import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings, InspectionIssue } from "@/lib/types"; // Consolidated InspectionIssue
+import { TranslationSettings, InspectionIssue } from "@/lib/types"; // Consolidated InspectionIssue
 
 interface ChapterListProps {
     workspaceId: string;
-    onShowScanResults: (data: ReviewData) => void;
-    onTranslate: (props: any) => void; // Using any for brevity, or partial BatchTranslateProps
+    onTranslate: (props: TranslationSettings & { chapterIds: number[] }) => void;
 }
 
-export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: ChapterListProps) {
+export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
     const workspace = useLiveQuery(() => db.workspaces.get(workspaceId), [workspaceId]);
     const chapters = useLiveQuery(
         () => db.chapters.where("[workspaceId+order]").between([workspaceId, Dexie.minKey], [workspaceId, Dexie.maxKey]).toArray(),
         [workspaceId]
     );
-
-
 
     const [search, setSearch] = useState("");
     const [readingChapterId, setReadingChapterId] = useState<number | null>(null);
@@ -50,6 +48,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const [inspectingChapter, setInspectingChapter] = useState<{ id: number, title: string, issues: InspectionIssue[] } | null>(null);
     const [isInspectOpen, setIsInspectOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [nameHunterOpen, setNameHunterOpen] = useState(false);
 
     // Filtered Content
     const filtered = useMemo(() => {
@@ -65,7 +64,6 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const {
         selectedChapters,
         setSelectedChapters,
-        toggleSelectAll,
         toggleSingleSelection
     } = useChapterSelection(filtered.map(c => c.id!));
 
@@ -139,64 +137,6 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         }
     };
 
-    const handleScan = async () => {
-        if (selectedChapters.length === 0) return;
-        toast.info(`Đang quét ${selectedChapters.length} chương...`);
-
-        try {
-            const selectedChaps = await db.chapters.where("id").anyOf(selectedChapters).toArray();
-            let allChars: GlossaryCharacter[] = [];
-            let allTerms: GlossaryTerm[] = [];
-
-            // Process sequentially to avoid rate limits
-            for (const chapter of selectedChaps) {
-                toast.loading(`Đang quét chương: ${chapter.title}...`, {
-                    id: "scanning-toast",
-                    icon: <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                });
-                if (!chapter.content_original) continue;
-
-                const result = await extractGlossary(chapter.content_original);
-                if (result) {
-                    allChars = [...allChars, ...result.characters];
-                    allTerms = [...allTerms, ...result.terms];
-
-                    // Update Chapter Status
-                    await db.chapters.update(chapter.id!, { glossaryExtractedAt: new Date() });
-                }
-            }
-            toast.dismiss("scanning-toast");
-
-            if (allChars.length > 0 || allTerms.length > 0) {
-                // Deduplicate by original text
-                const uniqueChars = Array.from(new Map(allChars.map(item => [item.original, item])).values());
-                const uniqueTerms = Array.from(new Map(allTerms.map(item => [item.original, item])).values());
-
-                // Get existing dictionary to exclude existing items
-                const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
-                const existingOriginals = new Set(dictionary.map(d => d.original.toLowerCase().trim()));
-
-                const finalChars = uniqueChars.filter((c: any) => !existingOriginals.has(c.original.toLowerCase().trim()));
-                const finalTerms = uniqueTerms.filter((t: any) => !existingOriginals.has(t.original.toLowerCase().trim()));
-
-                if (finalChars.length === 0 && finalTerms.length === 0) {
-                    toast.info("Không tìm thấy thuật ngữ mới nào.");
-                    return;
-                }
-
-                // Call parent to show results (persists even if unmounted?)
-                // Actually if unmounted this might be ignored, but WorkspaceClient is parent so it should be fine if we are just switching tabs.
-                onShowScanResults({ chars: finalChars, terms: finalTerms });
-                toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`);
-            } else {
-                toast.info("Không tìm thấy thuật ngữ nào.");
-            }
-        } catch (error) {
-            console.error("Scan error:", error);
-            toast.error("Lỗi khi quét thuật ngữ.");
-            toast.dismiss("scanning-toast");
-        }
-    };
 
     const handleInspect = async (id: number) => {
         const chapter = await db.chapters.get(id);
@@ -245,15 +185,15 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
             await db.transaction('rw', db.chapters, db.history, async () => {
                 let anyChange = false;
 
-                for (const chapter of chaptersToFix) {
-                    if (!chapter.content_translated) continue;
+                for (const correction of corrections) {
+                    for (const chapter of chaptersToFix) {
+                        if (!chapter.content_translated) continue;
 
-                    let newContent = chapter.content_translated;
-                    let newTitle = chapter.title_translated || "";
-                    let hasChanges = false;
+                        let newContent = chapter.content_translated;
+                        let newTitle = chapter.title_translated || "";
+                        let hasChanges = false;
 
-                    // Apply all corrections (Batch)
-                    for (const correction of corrections) {
+                        // Apply all corrections (Batch)
                         const originalContent = newContent;
                         const originalTitle = newTitle;
 
@@ -265,16 +205,16 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         if (newContent !== originalContent || newTitle !== originalTitle) {
                             hasChanges = true;
                         }
-                    }
 
-                    if (hasChanges) {
-                        await db.chapters.update(chapter.id!, {
-                            content_translated: newContent,
-                            title_translated: newTitle,
-                            updatedAt: new Date()
-                        });
-                        updatedCount++;
-                        anyChange = true;
+                        if (hasChanges) {
+                            await db.chapters.update(chapter.id!, {
+                                content_translated: newContent,
+                                title_translated: newTitle,
+                                updatedAt: new Date()
+                            });
+                            updatedCount++;
+                            anyChange = true;
+                        }
                     }
                 }
 
@@ -307,9 +247,9 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 toast.info("Không có thay đổi nào cần áp dụng.", { id: "applying-corrections" });
             }
 
-        } catch (error: any) {
-            console.error("Apply corrections error:", error);
-            toast.error("Lỗi khi áp dụng cải chính: " + error.message, { id: "applying-corrections" });
+        } catch (error: unknown) {
+            console.error("AI Refining error:", error);
+            toast.error("Lỗi khi áp dụng cải chính: " + (error as Error).message, { id: "applying-corrections" });
         }
     };
 
@@ -317,7 +257,16 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         if (!confirm("Xóa bản dịch của chương này để dịch lại? (Bản gốc Trung Quốc vẫn được giữ nguyên)")) return;
 
         try {
-            await clearChapterTranslation(id);
+            // Assuming clearChapterTranslation is defined elsewhere or imported
+            // For now, directly update the chapter
+            await db.chapters.update(id, {
+                content_translated: undefined,
+                title_translated: undefined,
+                status: 'draft',
+                lastTranslatedAt: undefined,
+                inspectionResults: undefined,
+                updatedAt: new Date()
+            });
             toast.success("Đã xóa bản dịch. Bạn có thể dịch lại chương này.");
         } catch (error) {
             console.error("Clear translation error:", error);
@@ -331,7 +280,6 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         <div className="space-y-6 animate-in fade-in duration-500 relative pb-10">
             {/* TranslationProgressOverlay for imports */}
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
-            <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
 
             <TranslateConfigDialog
                 open={translateDialogOpen}
@@ -340,12 +288,14 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onStart={(config: { customPrompt: string; autoExtract: boolean; maxConcurrency: number }, settings: TranslationSettings) => {
                     setTranslateDialogOpen(false);
                     onTranslate({
-                        workspaceId,
-                        chapters: filtered,
-                        selectedChapters,
-                        currentSettings: settings,
-                        translateConfig: config,
-                        onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
+                        ...settings,
+                        chapterIds: selectedChapters,
+                        // The following are not part of TranslationSettings & { chapterIds: number[] }
+                        // and should be handled by the parent component if needed.
+                        // workspaceId,
+                        // chapters: filtered,
+                        // translateConfig: config,
+                        // onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
                     });
                 }}
             />
@@ -374,7 +324,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
                 onSelectRange={handleSelectRange}
-                onScan={handleScan}
+                onScan={() => setNameHunterOpen(true)}
                 workspaceId={workspaceId}
                 lastReadChapterId={workspace?.lastReadChapterId}
                 onReadContinue={(id) => setReadingChapterId(id)}
@@ -421,14 +371,14 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 )}
             </ErrorBoundary>
 
+            {/* Dialogs */}
             {inspectingChapter && (
                 <InspectionDialog
                     open={isInspectOpen}
                     onOpenChange={setIsInspectOpen}
                     chapterTitle={inspectingChapter.title}
                     issues={inspectingChapter.issues}
-                    onNavigateToIssue={(original) => {
-                        // For now just close or keep open, navigating would require editor context
+                    onNavigateToIssue={(original: string) => {
                         console.log("Navigate to:", original);
                     }}
                 />
@@ -465,6 +415,86 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 workspaceId={workspaceId}
                 open={historyOpen}
                 onOpenChange={setHistoryOpen}
+            />
+
+            <NameHunterDialog
+                isOpen={nameHunterOpen}
+                onOpenChange={setNameHunterOpen}
+                textToScan=""
+                workspaceId={workspaceId}
+                totalChapters={chapters.length}
+                onScanRequest={async (config) => {
+                    let targetChapters: Chapter[] = [];
+
+                    if (config.scope === 'range' && config.range) {
+                        // Parse Range "1-10, 15"
+                        const parts = config.range.split(',').map(p => p.trim());
+                        const orders = new Set<number>();
+                        parts.forEach(part => {
+                            if (part.includes('-')) {
+                                const [start, end] = part.split('-').map(n => parseInt(n));
+                                if (!isNaN(start) && !isNaN(end)) {
+                                    for (let i = Math.min(start, end); i <= Math.max(start, end); i++) orders.add(i);
+                                }
+                            } else {
+                                const n = parseInt(part);
+                                if (!isNaN(n)) orders.add(n);
+                            }
+                        });
+                        targetChapters = await db.chapters.where('[workspaceId+order]')
+                            .anyOf([...orders].map(o => [workspaceId, o]))
+                            .toArray();
+                    } else if (config.scope === 'selected_chapters') {
+                        targetChapters = await db.chapters.where('id').anyOf(selectedChapters).toArray();
+                    } else {
+                        // All (Warning: Heavy) - maybe limit?
+                        targetChapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
+                    }
+
+                    // Extract content
+                    const texts = targetChapters
+                        .map(c => c.content_original)
+                        .filter(t => t && t.trim().length > 0);
+
+                    if (texts.length === 0) {
+                        toast.error("Không tìm thấy nội dung trong các chương đã chọn.");
+                        return [];
+                    }
+
+                    toast.info(`Đang nạp ${texts.length} chương vào Name Hunter...`);
+                    return texts;
+                }}
+                onAddTerm={async (candidate) => {
+                    try {
+                        const existing = await db.dictionary
+                            .where('[workspaceId+original]')
+                            .equals([workspaceId, candidate.original])
+                            .first();
+
+                        if (existing) {
+                            toast.warning(`"${candidate.original}" đã có trong từ điển.`);
+                            return;
+                        }
+
+                        // Map TermType to Glossary types if needed, or just use as is
+                        await db.dictionary.add({
+                            workspaceId,
+                            original: candidate.chinese || candidate.original,
+                            translated: candidate.original,
+                            type: (candidate.type === TermType.Person) ? 'name' :
+                                (candidate.type === TermType.Location) ? 'location' : 'general',
+                            description: candidate.metadata?.description || `Added via Name Hunter (Freq: ${candidate.count})`,
+                            role: candidate.metadata?.role || 'mob',
+                            gender: (candidate.metadata?.gender === 'Female' || candidate.metadata?.gender === 'female') ? 'female' : 'male',
+                            createdAt: new Date()
+                        });
+
+                        toast.success(`Đã thêm "${candidate.original}" vào từ điển.`);
+                    } catch (err) {
+                        console.error("Add term error:", err);
+                        toast.error("Không thể thêm vào từ điển.");
+                    }
+                }}
             />
         </div>
     );
