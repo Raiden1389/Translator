@@ -9,7 +9,7 @@ export class NameHunterJudge {
 
     private surnames = new Set([
         "Lưu", "Tào", "Tôn", "Lữ", "Hạ", "Trương", "Triệu", "Vương", "Lý", "Hoàng",
-        "Đông", "Mã", "Viên", "Khương", "Tư Mã", "Gia Cát", "Âu Dương", "Công Tôn",
+        "Đồng", "Mã", "Viên", "Khương", "Tư Mã", "Gia Cát", "Âu Dương", "Công Tôn",
         "Hạ Hầu", "Nam Cung", "Mộ Dung", "Độc Cô", "Lệnh Hồ", "Hoàng Phủ", "Thượng Quan",
         "Dương", "Trần", "Lê", "Phạm", "Nguyễn", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô",
         "Khổng", "Huyền", "Mạnh", "Trọng", "Quý", "Bá", "Thúc", "Tử", "Ngọa", "Phượng",
@@ -22,7 +22,8 @@ export class NameHunterJudge {
         "Thủ Đoạn", "Công Kích", "Phản Ứng", "Cảm Giác", "Phát Hiện", "Thời Gian",
         "Trạng Thái", "Quá Trình", "Hành Động", "Trách Nhiệm", "Ảnh Hưởng", "Vị Trí",
         "Lợi Hại", "Phủ Đệ", "Tính Tình", "Biểu Tình", "Nội Bộ", "Ngoại Bộ",
-        "Tiên Sinh", "Công Tử", "Tiểu Thư", "Đại Nhân", "Phu Nhân", "Tướng Quân"
+        "Lý Tưởng", "Quý Khách", "Hồ Lô", "Quan Quân", "Hoàng Kim", "Lê Dân", "Dân Chúng",
+        "Vấn Đề", "Thực Tế", "Đối Tượng", "Bản Thân", "Hiện Tại", "Tương Lai", "Thế Giới"
     ]);
 
     private spatialSuffixes = new Set(['Nội', 'Ngoại', 'Nội Bộ', 'Ngoại Bộ', 'Phía']);
@@ -95,6 +96,17 @@ export class NameHunterJudge {
         if (allCapitalized) score += 30;
 
         // 5. FINAL DECISION
+        // QuickTranslator-tier Rule: Surname + 1 Word = Person (Protect against noise filters)
+        // This MUST be checked first to override suffix collisions, but AFTER abstract nouns
+        // if the abstract noun is a known "High Signal Junk" (like Ly Tuong)
+        const hasSurnameProtection = (words.length === 2 && hasSurname);
+
+        if (this.abstractNouns.has(text)) return { type: TermType.Junk, score: 0 };
+
+        if (hasSurnameProtection) {
+            return { type: TermType.Person, score: 100 };
+        }
+
         if (score >= 60 && hasSurname) return { type: TermType.Person, score };
         if (score >= 80) return { type: TermType.Unknown, score }; // High signal but no surname -> Let AI decide
         if (score < 30) return { type: TermType.Junk, score };   // Likely Noise

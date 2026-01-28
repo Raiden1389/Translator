@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
     Search, ChevronLeft, ChevronRight, Download, Upload, Loader2,
-    FileText, X, Sparkles, Trash2, Filter, LayoutGrid, LayoutList, ScanSearch
+    FileText, X, Sparkles, Trash2, Filter, LayoutGrid, LayoutList
 } from "lucide-react";
 import {
     Select,
@@ -46,10 +46,11 @@ interface ChapterListHeaderProps {
     onImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
     importing: boolean;
     onTranslate: () => void;
+    onAIExtract?: () => void;
     viewMode: "grid" | "table";
     onViewModeChange: (mode: "grid" | "table") => void;
     onSelectRange: (range: string) => void;
-    onScan: () => void;
+    isAIExtracting?: boolean;
     workspaceId: string;
     lastReadChapterId?: number;
     onReadContinue?: (id: number) => void;
@@ -76,10 +77,11 @@ export function ChapterListHeader({
     onImportJSON,
     importing,
     onTranslate,
+    onAIExtract,
+    isAIExtracting,
     viewMode,
     onViewModeChange,
     onSelectRange,
-    onScan,
     workspaceId,
     lastReadChapterId,
     onReadContinue
@@ -276,13 +278,13 @@ export function ChapterListHeader({
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    onClick={onScan}
-                                    className="h-7 w-7 text-indigo-500 hover:bg-indigo-500/10"
+                                    onClick={onAIExtract}
+                                    className="h-7 w-7 text-purple-500 hover:bg-purple-500/10"
                                 >
-                                    <ScanSearch className="h-3.5 w-3.5" />
+                                    <Sparkles className="h-3.5 w-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="left">Name Hunter (Mới)</TooltipContent>
+                            <TooltipContent side="left">Quét Thuật Ngữ AI</TooltipContent>
                         </Tooltip>
                     </div>
                 </TooltipProvider>
@@ -355,19 +357,25 @@ export function ChapterListHeader({
                     <div className="flex items-center gap-2">
                         <Button
                             size="sm"
-                            variant="secondary"
-                            onClick={onScan}
-                            className="bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 h-8 font-medium px-4 transition-all hover:scale-105 active:scale-95"
+                            variant="default"
+                            onClick={onAIExtract}
+                            disabled={isAIExtracting}
+                            className="h-8 bg-purple-600 hover:bg-purple-700 font-semibold px-5 shadow-sm min-w-[110px]"
                         >
-                            <Sparkles className="mr-2 h-4 w-4" /> Quét thuật ngữ
+                            {isAIExtracting ? (
+                                <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Đang quét...</>
+                            ) : (
+                                <><Sparkles className="mr-1.5 h-3.5 w-3.5" /> Quét AI</>
+                            )}
                         </Button>
+                        <div className="w-px h-6 bg-border/50 mx-1" />
                         <Button
                             size="sm"
                             variant="default"
                             onClick={onTranslate}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 font-bold px-4 shadow-[0_4px_10px_rgba(var(--primary-rgb),0.3)] transition-all hover:scale-105 active:scale-95"
+                            className="h-8 font-semibold px-5 shadow-sm"
                         >
-                            <FileText className="mr-2 h-4 w-4" /> Cấu hình & Dịch
+                            <FileText className="mr-1.5 h-3.5 w-3.5" /> Dịch
                         </Button>
                         <Button
                             size="sm"
@@ -377,7 +385,7 @@ export function ChapterListHeader({
                                     db.chapters.bulkDelete(selectedChapters).then(() => setSelectedChapters([]));
                                 }
                             }}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 font-medium hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all"
+                            className="h-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
                         >
                             <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Xóa
                         </Button>

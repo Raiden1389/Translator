@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Dexie from "dexie";
 import { db, Chapter } from "@/lib/db";
@@ -12,13 +12,11 @@ import { ImportProgressOverlay } from "./ImportProgressOverlay";
 import { TranslateConfigDialog } from "./TranslateConfigDialog";
 import { InspectionDialog } from "./InspectionDialog";
 import { HistoryDialog } from "./HistoryDialog";
+import { ReviewDialog } from "./ReviewDialog";
+import { ScanConfigDialog } from "./ScanConfigDialog";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { TermType } from "@/lib/services/name-hunter/types";
-import { NameHunterDialog } from "../name-hunter/NameHunterDialog";
 import { TranslationSettings } from "@/lib/types";
 import { useChapterList } from "./hooks/useChapterList";
-import { parseRangeString } from "@/lib/services/chapter-list.service";
-import { toast } from "sonner";
 
 interface BatchTranslateHandlerProps {
     workspaceId: string;
@@ -53,18 +51,23 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
     const {
         search, filterStatus, currentPage, itemsPerPage, viewMode,
         readingChapterId, translateDialogOpen, inspectingChapter, isInspectOpen,
-        historyOpen, nameHunterOpen, filtered, currentChapters, totalPages,
+        historyOpen, filtered, currentChapters, totalPages,
         selectedChapters, importing, importProgress, importStatus,
         fileInputRef, importInputRef
     } = state;
 
     const {
         setSearch, setFilterStatus, setCurrentPage, setItemsPerPage, setViewMode,
-        setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen, setNameHunterOpen,
+        setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen,
         setSelectedChapters, toggleSingleSelection, handleSelectRange, handleInspect,
         handleApplyCorrections, handleClearTranslationAction, handleExport,
-        handleFileUpload, handleImportJSON
+        handleFileUpload, handleImportJSON,
+        setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI,
+        isAIExtracting, pendingCharacters, pendingTerms, isReviewOpen
     } = actions;
+
+    const [scanConfigOpen, setScanConfigOpen] = useState(false);
+    const [tempScanText, setTempScanText] = useState("");
 
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
@@ -118,7 +121,15 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
                 onSelectRange={handleSelectRange}
-                onScan={() => setNameHunterOpen(true)}
+                onAIExtract={() => {
+                    const targetChapters = selectedChapters.length > 0
+                        ? filtered.filter(c => selectedChapters.includes(c.id!))
+                        : currentChapters;
+                    const combinedText = targetChapters.map(c => c.content_original).join("\n\n---\n\n");
+                    setTempScanText(combinedText);
+                    setScanConfigOpen(true);
+                }}
+                isAIExtracting={isAIExtracting}
                 workspaceId={workspaceId}
                 lastReadChapterId={workspace?.lastReadChapterId}
                 onReadContinue={(id) => setReadingChapterId(id)}
@@ -203,49 +214,22 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
 
             <HistoryDialog workspaceId={workspaceId} open={historyOpen} onOpenChange={setHistoryOpen} />
 
-            <NameHunterDialog
-                isOpen={nameHunterOpen}
-                onOpenChange={setNameHunterOpen}
-                textToScan=""
-                workspaceId={workspaceId}
-                totalChapters={chapters.length}
-                selectedCount={selectedChapters.length}
-                onScanRequest={async (config) => {
-                    let targetChapters: Chapter[] = [];
-                    if (config.scope === 'range' && config.range) {
-                        const orders = parseRangeString(config.range);
-                        targetChapters = await db.chapters.where('[workspaceId+order]')
-                            .anyOf([...orders].map(o => [workspaceId, o]))
-                            .toArray();
-                    } else if (config.scope === 'selected_chapters') {
-                        targetChapters = await db.chapters.where('id').anyOf(selectedChapters).toArray();
-                    } else {
-                        targetChapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
-                    }
-                    const texts = targetChapters.map(c => c.content_original).filter(t => t && t.trim().length > 0);
-                    if (texts.length === 0) {
-                        toast.error("Không tìm thấy nội dung.");
-                        return [];
-                    }
-                    return texts;
+
+            <ScanConfigDialog
+                open={scanConfigOpen}
+                onOpenChange={setScanConfigOpen}
+                onStart={(types) => {
+                    handleAIExtractChapter(tempScanText, types);
+                    setTempScanText("");
                 }}
-                onAddTerm={async (candidate) => {
-                    try {
-                        const existing = await db.dictionary.where('[workspaceId+original]').equals([workspaceId, candidate.original]).first();
-                        if (existing) { toast.warning(`"${candidate.original}" đã có.`); return; }
-                        await db.dictionary.add({
-                            workspaceId,
-                            original: candidate.chinese || candidate.original,
-                            translated: candidate.original,
-                            type: (candidate.type === TermType.Person) ? 'name' : (candidate.type === TermType.Location) ? 'location' : 'general',
-                            description: candidate.metadata?.description || `Added via Name Hunter`,
-                            role: candidate.metadata?.role || 'mob',
-                            gender: (candidate.metadata?.gender === 'Female') ? 'female' : 'male',
-                            createdAt: new Date()
-                        });
-                        toast.success(`Đã thêm "${candidate.original}".`);
-                    } catch (err) { toast.error("Lỗi khi thêm từ."); }
-                }}
+            />
+
+            <ReviewDialog
+                open={isReviewOpen}
+                onOpenChange={setIsReviewOpen}
+                characters={pendingCharacters}
+                terms={pendingTerms}
+                onSave={handleConfirmSaveAI}
             />
         </div>
     );

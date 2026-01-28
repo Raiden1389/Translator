@@ -8,6 +8,7 @@ export enum TermType {
 }
 
 export interface TermCandidate {
+    id: string;      // Unique identifier (e.g., composite)
     original: string; // The Vietnamese name
     chinese?: string; // The original Chinese characters
     context: string;
@@ -20,6 +21,13 @@ export interface TermCandidate {
         gender?: string;
         [key: string]: any;
     };
+}
+
+/**
+ * Specialized candidate for Chinese engine where chinese property is mandatory
+ */
+export interface ChineseTermCandidate extends TermCandidate {
+    chinese: string;
 }
 
 export interface ExtractionConfig {

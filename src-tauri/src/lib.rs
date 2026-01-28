@@ -2,6 +2,28 @@ mod tts;
 mod auth;
 
 use std::env;
+use jieba_rs::Jieba;
+use once_cell::sync::Lazy;
+use serde::Serialize;
+
+static JIEBA: Lazy<Jieba> = Lazy::new(|| Jieba::new());
+
+#[derive(Serialize)]
+struct SegmentResult {
+    word: String,
+    tag: String,
+}
+
+#[tauri::command]
+fn segment_chinese(text: String) -> Vec<SegmentResult> {
+    let tags = JIEBA.tag(&text, true);
+    tags.into_iter()
+        .map(|t| SegmentResult {
+            word: t.word.to_string(),
+            tag: t.tag.to_string(),
+        })
+        .collect()
+}
 
 #[tauri::command]
 async fn native_gemini_request(
@@ -64,7 +86,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             tts::edge_tts_speak,
             auth::start_auth_server,
-            native_gemini_request
+            native_gemini_request,
+            segment_chinese
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

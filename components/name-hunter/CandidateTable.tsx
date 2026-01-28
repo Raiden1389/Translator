@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+// Table imports removed as they are no longer used with div-based grid
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -18,11 +11,11 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 
 interface CandidateTableProps {
     candidates: TermCandidate[];
-    onRemove: (original: string) => void;
+    onRemove: (id: string) => void;
     onAdd: (candidate: TermCandidate, targetType: 'character' | 'term') => void;
-    onBatchRemove?: (originals: string[]) => void;
-    onEdit: (oldOriginal: string, newOriginal: string) => void;
-    onTypeChange: (original: string, newType: TermType) => void;
+    onBatchRemove?: (ids: string[]) => void;
+    onEdit: (id: string, newOriginal: string) => void;
+    onTypeChange: (id: string, newType: TermType) => void;
 }
 
 export function CandidateTable({
@@ -47,10 +40,10 @@ export function CandidateTable({
         overscan: 10,
     });
 
-    const toggleSelect = (original: string) => {
+    const toggleSelect = (id: string) => {
         const next = new Set(selected);
-        if (next.has(original)) next.delete(original);
-        else next.add(original);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
         setSelected(next);
     };
 
@@ -58,7 +51,7 @@ export function CandidateTable({
         if (selected.size === candidates.length && candidates.length > 0) {
             setSelected(new Set());
         } else {
-            setSelected(new Set(candidates.map(c => c.original)));
+            setSelected(new Set(candidates.map(c => c.id)));
         }
     };
 
@@ -67,19 +60,20 @@ export function CandidateTable({
         if (onBatchRemove) {
             onBatchRemove(toRemove);
         } else {
-            toRemove.forEach(original => onRemove(original));
+            toRemove.forEach(id => onRemove(id));
         }
         setSelected(new Set());
     };
 
-    const startEdit = (original: string) => {
-        setEditingId(original);
-        setEditText(original);
+    const startEdit = (candidate: TermCandidate) => {
+        setEditingId(candidate.id);
+        setEditText(candidate.original);
     };
 
-    const saveEdit = (oldOriginal: string) => {
-        if (editText.trim() && editText !== oldOriginal) {
-            onEdit(oldOriginal, editText.trim());
+    const saveEdit = (id: string) => {
+        const candidate = candidates.find(c => c.id === id);
+        if (candidate && editText.trim() && editText !== candidate.original) {
+            onEdit(id, editText.trim());
         }
         setEditingId(null);
     };
@@ -89,7 +83,7 @@ export function CandidateTable({
         const currentType = candidate.type || TermType.Unknown;
         const currentIndex = types.indexOf(currentType);
         const nextIndex = (currentIndex + 1) % types.length;
-        onTypeChange(candidate.original, types[nextIndex]);
+        onTypeChange(candidate.id, types[nextIndex]);
     };
 
     return (
@@ -119,154 +113,149 @@ export function CandidateTable({
                 className="rounded-md border bg-card overflow-auto h-full"
                 style={{ contain: 'strict' }}
             >
-                <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-                    <Table>
-                        <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
-                            <TableRow>
-                                <TableHead className="w-[48px] p-2 text-center">
-                                    <Checkbox
-                                        checked={candidates.length > 0 && selected.size === candidates.length}
-                                        onCheckedChange={toggleSelectAll}
-                                    />
-                                </TableHead>
-                                <TableHead className="p-2">Tên (Vietphrase)</TableHead>
-                                <TableHead className="p-2 w-[220px]">Hán Việt/Gốc</TableHead>
-                                <TableHead className="p-2 w-[120px]">Phân loại</TableHead>
-                                <TableHead className="p-2 w-[60px]">T.suất</TableHead>
-                                <TableHead className="p-2 w-[140px] text-right">Hành động</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {candidates.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">
-                                        Không có dữ liệu thực thể nào được tìm thấy.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                                    const candidate = candidates[virtualRow.index];
-                                    return (
-                                        <TableRow
-                                            key={candidate.original}
-                                            data-index={virtualRow.index}
-                                            ref={rowVirtualizer.measureElement}
-                                            className={`group absolute top-0 left-0 w-full flex items-center border-b ${selected.has(candidate.original) ? 'bg-primary/5' : ''}`}
-                                            style={{
-                                                transform: `translateY(${virtualRow.start}px)`,
-                                            }}
-                                        >
-                                            <TableCell className="w-[48px] p-2 text-center shrink-0">
-                                                <Checkbox
-                                                    checked={selected.has(candidate.original)}
-                                                    onCheckedChange={() => toggleSelect(candidate.original)}
+                <div className="bg-background sticky top-0 z-20 border-b flex items-center font-medium text-muted-foreground text-xs uppercase tracking-wider h-10 px-2 shadow-sm">
+                    <div className="w-[48px] px-2 text-center">
+                        <Checkbox
+                            checked={candidates.length > 0 && selected.size === candidates.length}
+                            onCheckedChange={toggleSelectAll}
+                        />
+                    </div>
+                    <div className="flex-1 px-2">Thực thể</div>
+                    <div className="w-[220px] px-2 shrink-0">Hán Việt/Gốc</div>
+                    <div className="w-[120px] px-2 shrink-0">Phân loại</div>
+                    <div className="w-[60px] px-2 text-center shrink-0">Tần suất</div>
+                    <div className="w-[140px] px-2 text-right shrink-0">Hành động</div>
+                </div>
+                <div className="relative" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                    {candidates.length === 0 ? (
+                        <div className="h-32 flex items-center justify-center text-muted-foreground italic">
+                            Không có dữ liệu thực thể nào được tìm thấy.
+                        </div>
+                    ) : (
+                        rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                            const candidate = candidates[virtualRow.index];
+                            return (
+                                <div
+                                    key={candidate.id}
+                                    data-index={virtualRow.index}
+                                    ref={rowVirtualizer.measureElement}
+                                    className={`group absolute top-0 left-0 w-full flex items-center border-b hover:bg-muted/30 transition-colors ${selected.has(candidate.id) ? 'bg-primary/5' : ''}`}
+                                    style={{
+                                        height: '52px',
+                                        transform: `translateY(${virtualRow.start}px)`,
+                                    }}
+                                >
+                                    <div className="w-[48px] p-2 text-center shrink-0">
+                                        <Checkbox
+                                            checked={selected.has(candidate.id)}
+                                            onCheckedChange={() => toggleSelect(candidate.id)}
+                                        />
+                                    </div>
+                                    <div className="p-2 font-medium flex-1 truncate">
+                                        {editingId === candidate.id ? (
+                                            <div className="flex items-center gap-1">
+                                                <Input
+                                                    value={editText}
+                                                    onChange={(e) => setEditText(e.target.value)}
+                                                    className="h-8 py-0"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') saveEdit(candidate.id);
+                                                        if (e.key === 'Escape') setEditingId(null);
+                                                    }}
                                                 />
-                                            </TableCell>
-                                            <TableCell className="p-2 font-medium flex-1 truncate">
-                                                {editingId === candidate.original ? (
-                                                    <div className="flex items-center gap-1">
-                                                        <Input
-                                                            value={editText}
-                                                            onChange={(e) => setEditText(e.target.value)}
-                                                            className="h-8 py-0"
-                                                            autoFocus
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') saveEdit(candidate.original);
-                                                                if (e.key === 'Escape') setEditingId(null);
-                                                            }}
-                                                        />
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => saveEdit(candidate.original)}>
-                                                            <Check className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => setEditingId(null)}>
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                ) : (
-                                                    <div
-                                                        className="flex items-center gap-2 cursor-pointer group/item truncate"
-                                                        onClick={() => startEdit(candidate.original)}
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => saveEdit(candidate.id)}>
+                                                    <Check className="h-4 w-4" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => setEditingId(null)}>
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="flex items-center gap-2 cursor-pointer group/item truncate"
+                                                onClick={() => startEdit(candidate)}
+                                            >
+                                                <span className="truncate">{candidate.original}</span>
+                                                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-2 w-[220px] shrink-0 truncate">
+                                        <div className="flex flex-col truncate">
+                                            <span className="font-serif text-base truncate">{candidate.chinese || '-'}</span>
+                                            {candidate.metadata?.hanviet && (
+                                                <span className="text-[10px] text-muted-foreground italic truncate">
+                                                    P.âm: {candidate.metadata.hanviet}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="p-2 w-[120px] shrink-0">
+                                        <div
+                                            className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
+                                            onClick={() => cycleType(candidate)}
+                                            title="Bấm để đổi loại"
+                                        >
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${candidate.type === TermType.Person ? 'bg-blue-100 text-blue-800' :
+                                                candidate.type === TermType.Location ? 'bg-green-100 text-green-800' :
+                                                    candidate.type === TermType.Organization ? 'bg-purple-100 text-purple-800' :
+                                                        candidate.type === TermType.Skill ? 'bg-orange-100 text-orange-800' :
+                                                            candidate.type === TermType.Junk ? 'bg-red-100 text-red-800' :
+                                                                'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                {candidate.type === TermType.Person ? 'Nhân vật' :
+                                                    candidate.type === TermType.Location ? 'Địa danh' :
+                                                        candidate.type === TermType.Organization ? 'Tổ chức' :
+                                                            candidate.type === TermType.Skill ? 'Công pháp' :
+                                                                candidate.type === TermType.Junk ? 'Rác' : 'Chung'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="p-2 w-[60px] text-center font-mono text-xs shrink-0">{candidate.count}</div>
+                                    <div className="p-2 w-[140px] text-right shrink-0">
+                                        <div className="flex items-center justify-end gap-1">
+                                            {selected.size === 0 ? (
+                                                <>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-30 disabled:grayscale"
+                                                        onClick={() => onAdd(candidate, 'character')}
+                                                        title={candidate.type === TermType.Unknown ? "Vui lòng phân loại để thêm" : "Thêm vào Nhân vật"}
+                                                        disabled={candidate.type === TermType.Unknown || candidate.type === TermType.Junk}
                                                     >
-                                                        <span className="truncate">{candidate.original}</span>
-                                                        <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0" />
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="p-2 w-[220px] shrink-0">
-                                                <div className="flex flex-col truncate">
-                                                    <span className="font-serif text-base truncate">{candidate.chinese || '-'}</span>
-                                                    {candidate.metadata?.hanviet && (
-                                                        <span className="text-[10px] text-muted-foreground italic truncate">
-                                                            P.âm: {candidate.metadata.hanviet}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="p-2 w-[120px] shrink-0">
-                                                <div
-                                                    className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
-                                                    onClick={() => cycleType(candidate)}
-                                                    title="Bấm để đổi loại"
-                                                >
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${candidate.type === TermType.Person ? 'bg-blue-100 text-blue-800' :
-                                                        candidate.type === TermType.Location ? 'bg-green-100 text-green-800' :
-                                                            candidate.type === TermType.Organization ? 'bg-purple-100 text-purple-800' :
-                                                                candidate.type === TermType.Skill ? 'bg-orange-100 text-orange-800' :
-                                                                    candidate.type === TermType.Junk ? 'bg-red-100 text-red-800' :
-                                                                        'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {candidate.type === TermType.Person ? 'Nhân vật' :
-                                                            candidate.type === TermType.Location ? 'Địa danh' :
-                                                                candidate.type === TermType.Organization ? 'Tổ chức' :
-                                                                    candidate.type === TermType.Skill ? 'Công pháp' :
-                                                                        candidate.type === TermType.Junk ? 'Rác' : 'Chung'}
-                                                    </span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="p-2 w-[60px] text-center font-mono text-xs shrink-0">{candidate.count}</TableCell>
-                                            <TableCell className="p-2 w-[140px] text-right shrink-0">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    {selected.size === 0 ? (
-                                                        <>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                                                                onClick={() => onAdd(candidate, 'character')}
-                                                                title="Thêm vào Nhân vật"
-                                                            >
-                                                                <UserPlus className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50"
-                                                                onClick={() => onAdd(candidate, 'term')}
-                                                                title="Thêm vào Từ điển"
-                                                            >
-                                                                <BookPlus className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                                onClick={() => onRemove(candidate.original)}
-                                                                title="Bỏ qua"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-[10px] text-muted-foreground italic mr-2">Hàng loạt</span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
+                                                        <UserPlus className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 disabled:opacity-30 disabled:grayscale"
+                                                        onClick={() => onAdd(candidate, 'term')}
+                                                        title={candidate.type === TermType.Unknown ? "Vui lòng phân loại để thêm" : "Thêm vào Từ điển"}
+                                                        disabled={candidate.type === TermType.Unknown || candidate.type === TermType.Junk}
+                                                    >
+                                                        <BookPlus className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => onRemove(candidate.id)}
+                                                        title="Bỏ qua"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                <span className="text-[10px] text-muted-foreground italic mr-2">Hàng loạt</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </div>

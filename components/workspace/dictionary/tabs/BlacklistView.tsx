@@ -99,7 +99,7 @@ export function BlacklistView({ workspaceId }: BlacklistViewProps) {
                                             className="border-border"
                                         />
                                     </div>
-                                    <div className="col-span-4 text-foreground font-serif text-lg select-all">{entry.word}</div>
+                                    <div className="col-span-4 text-foreground font-serif text-lg select-text">{entry.word}</div>
                                     <div className="col-span-5">
                                         <EditableCell
                                             initialValue={entry.translated || entry.word}

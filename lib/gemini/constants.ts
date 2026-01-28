@@ -1,7 +1,7 @@
 import { IDIOM_SYSTEM_RULE } from "./idioms";
 
 // Update this version whenever CORE_RULES, PRONOUN_RULE or STRUCTURE_RULE changes
-export const SYSTEM_VERSION = "v2.3";
+export const SYSTEM_VERSION = "v2.4";
 
 /**
  * System Instruction Constants (Optimized for Novel Translation)
@@ -10,26 +10,30 @@ export const SYSTEM_VERSION = "v2.3";
 // Voice & Tone rules
 export const VOICE_TONE_RULE = `
 VĂN PHONG & GIỌNG ĐIỆU:
-- TRUNG THÀNH VỚI CẢM XÚC: Nếu gốc mỉa mai, châm biếm -> Bản dịch phải giữ được sắc thái đó (dùng các trợ từ phù hợp).
-- CẤM TỰ Ý THÊM HÀI: Nếu gốc nghiêm túc, bi thương -> Tuyệt đối không dùng từ lóng hoặc cách nói hài hước.
+- TRUNG THÀNH VỚI CẢM XÚC: Nếu gốc mỉa mai, châm biếm -> Bản dịch phải giữ được sắc thái đó.
+- CẤM TỰ Ý THÊM HÀI: Nếu gốc nghiêm túc -> Tuyệt đối không dùng từ lóng hoặc cách nói hài hước.
 - Hài hước phải tự nhiên, hợp ngữ cảnh, tránh dùng quá nhiều ngôn ngữ mạng ("trẻ tre").
+`;
+
+// Capitalization rules
+export const CAPITALIZATION_RULE = `
+QUY TẮC VIẾT HOA (CỰC KỲ QUAN TRỌNG):
+1. CHỈ viết hoa chữ cái đầu tiên của câu hoặc ngay sau dấu mở ngoặc kép (“).
+2. Tên riêng (Người, Địa danh) PHẢI viết hoa: Lưu Bị, Tào Tháo, Quan Vũ, Tịnh Châu...
+3. TUYỆT ĐỐI KHÔNG viết hoa danh từ chung, chức vụ, quan hệ, đại từ giữa câu:
+   - SAI: "... gặp lại Đại ca", "... gọi Tướng quân", "... là Ta làm"
+   - ĐÚNG: "... gặp lại đại ca", "... gọi tướng quân", "... là ta làm"
+   - Danh sách cấm viết hoa giữa câu: ta, ngươi, hắn, nàng, đại ca, minh chủ, tướng quân, tiểu thư, huynh, đệ, tỷ, muội, nương tử, mẫu thân, phụ thân...
+4. Ngay cả khi một từ được viết hoa trong danh sách THUẬT NGỮ, bạn VẪN PHẢI viết thường nó nếu nó không phải tên riêng và đang đứng giữa câu.
 `;
 
 // Pronoun rules
 export const PRONOUN_RULE = `
 ĐẠI TỪ & DANH XƯNG:
-- 我/我们: Ta, Chúng ta.
-- 你/ yourselves: Ngươi, Các ngươi.
-- 他/ she / it: Hắn, Nàng, Nó.
-- CHỈ viết hoa danh xưng nếu đứng đầu câu.
-`;
-
-// Capitalization rules
-export const CAPITALIZATION_RULE = `
-QUY TẮC VIẾT HOA:
-- CHỈ viết hoa Tên riêng (người, địa danh).
-- CẤM viết hoa danh từ chung, chức vụ: thứ sử, đô úy, thái thú, tướng quân, nghĩa phụ, chủ công, tiên sinh...
-- CẤM viết hoa quan hệ: huynh, đệ, tỷ, muội...
+- 我 (Wǒ): Ta, chúng ta.
+- 你 (Nǐ): Ngươi, các ngươi.
+- 他 (Tā) / 她 / 它: Hắn, nàng, nó.
+- CHỈ viết hoa đại từ/danh xưng nếu đứng đầu câu.
 `;
 
 // Line & structure rules
@@ -44,7 +48,7 @@ export const CORE_RULES = `
 YÊU CẦU CỐT LÕI:
 1. Trả về JSON { "title": "...", "content": "..." }.
 2. Văn phong tiểu thuyết mượt mà, thoát ý, ưu tiên Thuần Việt. 
-3. GIỮ HÁN VIỆT cho: Tên người, Địa danh, Binh chủng (VD: Tịnh Châu Lang Kỵ), Chêu thức.
+3. GIỮ HÁN VIỆT cho: Tên người, Địa danh, Binh chủng (VD: Tịnh Châu Lang Kỵ), Chiêu thức.
 4. KHÔNG giải thích nghĩa đằng sau.
 `;
 

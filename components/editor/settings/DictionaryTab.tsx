@@ -179,8 +179,8 @@ export function DictionaryTab({ workspaceId }: DictionaryTabProps) {
                     <div className="divide-y divide-white/5 px-2">
                         {filteredDic.map((entry) => (
                             <div key={entry.id} className="grid grid-cols-12 gap-2 items-center text-sm group hover:bg-white/5 py-2 px-2 rounded transition-all">
-                                <div className="col-span-5 text-white font-medium font-serif select-all truncate" title={entry.original}>{entry.original}</div>
-                                <div className="col-span-6 text-emerald-400 font-bold select-all truncate" title={entry.translated}>{entry.translated}</div>
+                                <div className="col-span-5 text-white font-medium font-serif select-text truncate" title={entry.original}>{entry.original}</div>
+                                <div className="col-span-6 text-emerald-400 font-bold select-text truncate" title={entry.translated}>{entry.translated}</div>
                                 <div className="col-span-1 text-right">
                                     <Button
                                         variant="ghost"

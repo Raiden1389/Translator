@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { db, Chapter } from "@/lib/db";
 import { toast } from "sonner";
 import {
@@ -12,6 +13,7 @@ import { clearChapterTranslation } from "@/lib/services/chapter.service";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 import { useChapterSelection } from "./useChapterSelection";
 import { useChapterImport } from "./useChapterImport";
+import { useAIExtraction } from "@/components/workspace/editor/hooks/useAIExtraction";
 import { InspectionIssue } from "@/lib/types";
 
 export function useChapterList(workspaceId: string, chapters: Chapter[] | undefined) {
@@ -26,7 +28,6 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
     const [inspectingChapter, setInspectingChapter] = useState<{ id: number, title: string, issues: InspectionIssue[] } | null>(null);
     const [isInspectOpen, setIsInspectOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
-    const [nameHunterOpen, setNameHunterOpen] = useState(false);
 
     // Filter logic
     const filtered = useMemo(() => {
@@ -44,6 +45,18 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
         setSelectedChapters,
         toggleSingleSelection
     } = useChapterSelection(filtered.map(c => c.id!));
+
+    const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(workspaceId).toArray(), [workspaceId]);
+
+    const {
+        isAIExtracting,
+        pendingCharacters,
+        pendingTerms,
+        isReviewOpen,
+        setIsReviewOpen,
+        handleAIExtractChapter,
+        handleConfirmSaveAI
+    } = useAIExtraction(workspaceId, dictEntries || []);
 
     const {
         importing,
@@ -143,16 +156,18 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
         state: {
             search, filterStatus, currentPage, itemsPerPage, viewMode,
             readingChapterId, translateDialogOpen, inspectingChapter, isInspectOpen,
-            historyOpen, nameHunterOpen, filtered, currentChapters, totalPages,
+            historyOpen, filtered, currentChapters, totalPages,
             selectedChapters, importing, importProgress, importStatus,
             fileInputRef, importInputRef
         },
         actions: {
             setSearch, setFilterStatus, setCurrentPage, setItemsPerPage, setViewMode,
-            setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen, setNameHunterOpen,
+            setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen,
             setSelectedChapters, toggleSingleSelection, handleSelectRange, handleInspect,
             handleApplyCorrections, handleClearTranslationAction, handleExport,
-            handleFileUpload, handleImportJSON
+            handleFileUpload, handleImportJSON,
+            setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI,
+            isAIExtracting, pendingCharacters, pendingTerms, isReviewOpen
         }
     };
 }

@@ -1,4 +1,4 @@
-import { TermCandidate, ExtractionConfig } from './types';
+import { TermCandidate, ExtractionConfig, TermType } from './types';
 
 export class NameHunterRegexEngine {
     private config: ExtractionConfig;
@@ -13,9 +13,12 @@ export class NameHunterRegexEngine {
         const counts = this._countFrequency(filtered);
 
         return Array.from(counts.entries()).map(([word, count]) => ({
+            id: `${word}_regex_${Math.random().toString(36).substring(2, 7)}`,
             original: word,
             context: '', // TODO: Add context extraction later
-            count
+            count,
+            type: TermType.Unknown,
+            confidence: 50
         })).sort((a, b) => b.count - a.count);
     }
 

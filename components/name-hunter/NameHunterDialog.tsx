@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useNameHunter } from "@/lib/hooks/useNameHunter"
 import { CandidateTable } from "./CandidateTable"
-import { Loader2 } from "lucide-react"
+import { Loader2, Zap, BrainCircuit } from "lucide-react"
 import { TermCandidate, TermType } from "@/lib/services/name-hunter/types"
 
 export interface ScanConfig {
@@ -81,6 +81,8 @@ export function NameHunterDialog({
         ignoreKnown: true, // Default to true as requested
     });
 
+    const [customPatterns, setCustomPatterns] = useState("{0}儿, 老{0}, 小{0}, 阿{0}");
+
     // Loading State
     const [isReady, setIsReady] = useState(false);
 
@@ -115,11 +117,18 @@ export function NameHunterDialog({
         return () => { mounted = false; };
     }, [isOpen]);
 
+    const [engineMode, setEngineMode] = useState<'local' | 'ai'>('local');
+
     const handleStartScan = async () => {
         if (!isReady) return;
         setStep('results');
         setCandidates([]);
         setJunkCandidates([]);
+
+        const { toast } = await import("sonner");
+        if (engineMode === 'ai') {
+            toast.loading('AI đang bắt đầu quét thực thể...', { id: 'ai-scan' });
+        }
 
         let textsToProcess: string[] = [];
 
@@ -137,7 +146,29 @@ export function NameHunterDialog({
 
         const fullText = textsToProcess.join("\n\n");
         setLastScannedText(fullText);
-        const rawResults = await scan(fullText);
+
+        // Map filters to allowedTypes for AI mode
+        const allowedTypes: TermType[] = [];
+        if (filters.names) allowedTypes.push(TermType.Person);
+        if (filters.locations) allowedTypes.push(TermType.Location);
+        if (filters.skills) allowedTypes.push(TermType.Skill);
+        if (filters.orgs) allowedTypes.push(TermType.Organization);
+        if (filters.terms) allowedTypes.push(TermType.Unknown);
+
+        const rawCandidates = await scan(fullText, {
+            mode: engineMode,
+            allowedTypes: allowedTypes,
+            customPatterns: customPatterns.split(",").map(p => p.trim()).filter(p => p.length > 0),
+            onProgress: (msg) => {
+                if (engineMode === 'ai') {
+                    toast.loading(msg, { id: 'ai-scan' });
+                }
+            }
+        });
+
+        if (engineMode === 'ai') {
+            toast.success(`AI đã trích xuất xong ${rawCandidates.length} thực thể!`, { id: 'ai-scan' });
+        }
 
         // Prepare User Dictionary for Filtering
         const knownSet = new Set<string>();
@@ -149,16 +180,19 @@ export function NameHunterDialog({
                     if (e.original) knownSet.add(e.original.toLowerCase().trim());
                     if (e.translated) knownSet.add(e.translated.toLowerCase().trim());
                 });
-            } catch (e: unknown) { // Changed 'e' to 'e: unknown'
-                console.error("Failed to load user dictionary", e);
+            } catch (err: unknown) {
+                console.error("Failed to load user dictionary", err);
             }
         }
 
-        // Apply UI Filters
-        const finalResults = rawResults.filter((c: TermCandidate) => {
-            if (c.count < minFrequency) return false;
-            const wordCount = c.original.trim().split(/\s+/).length;
-            if (wordCount < minLength || wordCount > maxLength) return false;
+        // 3. User Filter (Final step for UI)
+        const finalResultsFiltered = rawCandidates.filter((c: TermCandidate) => {
+            // If AI mode, we generally want to see everything AI extracted, bypass freq/length checks
+            if (engineMode === 'local') {
+                if (c.count < minFrequency) return false;
+                const wordCount = c.original.trim().split(/\s+/).length;
+                if (wordCount < minLength || wordCount > maxLength) return false;
+            }
 
             if (filters.ignoreKnown) {
                 const normOriginal = c.original.toLowerCase().trim();
@@ -167,19 +201,33 @@ export function NameHunterDialog({
                     return false;
                 }
             }
+
+            // NER Type Filtering
+            if (c.type === TermType.Person && !filters.names) return false;
+            if (c.type === TermType.Location && !filters.locations) return false;
+            if (c.type === TermType.Skill && !filters.skills) return false;
+            if (c.type === TermType.Organization && !filters.orgs) return false;
+            if (c.type === TermType.Unknown && !filters.terms) return false;
+
+            // Junk is handled separately in hooks, but if it leaks here, we filter it
+            if (c.type === TermType.Junk) return false;
+
             return true;
         });
 
-        console.log(`[NameHunter] Final Results: ${finalResults.length} (from ${rawResults.length})`);
-        setCandidates(finalResults);
+        console.log(`[NameHunter] Final Results: ${finalResultsFiltered.length}`);
+        setCandidates(finalResultsFiltered);
     };
 
-    const handleRemove = (original: string) => {
-        setCandidates(prev => prev.filter(c => c.original !== original));
-        setJunkCandidates(prev => prev.filter(c => c.original !== original));
+    const handleRemove = (id: string) => {
+        const item = [...candidates, ...junkCandidates].find(c => c.id === id);
+        if (!item) return;
+
+        setCandidates(prev => prev.filter(c => c.id !== id));
+        setJunkCandidates(prev => prev.filter(c => c.id !== id));
 
         import("@/lib/repositories/blacklist-repo").then(({ blacklistRepo, BlacklistLevel }) => {
-            blacklistRepo.addToBlacklist(original, BlacklistLevel.PHRASE);
+            blacklistRepo.addToBlacklist(item.original, BlacklistLevel.PHRASE);
         });
     };
 
@@ -187,8 +235,8 @@ export function NameHunterDialog({
         if (onAddTerm) {
             onAddTerm({ ...candidate, type: targetType === 'character' ? TermType.Person : TermType.Unknown });
         }
-        setCandidates(prev => prev.filter(c => c.original !== candidate.original));
-        setJunkCandidates(prev => prev.filter(c => c.original !== candidate.original));
+        setCandidates(prev => prev.filter(c => c.id !== candidate.id));
+        setJunkCandidates(prev => prev.filter(c => c.id !== candidate.id));
     };
 
     const handleRefine = async () => {
@@ -224,7 +272,7 @@ export function NameHunterDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
                 <DialogHeader className="px-6 py-4 border-b">
                     <DialogTitle className="flex items-center gap-2">
                         <span className="text-xl">🕵️ Name Hunter</span>
@@ -237,145 +285,225 @@ export function NameHunterDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto bg-muted/10 p-6">
+                <div className="flex-1 min-h-0 bg-muted/10 flex flex-col">
                     {step === 'config' ? (
-                        <div className="space-y-8 max-w-2xl mx-auto">
-                            <div className="space-y-4 bg-card p-6 rounded-xl border">
-                                <div className="grid grid-cols-[100px_1fr] gap-4">
-                                    <label className="text-sm font-medium pt-2">Phạm vi:</label>
-                                    <div className="space-y-3">
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button
-                                                variant={(!rangeInput && activeTab !== 'manual') ? "secondary" : "outline"}
-                                                size="sm"
-                                                onClick={() => {
-                                                    setRangeInput("");
-                                                    setActiveTab('auto');
-                                                }}
-                                                className="h-8"
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="space-y-8 max-w-2xl mx-auto">
+                                <div className="space-y-4 bg-card p-6 rounded-xl border">
+                                    <div className="grid grid-cols-[100px_1fr] gap-4">
+                                        <label className="text-sm font-medium pt-2">Chế độ quét:</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => setEngineMode('local')}
+                                                className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${engineMode === 'local'
+                                                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                                                    : 'border-border bg-muted/30 hover:bg-muted/50 grayscale opacity-70'
+                                                    }`}
                                             >
-                                                Tất cả ({totalChapters})
-                                            </Button>
-                                            {selectedCount > 0 && (
+                                                <Zap className={`w-5 h-5 ${engineMode === 'local' ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                                                <div className="text-center">
+                                                    <div className="text-sm font-semibold">Quét nhanh</div>
+                                                    <div className="text-[10px] text-muted-foreground">Heuristic - Cực nhanh</div>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => setEngineMode('ai')}
+                                                className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${engineMode === 'ai'
+                                                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/5 ring-2 ring-indigo-500/20'
+                                                    : 'border-border bg-muted/30 hover:bg-muted/50 grayscale opacity-70'
+                                                    }`}
+                                            >
+                                                <BrainCircuit className={`w-5 h-5 ${engineMode === 'ai' ? 'text-indigo-500' : 'text-muted-foreground'}`} />
+                                                <div className="text-center">
+                                                    <div className="text-sm font-semibold">AI NER</div>
+                                                    <div className="text-[10px] text-muted-foreground">AI trích xuất - Cực chuẩn</div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-border my-2" />
+
+                                    <div className="grid grid-cols-[100px_1fr] gap-4">
+                                        <label className="text-sm font-medium pt-2">Phạm vi:</label>
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap gap-2">
                                                 <Button
-                                                    variant={rangeInput === 'selected' ? "secondary" : "outline"}
+                                                    variant={(!rangeInput && activeTab !== 'manual') ? "secondary" : "outline"}
                                                     size="sm"
                                                     onClick={() => {
-                                                        setRangeInput("selected");
+                                                        setRangeInput("");
                                                         setActiveTab('auto');
                                                     }}
                                                     className="h-8"
                                                 >
-                                                    Đang chọn ({selectedCount})
+                                                    Tất cả ({totalChapters})
                                                 </Button>
-                                            )}
-                                        </div>
+                                                {selectedCount > 0 && (
+                                                    <Button
+                                                        variant={rangeInput === 'selected' ? "secondary" : "outline"}
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setRangeInput("selected");
+                                                            setActiveTab('auto');
+                                                        }}
+                                                        className="h-8"
+                                                    >
+                                                        Đang chọn ({selectedCount})
+                                                    </Button>
+                                                )}
+                                            </div>
 
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                placeholder="Hoặc nhập range: 1-10, 15"
-                                                className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
-                                                value={rangeInput === 'selected' ? '' : rangeInput}
-                                                onChange={(e) => {
-                                                    setRangeInput(e.target.value);
-                                                    setActiveTab('auto');
-                                                }}
-                                            />
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground">
-                                            {rangeInput === 'selected'
-                                                ? "Quét các chương đã chọn trong danh sách."
-                                                : rangeInput
-                                                    ? "Quét theo dải chương chỉ định."
-                                                    : "Quét toàn bộ workspace (Tốn thời gian)."}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-[100px_1fr] items-center gap-4">
-                                    <label className="text-sm font-medium">Tần suất:</label>
-                                    <div className="flex items-center gap-4">
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="10"
-                                            className="flex-1 accent-primary"
-                                            value={minFrequency}
-                                            onChange={(e) => setMinFrequency(parseInt(e.target.value))}
-                                        />
-                                        <span className="text-sm font-mono w-4">{minFrequency}+</span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-[100px_1fr] items-center gap-4">
-                                    <label className="text-sm font-medium">Độ dài:</label>
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex flex-1 items-center gap-2">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                className="w-16 h-8 px-2 rounded border bg-background text-sm"
-                                                value={minLength}
-                                                onChange={(e) => setMinLength(parseInt(e.target.value))}
-                                            />
-                                            <span className="text-muted-foreground">-</span>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                className="w-16 h-8 px-2 rounded border bg-background text-sm"
-                                                value={maxLength}
-                                                onChange={(e) => setMaxLength(parseInt(e.target.value))}
-                                            />
-                                            <span className="text-xs text-muted-foreground ml-2">Từ</span>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Hoặc nhập range: 1-10, 15"
+                                                    className="flex-1 h-9 px-3 rounded-md border bg-background text-sm"
+                                                    value={rangeInput === 'selected' ? '' : rangeInput}
+                                                    onChange={(e) => {
+                                                        setRangeInput(e.target.value);
+                                                        setActiveTab('auto');
+                                                    }}
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                {rangeInput === 'selected'
+                                                    ? "Quét các chương đã chọn trong danh sách."
+                                                    : rangeInput
+                                                        ? "Quét theo dải chương chỉ định."
+                                                        : "Quét toàn bộ workspace (Tốn thời gian)."}
+                                            </p>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="h-px bg-border my-2" />
+                                    {engineMode === 'local' && (
+                                        <>
+                                            <div className="grid grid-cols-[100px_1fr] items-center gap-4">
+                                                <label className="text-sm font-medium">Tần suất:</label>
+                                                <div className="flex items-center gap-4">
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="10"
+                                                        className="flex-1 accent-primary"
+                                                        value={minFrequency}
+                                                        onChange={(e) => setMinFrequency(parseInt(e.target.value))}
+                                                    />
+                                                    <span className="text-sm font-mono w-4">{minFrequency}+</span>
+                                                </div>
+                                            </div>
 
-                                <div className="grid grid-cols-[100px_1fr] items-center gap-4 pt-2">
-                                    <label className="text-sm font-medium">Tùy chọn:</label>
-                                    <label className="flex items-center gap-2 cursor-pointer select-none text-sm p-2 hover:bg-accent rounded-md transition-colors w-fit border border-transparent hover:border-border">
-                                        <input
-                                            type="checkbox"
-                                            className="w-4 h-4 rounded border-primary text-primary focus:ring-primary"
-                                            checked={filters.ignoreKnown}
-                                            onChange={(e) => setFilters(prev => ({ ...prev, ignoreKnown: e.target.checked }))}
-                                        />
-                                        <span>Ẩn tên đã có trong Từ Điển</span>
-                                    </label>
-                                </div>
-                            </div>
+                                            <div className="grid grid-cols-[100px_1fr] items-center gap-4">
+                                                <label className="text-sm font-medium">Độ dài:</label>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex flex-1 items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            className="w-16 h-8 px-2 rounded border bg-background text-sm"
+                                                            value={minLength}
+                                                            onChange={(e) => setMinLength(parseInt(e.target.value))}
+                                                        />
+                                                        <span className="text-muted-foreground">-</span>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            className="w-16 h-8 px-2 rounded border bg-background text-sm"
+                                                            value={maxLength}
+                                                            onChange={(e) => setMaxLength(parseInt(e.target.value))}
+                                                        />
+                                                        <span className="text-xs text-muted-foreground ml-2">Từ</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="h-px bg-border my-2" />
+                                        </>
+                                    )}
 
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold flex items-center gap-2">
-                                    🎯 Đối tượng quét (NER Filters)
-                                </h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {[
-                                        { key: 'names', label: 'Tên nhân vật (Names)' },
-                                        { key: 'locations', label: 'Địa danh (Locations)' },
-                                        { key: 'skills', label: 'Công pháp (Skills)' },
-                                        { key: 'orgs', label: 'Tổ chức (Orgs)' },
-                                        { key: 'terms', label: 'Thuật ngữ (Terms)' },
-                                        { key: 'others', label: 'Khác (Others)' },
-                                    ].map((item) => (
-                                        <label key={item.key} className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors user-select-none">
+                                    <div className="grid grid-cols-[100px_1fr] items-center gap-4 pt-2">
+                                        <label className="text-sm font-medium">Tùy chọn:</label>
+                                        <label className="flex items-center gap-2 cursor-pointer select-none text-sm p-2 hover:bg-accent rounded-md transition-colors w-fit border border-transparent hover:border-border">
                                             <input
                                                 type="checkbox"
-                                                checked={filters[item.key as keyof typeof filters]}
-                                                onChange={(e) => setFilters(prev => ({ ...prev, [item.key]: e.target.checked }))}
                                                 className="w-4 h-4 rounded border-primary text-primary focus:ring-primary"
+                                                checked={filters.ignoreKnown}
+                                                onChange={(e) => setFilters(prev => ({ ...prev, ignoreKnown: e.target.checked }))}
                                             />
-                                            <span className="text-sm">{item.label}</span>
+                                            <span>Ẩn tên đã có trong Từ Điển</span>
                                         </label>
-                                    ))}
+                                    </div>
+
+                                    {engineMode === 'local' && (
+                                        <div className="space-y-2 pt-2">
+                                            <label className="text-sm font-medium flex items-center gap-2">
+                                                🧩 Quy luật lọc (Custom Patterns):
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: {0}儿, 老{0}, {0}在这{0}"
+                                                className="w-full h-9 px-3 rounded-md border bg-background text-sm font-mono"
+                                                value={customPatterns}
+                                                onChange={(e) => setCustomPatterns(e.target.value)}
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Dùng {"{0}"} làm đại diện cho 1-3 chữ Trung Quốc. Phân cách bằng dấu phẩy.
+                                            </p>
+                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                {[
+                                                    { label: "Tiểu {0}", val: "小{0}" },
+                                                    { label: "Lão {0}", val: "老{0}" },
+                                                    { label: "A {0}", val: "阿{0}" },
+                                                    { label: "Tên {0} Nhi", val: "{0}儿" },
+                                                    { label: "{0} công tử", val: "{0}公子" },
+                                                ].map(p => (
+                                                    <button
+                                                        key={p.val}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = customPatterns.split(",").map(i => i.trim()).filter(i => i);
+                                                            if (!current.includes(p.val)) {
+                                                                setCustomPatterns([...current, p.val].join(", "));
+                                                            }
+                                                        }}
+                                                        className="text-[10px] px-2 py-0.5 rounded-full border bg-muted hover:bg-accent transition-colors"
+                                                    >
+                                                        + {p.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        🎯 Đối tượng quét (NER Filters)
+                                    </h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {[
+                                            { key: 'names', label: 'Tên nhân vật (Names)' },
+                                            { key: 'locations', label: 'Địa danh (Locations)' },
+                                            { key: 'skills', label: 'Công pháp (Skills)' },
+                                            { key: 'orgs', label: 'Tổ chức (Orgs)' },
+                                            { key: 'terms', label: 'Thuật ngữ (Terms)' },
+                                            { key: 'others', label: 'Khác (Others)' },
+                                        ].map((item) => (
+                                            <label key={item.key} className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors user-select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={filters[item.key as keyof typeof filters]}
+                                                    onChange={(e) => setFilters(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                                                    className="w-4 h-4 rounded border-primary text-primary focus:ring-primary"
+                                                />
+                                                <span className="text-sm">{item.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col">
+                        <div className="flex-1 flex flex-col min-h-0">
                             {isScanning ? (
                                 <div className="flex-1 flex flex-col items-center justify-center gap-4">
                                     <div className="relative">
@@ -385,7 +513,7 @@ export function NameHunterDialog({
                                     <p className="text-muted-foreground animate-pulse font-medium">Đang truy lùng thực thể...</p>
                                 </div>
                             ) : (
-                                <div className="h-full flex flex-col pt-2">
+                                <div className="flex-1 flex flex-col min-h-0 p-6 pt-2">
                                     <div className="flex items-center justify-between mb-4 bg-muted/30 p-1 rounded-lg border">
                                         <div className="flex gap-1">
                                             <Button
@@ -437,46 +565,50 @@ export function NameHunterDialog({
                                         </Button>
                                     </div>
 
-                                    <CandidateTable
-                                        candidates={resultsTab === 'active' ? candidates : junkCandidates}
-                                        onRemove={handleRemove}
-                                        onAdd={handleAdd}
-                                        onBatchRemove={(originals) => {
-                                            if (resultsTab === 'active') {
-                                                setCandidates(prev => prev.filter(c => !originals.includes(c.original)));
-                                            } else {
-                                                setJunkCandidates(prev => prev.filter(c => !originals.includes(c.original)));
-                                            }
+                                    <div className="flex-1 min-h-0 h-full">
+                                        <CandidateTable
+                                            candidates={resultsTab === 'active' ? candidates : junkCandidates}
+                                            onRemove={handleRemove}
+                                            onAdd={handleAdd}
+                                            onBatchRemove={(ids) => {
+                                                const itemsToRemove = [...candidates, ...junkCandidates].filter(c => ids.includes(c.id));
 
-                                            import("@/lib/repositories/blacklist-repo").then(({ blacklistRepo, BlacklistLevel }) => {
-                                                originals.forEach(item => blacklistRepo.addToBlacklist(item, BlacklistLevel.PHRASE));
-                                            });
-                                        }}
-                                        onEdit={(oldOriginal, newOriginal) => {
-                                            const setter = resultsTab === 'active' ? setCandidates : setJunkCandidates;
-                                            setter(prev => prev.map(item => item.original === oldOriginal ? { ...item, original: newOriginal } : item));
-                                        }}
-                                        onTypeChange={(original, newType) => {
-                                            if (newType === TermType.Junk && resultsTab === 'active') {
-                                                const item = candidates.find(c => c.original === original);
-                                                if (item) {
-                                                    setCandidates(prev => prev.filter(c => c.original !== original));
-                                                    setJunkCandidates(prev => [...prev, { ...item, type: TermType.Junk }]);
+                                                if (resultsTab === 'active') {
+                                                    setCandidates(prev => prev.filter(c => !ids.includes(c.id)));
+                                                } else {
+                                                    setJunkCandidates(prev => prev.filter(c => !ids.includes(c.id)));
                                                 }
-                                                return;
-                                            }
-                                            if (newType !== TermType.Junk && resultsTab === 'trash') {
-                                                const item = junkCandidates.find(c => c.original === original);
-                                                if (item) {
-                                                    setJunkCandidates(prev => prev.filter(c => c.original !== original));
-                                                    setCandidates(prev => [...prev, { ...item, type: newType }]);
+
+                                                import("@/lib/repositories/blacklist-repo").then(({ blacklistRepo, BlacklistLevel }) => {
+                                                    itemsToRemove.forEach(item => blacklistRepo.addToBlacklist(item.original, BlacklistLevel.PHRASE));
+                                                });
+                                            }}
+                                            onEdit={(id, newOriginal) => {
+                                                const setter = resultsTab === 'active' ? setCandidates : setJunkCandidates;
+                                                setter(prev => prev.map(item => item.id === id ? { ...item, original: newOriginal } : item));
+                                            }}
+                                            onTypeChange={(id, newType) => {
+                                                if (newType === TermType.Junk && resultsTab === 'active') {
+                                                    const item = candidates.find(c => c.id === id);
+                                                    if (item) {
+                                                        setCandidates(prev => prev.filter(c => c.id !== id));
+                                                        setJunkCandidates(prev => [...prev, { ...item, type: TermType.Junk }]);
+                                                    }
+                                                    return;
                                                 }
-                                                return;
-                                            }
-                                            const setter = resultsTab === 'active' ? setCandidates : setJunkCandidates;
-                                            setter(prev => prev.map(item => item.original === original ? { ...item, type: newType } : item));
-                                        }}
-                                    />
+                                                if (newType !== TermType.Junk && resultsTab === 'trash') {
+                                                    const item = junkCandidates.find(c => c.id === id);
+                                                    if (item) {
+                                                        setJunkCandidates(prev => prev.filter(c => c.id !== id));
+                                                        setCandidates(prev => [...prev, { ...item, type: newType }]);
+                                                    }
+                                                    return;
+                                                }
+                                                const setter = resultsTab === 'active' ? setCandidates : setJunkCandidates;
+                                                setter(prev => prev.map(item => item.id === id ? { ...item, type: newType } : item));
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>

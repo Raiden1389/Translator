@@ -120,7 +120,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                 <div className="w-8 h-px bg-current opacity-20" /> Bản gốc (Trung)
                             </div>
                         )}
-                        <div className="text-xl leading-loose font-serif whitespace-pre-wrap select-all"
+                        <div className="text-xl leading-loose font-serif whitespace-pre-wrap select-text"
                             style={{ color: isRaidenMode ? "#94A3B8" : readerConfig.textColor, fontFamily: readerConfig.fontFamily }}>
                             {chapter.content_original}
                         </div>

@@ -1,3 +1,5 @@
+import { DictionaryEntry } from "../db";
+
 /**
  * Text Normalization Helper
  * Cleans up Vietnamese content formatting
@@ -188,7 +190,7 @@ function cleanIdiomExplanations(text: string): string {
  * THE ABSOLUTE FINAL SWEEP (The Broom)
  * This should be the very last function called before saving/rendering.
  */
-export function finalSweep(text: string): string {
+export function finalSweep(text: string, glossary: DictionaryEntry[] = []): string {
     if (!text) return "";
 
     // 1. Clean up AI chatter and standard formatting first
@@ -213,22 +215,46 @@ export function finalSweep(text: string): string {
         loopCount++;
     }
 
-    // 3. Conditional Pronoun Lowercasing: Ta -> ta
+    // 3. Conditional Pronoun Lowercasing (e.g., Ta -> ta, Đại ca -> đại ca)
     // Rule: Lowercase if not at start of sentence AND not inside brackets [...]
+
+    // START: Build dynamic list from hardcoded pronouns + user dictionary
+    const hardcoded = ["Ta", "Ngươi", "Hắn", "Nàng", "Huynh", "Đệ", "Tỷ", "Muội", "Đại ca", "Tỷ tỷ", "Muội muội", "Đệ đệ", "Tướng quân", "Minh chủ", "Tiểu thư", "Nương tử", "Mẫu thân", "Phụ thân"];
+
+    // Extract everything from glossary that isn't explicitly a 'name' or 'character' or just lowercase it safely
+    const glossaryTerms = glossary
+        .filter(d => d.type === 'term' || d.type === 'phrase' || d.type === 'correction')
+        .map(d => d.translated);
+
+    const keywords = Array.from(new Set([...hardcoded, ...glossaryTerms]))
+        .filter(k => k && k.length > 1 && /^[A-ZÀ-Ỹ]/.test(k)); // Only check words starting with Uppercase
+    // END: Build dynamic list
+
     cleaned = cleaned
         .replace(/\[([\s\S]*?)\]/g, (match) => {
             // Temporarily mask brackets to avoid processing inside
             return `\uE000${match.slice(1, -1)}\uE001`;
-        })
-        .replace(/\bTa\b/g, (match, offset, fullText) => {
+        });
+
+    for (const kw of keywords) {
+        // Use a more robust check for Vietnamese boundaries instead of \b
+        // Matches the keyword when it's NOT preceded/followed by another letter
+        const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?<![a-zà-ỹA-ZÀ-Ỹ])${escaped}(?![a-zà-ỹA-ZÀ-Ỹ])`, 'g');
+
+        cleaned = cleaned.replace(regex, (match, offset, fullText) => {
             const preceding = fullText.substring(0, offset).trim();
-            // Start of string OR preceded by sentence terminator OR dialogue markers
-            // Includes: . ! ? " “ ” - —
             const isStartOfSentence = preceding === "" ||
-                /[.!?]$/.test(preceding) ||
+                /[.!?:]$/.test(preceding) ||
                 /[“"‘\-\—\u2013\u2014]$/.test(preceding);
-            return isStartOfSentence ? "Ta" : "ta";
-        })
+
+            if (isStartOfSentence) return match;
+            // Lowercase mapping (handle multi-word like "Đại ca" -> "đại ca")
+            return match.toLowerCase();
+        });
+    }
+
+    cleaned = cleaned
         // Unmask
         .replace(/\uE000/g, "[")
         .replace(/\uE001/g, "]");

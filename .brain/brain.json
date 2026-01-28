@@ -1,0 +1,68 @@
+{
+    "meta": {
+        "schema_version": "1.1.0",
+        "awf_version": "3.3.0",
+        "last_updated": "2026-01-28T17:10:00Z"
+    },
+    "project": {
+        "name": "Raiden AI Translator",
+        "type": "Desktop Application (Tauri + Next.js)",
+        "status": "Development - UI Refinement & AI Feature Integration"
+    },
+    "tech_stack": {
+        "frontend": {
+            "framework": "Next.js 16.1.1 (React 19)",
+            "styling": "Tailwind CSS 4 + Tailwind Animate",
+            "icons": "Lucide React",
+            "state_management": "React Hooks + Dexie LiveQuery",
+            "components": "Radix UI primitives"
+        },
+        "backend": {
+            "runtime": "Tauri (Rust) for system access",
+            "api": "Gemini Pro / Flash via @google/genai"
+        },
+        "database": {
+            "engine": "IndexedDB",
+            "wrapper": "Dexie.js",
+            "schema_version": 100
+        }
+    },
+    "features": [
+        "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
+        "Name Hunter: Tự động lọc tên riêng bằng Regex + AI",
+        "AI Scan: Quét thuật ngữ chuyên sâu bằng Gemini API",
+        "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
+        "Offline Storage: Lưu trữ dữ liệu local hoàn toàn",
+        "TTS: Hỗ trợ đọc truyện bằng giọng nói máy"
+    ],
+    "database_schema": {
+        "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",
+        "tables": [
+            {
+                "name": "workspaces",
+                "desc": "Thông tin bộ truyện (tên, tác giả, ngôn ngữ)"
+            },
+            {
+                "name": "chapters",
+                "desc": "Nội dung chương (gốc, dịch) và trạng thái dịch"
+            },
+            {
+                "name": "dictionary",
+                "desc": "Từ điển thuật ngữ/nhân vật cho từng bộ truyện"
+            },
+            {
+                "name": "blacklist",
+                "desc": "Các từ không muốn dịch hoặc bỏ qua"
+            },
+            {
+                "name": "settings",
+                "desc": "Cấu hình API, theme, font chữ"
+            }
+        ]
+    },
+    "conventions": {
+        "coding": "Sử dụng Clean Code, React Functional Components, Tailwind v4",
+        "naming": "PascalCase cho Components, camelCase cho variables/functions",
+        "i18n": "Hỗ trợ đa ngôn ngữ cục bộ, nội dung gốc Trung/Anh/Hàn/Nhật"
+    }
+}

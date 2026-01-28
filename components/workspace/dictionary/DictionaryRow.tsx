@@ -15,7 +15,7 @@ interface DictionaryRowProps {
     index: number;
     entry: DictionaryEntry;
     isSelected: boolean;
-    virtualRow: any;
+    virtualRow: { size: number; start: number };
     onSelectChange: (id: number, checked: boolean) => void;
     onUpdateType: (id: number, type: string) => void;
     onBlacklist: (id: number) => void;
@@ -33,7 +33,7 @@ export const DictionaryRow = React.memo(function DictionaryRow({
     onDelete,
 }: DictionaryRowProps) {
     const { isRaidenMode } = useRaiden();
-    const typeInfo = DIC_TYPES.find((t: any) => t.value === entry.type) || DIC_TYPES[0];
+    const typeInfo = DIC_TYPES.find((t: { value: string; label: string; color: string }) => t.value === entry.type) || DIC_TYPES[0];
 
     return (
         <div
@@ -66,7 +66,7 @@ export const DictionaryRow = React.memo(function DictionaryRow({
                 />
             </div>
             <div className={cn("col-span-1 text-center text-xs font-mono", isRaidenMode ? "text-slate-600" : "text-slate-400")}>{index + 1}</div>
-            <div className={cn("col-span-3 font-bold font-serif text-lg select-all", isRaidenMode ? "text-slate-100" : "text-slate-900")}>{entry.original}</div>
+            <div className={cn("col-span-3 font-bold font-serif text-lg select-text", isRaidenMode ? "text-slate-100" : "text-slate-900")}>{entry.original}</div>
             <div className="col-span-3 space-y-0.5">
                 <EditableCell
                     initialValue={entry.translated}

@@ -168,7 +168,8 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                         translated: char.translated,
                         gender: char.gender as any,
                         role: char.role as any,
-                        description: char.description,
+                        // Preserve existing description if it exists
+                        description: existing.description || char.description,
                         createdAt: new Date()
                     });
                     updatedCount++;
@@ -448,7 +449,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                         />
                                         <span className="text-muted-foreground text-[10px] font-mono w-4 text-center">{index + 1}</span>
                                     </div>
-                                    <div className="col-span-3 text-foreground font-serif select-all">{char.original}</div>
+                                    <div className="col-span-3 text-foreground font-serif select-text">{char.original}</div>
                                     <div className="col-span-4">
                                         <Input
                                             className="h-8 bg-background border-none focus:ring-1 focus:ring-emerald-500 text-emerald-400 font-bold px-2 py-0"

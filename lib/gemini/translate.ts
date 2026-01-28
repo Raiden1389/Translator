@@ -173,9 +173,9 @@ export const translateChapter = async (
         }
 
         // 4. Final Sweep (Clean up brackets, explanations, and structure)
-        parsed.translatedText = finalSweep(parsed.translatedText);
+        parsed.translatedText = finalSweep(parsed.translatedText, relevantDict);
         if (parsed.translatedTitle) {
-            parsed.translatedTitle = finalSweep(parsed.translatedTitle);
+            parsed.translatedTitle = finalSweep(parsed.translatedTitle, relevantDict);
         }
 
         const result = parsed;

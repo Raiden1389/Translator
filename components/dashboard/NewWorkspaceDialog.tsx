@@ -5,16 +5,33 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Loader2, X } from "lucide-react";
+import { Plus, Loader2, X, Book, User, Globe2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
-const GENRES = [
-    "Tiên Hiệp", "Võ Hiệp", "Huyền Huyễn",
-    "Đô Thị", "Lịch Sử", "Xuyên Không", "Ngôn Tình",
-    "Đam Mỹ", "Bách Hợp", "Fantasy", "LitRPG",
-    "Isekai", "Viễn Tưởng", "Hệ Thống", "Tận Thế",
-    "Kinh Dị", "Hành Động", "Hài Hước", "Đời Thường",
-    "Harem", "Trinh Thám", "Khác"
+const GENRE_GROUPS = [
+    {
+        label: "Cổ Đại / Tu Tiên",
+        items: ["Tiên Hiệp", "Võ Hiệp", "Huyền Huyễn", "Lịch Sử"]
+    },
+    {
+        label: "Hiện Đại / Tình Cảm",
+        items: ["Đô Thị", "Xuyên Không", "Ngôn Tình", "Đam Mỹ", "Bách Hợp"]
+    },
+    {
+        label: "Hệ Thống / Fantasy",
+        items: ["Hệ Thống", "Tận Thế", "Fantasy", "LitRPG", "Isekai", "Viễn Tưởng"]
+    },
+    {
+        label: "Tổng Hợp",
+        items: ["Kinh Dị", "Hành Động", "Hài Hước", "Đời Thường", "Harem", "Trinh Thám", "Khác"]
+    }
 ];
 
 export function NewWorkspaceDialog() {
@@ -88,100 +105,125 @@ export function NewWorkspaceDialog() {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-in fade-in duration-200 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300 p-4">
             {/* Modal Container */}
-            <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="w-full max-w-xl bg-background border border-border/50 rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[92vh]">
 
                 {/* Header */}
-                <div className="p-6 pb-2">
-                    <h2 className="text-2xl font-bold text-foreground">Tạo Workspace Mới</h2>
+                <div className="p-8 pb-4 flex items-center justify-between shrink-0 bg-linear-to-b from-white/2 to-transparent">
+                    <div className="space-y-1">
+                        <h2 className="text-3xl font-black text-foreground tracking-tight">Tạo Workspace Mới</h2>
+                        <p className="text-sm text-muted-foreground/60">Khởi tạo không gian làm việc cho bộ truyện mới của bạn.</p>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="rounded-full hover:bg-muted">
+                        <X className="h-5 w-5" />
+                    </Button>
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="p-6 pt-2 overflow-y-auto custom-scrollbar flex-1">
-                    <form id="create-workspace-form" onSubmit={handleSubmit} className="space-y-5">
+                <div className="px-8 py-2 overflow-y-auto custom-scrollbar flex-1">
+                    <form id="create-workspace-form" onSubmit={handleSubmit} className="space-y-8 py-4">
 
-                        {/* Title Input */}
-                        <div className="space-y-2">
-                            <Label htmlFor="title" className="text-white/70 text-xs uppercase font-bold tracking-wider">Tên Truyện</Label>
-                            <Input
-                                id="title"
-                                autoFocus
-                                required
-                                placeholder="Nhập tên truyện"
-                                className="bg-[#2b2b40] border-transparent text-white placeholder:text-white/20 focus-visible:ring-primary/50 focus-visible:bg-[#32324a] transition-all h-11 rounded-lg"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            />
-                        </div>
-
-                        {/* Genre Selection (Multi-select) */}
-                        <div className="space-y-2">
-                            <Label className="text-white/70 text-xs uppercase font-bold tracking-wider">
-                                Thể Loại <span className="text-white/30 ml-1">(Chọn nhiều)</span>
-                            </Label>
-                            <div className="flex flex-wrap gap-2">
-                                {GENRES.map(g => {
-                                    const isSelected = formData.genre.includes(g);
-                                    return (
-                                        <button
-                                            key={g}
-                                            type="button"
-                                            onClick={() => toggleGenre(g)}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-md text-xs font-medium transition-all border border-transparent select-none",
-                                                isSelected
-                                                    ? "bg-primary text-white shadow-lg shadow-primary/25 transform scale-105"
-                                                    : "bg-[#2b2b40] text-white/70 hover:bg-[#363654] hover:text-white"
-                                            )}
-                                        >
-                                            {g}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Author Input */}
-                        <div className="space-y-2">
-                            <Label htmlFor="author" className="text-white/70 text-xs uppercase font-bold tracking-wider">Tác Giả</Label>
-                            <Input
-                                id="author"
-                                placeholder="Ví dụ: Chưa rõ"
-                                className="bg-[#2b2b40] border-transparent text-white placeholder:text-white/20 focus-visible:ring-primary/50 focus-visible:bg-[#32324a] transition-all h-11 rounded-lg"
-                                value={formData.author}
-                                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                            />
-                        </div>
-
-                        {/* Language Selection Row */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-white/70 text-xs uppercase font-bold tracking-wider">Ngôn Ngữ Gốc</Label>
-                                <div className="relative">
-                                    <select
-                                        className="w-full appearance-none bg-[#2b2b40] text-white px-3 py-2.5 rounded-lg border border-transparent focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-                                        value={formData.sourceLang}
-                                        onChange={(e) => setFormData({ ...formData, sourceLang: e.target.value })}
-                                    >
-                                        <option>Chinese (中文)</option>
-                                        <option>English</option>
-                                        <option>Korean</option>
-                                        <option>Japanese</option>
-                                    </select>
+                        {/* Section 1: Identity */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-border/10">
+                            <div className="space-y-2.5">
+                                <Label htmlFor="title" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Tên Truyện</Label>
+                                <div className="relative group">
+                                    <Book className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors" />
+                                    <Input
+                                        id="title"
+                                        autoFocus
+                                        required
+                                        placeholder="Nhập tên truyện..."
+                                        className="bg-muted/30 border-border/40 pl-11 h-12 rounded-xl focus-visible:ring-primary/20 focus-visible:border-primary transition-all text-base"
+                                        value={formData.title}
+                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    />
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-white/70 text-xs uppercase font-bold tracking-wider">Ngôn Ngữ Đích</Label>
-                                <div className="relative">
-                                    <select
-                                        className="w-full appearance-none bg-[#2b2b40] text-white px-3 py-2.5 rounded-lg border border-transparent focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
-                                        value={formData.targetLang}
-                                        onChange={(e) => setFormData({ ...formData, targetLang: e.target.value })}
-                                    >
-                                        <option>Vietnamese (Tiếng Việt)</option>
-                                        <option>English</option>
-                                    </select>
+
+                            <div className="space-y-2.5">
+                                <Label htmlFor="author" className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Tác Giả</Label>
+                                <div className="relative group">
+                                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors" />
+                                    <Input
+                                        id="author"
+                                        placeholder="Ví dụ: Chưa rõ"
+                                        className="bg-muted/30 border-border/40 pl-11 h-12 rounded-xl focus-visible:ring-primary/20 focus-visible:border-primary transition-all text-base"
+                                        value={formData.author}
+                                        onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 2: Genres */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                                    <Sparkles className="h-3 w-3" /> Thể Loại <span className="opacity-40 italic font-medium">(Chọn nhiều)</span>
+                                </Label>
+                            </div>
+                            <div className="space-y-4">
+                                {GENRE_GROUPS.map((group) => (
+                                    <div key={group.label} className="space-y-2">
+                                        <div className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest pl-1">{group.label}</div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {group.items.map(g => {
+                                                const isSelected = formData.genre.includes(g);
+                                                return (
+                                                    <button
+                                                        key={g}
+                                                        type="button"
+                                                        onClick={() => toggleGenre(g)}
+                                                        className={cn(
+                                                            "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border select-none",
+                                                            isSelected
+                                                                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-105"
+                                                                : "bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {g}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Section 3: Languages */}
+                        <div className="pt-6 border-t border-border/10">
+                            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2">
+                                <Globe2 className="h-3 w-3" /> Cấu Hình Ngôn Ngữ
+                            </Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <span className="text-xs font-medium text-muted-foreground pl-1">Từ (Nguồn)</span>
+                                    <Select value={formData.sourceLang} onValueChange={(val) => setFormData({ ...formData, sourceLang: val })}>
+                                        <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-border/40">
+                                            <SelectValue placeholder="Chọn ngôn ngữ gốc" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Chinese (中文)">Chinese (中文)</SelectItem>
+                                            <SelectItem value="English">English</SelectItem>
+                                            <SelectItem value="Korean">Korean</SelectItem>
+                                            <SelectItem value="Japanese">Japanese</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <span className="text-xs font-medium text-muted-foreground pl-1">Sang (Đích)</span>
+                                    <Select value={formData.targetLang} onValueChange={(val) => setFormData({ ...formData, targetLang: val })}>
+                                        <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-border/40">
+                                            <SelectValue placeholder="Chọn ngôn ngữ đích" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Vietnamese (Tiếng Việt)">Vietnamese (Tiếng Việt)</SelectItem>
+                                            <SelectItem value="English">English</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         </div>
@@ -190,12 +232,12 @@ export function NewWorkspaceDialog() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-border flex justify-between gap-4 bg-muted/20">
+                <div className="p-8 pt-6 border-t border-border bg-muted/20 flex gap-4 shrink-0">
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => setIsOpen(false)}
-                        className="flex-1 bg-[#2b2b40] text-white hover:bg-[#363654] h-11 rounded-lg"
+                        className="flex-1 h-12 rounded-xl font-bold border-border/50 hover:bg-muted transition-all"
                     >
                         Hủy
                     </Button>
@@ -203,9 +245,9 @@ export function NewWorkspaceDialog() {
                         type="submit"
                         form="create-workspace-form"
                         disabled={loading}
-                        className="flex-[2] bg-primary hover:bg-primary/90 text-white h-11 rounded-lg shadow-lg shadow-primary/20"
+                        className="flex-2 h-12 rounded-xl font-extrabold text-base bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-95"
                     >
-                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Plus className="mr-2 h-5 w-5" />}
                         Tạo Workspace
                     </Button>
                 </div>

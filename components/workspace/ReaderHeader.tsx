@@ -15,16 +15,13 @@ import {
     Sparkles,
     X,
     Eraser,
-    ScanSearch,
     Loader2
 } from "lucide-react";
-import { toast } from "sonner";
 import { VIETNAMESE_VOICES } from "@/lib/tts";
-import { db, Chapter } from "@/lib/db";
+import { Chapter } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InspectionIssue } from "@/lib/types";
-import { NameHunterDialog } from "@/components/name-hunter/NameHunterDialog";
 
 /* ===================== TYPES ===================== */
 
@@ -72,6 +69,7 @@ interface ReaderHeaderProps {
     setTtsRate: (v: number) => void;
 
     onClearTranslation: () => void;
+    onAIExtract?: () => void;
 }
 
 /* ===================== SMALL COMPONENTS ===================== */
@@ -471,11 +469,11 @@ export function ReaderHeader(props: ReaderHeaderProps) {
         setTtsPitch,
         ttsRate,
         setTtsRate,
-        onClearTranslation
+        onClearTranslation,
+        onAIExtract
     } = props;
 
     const [showTTSSettings, setShowTTSSettings] = useState(false);
-    const [showNameHunter, setShowNameHunter] = useState(false);
 
     if (!chapter) return null;
 
@@ -508,10 +506,10 @@ export function ReaderHeader(props: ReaderHeaderProps) {
             {/* RIGHT: Tools & Nav */}
             <div className="flex items-center gap-2">
                 <HeaderIconButton
-                    icon={<ScanSearch className="w-5 h-5" />}
-                    title="Săn tên (Name Hunter)"
-                    className="text-muted-foreground hover:text-blue-600 hover:bg-blue-500/5"
-                    onClick={() => setShowNameHunter(true)}
+                    icon={<Sparkles className="w-5 h-5 text-purple-500" />}
+                    title="Quét thuật ngữ AI"
+                    className="text-muted-foreground hover:text-purple-600 hover:bg-purple-500/5"
+                    onClick={onAIExtract}
                 />
 
                 <HeaderIconButton
@@ -587,30 +585,6 @@ export function ReaderHeader(props: ReaderHeaderProps) {
             </div>
 
             {/* Overlays / Dialogs */}
-            <NameHunterDialog
-                isOpen={showNameHunter}
-                onOpenChange={setShowNameHunter}
-                textToScan={activeTab === "translated" ? (chapter.content_translated || "") : chapter.content_original}
-                onAddTerm={async (candidate) => {
-                    try {
-                        const existing = await db.dictionary.where("[workspaceId+original]").equals([chapter.workspaceId, candidate.original]).first();
-                        if (existing) {
-                            toast.info(`"${candidate.original}" đã tồn tại`);
-                            return;
-                        }
-                        await db.dictionary.add({
-                            workspaceId: chapter.workspaceId,
-                            original: candidate.original,
-                            translated: candidate.original,
-                            type: "term",
-                            createdAt: new Date()
-                        });
-                        toast.success(`Đã thêm "${candidate.original}"`);
-                    } catch {
-                        toast.error("Lỗi khi thêm từ");
-                    }
-                }}
-            />
         </header>
     );
 }

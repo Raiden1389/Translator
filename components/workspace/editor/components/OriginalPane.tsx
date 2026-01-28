@@ -31,7 +31,7 @@ export function OriginalPane({
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <ContextMenu>
                     <ContextMenuTrigger asChild>
-                        <div className={cn("w-full min-h-full p-6 md:p-10 pb-0 text-lg leading-loose tracking-wide text-white/90 font-lora whitespace-pre-wrap", "reader-text")}>
+                        <div className={cn("w-full min-h-full p-6 md:p-10 pb-0 text-lg leading-loose tracking-wide text-white/90 font-lora whitespace-pre-wrap select-text", "reader-text")}>
                             {renderedText}
                         </div>
                     </ContextMenuTrigger>

@@ -1,0 +1,46 @@
+{
+  "updated_at": "2026-01-28T17:20:00Z",
+  "working_on": {
+    "feature": "Smart Capitalization Engine & UI Polish",
+    "task": "Tự động hóa việc viết thường đại từ giữa câu dựa trên từ điển",
+    "status": "completed",
+    "files": [
+      "lib/gemini/helpers.ts",
+      "lib/gemini/constants.ts",
+      "lib/gemini/translate.ts",
+      "components/dashboard/NewWorkspaceDialog.tsx"
+    ],
+    "notes": "Đã giải quyết triệt để vấn đề AI viết hoa bừa bãi (Đại ca, Ta, Hắn...)"
+  },
+  "recent_changes": [
+    {
+      "type": "Logic",
+      "description": "Nâng cấp finalSweep thành engine động, kết nối trực tiếp với Dictionary để tự động hạ xuống viết thường cho các term mid-sentence.",
+      "files": ["lib/gemini/helpers.ts", "lib/gemini/translate.ts"]
+    },
+    {
+      "type": "Prompt",
+      "description": "Strengthened Capitalization Rules (v2.4) with specific 'Wrong vs Right' examples.",
+      "files": ["lib/gemini/constants.ts"]
+    },
+    {
+      "type": "UI/UX",
+      "description": "Hoàn thiện NewWorkspaceDialog với hiệu ứng premium và phân loại genre.",
+      "files": ["NewWorkspaceDialog.tsx"]
+    }
+  ],
+  "decisions_made": [
+    {
+      "decision": "Treat colon (:) as a sentence boundary in regex",
+      "reason": "Để bảo toàn viết hoa trong tiêu đề chương 'Chương X: Ta làm gì đó'."
+    },
+    {
+      "decision": "Automatically lowercase glossary terms of type 'term' in finalSweep",
+      "reason": "Tự động hóa việc dọn dẹp mà không cần người dùng can thiệp thủ công nhiều lần."
+    }
+  ],
+  "pending_tasks": [
+    { "task": "Kiểm tra hiệu năng finalSweep khi từ điển phình to (>1000 từ)", "priority": "medium" },
+    { "task": "Nghiên cứu nén context để giảm tải RAM cho Antigravity", "priority": "high" }
+  ]
+}

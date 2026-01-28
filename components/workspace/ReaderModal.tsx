@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ReaderHeader } from "./ReaderHeader";
 import { ReaderContent } from "./ReaderContent";
 import { ReaderDialogs } from "./ReaderDialogs";
+import { ReviewDialog } from "./ReviewDialog";
 import { TextSelectionMenu } from "./TextSelectionMenu";
 import { ReaderContextMenu } from "./ReaderContextMenu";
 
@@ -20,6 +21,7 @@ import { useReaderNavigation } from "./hooks/useReaderNavigation";
 import { useReaderSelection } from "./hooks/useReaderSelection";
 import { useCorrections } from "./hooks/useCorrections";
 import { useReaderInspection } from "./hooks/useReaderInspection";
+import { useAIExtraction } from "./editor/hooks/useAIExtraction";
 
 // Utils
 import { formatChapterToParagraphs } from "./utils/formatChapter";
@@ -44,6 +46,7 @@ export function ReaderModal({
 }: ReaderModalProps) {
     // 1. DATA LAYER (External Sync)
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
+    const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(chapter?.workspaceId || "").toArray(), [chapter?.workspaceId]);
 
     // 2. CORE UI STATE
     const [activeTab, setActiveTab] = useState<"translated" | "original">("translated");
@@ -100,6 +103,16 @@ export function ReaderModal({
         handleInspect,
         handleApplyFix
     } = useReaderInspection(chapterId, chapter);
+
+    const {
+        isAIExtracting,
+        pendingCharacters,
+        pendingTerms,
+        isReviewOpen,
+        setIsReviewOpen,
+        handleAIExtractChapter,
+        handleConfirmSaveAI
+    } = useAIExtraction(chapter?.workspaceId || "", dictEntries || []);
 
     // 3.4. Corrections & Dictionary
     const {
@@ -216,7 +229,6 @@ export function ReaderModal({
                     setShowSettings={setShowSettings}
                     readerConfig={readerConfig}
                     setReaderConfig={setReaderConfig}
-                    onPrev={onPrev}
                     onNext={onNext}
                     hasPrev={hasPrev}
                     hasNext={hasNext}
@@ -232,6 +244,7 @@ export function ReaderModal({
                     ttsRate={readerConfig.ttsRate}
                     setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
                     onClearTranslation={handleClearTranslation}
+                    onAIExtract={() => handleAIExtractChapter(chapter.content_original || "")}
                 />
 
                 <ReaderContent
@@ -298,6 +311,14 @@ export function ReaderModal({
                 activeIssue={activeIssue}
                 setActiveIssue={setActiveIssue}
                 handleApplyFix={(issue, save) => handleApplyFix(issue, editContent, save, setEditContent)}
+            />
+
+            <ReviewDialog
+                open={isReviewOpen}
+                onOpenChange={setIsReviewOpen}
+                characters={pendingCharacters as any}
+                terms={pendingTerms as any}
+                onSave={handleConfirmSaveAI}
             />
         </div>
     );
