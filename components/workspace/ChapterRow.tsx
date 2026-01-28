@@ -1,18 +1,30 @@
 "use client";
 
 import React from "react";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2, Book, Zap, Eraser, Loader2, Clock } from "lucide-react";
+import { Trash2, Book, Zap, Clock, CheckCircle2, Loader2, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Chapter } from "@/lib/db";
 import { useAiQueueStatus } from "./hooks/useAiQueueStatus";
+import { useRaiden } from "@/components/theme/RaidenProvider";
 
 interface ChapterRowProps {
-    chapter: Chapter;
+    id: number;
+    order: number;
+    title: string;
+    title_translated?: string;
+    status: 'draft' | 'translated' | 'reviewing';
+    hasGlossary: boolean;
+    issueCount: number;
+    wordCountOriginal?: number;
+    translationModel?: string;
     isSelected: boolean;
     isInDrag: boolean;
+    isLastRead: boolean;
+    hasContent: boolean;
+    hasTitle: boolean;
+
+    // Handlers
     onMouseDown: (id: number, e: React.MouseEvent) => void;
     onMouseEnter: (id: number) => void;
     toggleSelect: (id: number) => void;
@@ -23,165 +35,147 @@ interface ChapterRowProps {
 }
 
 export const ChapterRow = React.memo(function ChapterRow({
-    chapter,
+    id,
+    order,
+    title,
+    title_translated,
+    status,
+    hasGlossary,
+    issueCount,
+    wordCountOriginal,
+    translationModel,
     isSelected,
     isInDrag,
+    isLastRead,
+    hasContent,
+    hasTitle,
     onMouseDown,
     onMouseEnter,
     toggleSelect,
     onRead,
     onDelete,
     onInspect,
-    onClearTranslation,
+    onClearTranslation
 }: ChapterRowProps) {
-    const queueStatus = useAiQueueStatus(`translate-chap-${chapter.id}`);
-    const issueCount = chapter.inspectionResults?.length || 0;
+    const { isRaidenMode } = useRaiden();
+    const queueStatus = useAiQueueStatus(`translate-chap-${id}`);
+
+    const isRunning = queueStatus === 'running' || queueStatus === 'queued';
+    // Fix: queueStatus is a string ('none', 'running', 'queued'). !'none' is false.
+    const isTranslated = (status === 'translated' || hasContent || hasTitle) && !isRunning;
+    const isDraft = !isTranslated && !isRunning;
 
     return (
-        <TableRow
+        <div
             className={cn(
-                "border-border transition-colors group cursor-pointer",
+                "grid grid-cols-[50px_60px_1fr_1fr_140px_100px] items-center px-4 border-b transition-all group cursor-pointer h-full text-sm relative",
+                isRaidenMode ? "border-slate-800/40" : "border-slate-100",
                 isSelected || isInDrag
-                    ? "bg-primary/10 hover:bg-primary/15"
-                    : "hover:bg-muted/50"
+                    ? (isRaidenMode ? "bg-purple-900/20 hover:bg-purple-900/30" : "bg-indigo-50 hover:bg-indigo-100/50")
+                    : (isRaidenMode ? "hover:bg-slate-800/40" : "hover:bg-slate-50"),
+                isDraft && "opacity-40 grayscale-[0.5] hover:opacity-100 hover:grayscale-0",
+                isLastRead && (isRaidenMode ? "bg-purple-500/5 border-b-purple-500/30 shadow-[inset_0_0_20px_rgba(168,85,247,0.05)]" : "bg-indigo-50/50 border-b-indigo-200")
             )}
-            onMouseDown={(e) => onMouseDown(chapter.id!, e)}
-            onMouseEnter={() => onMouseEnter(chapter.id!)}
-            onContextMenu={(e) => {
-                e.preventDefault();
-            }}
+            onMouseDown={(e) => onMouseDown(id, e)}
+            onMouseEnter={() => onMouseEnter(id)}
             onClick={(e) => {
                 const target = e.target as HTMLElement;
                 if (target.closest('button, a, .cursor-help, [role="checkbox"]')) return;
-                toggleSelect(chapter.id!);
+                toggleSelect(id);
             }}
         >
-            <TableCell className="pl-4">
+            <div className="flex justify-center">
                 <Checkbox
                     checked={isSelected || isInDrag}
-                    onCheckedChange={() => toggleSelect(chapter.id!)}
-                    className="border-border shadow-sm"
+                    onCheckedChange={() => toggleSelect(id)}
+                    className={cn(
+                        "shadow-sm",
+                        isRaidenMode
+                            ? "border-slate-600 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                            : "border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                    )}
                     onClick={(e) => e.stopPropagation()}
                 />
-            </TableCell>
-            <TableCell className="text-center font-mono text-muted-foreground/60 text-xs text-nowrap">
-                {chapter.order}
-            </TableCell>
-            <TableCell className="font-bold text-foreground">
+            </div>
+
+            <div className={cn("text-center font-mono text-xs", isRaidenMode ? "text-slate-600" : "text-slate-400")}>
+                {order}
+            </div>
+
+            <div className={cn("font-bold truncate", isRaidenMode ? "text-slate-200" : "text-slate-900")}>
                 <button
-                    onClick={(e) => { e.stopPropagation(); onRead(chapter.id!); }}
-                    className="hover:text-primary transition-colors block w-full h-full text-left"
+                    onClick={(e) => { e.stopPropagation(); onRead(id); }}
+                    className={cn("transition-colors block w-full text-left truncate", isRaidenMode ? "hover:text-purple-400" : "hover:text-indigo-600")}
                 >
-                    <div className="line-clamp-1 text-sm font-bold flex items-center gap-2">
-                        {chapter.glossaryExtractedAt && (
-                            <div
-                                className="flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded text-[10px] text-primary border border-primary/20 cursor-help raiden-mode:bg-primary/20 raiden-mode:border-primary/40"
-                                title={`Đã trích xuất thuật ngữ: ${new Date(chapter.glossaryExtractedAt).toLocaleString()}`}
-                            >
-                                <Book className="w-3 h-3" />
-                                <span className="hidden xl:inline">Glossary</span>
-                            </div>
+                    <div className="flex items-center gap-2 truncate">
+                        {hasGlossary && (
+                            <Book className={cn("w-3 h-3 shrink-0", isRaidenMode ? "text-purple-500/60" : "text-indigo-500")} />
                         )}
-                        {chapter.title}
+                        <span className="truncate">{title}</span>
                     </div>
                 </button>
-            </TableCell>
-            <TableCell className="text-foreground/70">
-                <button
-                    onClick={(e) => { e.stopPropagation(); onRead(chapter.id!); }}
-                    className="hover:text-primary transition-colors block w-full h-full text-left"
-                >
-                    <div className="line-clamp-1 text-sm italic">{chapter.title_translated || "—"}</div>
-                </button>
-            </TableCell>
-            <TableCell className="text-center">
-                <div className="flex flex-col items-center gap-1">
-                    <span
-                        className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border uppercase tracking-wider cursor-help gap-1",
-                            queueStatus === 'running'
-                                ? "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 raiden-mode:bg-[#00ccff1a] raiden-mode:text-[#00ccff] raiden-mode:border-[#00ccff33]"
-                                : queueStatus === 'queued'
-                                    ? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 raiden-mode:bg-white/5 raiden-mode:text-slate-400 raiden-mode:border-white/10"
-                                    : chapter.status === 'translated'
-                                        ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 raiden-mode:bg-[#00ff991a] raiden-mode:text-[#00ff99] raiden-mode:border-[#00ff9933]"
-                                        : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033]"
-                        )}
-                        title={queueStatus !== 'none'
-                            ? "Đang nằm trong hàng đợi AI..."
-                            : chapter.status === 'translated'
-                                ? `Model: ${chapter.translationModel || 'N/A'}\nTime: ${chapter.translationDurationMs ? (chapter.translationDurationMs / 1000).toFixed(1) + 's' : 'N/A'}\nDate: ${chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).toLocaleString() : 'N/A'}`
-                                : 'Chưa dịch'
-                        }
-                    >
-                        {queueStatus === 'running' && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
-                        {queueStatus === 'queued' && <Clock className="w-2.5 h-2.5" />}
+            </div>
 
-                        {queueStatus === 'running' ? "Đang dịch" :
-                            queueStatus === 'queued' ? "Xếp hàng" :
-                                chapter.status === 'translated' ? "Đã dịch" : "Chờ dịch"}
+            <div className={cn("truncate italic", isRaidenMode ? "text-slate-400" : "text-slate-600")}>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onRead(id); }}
+                    className={cn("transition-colors block w-full text-left truncate italic", isRaidenMode ? "hover:text-purple-300" : "hover:text-indigo-600")}
+                >
+                    {title_translated || "—"}
+                </button>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-0.5">
+                <span
+                    className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-tight cursor-help gap-1",
+                        isRunning ? (isRaidenMode ? "bg-purple-900/20 text-purple-400 border-purple-800/30 animate-pulse" : "bg-indigo-50 text-indigo-600 border-indigo-200 animate-pulse") :
+                            isTranslated ? (isRaidenMode ? "bg-emerald-950/20 text-emerald-400 border-emerald-900/30" : "bg-emerald-50 text-emerald-600 border-emerald-200") :
+                                (isRaidenMode ? "bg-slate-800 text-slate-500 border-slate-700" : "bg-slate-50 text-slate-500 border-slate-200")
+                    )}
+                    title={isTranslated ? `Model: ${translationModel} | Words: ${wordCountOriginal?.toLocaleString()}` : `Chờ dịch | Words: ${wordCountOriginal?.toLocaleString()}`}
+                >
+                    {isRunning ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> :
+                        isTranslated ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
+                    {isRunning ? (queueStatus === 'running' ? "Đang dịch" : "Xếp hàng") :
+                        isTranslated ? "Đã dịch" : "Chờ dịch"}
+                </span>
+                {issueCount > 0 && (
+                    <span className="text-[8px] text-rose-500 font-black animate-pulse uppercase">
+                        {issueCount} LỖI
                     </span>
-                    {chapter.status === 'translated' && chapter.lastTranslatedAt && (
-                        <span className="text-[9px] text-muted-foreground/60 font-mono">
-                            {new Date(chapter.lastTranslatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}  {new Date(chapter.lastTranslatedAt).getDate()}/{new Date(chapter.lastTranslatedAt).getMonth() + 1}
-                        </span>
-                    )}
-                    {issueCount > 0 && (
-                        <span className="text-[9px] text-rose-500 font-bold animate-pulse">
-                            {issueCount} lỗi AI
-                        </span>
-                    )}
-                </div>
-            </TableCell>
-            <TableCell className="text-center text-xs text-muted-foreground/60 font-mono">
-                {chapter.wordCountOriginal?.toLocaleString() || 0}
-            </TableCell>
-            <TableCell className="text-center text-xs text-muted-foreground/60 font-mono">
-                {chapter.wordCountTranslated?.toLocaleString() ||
-                    (chapter.content_translated ? chapter.content_translated.trim().split(/\s+/).length : 0).toLocaleString()}
-            </TableCell>
-            <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-1 opacity-50 group-hover:opacity-100">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 action-button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onInspect(chapter.id!);
-                        }}
-                        title="Soi lỗi bản dịch"
-                        disabled={chapter.status !== 'translated'}
-                    >
-                        <Zap className="h-3 w-3" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 action-button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClearTranslation(chapter.id!);
-                        }}
-                        title="Xóa bản dịch (giữ bản gốc)"
-                        disabled={chapter.status !== 'translated'}
-                    >
-                        <Eraser className="h-3 w-3" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 action-button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(chapter.id!);
-                        }}
-                    >
-                        <Trash2 className="h-3 w-3" />
-                    </Button>
-                </div>
-            </TableCell>
-        </TableRow>
+                )}
+            </div>
+
+            <div className="flex items-center justify-end gap-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-7 w-7", isRaidenMode ? "text-slate-500 hover:text-purple-400 hover:bg-purple-500/10" : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50")}
+                    onClick={(e) => { e.stopPropagation(); onInspect(id); }}
+                    disabled={!isTranslated}
+                >
+                    <Zap className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-7 w-7", isRaidenMode ? "text-slate-500 hover:text-amber-400 hover:bg-amber-500/10" : "text-slate-400 hover:text-amber-600 hover:bg-amber-50")}
+                    onClick={(e) => { e.stopPropagation(); onClearTranslation(id); }}
+                    title="Xóa bản dịch (giữ bản gốc)"
+                >
+                    <Eraser className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-7 w-7", isRaidenMode ? "text-slate-500 hover:text-rose-500 hover:bg-rose-500/10" : "text-slate-400 hover:text-rose-500 hover:bg-rose-50")}
+                    onClick={(e) => { e.stopPropagation(); onDelete(id); }}
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+        </div>
     );
 });
 

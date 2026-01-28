@@ -1,42 +1,51 @@
+import { IDIOM_SYSTEM_RULE } from "./idioms";
+
 // Update this version whenever CORE_RULES, PRONOUN_RULE or STRUCTURE_RULE changes
-// to force cache invalidation for all users.
-export const SYSTEM_VERSION = "v1.5";
+export const SYSTEM_VERSION = "v2.3";
 
 /**
- * System Instruction Constants (Optimized)
+ * System Instruction Constants (Optimized for Novel Translation)
  */
 
-// Pronoun rules (hard mapping)
+// Voice & Tone rules
+export const VOICE_TONE_RULE = `
+VĂN PHONG & GIỌNG ĐIỆU:
+- TRUNG THÀNH VỚI CẢM XÚC: Nếu gốc mỉa mai, châm biếm -> Bản dịch phải giữ được sắc thái đó (dùng các trợ từ phù hợp).
+- CẤM TỰ Ý THÊM HÀI: Nếu gốc nghiêm túc, bi thương -> Tuyệt đối không dùng từ lóng hoặc cách nói hài hước.
+- Hài hước phải tự nhiên, hợp ngữ cảnh, tránh dùng quá nhiều ngôn ngữ mạng ("trẻ tre").
+`;
+
+// Pronoun rules
 export const PRONOUN_RULE = `
-ĐẠI TỪ BẮT BUỘC:
-我=Ta, 我们=Chúng ta
-你=Ngươi, 你们=Các ngươi
-他=Hắn, 她=Nàng, 它=Nó
+ĐẠI TỪ & DANH XƯNG:
+- 我/我们: Ta, Chúng ta.
+- 你/ yourselves: Ngươi, Các ngươi.
+- 他/ she / it: Hắn, Nàng, Nó.
+- CHỈ viết hoa danh xưng nếu đứng đầu câu.
+`;
+
+// Capitalization rules
+export const CAPITALIZATION_RULE = `
+QUY TẮC VIẾT HOA:
+- CHỈ viết hoa Tên riêng (người, địa danh).
+- CẤM viết hoa danh từ chung, chức vụ: thứ sử, đô úy, thái thú, tướng quân, nghĩa phụ, chủ công, tiên sinh...
+- CẤM viết hoa quan hệ: huynh, đệ, tỷ, muội...
 `;
 
 // Line & structure rules
 export const STRUCTURE_RULE = `
 CẤU TRÚC:
-- 1 dòng input = 1 dòng output.
-- Giữ nguyên \\n\\n.
-- KHÔNG gộp/tách dòng.
+- 1 dòng input = 1 dòng output. Giữ nguyên \\n\\n.
+- Giữ nguyên các ký hiệu đặc biệt [], ().
 `;
 
-// Idiom rules (Chengyu)
-export const IDIOM_RULE = `
-BẢO VỆ THÀNH NGỮ (CHENGYU):
-- Giữ nguyên dạng Hán Việt cho các thành ngữ bộ 4 chữ hoặc các câu cổ ngữ nổi tiếng (VD: Thiên ngoại hữu thiên, Mã trung xích thố, Nhân trung lữ bố...).
-- TUYỆT ĐỐI KHÔNG thuần Việt hóa các thành ngữ này sang nghĩa giải thích (VD: Không dịch "Thiên ngoại hữu thiên" thành "Ngoài trời còn có trời").
-`;
-
-// Core translation rules (Minified)
+// Core translation rules
 export const CORE_RULES = `
-QUY TẮC:
-1. Trả về JSON với 2 key: "title" và "content".
-2. Chỉ trả về TIẾNG VIỆT. Cấm tiếng Anh.
-3. Dịch sát nghĩa, đầy đủ, không bỏ sót.
-4. Giữ nguyên [] và cấu trúc danh sách.
-5. Chỉ trả về JSON hợp lệ. Không kèm văn bản thừa.
+YÊU CẦU CỐT LÕI:
+1. Trả về JSON { "title": "...", "content": "..." }.
+2. Văn phong tiểu thuyết mượt mà, thoát ý, ưu tiên Thuần Việt. 
+3. GIỮ HÁN VIỆT cho: Tên người, Địa danh, Binh chủng (VD: Tịnh Châu Lang Kỵ), Chêu thức.
+4. KHÔNG giải thích nghĩa đằng sau.
 `;
 
 /**
@@ -46,17 +55,20 @@ export function buildSystemInstruction(
     customInstruction?: string,
     glossaryContext?: string
 ): string {
-    const styleInstruction =
-        customInstruction ||
-        "Dịch Trung–Việt chuyên nghiệp, văn phong tiểu thuyết mượt mà. Ưu tiên từ ngữ Thuần Việt tự nhiên, diễn đạt trôi chảy, thoát ý nhưng vẫn sát nội dung. Chỉ giữ Hán Việt cho tên riêng, chiêu thức. Tuyệt đối tránh hành văn kiểu 'Convert' thô cứng.";
+    const baseStyle = customInstruction ||
+        "Bạn là dịch giả tiểu thuyết Trung - Việt cao cấp. Bản dịch phải tự nhiên như người Việt viết, thoát khỏi văn phong 'Convert'.";
 
-    return `${styleInstruction}
+    return `${baseStyle}
 
 ${CORE_RULES}
 
+${CAPITALIZATION_RULE}
+
 ${PRONOUN_RULE}
 
-${IDIOM_RULE}
+${VOICE_TONE_RULE}
+
+${IDIOM_SYSTEM_RULE}
 
 ${STRUCTURE_RULE}
 ${glossaryContext || ""}`;

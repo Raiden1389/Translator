@@ -1,4 +1,3 @@
-import { Type } from "@google/genai";
 import { withKeyRotation } from "./client";
 import { extractResponseText } from "./helpers";
 

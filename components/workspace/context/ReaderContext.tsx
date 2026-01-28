@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, ReactNode } from "react";
 import { useReaderConfig } from "../hooks/useReaderConfig";
 import { InspectionIssue } from "@/lib/types";
@@ -24,13 +26,12 @@ interface ReaderContextValue {
 
     // Inspection
     isInspecting: boolean;
-    setIsInspecting: (inspecting: boolean) => void;
-    inspectionIssues: any[];
-    setInspectionIssues: (issues: any[]) => void;
-    activeIssue: any | null;
-    setActiveIssue: (issue: any | null) => void;
-    handleFixIssue: (issue: any, editContent: string, setEditContent: (content: string) => void) => Promise<void>;
-    handleAutoFixAll: (type: string, editContent: string, setEditContent: (content: string) => void) => Promise<void>;
+    inspectionIssues: InspectionIssue[];
+    setInspectionIssues: (issues: InspectionIssue[]) => void;
+    activeIssue: InspectionIssue | null;
+    setActiveIssue: (issue: InspectionIssue | null) => void;
+    handleInspect: (content: string) => Promise<InspectionIssue[] | null | undefined>;
+    handleApplyFix: (issue: InspectionIssue, content: string, save: boolean, update: (c: string) => void) => Promise<void>;
 
     // Selection
     menuPosition: { x: number, y: number } | null;
@@ -87,20 +88,19 @@ export function ReaderProvider({ children, chapterId, chapter }: ReaderProviderP
         isTTSPlaying: tts.isTTSPlaying,
         isTTSLoading: tts.isTTSLoading,
         activeTTSIndex: tts.activeTTSIndex,
-        ttsSegments: [],  // Not exposed by hook
-        handleTTSPlay: async () => { },  // Not exposed by hook
+        ttsSegments: [],
+        handleTTSPlay: async () => { },
         handleTTSStop: tts.stopTTS,
         handleTTSToggle: tts.toggleTTS,
 
         // Inspection
         isInspecting: inspection.isInspecting,
-        setIsInspecting: inspection.setIsInspecting,
         inspectionIssues: inspection.inspectionIssues,
         setInspectionIssues: inspection.setInspectionIssues,
         activeIssue: inspection.activeIssue,
         setActiveIssue: inspection.setActiveIssue,
-        handleFixIssue: inspection.handleFixIssue,
-        handleAutoFixAll: inspection.handleAutoFixAll,
+        handleInspect: inspection.handleInspect,
+        handleApplyFix: inspection.handleApplyFix,
 
         // Selection
         menuPosition: selection.menuPosition,

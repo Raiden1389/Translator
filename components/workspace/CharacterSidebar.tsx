@@ -57,7 +57,11 @@ export function CharacterSidebar({
                     original: item.src,
                     translated: item.dest,
                     type: 'character',
-                    metadata: { reason: item.reason, gender: item.metadata?.gender, category: item.category },
+                    metadata: {
+                        reason: item.reason,
+                        gender: item.metadata?.gender as string | undefined,
+                        category: item.category
+                    },
                     createdAt: new Date()
                 }));
 
@@ -129,7 +133,7 @@ export function CharacterSidebar({
                     {characters.length === 0 && (
                         <div className="text-center text-white/30 text-xs py-10">
                             Chưa có dữ liệu nhân vật.
-                            <br />Hãy thử "Quét" chương này!
+                            <br />Hãy thử &quot;Quét&quot; chương này!
                         </div>
                     )}
                 </div>

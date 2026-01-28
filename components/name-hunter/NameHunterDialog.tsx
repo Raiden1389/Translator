@@ -100,17 +100,11 @@ export function NameHunterDialog({
         let mounted = true;
         const loadResources = async () => {
             try {
-                const { VietPhraseRepository } = await import("@/lib/repositories/viet-phrase-repo");
                 const { SyllableRepository } = await import("@/lib/repositories/syllable-repo");
-
-                await Promise.all([
-                    VietPhraseRepository.getInstance().load("/dicts/VietPhrase.txt"),
-                    SyllableRepository.getInstance().load("/dicts/ChinesePhienAmWords.txt")
-                ]);
-
+                await SyllableRepository.getInstance().load("/dicts/ChinesePhienAmWords.txt");
                 if (mounted) setIsReady(true);
             } catch (error: unknown) {
-                console.error("Failed to load dictionaries", error);
+                console.error("Failed to load syllable dictionary", error);
                 if (mounted) setIsReady(true);
             }
         };

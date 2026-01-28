@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { ChapterCard } from "./ChapterCard";
 import { FileUp } from "lucide-react";
 import { db, type Chapter } from "@/lib/db";
 import { Button } from "@/components/ui/button";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface ChapterCardGridProps {
     chapters: Chapter[];
@@ -14,6 +15,7 @@ interface ChapterCardGridProps {
     onInspect: (id: number) => void;
     onClearTranslation: (id: number) => void;
     onImport?: () => void;
+    lastReadChapterId?: number;
 }
 
 export function ChapterCardGrid({
@@ -23,8 +25,20 @@ export function ChapterCardGrid({
     onRead,
     onInspect,
     onClearTranslation,
-    onImport
+    onImport,
+    lastReadChapterId
 }: ChapterCardGridProps) {
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    const rowVirtualizer = useVirtualizer({
+        count: chapters.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 110, // Cards are roughly this height
+        overscan: 5,
+    });
+
+    const selectedSet = React.useMemo(() => new Set(selectedChapters), [selectedChapters]);
+
     if (chapters.length === 0) {
         return (
             <div className="bg-card rounded-xl border border-border shadow-lg p-8">
@@ -53,25 +67,62 @@ export function ChapterCardGrid({
     }
 
     return (
-        <div className="bg-card rounded-xl border border-border shadow-lg p-4">
-            <div className="grid grid-cols-1 gap-2">
-                {chapters.map((chapter) => (
-                    <ChapterCard
-                        key={chapter.id}
-                        chapter={chapter}
-                        isSelected={selectedChapters.includes(chapter.id!)}
-                        onSelect={() => toggleSelect(chapter.id!)}
-                        onRead={() => onRead(chapter.id!)}
-                        onTranslate={() => {/* Handle via multi-select or single translate */ }}
-                        onInspect={() => onInspect(chapter.id!)}
-                        onClearTranslation={() => onClearTranslation(chapter.id!)}
-                        onDelete={async () => {
-                            if (confirm("Xóa chương này?")) {
-                                await db.chapters.delete(chapter.id!);
-                            }
-                        }}
-                    />
-                ))}
+        <div className="bg-card rounded-xl border border-border shadow-lg p-2 h-[70vh] flex flex-col overflow-hidden">
+            <div
+                ref={parentRef}
+                className="flex-1 overflow-auto custom-scrollbar relative p-2"
+            >
+                <div
+                    style={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const chapter = chapters[virtualRow.index];
+                        return (
+                            <div
+                                key={virtualRow.key}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: `${virtualRow.size}px`,
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                    paddingBottom: '8px' // Gap replacement
+                                }}
+                            >
+                                <ChapterCard
+                                    id={chapter.id!}
+                                    order={chapter.order}
+                                    title={chapter.title}
+                                    title_translated={chapter.title_translated}
+                                    status={chapter.status || 'draft'}
+                                    issueCount={chapter.inspectionResults?.length || 0}
+                                    lastTranslatedAtTime={chapter.lastTranslatedAt?.getTime()}
+                                    translationDurationMs={chapter.translationDurationMs}
+                                    wordCountOriginal={chapter.wordCountOriginal}
+                                    isSelected={selectedSet.has(chapter.id!)}
+                                    isLastRead={lastReadChapterId === chapter.id}
+                                    hasContent={!!chapter.content_translated && chapter.content_translated.length > 0}
+                                    hasTitle={!!chapter.title_translated && chapter.title_translated.length > 0}
+                                    onSelect={() => toggleSelect(chapter.id!)}
+                                    onRead={() => onRead(chapter.id!)}
+                                    onTranslate={() => {/* Unified batch handler preferred */ }}
+                                    onInspect={() => onInspect(chapter.id!)}
+                                    onClearTranslation={() => onClearTranslation(chapter.id!)}
+                                    onDelete={async () => {
+                                        if (confirm("Xóa chương này?")) {
+                                            await db.chapters.delete(chapter.id!);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

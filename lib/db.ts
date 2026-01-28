@@ -236,8 +236,8 @@ if (typeof window !== 'undefined' && (window as any).__TAURI__) {
         // 1. Process Metadata
         if (dirtyWorkspaces.size > 0) {
             const ids = Array.from(dirtyWorkspaces);
-            dirtyWorkspaces.clear();
             for (const id of ids) {
+                dirtyWorkspaces.delete(id); // Delete individual to avoid race condition
                 const ws = await db.workspaces.get(id);
                 if (ws) await storage.saveMetadata(id, ws);
             }
@@ -246,8 +246,8 @@ if (typeof window !== 'undefined' && (window as any).__TAURI__) {
         // 2. Process Dictionary (with Content Check)
         if (dirtyDictionaries.size > 0) {
             const ids = Array.from(dirtyDictionaries);
-            dirtyDictionaries.clear();
             for (const id of ids) {
+                dirtyDictionaries.delete(id);
                 const dict = await db.dictionary.where('workspaceId').equals(id).toArray();
                 const contentStr = JSON.stringify(dict);
 
@@ -263,8 +263,8 @@ if (typeof window !== 'undefined' && (window as any).__TAURI__) {
         // 3. Process Chapters (Coalesced via Set already)
         if (dirtyChapters.size > 0) {
             const compoundIds = Array.from(dirtyChapters);
-            dirtyChapters.clear();
             for (const cid of compoundIds) {
+                dirtyChapters.delete(cid);
                 const [wsId, chapIdStr] = cid.split(':');
                 const chapId = parseInt(chapIdStr);
                 const chap = await db.chapters.get(chapId);

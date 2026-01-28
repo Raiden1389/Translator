@@ -15,26 +15,12 @@ export function useNameHunter() {
     const scan = useCallback(async (text: string) => {
         setIsScanning(true);
         try {
-            // 1. Detect Language & Convert if Chinese
-            // Simple heuristic: If > 20% chars are Chinese, assume Chinese input
-            // Chinese range: \u4E00-\u9FFF
-            const chineseCharCount = (text.match(/[\u4E00-\u9FFF]/g) || []).length;
-            const isChinese = chineseCharCount > text.length * 0.2; // 20% threshold
-
-            let textToScan = text;
-            if (isChinese) {
-                console.log("[NameHunter] Detected Chinese input. Converting to VietPhrase...");
-                const vpRepo = (await import("@/lib/repositories/viet-phrase-repo")).VietPhraseRepository.getInstance();
-                textToScan = vpRepo.convert(text);
-            }
+            const textToScan = text;
 
             // 2. Extract
             const engine = new NameHunterRegexEngine();
             const rawCandidates = engine.extractCandidates(textToScan);
             console.log(`[NameHunter] Extracted ${rawCandidates.length} raw candidates (before filtering).`);
-            if (rawCandidates.length > 0) {
-                console.log("[NameHunter] First 5 raw:", rawCandidates.slice(0, 5).map(c => c.original));
-            }
 
             // 3. Classify & Filter
             const judge = new NameHunterJudge();
@@ -46,28 +32,18 @@ export function useNameHunter() {
                 if (result.type === TermType.Unknown) unknown++;
                 else kept++;
                 return { ...c, type: result.type, confidence: result.score };
-            }); // We DO NOT filter Junk here anymore, let UI decide to filtering strictly.
-            // Actually, keep safe default: Filter explicit Junk.
+            });
 
             const cleanCandidates = processedCandidates.filter(c => c.type !== TermType.Junk);
 
-            // 4. Enrich with Chinese characters & Hán Việt phonetic from local DB (Trace-back)
-            const vpRepo = (await import("@/lib/repositories/viet-phrase-repo")).VietPhraseRepository.getInstance();
+            // 4. Enrich with Hán Việt phonetic if Chinese is present (Trace-back disabled as VP is removed)
             const syllRepo = (await import("@/lib/repositories/syllable-repo")).SyllableRepository.getInstance();
 
             for (const c of cleanCandidates) {
-                if (!c.chinese) {
-                    const original = vpRepo.findOriginal(c.original);
-                    if (original) {
-                        c.chinese = original;
-                    }
-                }
-
-                // If we have chinese, show Hán Việt phonetic if it differs from current name
+                // If we already have chinese (from somewhere else?), show Hán Việt phonetic
                 if (c.chinese) {
                     const hanviet = syllRepo.toHanViet(c.chinese);
                     if (hanviet && hanviet.toLowerCase() !== c.original.toLowerCase()) {
-                        // Store in metadata for display
                         c.metadata = { ...c.metadata, hanviet };
                     }
                 }

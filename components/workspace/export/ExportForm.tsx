@@ -38,34 +38,34 @@ export function ExportForm({
                 <Settings className="w-5 h-5 text-primary" />
                 2. Tùy chọn xuất
             </h3>
-            <Card className="bg-card border-border shadow-xl overflow-hidden">
+            <Card className="bg-white border-slate-200 shadow-sm overflow-hidden">
                 <CardContent className="p-6 space-y-6">
                     <div className="space-y-4">
-                        <Label className="text-muted-foreground flex justify-between">
-                            <span>Khoảng chương</span>
-                            <span className="text-[10px] text-primary/70 font-mono">Max: {totalAvailable}</span>
+                        <Label className="text-slate-500 font-medium flex justify-between">
+                            <span>Khoảng chương cần xuất</span>
+                            <span className="text-[10px] text-indigo-600 font-black font-mono">MAX: {totalAvailable}</span>
                         </Label>
                         <div className="flex items-center gap-4">
                             <div className="flex-1 space-y-1">
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold px-1">Từ</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-black px-1">Từ</span>
                                 <Input
                                     type="number"
                                     min="1"
                                     max={totalAvailable}
                                     value={rangeStart}
                                     onChange={(e) => setRangeStart(e.target.value)}
-                                    className="bg-background border-border text-foreground focus:ring-primary h-11"
+                                    className="bg-slate-50 border-slate-200 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 h-11 font-mono"
                                 />
                             </div>
                             <div className="flex-1 space-y-1">
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold px-1">Đến</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-black px-1">Đến</span>
                                 <Input
                                     type="number"
                                     min="1"
                                     max={totalAvailable}
                                     value={rangeEnd}
                                     onChange={(e) => setRangeEnd(e.target.value)}
-                                    className="bg-background border-border text-foreground focus:ring-primary h-11"
+                                    className="bg-slate-50 border-slate-200 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 h-11 font-mono"
                                 />
                             </div>
                         </div>
@@ -75,10 +75,10 @@ export function ExportForm({
                         <Button
                             size="lg"
                             className={cn(
-                                "w-full h-14 font-bold text-lg shadow-lg transition-all active:scale-95 disabled:opacity-50",
+                                "w-full h-14 font-extrabold text-lg shadow-md transition-all active:scale-[0.98] disabled:opacity-50",
                                 useDrive
-                                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-emerald-500/20"
-                                    : "bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-600/90 shadow-primary/20"
+                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100"
+                                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100"
                             )}
                             onClick={onExport}
                             disabled={isExporting}
@@ -91,20 +91,20 @@ export function ExportForm({
                             ) : (
                                 <div className="flex items-center gap-2">
                                     {useDrive ? <Cloud className="h-6 w-6" /> : <Download className="h-6 w-6" />}
-                                    <span>{useDrive ? "Đẩy lên " : "Tải xuống "}{formatLabel}</span>
+                                    <span>{useDrive ? "Đẩy lên Google Drive" : "Tải xuống " + formatLabel}</span>
                                 </div>
                             )}
                         </Button>
 
                         {isExporting && (
                             <div className="space-y-2">
-                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                                        className="h-full bg-indigo-600 transition-all duration-300 ease-out"
                                         style={{ width: `${exportProgress}%` }}
                                     />
                                 </div>
-                                <div className="flex justify-between text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                                <div className="flex justify-between text-[10px] text-slate-400 font-black uppercase tracking-widest">
                                     <span>Đang nén dữ liệu</span>
                                     <span>{exportProgress}%</span>
                                 </div>

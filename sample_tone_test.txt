@@ -1,0 +1,21 @@
+Chương 2: Kiểm thử Văn Phong & Giọng Điệu (v2.3)
+
+[Ngữ cảnh 1: Mỉa mai / Châm biếm]
+"哟, 这不是我们的天之骄子吗? 怎么落 đến mức này rồi?"
+"他呵呵一笑, 语气充满了讥讽: '您真是太有才 rồi, 这种主意都能想得出来。'"
+"哟, 您老人家可真是贵人多忘事啊。"
+
+[Ngữ cảnh 2: Hài hước tự nhiên]
+"这圆滚滚的小胖子眨了眨眼, 一脸无辜地说: '我没偷吃, 我只是在帮它们检查质量。'"
+"由于长得太像猴子, 他一跳起来, 大家都忍不住想递给他一根香蕉。"
+
+[Ngữ cảnh 3: Nghiêm túc (Cấm hài)]
+"在那场惨烈的战斗中, 无数将士牺牲了, 鲜血染红了城墙。" (AI CẤM dùng từ tếu táo ở đây)
+"他神色肃穆地跪在灵堂前, 每一个响头都显得沉重无比。"
+
+[Ngữ cảnh 4: Kết hợp v2.2 + v2.3]
+"不可否认的是, 他的行为确实有点二, 但这并不代表他是个傻子。"
+"由于他太爱显摆了, 因此经常在阴沟里翻船, 真是可笑至极。"
+"有道是: '聪明反被聪明误', 古人诚不欺我。"
+"在此刻 chi gian, 他 dường như dã minh bạch rồi, cái địa phương này không phải chỗ cho hắn đùa giỡn."
+"Xoay người rời đi, trong lòng thầm nghĩ, lần sau vị tất dã vận khí tốt như thế này."

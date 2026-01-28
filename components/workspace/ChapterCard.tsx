@@ -4,12 +4,13 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-    FileText, BookOpen, Zap, ShieldCheck, AlertCircle, Trash2, Clock, Eraser
+    FileText, BookOpen, Zap, ShieldCheck, AlertCircle, Trash2, Clock, Eraser,
+    CheckCircle2, Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Chapter } from "@/lib/db";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useRaiden } from "@/components/theme/RaidenProvider";
 
 // Inline Badge component
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -19,8 +20,21 @@ const Badge = ({ children, className }: { children: React.ReactNode; className?:
 );
 
 interface ChapterCardProps {
-    chapter: Chapter;
+    id: number;
+    order: number;
+    title: string;
+    title_translated?: string;
+    status: 'draft' | 'translated' | 'reviewing';
+    issueCount: number;
+    lastTranslatedAtTime?: number;
+    translationDurationMs?: number;
+    wordCountOriginal?: number;
     isSelected: boolean;
+    isLastRead: boolean;
+    hasContent: boolean;
+    hasTitle: boolean;
+
+    // Handlers
     onSelect: (checked: boolean) => void;
     onRead: () => void;
     onTranslate: () => void;
@@ -29,7 +43,6 @@ interface ChapterCardProps {
     onDelete: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     onMouseEnter?: () => void;
-    isDragSelected?: boolean;
 }
 
 const statusConfig = {
@@ -45,11 +58,22 @@ const statusConfig = {
         label: "Đang soi",
         className: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033]"
     }
-};
+} as const;
 
 export const ChapterCard = React.memo(function ChapterCard({
-    chapter,
+    id,
+    order,
+    title,
+    title_translated,
+    status,
+    issueCount,
+    lastTranslatedAtTime,
+    translationDurationMs,
+    wordCountOriginal,
     isSelected,
+    isLastRead,
+    hasContent,
+    hasTitle,
     onSelect,
     onRead,
     onTranslate,
@@ -57,21 +81,24 @@ export const ChapterCard = React.memo(function ChapterCard({
     onClearTranslation,
     onDelete,
     onContextMenu,
-    onMouseEnter,
-    isDragSelected = false
+    onMouseEnter
 }: ChapterCardProps) {
-    const issueCount = chapter.inspectionResults?.length || 0;
-    const status = chapter.status || 'draft';
+    const { isRaidenMode } = useRaiden();
+
+    const isTranslated = status === 'translated' || hasContent || hasTitle;
+    const isDraft = !isTranslated;
 
     return (
         <div
             className={cn(
-                "group relative p-3 rounded-lg border transition-all duration-200",
-                "bg-card",
-                "hover:scale-[1.005] hover:shadow-xl hover:shadow-primary/5",
+                "group relative p-3 rounded-lg border transition-all duration-300",
+                isRaidenMode ? "bg-[#1E293B]" : "bg-card",
+                "hover:scale-[1.01] hover:shadow-2xl",
                 isSelected
-                    ? "border-primary/50 shadow-lg shadow-primary/10"
-                    : "border-border hover:border-primary/30"
+                    ? (isRaidenMode ? "border-purple-500/50 shadow-purple-500/10" : "border-primary/50 shadow-lg shadow-primary/10")
+                    : (isRaidenMode ? "border-slate-800 hover:border-slate-700" : "border-border hover:border-primary/30"),
+                isDraft && "opacity-50 grayscale-[0.3] hover:opacity-100 hover:grayscale-0",
+                isLastRead && (isRaidenMode ? "shadow-[0_0_20px_rgba(168,85,247,0.15)] border-purple-500/40" : "shadow-[0_0_15px_rgba(79,70,229,0.1)] border-primary/30")
             )}
             onContextMenu={onContextMenu}
             onMouseEnter={onMouseEnter}
@@ -87,16 +114,16 @@ export const ChapterCard = React.memo(function ChapterCard({
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <FileText
-                                className="h-4 w-4 text-primary flex-shrink-0 cursor-pointer hover:text-primary/80 transition-colors"
+                                className="h-4 w-4 text-primary shrink-0 cursor-pointer hover:text-primary/80 transition-colors"
                                 onClick={onRead}
                             />
                             <h3 className="font-semibold text-foreground truncate">
-                                {chapter.title}
+                                {title}
                             </h3>
                         </div>
-                        {chapter.title_translated && (
+                        {title_translated && (
                             <p className="text-xs text-muted-foreground/60 truncate">
-                                {chapter.title_translated}
+                                {title_translated}
                             </p>
                         )}
                     </div>
@@ -107,33 +134,33 @@ export const ChapterCard = React.memo(function ChapterCard({
                     size="icon"
                     variant="ghost"
                     onClick={onRead}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 >
                     <BookOpen className="h-4 w-4" />
                 </Button>
             </div>
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <span className="flex items-center gap-1">
-                    <FileText className="h-3.5 w-3.5" />
-                    {chapter.wordCountOriginal || 0} từ
-                </span>
-
-                <Badge className={cn("text-xs border", statusConfig[status].className)}>
+                <Badge className={cn(
+                    "text-[10px] border shadow-sm uppercase tracking-tighter font-black gap-1",
+                    statusConfig[status].className,
+                    isDraft && "opacity-70"
+                )}>
+                    {isDraft ? <Clock className="w-2.5 h-2.5" /> : isTranslated ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Loader2 className="w-2.5 h-2.5 animate-spin" />}
                     {statusConfig[status].label}
                 </Badge>
 
-                {chapter.lastTranslatedAt && (
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50 ml-auto" title={`Dịch lúc: ${format(chapter.lastTranslatedAt, "PPpp", { locale: vi })}${chapter.translationDurationMs ? ` (${(chapter.translationDurationMs / 1000).toFixed(1)}s)` : ''}`}>
+                {lastTranslatedAtTime && (
+                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground/40 ml-auto" title={`Dịch lúc: ${format(new Date(lastTranslatedAtTime), "PPpp", { locale: vi })}${translationDurationMs ? ` (${(translationDurationMs / 1000).toFixed(1)}s)` : ''} | Words: ${wordCountOriginal?.toLocaleString()}`}>
                         <Clock className="h-3 w-3" />
-                        {format(chapter.lastTranslatedAt, "HH:mm dd/MM", { locale: vi })}
+                        {format(new Date(lastTranslatedAtTime), "HH:mm dd/MM", { locale: vi })}
                     </span>
                 )}
 
                 {issueCount > 0 && (
-                    <span className="flex items-center gap-1 text-amber-400">
+                    <span className="flex items-center gap-1 text-rose-500 font-bold text-[10px] animate-pulse">
                         <AlertCircle className="h-3.5 w-3.5" />
-                        {issueCount} lỗi
+                        {issueCount} LỖI
                     </span>
                 )}
             </div>
@@ -188,5 +215,3 @@ export const ChapterCard = React.memo(function ChapterCard({
 });
 
 ChapterCard.displayName = "ChapterCard";
-
-

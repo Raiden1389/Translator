@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { DEFAULT_MODEL } from "../ai-models";
-import { AnalyzedEntity } from "./types";
+import { AnalyzedEntity, ExtractedCharacter, ExtractedTerm } from "./types";
 import { withKeyRotation } from "./client";
 import { extractResponseText, cleanJsonResponse } from "./helpers";
 
@@ -8,8 +8,8 @@ import { extractResponseText, cleanJsonResponse } from "./helpers";
  * Extract Glossary (Characters + Terms)
  */
 export const extractGlossary = async (text: string, onLog?: (msg: string) => void, model: string = DEFAULT_MODEL): Promise<{
-    characters: any[],
-    terms: any[]
+    characters: ExtractedCharacter[],
+    terms: ExtractedTerm[]
 }> => {
     const prompt = `Trích xuất thực thể từ văn bản truyện để làm từ điển dịch thuật Hán-Việt chuyên nghiệp.
 YÊU CẦU:
@@ -32,14 +32,14 @@ MẪU PHẢN HỒI (JSON BẮT BUỘC):
 LƯU Ý: Nếu không tìm thấy thực thể nào đáng chú ý, trả về các mảng trống. Không được thêm bất kỳ lời dẫn nào ngoài JSON.`;
 
     try {
-        const response: any = await withKeyRotation({
+        const response = await withKeyRotation({
             model,
             systemInstruction: prompt,
             prompt: `TRÍCH XUẤT TỪ ĐOẠN VĂN SAU:\n\n${text.substring(0, 15000)}`,
             generationConfig: {
                 responseMimeType: "application/json",
             }
-        }, onLog);
+        }, onLog) as unknown;
 
         const rawText = extractResponseText(response);
         const jsonStr = cleanJsonResponse(rawText);
@@ -56,21 +56,22 @@ LƯU Ý: Nếu không tìm thấy thực thể nào đáng chú ý, trả về c
 
         // Clean and normalize
         const finalCharacters = (Array.isArray(glossaryData.characters) ? glossaryData.characters : [])
-            .map((c: any) => ({
-                ...c,
-                type: 'name',
-                original: c.original?.trim(),
-                translated: c.translated?.trim()
+            .map((c: ExtractedCharacter) => ({
+                original: (c.original || "").trim(),
+                translated: (c.translated || "").trim(),
+                gender: (c.gender === 'male' || c.gender === 'female') ? c.gender : 'unknown',
+                description: c.description || ""
             }))
-            .filter(c => c.original && c.translated);
+            .filter(c => c.original && c.translated) as ExtractedCharacter[];
 
         const finalTerms = (Array.isArray(glossaryData.terms) ? glossaryData.terms : [])
-            .map((t: any) => ({
-                ...t,
-                original: t.original?.trim(),
-                translated: t.translated?.trim()
+            .map((t: ExtractedTerm) => ({
+                original: (t.original || "").trim(),
+                translated: (t.translated || "").trim(),
+                type: t.type || 'other',
+                description: t.description || ""
             }))
-            .filter(t => t.original && t.translated);
+            .filter(t => t.original && t.translated) as ExtractedTerm[];
 
         return {
             characters: finalCharacters,
@@ -103,7 +104,7 @@ ${terms.join('\n')}
 
 Output: JSON array { "original", "category" }`;
 
-    const response: any = await withKeyRotation({
+    const response = await withKeyRotation({
         model: DEFAULT_MODEL,
         prompt,
         generationConfig: {
@@ -112,8 +113,9 @@ Output: JSON array { "original", "category" }`;
     }, onLog);
 
     try {
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-        return JSON.parse(text);
+        const text = extractResponseText(response) || "[]";
+        const jsonStr = cleanJsonResponse(text);
+        return JSON.parse(jsonStr);
     } catch {
         return [];
     }
@@ -128,7 +130,7 @@ ${terms.join('\n')}
 
 Output: JSON array { "original", "translated" }`;
 
-    const response: any = await withKeyRotation({
+    const response = await withKeyRotation({
         model: DEFAULT_MODEL,
         prompt,
         generationConfig: {
@@ -137,8 +139,9 @@ Output: JSON array { "original", "translated" }`;
     }, onLog);
 
     try {
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-        return JSON.parse(text);
+        const text = extractResponseText(response) || "[]";
+        const jsonStr = cleanJsonResponse(text);
+        return JSON.parse(jsonStr);
     } catch {
         return [];
     }
@@ -152,25 +155,25 @@ export const analyzeEntities = async (workspaceId: string, text: string, onLog?:
     const entities: AnalyzedEntity[] = [];
 
     if (raw?.characters) {
-        raw.characters.forEach((char: any) => {
+        raw.characters.forEach((char: ExtractedCharacter) => {
             entities.push({
                 src: char.original,
                 dest: char.translated,
                 category: 'character',
                 reason: char.description || '',
-                metadata: char
+                metadata: char as unknown as Record<string, unknown>
             });
         });
     }
 
     if (raw?.terms) {
-        raw.terms.forEach((term: any) => {
+        raw.terms.forEach((term: ExtractedTerm) => {
             entities.push({
                 src: term.original,
                 dest: term.translated,
-                category: (term.type as any) || 'other',
+                category: term.type || 'other',
                 reason: 'Thuật ngữ',
-                metadata: term
+                metadata: term as unknown as Record<string, unknown>
             });
         });
     }

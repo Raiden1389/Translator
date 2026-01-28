@@ -1,4 +1,3 @@
-import { Type } from "@google/genai";
 import { db } from "../db";
 import { InspectionIssue } from "../types";
 import { withKeyRotation } from "./client";

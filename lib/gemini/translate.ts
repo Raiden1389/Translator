@@ -1,8 +1,8 @@
-import { db } from "../db";
+import { db, DictionaryEntry } from "../db";
 import { DEFAULT_MODEL } from "../ai-models";
 import { TranslationResult, TranslationLog } from "./types";
 import { withKeyRotation, recordUsage } from "./client";
-import { extractResponseText } from "./helpers";
+import { extractResponseText, finalSweep } from "./helpers";
 import { buildSystemInstruction } from "./constants";
 
 /**
@@ -14,7 +14,7 @@ export const translateChapter = async (
     onLog: (log: TranslationLog) => void,
     onSuccess: (result: TranslationResult) => void,
     customInstruction?: string,
-    sharedGlossary?: any[]
+    sharedGlossary?: DictionaryEntry[]
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
@@ -23,7 +23,7 @@ export const translateChapter = async (
     text = text.trim().replace(/\n\s*\n/g, '\n\n');
 
     // 1. Get Glossary & Blacklist
-    let relevantDict: any[] = [];
+    let relevantDict: DictionaryEntry[] = [];
 
     if (sharedGlossary && sharedGlossary.length > 0) {
         relevantDict = sharedGlossary;
@@ -49,7 +49,7 @@ export const translateChapter = async (
     try {
         console.log(`📡 [PAYLOAD] Model: ${aiModel} | Content Size: ${text.length} chars | System Instruction Size: ${fullInstruction.length} chars`);
 
-        const rawResult = await withKeyRotation<any>(
+        const rawResult = await withKeyRotation<Record<string, unknown>>(
             {
                 model: (aiModel as string).trim(),
                 systemInstruction: fullInstruction,
@@ -81,7 +81,7 @@ export const translateChapter = async (
             const lastBrace = rawText.lastIndexOf('}');
 
             if (firstBrace !== -1 && lastBrace !== -1) {
-                let jsonStr = rawText.substring(firstBrace, lastBrace + 1);
+                const jsonStr = rawText.substring(firstBrace, lastBrace + 1);
 
                 // 2. Try Standard Parse
                 try {
@@ -90,7 +90,7 @@ export const translateChapter = async (
                         translatedTitle: raw.title || raw.translatedTitle || raw.chapter_title || "",
                         translatedText: raw.content || raw.translatedText || raw.text || raw.translated_content || ""
                     };
-                } catch (e) {
+                } catch {
                     // 3. Last ditch: JSON is malformed, try regex-based extraction
                     const titleMatch = jsonStr.match(/"(?:title|translatedTitle|chapter_title)":\s*"([^"]*)"/);
                     const contentMatch = jsonStr.match(/"(?:content|translatedText|text|translated_content)":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
@@ -170,6 +170,12 @@ export const translateChapter = async (
                     }
                 }
             }
+        }
+
+        // 4. Final Sweep (Clean up brackets, explanations, and structure)
+        parsed.translatedText = finalSweep(parsed.translatedText);
+        if (parsed.translatedTitle) {
+            parsed.translatedTitle = finalSweep(parsed.translatedTitle);
         }
 
         const result = parsed;

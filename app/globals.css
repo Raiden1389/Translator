@@ -57,33 +57,48 @@
 
 :root {
   color-scheme: light;
-  --background: oklch(0.98 0.005 240);
-  --foreground: oklch(0.25 0.02 240);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.02 240);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.02 240);
-  --primary: oklch(0.60 0.18 260);
-  --primary-foreground: oklch(0.98 0.005 240);
-  --secondary: oklch(0.93 0.01 240);
-  --secondary-foreground: oklch(0.25 0.02 240);
-  --muted: oklch(0.93 0.01 240);
-  --muted-foreground: oklch(0.55 0.02 240);
-  --accent: oklch(0.93 0.01 240);
-  --accent-foreground: oklch(0.25 0.02 240);
-  --destructive: oklch(0.60 0.18 25);
-  --destructive-foreground: oklch(0.98 0.005 240);
-  --border: oklch(0.88 0.01 240);
-  --input: oklch(0.88 0.01 240);
-  --ring: oklch(0.60 0.18 260);
-  --sidebar: oklch(0.96 0.005 240);
-  --sidebar-foreground: oklch(0.25 0.02 240);
-  --sidebar-primary: oklch(0.60 0.18 260);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.92 0.01 240);
-  --sidebar-accent-foreground: oklch(0.25 0.02 240);
-  --sidebar-border: oklch(0.88 0.01 240);
-  --sidebar-ring: oklch(0.60 0.18 260);
+  --background: #F8FAFC;
+  /* slate-50 */
+  --foreground: #0F172A;
+  /* slate-900 */
+  --card: #FFFFFF;
+  --card-foreground: #1F2937;
+  /* gray-800 */
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #4F46E5;
+  /* indigo-600 */
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  /* slate-100 */
+  --secondary-foreground: #475569;
+  /* slate-600 */
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  /* slate-500 */
+  --accent: #EEF2FF;
+  /* indigo-50 */
+  --accent-foreground: #4338CA;
+  /* indigo-700 */
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  /* slate-200 */
+  --input: #E2E8F0;
+  --ring: #6366F1;
+  /* indigo-500 */
+
+  /* Sidebar Tokens */
+  --sidebar: #F1F5F9;
+  /* slate-100 */
+  --sidebar-foreground: #475569;
+  /* slate-600 */
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E2E8F0;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #6366F1;
 }
 
 .dark {
@@ -118,41 +133,63 @@
 
 .raiden-mode {
   color-scheme: dark;
-  --background: #000000;
-  /* Force pitch black background in Raiden Mode for reader area */
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #000000;
-  --popover: #0a0a0a;
-  --border: #bc13fe33;
-  --muted: #0a0a0a;
-  --muted-foreground: #a0a0a0;
+  --background: #0F172A;
+  /* Dark Slate Blue - Reading Optimized */
+  --foreground: #CBD5E1;
+  /* Slate 300 - Body Text for low eye strain */
+  --card: #1E293B;
+  /* Slate 800 - Layer 1 */
+  --card-foreground: #E2E8F0;
+  /* Slate 200 - Headings */
+  --popover: #111827;
+  --popover-foreground: #E2E8F0;
+  --primary: #A855F7;
+  /* Purple 500 - Sấm sét */
+  --primary-foreground: #FFFFFF;
+  --secondary: #1E293B;
+  --secondary-foreground: #94A3B8;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #A855F7;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.03);
+  /* Default border almost invisible */
+  --input: #1E293B;
+  --ring: #A855F7;
 
-  /* Sidebar Overrides for Raiden Mode */
-  --sidebar: #000000;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #bc13fe;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1a0b2e;
-  --sidebar-accent-foreground: #bc13fe;
-  --sidebar-border: #bc13fe33;
-  --sidebar-ring: #bc13fe;
+  /* Sidebar Tokens - Darker than background */
+  --sidebar: #0a0f1e;
+  --sidebar-foreground: #94A3B8;
+  --sidebar-primary: #A855F7;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #111827;
+  --sidebar-accent-foreground: #E2E8F0;
+  --sidebar-border: rgba(168, 85, 247, 0.1);
+  --sidebar-ring: #A855F7;
 }
 
+/* --- RAIDEN UI UTILITIES --- */
+.raiden-mode .ui-card {
+  background-color: var(--card);
+  border: 1px solid transparent !important;
+  /* Force No Border by default */
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+.raiden-mode .ui-card:hover {
+  border-color: rgba(96, 165, 250, 0.2) !important;
+}
 
-.raiden-mode .raiden-border {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 10px var(--primary-foreground);
+.raiden-mode .ui-card-active {
+  border-color: rgba(168, 85, 247, 0.5) !important;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
 }
 
 .raiden-mode .raiden-glow-text {
-  text-shadow: 0 0 8px var(--primary);
-}
-
-.raiden-mode .raiden-neon-line {
-  background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), transparent);
-  height: 1px;
+  text-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
 }
 
 @layer base {
@@ -170,6 +207,13 @@
     -webkit-user-select: none;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+/* Selection Styling */
+::selection {
+  background-color: rgba(199, 210, 254, 0.4) !important;
+  /* indigo-200 with 40% */
+  color: inherit;
 }
 
 /* Allow selection only in specific areas */
@@ -266,27 +310,17 @@ main {
 }
 
 /* --- VBOOK READER STYLES --- */
-
-/* Unified TXT Style for everything (Narrative, Dialogue, System) */
 .reader-txt-style {
   text-indent: 2em !important;
-  /* Thụt đầu dòng 2 chữ chuẩn TXT Trung */
   margin-bottom: 2.2rem !important;
-  /* KHOẢNG CÁCH GIỮA CÁC ĐOẠN: Đây là thứ giúp nó giống Vbook */
   line-height: inherit !important;
-  /* Inherit from parent (controlled by slider) */
   text-align: left !important;
-  /* Ragged Right - Cleaner looking */
   white-space: pre-line !important;
-  /* Safety Net: Respect all newlines */
   color: inherit !important;
-  /* Forces picking up the inline color from User Settings */
   font-family: inherit;
   font-size: inherit;
-  /* Inherit from parent (controlled by slider) */
 }
 
-/* Ensure no lingering styles affect these if they appear */
 .reader-dialogue,
 .system-msg {
   color: var(--foreground) !important;
@@ -296,10 +330,4 @@ main {
   text-indent: 2em !important;
   padding: 0 !important;
   margin-bottom: 1rem !important;
-}
-
-/* Fix "invisible text" in Raiden Mode by forcing high contrast */
-.raiden-mode {
-  --background: #000000;
-  --foreground: #ffffff;
 }

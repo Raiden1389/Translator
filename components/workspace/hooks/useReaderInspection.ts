@@ -1,37 +1,55 @@
-import { useState, useEffect } from "react";
-import { InspectionIssue } from "@/lib/types";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { InspectionIssue, getErrorMessage } from "@/lib/types";
 import { db, Chapter } from "@/lib/db";
+import { inspectChapter } from "@/lib/gemini";
 import { toast } from "sonner";
 
 /**
- * Custom hook for managing AI inspection state and operations
+ * Hook for managing AI inspection state and operations.
  */
 export function useReaderInspection(chapterId: number, chapter: Chapter | undefined) {
     const [isInspecting, setIsInspecting] = useState(false);
-    // Initialize with chapter results if available
     const [inspectionIssues, setInspectionIssues] = useState<InspectionIssue[]>([]);
     const [activeIssue, setActiveIssue] = useState<InspectionIssue | null>(null);
 
-    // Sync inspection issues from DB on load - only when it actually changes
+    // Sync inspection issues from chapter when it changes
     useEffect(() => {
-        const issues = chapter?.inspectionResults || [];
-        setInspectionIssues(issues);
+        if (chapter) {
+            setInspectionIssues(chapter.inspectionResults || []);
+        }
+        return () => setInspectionIssues([]);
+    }, [chapter?.id, chapter?.inspectionResults, chapter]);
 
-        return () => {
-            setInspectionIssues([]);
-        };
-    }, [chapter?.id, chapter?.inspectionResults]);
+    const handleInspect = useCallback(async (content: string) => {
+        if (!content || isInspecting || !chapter) return;
+        setIsInspecting(true);
+        try {
+            const issues = await inspectChapter(chapter.workspaceId, content);
+            setInspectionIssues(issues);
+            await db.chapters.update(chapterId, { inspectionResults: issues });
+            if (issues.length === 0) toast.success("Không tìm thấy lỗi nào!");
+            else toast.warning(`Tìm thấy ${issues.length} vấn đề.`);
+            return issues;
+        } catch (error) {
+            toast.error("Lỗi kiểm tra: " + getErrorMessage(error));
+            return null;
+        } finally {
+            setIsInspecting(false);
+        }
+    }, [chapter, chapterId, isInspecting]);
 
-    const handleFixIssue = async (issue: InspectionIssue, editContent: string, setEditContent: (content: string) => void) => {
-        if (!issue.original || !issue.suggestion || !chapter) return;
+    const handleApplyFix = useCallback(async (
+        issue: InspectionIssue,
+        currentContent: string,
+        saveToCorrections: boolean,
+        updateContent: (newContent: string) => void
+    ) => {
+        if (!currentContent || !chapter) return;
 
-        // 1. Add to corrections table
-        const existingCorrection = await db.corrections
-            .where('[workspaceId+original]')
-            .equals([chapter.workspaceId, issue.original])
-            .first();
-
-        if (!existingCorrection) {
+        // 1. Save to corrections if requested
+        if (saveToCorrections) {
             await db.corrections.add({
                 workspaceId: chapter.workspaceId,
                 type: 'replace',
@@ -43,47 +61,28 @@ export function useReaderInspection(chapterId: number, chapter: Chapter | undefi
             });
         }
 
+        if (!issue.original || !issue.suggestion) return;
+
         // 2. Apply fix to content
-        const newText = editContent.split(issue.original).join(issue.suggestion);
-        setEditContent(newText);
+        const newText = currentContent.split(issue.original).join(issue.suggestion);
+        updateContent(newText);
         await db.chapters.update(chapterId, { content_translated: newText });
 
-        // 3. Remove this issue from list
+        // 3. Update issue list
         const newIssues = inspectionIssues.filter(i => i.original !== issue.original);
         setInspectionIssues(newIssues);
         await db.chapters.update(chapterId, { inspectionResults: newIssues });
         setActiveIssue(null);
         toast.success("Đã sửa lỗi!");
-    };
-
-    const handleAutoFixAll = async (type: string, editContent: string, setEditContent: (content: string) => void) => {
-        const targetIssues = inspectionIssues.filter(i => i.type === type && i.original && i.suggestion);
-        if (targetIssues.length === 0 || !chapter) return;
-
-        let newText = editContent;
-        targetIssues.forEach(issue => {
-            if (issue.original && issue.suggestion) {
-                newText = newText.split(issue.original).join(issue.suggestion);
-            }
-        });
-
-        setEditContent(newText);
-        await db.chapters.update(chapterId, { content_translated: newText });
-
-        const remainingIssues = inspectionIssues.filter(i => i.type !== type);
-        setInspectionIssues(remainingIssues);
-        await db.chapters.update(chapterId, { inspectionResults: remainingIssues });
-        toast.success(`Đã tự động sửa ${targetIssues.length} lỗi ${type}!`);
-    };
+    }, [chapter, chapterId, inspectionIssues]);
 
     return {
         isInspecting,
-        setIsInspecting,
         inspectionIssues,
         setInspectionIssues,
         activeIssue,
         setActiveIssue,
-        handleFixIssue,
-        handleAutoFixAll,
+        handleInspect,
+        handleApplyFix
     };
 }

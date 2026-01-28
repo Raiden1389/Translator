@@ -1,12 +1,10 @@
 import { TermCandidate, TermType } from './types';
 import { VIETNAMESE_STOPWORDS, HEURISTICS } from './data/stopwords';
-import { VietPhraseRepository } from '../../repositories/viet-phrase-repo';
 import { SyllableRepository } from '../../repositories/syllable-repo';
 import { blacklistRepo } from '../../repositories/blacklist-repo';
 import { TK_LOCATIONS, TK_PERSONS } from './data/three-kingdoms';
 
 export class NameHunterJudge {
-    private vietPhraseRepo: VietPhraseRepository;
     private syllableRepo: SyllableRepository;
 
     private surnames = new Set([
@@ -35,7 +33,6 @@ export class NameHunterJudge {
     ]);
 
     constructor() {
-        this.vietPhraseRepo = VietPhraseRepository.getInstance();
         this.syllableRepo = SyllableRepository.getInstance();
     }
 

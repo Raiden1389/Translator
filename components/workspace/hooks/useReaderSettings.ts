@@ -7,11 +7,11 @@ import { VIETNAMESE_VOICES } from "@/lib/tts";
 const DEFAULT_CONFIG: ReaderConfig = {
     fontFamily: "'Bookerly', serif",
     fontSize: 18,
-    lineHeight: 1.8,
+    lineHeight: 1.85,
     textAlign: "justify",
-    textColor: "#262626",
+    textColor: "#1F2937", /* gray-800 */
     backgroundColor: "#ffffff",
-    maxWidth: 800,
+    maxWidth: 850,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: VIETNAMESE_VOICES[0].value,

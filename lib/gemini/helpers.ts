@@ -96,15 +96,20 @@ export function scrubAIChatter(text: string): string {
  */
 export function extractResponseText(response: unknown): string {
     try {
-        const res = response as any;
-        if (typeof res?.text === 'function') {
-            return res.text();
-        } else if (typeof res?.response?.text === 'function') {
-            return res.response.text();
-        }
-        // Fallback for different SDK versions
-        const responseData = res?.response as { candidates?: any[] } | undefined;
-        const candidates = res?.candidates || responseData?.candidates;
+        if (!response) return "";
+
+        // Standard SDK response
+        const sdkRes = response as { text?: () => string; response?: { text?: () => string } };
+        if (typeof sdkRes.text === 'function') return sdkRes.text();
+        if (typeof sdkRes.response?.text === 'function') return sdkRes.response.text();
+
+        // Raw response structure
+        const rawRes = response as {
+            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+            response?: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+        };
+
+        const candidates = rawRes.candidates || rawRes.response?.candidates;
         return candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch {
         return "";
@@ -146,6 +151,40 @@ export function cleanJsonResponse(jsonText: string): string {
 }
 
 /**
+ * Repair sentence structure (Comma/Period conversion)
+ * Fixes: ", Hắn" -> ". Hắn"
+ */
+function repairSentenceStructure(text: string): string {
+    if (!text) return "";
+
+    const pronouns = "Hắn|Nó|Gã|Mụ|Lão|Người|Kẻ|Cô|Anh|Chị|Ông|Bà|Tên|Con|Thằng|Bọn|Lũ|Các|Những|Mọi|Mỗi|Một";
+    const conjunctions = "Nhưng|Và|Thì|Mà|Bởi|Tuy|Nên|Rồi|Đã|Đang|Sẽ|Tại|Vì|Nếu|Do|Để|Với|Cùng";
+    const prepositions = "Trong|Ngoài|Trên|Dưới|Trước|Sau|Lúc|Khi|Giờ";
+    const verbs = "Thở|Ngước|Nhìn|Thấy|Nghe|Nói|Bảo|Hỏi|Đáp|Cười|Khóc|Đứng|Ngồi|Đi|Chạy|Đến|Về";
+    const others = "Cái|Cố|Vị|Đích|Chỉ|Có|Không|Chưa|Chẳng|Biết|Nhớ|Quên|Muốn|Thích|Yêu|Ghét";
+
+    const safeWords = `${pronouns}|${conjunctions}|${prepositions}|${verbs}|${others}`;
+    const regex = new RegExp(`, (${safeWords})`, 'g');
+
+    return text.replace(regex, '. $1');
+}
+
+/**
+ * Remove AI-added idiom explanations in parentheses
+ * Matches: “Hán Việt” (Giải thích) -> Hán Việt
+ */
+function cleanIdiomExplanations(text: string): string {
+    if (!text) return "";
+
+    return text
+        // 1. Double quotes case: “abc” (xyz) -> abc
+        .replace(/[“"‘\-\—]([^”"’]+)[”"’]\s*\([^)]+\)/g, '$1')
+        // 2. Capitalized case: Phân Đình Kháng Lễ (chia sẻ quyền lực) -> Phân Đình Kháng Lễ
+        // Matches 2-5 capitalized words followed by parentheses
+        .replace(/([A-ZÀ-Ỹ][a-zà-ỹ]*(\s+[A-ZÀ-Ỹ][a-zà-ỹ]*){1,4})\s*\([^)]+\)/g, '$1');
+}
+
+/**
  * THE ABSOLUTE FINAL SWEEP (The Broom)
  * This should be the very last function called before saving/rendering.
  */
@@ -176,7 +215,7 @@ export function finalSweep(text: string): string {
 
     // 3. Conditional Pronoun Lowercasing: Ta -> ta
     // Rule: Lowercase if not at start of sentence AND not inside brackets [...]
-    const swept = cleaned
+    cleaned = cleaned
         .replace(/\[([\s\S]*?)\]/g, (match) => {
             // Temporarily mask brackets to avoid processing inside
             return `\uE000${match.slice(1, -1)}\uE001`;
@@ -194,10 +233,15 @@ export function finalSweep(text: string): string {
         .replace(/\uE000/g, "[")
         .replace(/\uE001/g, "]");
 
-    return swept
+    // 4. Structure Repair & Idiom Cleaning
+    cleaned = repairSentenceStructure(cleaned);
+    cleaned = cleanIdiomExplanations(cleaned);
+
+    return cleaned
         // Final polish for spacing
         .replace(/\[\s+/g, '[')
-        .replace(/\s+\]/g, ']');
+        .replace(/\s+\]/g, ']')
+        .trim();
 }
 
 /**

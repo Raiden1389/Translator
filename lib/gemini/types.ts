@@ -1,3 +1,5 @@
+import { GlossaryCharacter, GlossaryTerm } from "../types";
+
 // --- Core Types ---
 export interface TranslationResult {
     translatedText: string;
@@ -15,13 +17,16 @@ export interface TranslationLog {
 }
 
 // --- Entity Analysis ---
+export type ExtractedCharacter = GlossaryCharacter;
+export type ExtractedTerm = GlossaryTerm;
+
 export interface AnalyzedEntity {
     src: string;
     dest: string;
-    category: 'character' | 'weapon' | 'item' | 'location' | 'organization' | 'ability' | 'plant' | 'beast' | 'phenomenon' | 'honorific' | 'phrase' | 'idiom' | 'other';
+    category: 'character' | 'weapon' | 'item' | 'location' | 'organization' | 'ability' | 'plant' | 'beast' | 'phenomenon' | 'honorific' | 'phrase' | 'idiom' | 'other' | string;
     contextLabel?: string;
     reason: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
 }
 
 // --- Quality Inspection moved to /lib/types.ts ---

@@ -11,7 +11,7 @@ export interface GlossaryCharacter {
     translated: string;
     type: 'name';
     gender?: 'male' | 'female' | 'unknown';
-    role?: 'main' | 'support' | 'villain' | 'mob';
+    role?: 'main' | 'support' | 'villain' | 'mob' | string;
     description?: string;
     isExisting?: boolean;
     status?: 'save' | 'blacklist' | 'ignore'; // For review dialog
@@ -24,7 +24,7 @@ export interface GlossaryTerm {
     id?: number;
     original: string;
     translated: string;
-    type: 'term' | 'phrase' | 'general';
+    type: 'term' | 'phrase' | 'general' | 'item' | 'location' | 'skill' | 'organization' | 'other' | string;
     description?: string;
     isExisting?: boolean;
     status?: 'save' | 'blacklist' | 'ignore'; // For review dialog

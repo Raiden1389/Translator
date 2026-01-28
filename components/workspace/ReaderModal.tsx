@@ -1,21 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, Chapter, clearChapterTranslation, CorrectionEntry } from "@/lib/db";
-import { inspectChapter } from "@/lib/gemini";
-import { getErrorMessage, InspectionIssue } from "@/lib/types";
+import { db, clearChapterTranslation } from "@/lib/db";
 import { toast } from "sonner";
-import { TextSelectionMenu } from "./TextSelectionMenu";
 
-import { ReaderContextMenu } from "./ReaderContextMenu";
-import { ReaderHeader, ReaderConfig } from "./ReaderHeader";
+// Components
+import { ReaderHeader } from "./ReaderHeader";
 import { ReaderContent } from "./ReaderContent";
 import { ReaderDialogs } from "./ReaderDialogs";
+import { TextSelectionMenu } from "./TextSelectionMenu";
+import { ReaderContextMenu } from "./ReaderContextMenu";
 
+// Hooks
 import { useReaderSettings } from "./hooks/useReaderSettings";
 import { useReaderTTS } from "./hooks/useReaderTTS";
 import { useReaderKeybinds } from "./hooks/useReaderKeybinds";
+import { useReaderNavigation } from "./hooks/useReaderNavigation";
+import { useReaderSelection } from "./hooks/useReaderSelection";
+import { useCorrections } from "./hooks/useCorrections";
+import { useReaderInspection } from "./hooks/useReaderInspection";
+
+// Utils
+import { formatChapterToParagraphs } from "./utils/formatChapter";
 
 interface ReaderModalProps {
     chapterId: number;
@@ -25,94 +32,116 @@ interface ReaderModalProps {
     onPrev?: () => void;
     hasPrev?: boolean;
     hasNext?: boolean;
-    workspaceChapters?: Chapter[];
 }
 
-export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNext }: ReaderModalProps) {
+export function ReaderModal({
+    chapterId,
+    onClose,
+    onNext,
+    onPrev,
+    hasPrev,
+    hasNext
+}: ReaderModalProps) {
+    // 1. DATA LAYER (External Sync)
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
 
-    // UI State
+    // 2. CORE UI STATE
     const [activeTab, setActiveTab] = useState<"translated" | "original">("translated");
     const [isParallel, setIsParallel] = useState(false);
     const [editContent, setEditContent] = useState("");
     const [showSettings, setShowSettings] = useState(false);
+    const [isDisabled, setIsDisabled] = useState(false);
 
-    // Custom Hooks
+    // 3. FEATURE HOOKS
     const { readerConfig, setReaderConfig } = useReaderSettings();
-    const { isTTSPlaying, isTTSLoading, activeTTSIndex, toggleTTS, stopTTS } = useReaderTTS(chapterId, chapter?.content_translated || "", readerConfig);
+    const {
+        isTTSPlaying, isTTSLoading, activeTTSIndex, toggleTTS, stopTTS
+    } = useReaderTTS(chapterId, chapter?.content_translated || "", readerConfig);
 
-    const scrollViewportRef = useRef<HTMLDivElement>(null);
+    // Cooldown logic for actions
+    const handleActionStart = useCallback(() => {
+        setIsDisabled(true);
+        const timer = setTimeout(() => {
+            setIsDisabled(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, []);
+
+    // 3.1. Navigation & Scroll
+    const {
+        scrollViewportRef,
+        handleScroll,
+        handleWheel
+    } = useReaderNavigation({
+        chapterId,
+        hasNext: !!hasNext,
+        onNext,
+        stopTTS,
+        isDisabled // Cooldown from actions
+    });
+
+    // 3.2. Text Selection & Menu
+    const {
+        menuPosition, setMenuPosition,
+        contextMenuPosition, setContextMenuPosition,
+        selectedText,
+        editorRef,
+        handleTextSelection,
+        handleContextMenu,
+        clearSelection
+    } = useReaderSelection();
+
+    // 3.3. Inspection
+    const {
+        isInspecting,
+        inspectionIssues,
+        activeIssue,
+        setActiveIssue,
+        handleInspect,
+        handleApplyFix
+    } = useReaderInspection(chapterId, chapter);
+
+    // 3.4. Corrections & Dictionary
+    const {
+        correctionOpen, setCorrectionOpen,
+        correctionType, setCorrectionType,
+        correctionOriginal, setCorrectionOriginal,
+        correctionReplacement, setCorrectionReplacement,
+        correctionField3, setCorrectionField3,
+        handleSaveCorrection,
+        openCorrection,
+        dictDialogOpen, setDictDialogOpen,
+        dictOriginal, setDictOriginal,
+        dictTranslated, setDictTranslated,
+        handleSaveDictionary,
+        openDictionary
+    } = useCorrections({
+        chapterId,
+        chapter,
+        editContent,
+        setEditContent,
+        onActionStart: () => {
+            handleActionStart();
+            clearSelection();
+        }
+    });
+
+    // 3.5. Keybinds
     useReaderKeybinds({ onClose, onNext, onPrev, hasPrev, hasNext, scrollViewportRef });
 
-    // Selection & Menu State
-    const [menuPosition, setMenuPosition] = useState<{ x: number, y: number } | null>(null);
-    const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number, y: number } | null>(null);
-    const [selectedText, setSelectedText] = useState("");
-    const editorRef = useRef<HTMLDivElement>(null);
+    // 4. EFFECTS & LOGIC
 
-    // Dialog States
-    const [correctionOpen, setCorrectionOpen] = useState(false);
-    const [correctionType, setCorrectionType] = useState<'replace' | 'wrap' | 'regex'>('replace');
-    const [correctionOriginal, setCorrectionOriginal] = useState("");
-    const [correctionReplacement, setCorrectionReplacement] = useState("");
-    const [correctionField3, setCorrectionField3] = useState("");
-    const [dictDialogOpen, setDictDialogOpen] = useState(false);
-    const [dictOriginal, setDictOriginal] = useState("");
-    const [dictTranslated, setDictTranslated] = useState("");
-    const [isAutoNavigating, setIsAutoNavigating] = useState(false);
-
-    // Inspection State
-    const [isInspecting, setIsInspecting] = useState(false);
-    const [inspectionIssues, setInspectionIssues] = useState<InspectionIssue[]>([]);
-    const [activeIssue, setActiveIssue] = useState<InspectionIssue | null>(null);
-
-    // Sync Edit Content
+    // Sync DB -> Local State
     useEffect(() => {
         if (chapter) {
-            setEditContent(chapter.content_translated || "");
-            setInspectionIssues(chapter.inspectionResults || []);
+            const timer = setTimeout(() => {
+                setEditContent(chapter.content_translated || "");
+            }, 0);
+            return () => clearTimeout(timer);
         }
-        return () => setInspectionIssues([]);
-    }, [chapter]); // Fix dependency to auto-update when content changes
+    }, [chapter?.id, chapter]);
 
-    // High Performance Formatting (Main Thread)
-    // Worker was causing issues with missing content in some environments.
-    // Moving back to main thread is safe for chapter-sized content.
-    const htmlContent = React.useMemo(() => {
-        const text = (editContent || "").normalize('NFC');
-        if (!text) return { __html: "" };
-
-        // Simple formatting to ensure text appears
-        // 1. Normalize
-        const cleaned = text
-            .replace(/\r\n/g, "\n")
-            .replace(/\r/g, "\n")
-            .replace(/:\s*\n+\s*\[/g, ": [") // Fix dialogue breaks
-            .trim();
-
-        // 2. Split paragraphs
-        const paragraphs = cleaned.split('\n').filter(p => p.trim().length > 0);
-
-        // 3. Render HTML
-        const html = paragraphs.map((para, index) => {
-            const isHighlighted = activeTTSIndex === index;
-            const finalClass = isHighlighted
-                ? "reader-txt-style bg-yellow-500/20 rounded transition-colors duration-300"
-                : "reader-txt-style transition-colors duration-500";
-
-            // Simple escape (reduced overhead)
-            const escaped = para
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-
-            return `<p id="tts-para-${index}" class="${finalClass}">${escaped}</p>`;
-        }).join('');
-
-        return { __html: html };
-    }, [editContent, activeTTSIndex]);
-
-    // Auto-Save Content
+    // Auto-Save
     useEffect(() => {
         if (!chapter) return;
         const timer = setTimeout(async () => {
@@ -123,114 +152,39 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
         return () => clearTimeout(timer);
     }, [editContent, chapterId, chapter]);
 
-    // Reset Scroll on Chapter Change
-    useEffect(() => {
-        if (scrollViewportRef.current) scrollViewportRef.current.scrollTo(0, 0);
-        stopTTS();
-        setIsAutoNavigating(false);
-        setIsReadyToNext(false);
-    }, [chapterId, stopTTS, chapter]);
+    // Format Logic
+    const paragraphsData = useMemo(() => formatChapterToParagraphs({
+        text: editContent,
+        activeTTSIndex,
+        inspectionIssues
+    }), [editContent, activeTTSIndex, inspectionIssues]);
 
-    // Handlers (Memoized for ReaderContent)
-    const [isReadyToNext, setIsReadyToNext] = useState(false);
-    const [readyTimestamp, setReadyTimestamp] = useState(0);
-
-    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-        if (menuPosition) setMenuPosition(null);
-        if (contextMenuPosition) setContextMenuPosition(null);
-
-        const target = e.currentTarget;
-        const { scrollTop, scrollHeight, clientHeight } = target;
-        const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-
-        // "Double Scroll" Logic - Part 1: Show Toast
-        if (distanceToBottom < 10) {
-            if (hasNext && !isAutoNavigating && onNext && !isReadyToNext) {
-                setIsReadyToNext(true);
-                setReadyTimestamp(Date.now());
-                toast("Cuộn thêm lần nữa để chuyển chương", {
-                    position: "bottom-center",
-                    duration: 1500,
-                    className: "bg-primary text-primary-foreground font-bold"
-                });
-            }
-        } else if (distanceToBottom > 100) {
-            // Reset if user scrolls up significantly
-            if (isReadyToNext) setIsReadyToNext(false);
-        }
-    }, [hasNext, isAutoNavigating, onNext, menuPosition, contextMenuPosition, isReadyToNext]);
-
+    // Reader Actions Handlers
     const handleClearTranslation = async () => {
-        if (!confirm("Xóa bản dịch của chương này để dịch lại? (Bản gốc vẫn được giữ nguyên)")) return;
-        try {
-            await clearChapterTranslation(chapterId);
-            toast.success("Đã xóa bản dịch.");
-            // The live query 'chapter' will update automatically
-        } catch (error) {
-            console.error("Clear translation error:", error);
-            toast.error("Lỗi khi xóa bản dịch.");
-        }
+        if (!confirm("Xóa bản dịch của chương này để dịch lại?")) return;
+        await clearChapterTranslation(chapterId);
+        toast.success("Đã xóa bản dịch.");
     };
 
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-        // "Double Scroll" Logic - Part 2: Actual Navigation
-        // onScroll doesn't fire when already at bottom, so we use onWheel
-        if (e.deltaY > 0 && isReadyToNext && !isAutoNavigating && hasNext && onNext) {
-            // Prevent accidental trigger from the same initial scroll (need ~300ms gap)
-            if (Date.now() - readyTimestamp < 300) return;
-
-            const target = e.currentTarget;
-            const { scrollTop, scrollHeight, clientHeight } = target;
-            const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-
-            if (distanceToBottom < 20) {
-                setIsAutoNavigating(true);
-                onNext();
-            }
-        }
-    }, [hasNext, isAutoNavigating, onNext, isReadyToNext, readyTimestamp]);
-
-    const handleTextSelection = useCallback(() => {
-        const selection = window.getSelection();
-        if (selection && selection.toString().trim().length > 0 && editorRef.current?.contains(selection.anchorNode)) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top });
-            setSelectedText(selection.toString().trim());
-        } else {
-            setMenuPosition(null);
-            setSelectedText("");
-        }
-    }, []);
-
-    const handleContextMenu = useCallback((e: React.MouseEvent) => {
-        const selection = window.getSelection();
-        if (selection && selection.toString().trim().length > 0) {
-            e.preventDefault();
-            setSelectedText(selection.toString().trim());
-            setContextMenuPosition({ x: e.clientX, y: e.clientY });
-            setMenuPosition(null);
-        }
-    }, []);
-
-    // Menu Actions
     const handleMenuAction = async (action: "dictionary" | "blacklist" | "correction" | "copy") => {
         if (!selectedText || !chapter) return;
-        if (action === "copy") {
-            navigator.clipboard.writeText(selectedText);
-            toast.success("Đã sao chép!");
-            setContextMenuPosition(null);
-            setMenuPosition(null);
-            return;
-        }
-        if (action === "dictionary") {
-            setDictOriginal(selectedText);
-            setDictTranslated(selectedText);
-            setDictDialogOpen(true);
-        } else if (action === "blacklist") {
-            if (!chapter.workspaceId) return;
-            const existing = await db.blacklist.where({ word: selectedText, workspaceId: chapter.workspaceId }).first();
-            if (!existing) {
+
+        switch (action) {
+            case "copy":
+                await navigator.clipboard.writeText(selectedText);
+                toast.success("Đã sao chép!");
+                clearSelection();
+                break;
+            case "dictionary":
+                openDictionary(selectedText);
+                clearSelection();
+                break;
+            case "correction":
+                openCorrection(selectedText);
+                clearSelection();
+                break;
+            case "blacklist":
+                if (!chapter.workspaceId) return;
                 await db.blacklist.add({
                     workspaceId: chapter.workspaceId,
                     word: selectedText,
@@ -239,166 +193,9 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     createdAt: new Date()
                 });
                 toast.success(`Đã thêm vào Blacklist`);
-            }
-        } else if (action === "correction") {
-            setCorrectionOriginal(selectedText);
-            setCorrectionReplacement(selectedText);
-            setCorrectionOpen(true);
+                clearSelection();
+                break;
         }
-        setMenuPosition(null);
-        setContextMenuPosition(null);
-    };
-
-    // Dialog Handlers
-    // Dialog Handlers
-    const handleSaveCorrection = async () => {
-        if (!chapter) return;
-
-        // Guardrails
-        if (correctionType === 'wrap') {
-            if (!correctionOriginal || !correctionReplacement || !correctionField3) {
-                toast.error("Vui lòng nhập đủ Target, Open, Close");
-                return;
-            }
-            if (correctionOriginal.includes('[') || correctionOriginal.includes(']')) {
-                toast.error("Target không được chứa dấu ngoặc [ ]");
-                return;
-            }
-            if (correctionReplacement === correctionField3) {
-                toast.error("Open và Close không được giống nhau");
-                return;
-            }
-        } else if (correctionType === 'regex') {
-            if (!correctionOriginal || !correctionReplacement) {
-                toast.error("Vui lòng nhập Regex và Replacement");
-                return;
-            }
-        } else {
-            // Replace
-            if (!correctionOriginal || !correctionReplacement) {
-                toast.error("Vui lòng nhập Từ sai và Từ đúng");
-                return;
-            }
-        }
-
-        const entry: CorrectionEntry = {
-            workspaceId: chapter.workspaceId,
-            type: correctionType,
-            createdAt: new Date()
-        };
-
-        if (correctionType === 'replace') {
-            entry.from = correctionOriginal;
-            entry.to = correctionReplacement;
-            entry.original = correctionOriginal;
-            entry.replacement = correctionReplacement;
-        } else if (correctionType === 'wrap') {
-            entry.target = correctionOriginal;
-            entry.open = correctionReplacement;
-            entry.close = correctionField3;
-            entry.original = correctionOriginal;
-            entry.replacement = `${correctionReplacement}${correctionOriginal}${correctionField3}`;
-        } else if (correctionType === 'regex') {
-            entry.pattern = correctionOriginal;
-            entry.replace = correctionReplacement;
-            entry.original = correctionOriginal;
-            entry.replacement = correctionReplacement;
-        }
-
-        await db.corrections.add(entry);
-
-        // Apply locally for immediate feedback
-        let newText = editContent;
-        if (correctionType === 'replace') {
-            newText = editContent.split(correctionOriginal).join(correctionReplacement);
-        } else if (correctionType === 'wrap') {
-            // Simple replace for visual feedback (exact match)
-            newText = editContent.split(correctionOriginal).join(`${correctionReplacement}${correctionOriginal}${correctionField3}`);
-        } else if (correctionType === 'regex') {
-            try {
-                newText = editContent.replace(new RegExp(correctionOriginal, 'g'), correctionReplacement);
-            } catch { }
-        }
-
-        await db.chapters.update(chapterId, { content_translated: newText });
-        setEditContent(newText);
-        toast.success("Đã lưu quy tắc sửa lỗi!");
-        setCorrectionOpen(false);
-
-        // Reset fields
-        setCorrectionType('replace');
-        setCorrectionOriginal("");
-        setCorrectionReplacement("");
-        setCorrectionField3("");
-    };
-
-    const handleSaveDictionary = async (targetType: 'character' | 'term') => {
-        if (!dictOriginal || !dictTranslated || !chapter?.workspaceId) return;
-        const normOriginal = dictOriginal.trim();
-        const normTranslated = dictTranslated.trim();
-
-        const existing = await db.dictionary.where({ original: normOriginal, workspaceId: chapter.workspaceId }).first();
-        if (!existing) {
-            await db.dictionary.add({
-                workspaceId: chapter.workspaceId,
-                original: normOriginal,
-                translated: normTranslated,
-                type: targetType === 'character' ? 'name' : 'general',
-                createdAt: new Date()
-            });
-            toast.success(`Đã thêm vào ${targetType === 'character' ? 'Nhân vật' : 'Từ điển'}`);
-        } else {
-            if (confirm(`"${normOriginal}" đã có. Cập nhật nghĩa không?`)) {
-                await db.dictionary.update(existing.id!, {
-                    translated: normTranslated,
-                    type: targetType // Update type too? Usually yes
-                });
-                toast.success("Đã cập nhật từ điển");
-            }
-        }
-        setDictDialogOpen(false);
-    };
-
-    // Inspection
-    const handleInspect = async () => {
-        if (!editContent || isInspecting || !chapter) return;
-        setIsInspecting(true);
-        try {
-            const issues = await inspectChapter(chapter.workspaceId, editContent);
-            setInspectionIssues(issues);
-            await db.chapters.update(chapterId, { inspectionResults: issues });
-            if (issues.length === 0) toast.success("Không tìm thấy lỗi nào!");
-            else toast.warning(`Tìm thấy ${issues.length} vấn đề.`);
-        } catch (error) {
-            toast.error("Lỗi kiểm tra: " + getErrorMessage(error));
-        } finally {
-            setIsInspecting(false);
-        }
-    };
-
-    const handleApplyFix = async (issue: InspectionIssue, saveToCorrections: boolean) => {
-        if (!editContent || !chapter) return;
-        if (saveToCorrections) {
-            await db.corrections.add({
-                workspaceId: chapter.workspaceId,
-                type: 'replace',
-                from: issue.original,
-                to: issue.suggestion,
-                original: issue.original,
-                replacement: issue.suggestion,
-                createdAt: new Date()
-            });
-        }
-        if (!issue.original || !issue.suggestion) return;
-        const newText = editContent.split(issue.original).join(issue.suggestion);
-        setEditContent(newText);
-        await db.chapters.update(chapterId, { content_translated: newText });
-
-        const newIssues = inspectionIssues.filter(i => i.original !== issue.original);
-        setInspectionIssues(newIssues);
-        await db.chapters.update(chapterId, { inspectionResults: newIssues });
-        setActiveIssue(null);
-        toast.success("Đã sửa lỗi!");
     };
 
     if (!chapter) return null;
@@ -413,7 +210,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     isParallel={isParallel}
                     setIsParallel={setIsParallel}
                     isInspecting={isInspecting}
-                    handleInspect={handleInspect}
+                    handleInspect={() => handleInspect(editContent)}
                     inspectionIssues={inspectionIssues}
                     showSettings={showSettings}
                     setShowSettings={setShowSettings}
@@ -429,11 +226,11 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     handleTTSPlay={toggleTTS}
                     handleTTSStop={stopTTS}
                     selectedVoice={readerConfig.ttsVoice}
-                    setSelectedVoice={(voice) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsVoice: voice }))}
+                    setSelectedVoice={(voice) => setReaderConfig(prev => ({ ...prev, ttsVoice: voice }))}
                     ttsPitch={readerConfig.ttsPitch}
-                    setTtsPitch={(pitch) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsPitch: pitch }))}
+                    setTtsPitch={(pitch) => setReaderConfig(prev => ({ ...prev, ttsPitch: pitch }))}
                     ttsRate={readerConfig.ttsRate}
-                    setTtsRate={(rate) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsRate: rate }))}
+                    setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
                     onClearTranslation={handleClearTranslation}
                 />
 
@@ -445,14 +242,18 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
                     chapter={chapter}
                     inspectionIssues={inspectionIssues}
                     activeTTSIndex={activeTTSIndex}
-                    htmlContent={htmlContent}
+                    paragraphsData={paragraphsData}
                     setEditContent={setEditContent}
                     handleTextSelection={handleTextSelection}
                     handleContextMenu={handleContextMenu}
                     setActiveIssue={setActiveIssue}
                     scrollViewportRef={scrollViewportRef}
                     editorRef={editorRef}
-                    handleScroll={handleScroll}
+                    handleScroll={(e) => {
+                        handleScroll(e);
+                        if (menuPosition) setMenuPosition(null);
+                        if (contextMenuPosition) setContextMenuPosition(null);
+                    }}
                     handleWheel={handleWheel}
                     onNext={onNext}
                     hasNext={hasNext}
@@ -496,7 +297,7 @@ export function ReaderModal({ chapterId, onClose, onNext, onPrev, hasPrev, hasNe
 
                 activeIssue={activeIssue}
                 setActiveIssue={setActiveIssue}
-                handleApplyFix={handleApplyFix}
+                handleApplyFix={(issue, save) => handleApplyFix(issue, editContent, save, setEditContent)}
             />
         </div>
     );

@@ -9,6 +9,8 @@ import { useDictionary } from "../hooks/useDictionary";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { DictionaryRow } from "../DictionaryRow";
+import { useRaiden } from "@/components/theme/RaidenProvider";
+import { cn } from "@/lib/utils";
 
 interface DictionaryViewProps {
     workspaceId: string;
@@ -48,6 +50,7 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
         handleAIExtract,
         handleBulkAICategorize,
     } = useDictionary(workspaceId);
+    const { isRaidenMode } = useRaiden();
 
     // Virtual scrolling setup
     const parentRef = useRef<HTMLDivElement>(null);
@@ -107,14 +110,24 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
             />
 
             {/* Virtual Scrolling Table */}
-            <div className="rounded-md border border-border bg-card overflow-hidden">
+            <div className={cn(
+                "rounded-xl overflow-hidden shadow-sm",
+                isRaidenMode ? "bg-[#1E293B] border-transparent shadow-2xl" : "bg-white border border-slate-200"
+            )}>
                 {/* Header */}
-                <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/50 text-xs font-bold text-muted-foreground uppercase tracking-widest sticky top-0 z-10">
+                <div className={cn(
+                    "grid grid-cols-12 gap-4 p-4 border-b text-[10px] font-black uppercase tracking-widest sticky top-0 z-10",
+                    isRaidenMode ? "bg-slate-900 border-slate-800 text-slate-500" : "bg-slate-50/50 border-slate-200 text-slate-500"
+                )}>
                     <div className="col-span-1 flex justify-center">
                         <Checkbox
                             checked={filteredDic.length > 0 && selectedEntries.length === filteredDic.length}
                             onCheckedChange={toggleSelectAll}
-                            className="border-border data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                            className={cn(
+                                isRaidenMode
+                                    ? "border-slate-600 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                                    : "border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                            )}
                         />
                     </div>
                     <div className="col-span-1 text-center">#</div>
