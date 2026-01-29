@@ -7,6 +7,9 @@ import { DictionaryEntry } from "../db";
 export function normalizeVietnameseContent(text: string): string {
     if (!text) return "";
 
+    // 0. Unicode Normalization (NFC) - Critical for Vietnamese character matching
+    text = text.normalize('NFC');
+
     // Early bail-out for clean text: reduces regex overhead by ~70% for processed streams.
     if (!/[【［〔】］〕（）\u200B-\u200D\uFEFF：]/.test(text) && !text.includes('\r') && !text.includes('  ') && !text.includes('\n\n\n')) {
         return text.trim();
@@ -297,65 +300,106 @@ export function escapeRegExp(string: string): string {
 // CORRECTION ENGINE UTILS
 // ----------------------------------------------------------------------
 
+/**
+ * THE ULTIMATE CORRECTION ENGINE
+ * Optimized for performance and correctness:
+ * 1. Categorizes rules (Replace, Wrap, Regex)
+ * 2. Sorts Replacements by length (Longest First) to prevent partial matching bugs
+ * 3. Applies batch regex for efficiency
+ * 4. Preserves Case (Upper, TitleCase)
+ */
+export function applyAllCorrections(text: string, rules: any[]): string {
+    if (!text || !rules || rules.length === 0) return text;
+
+    // 0. Pre-process text: Normalize Unicode AND NUKE invisible characters & weird whitespaces
+    let result = text.normalize('NFC')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Nuke zero-width spaces/joiners & byte order marks
+        .replace(/[\u00A0\u1680\u180e\u2000-\u200a\u202f\u205f\u3000]/g, ' ') // Convert all weird spaces to standard space
+        .replace(/[ \t]+/g, ' '); // Collapse multiple spaces/tabs to single space
+
+    // 1. Separate rules
+    const replaces = rules.filter(r => (r.type === 'replace' || !r.type) && (r.from || r.original));
+    const wraps = rules.filter(r => r.type === 'wrap' && r.target && r.open && r.close);
+    const regexes = rules.filter(r => r.type === 'regex' && (r.pattern || r.original));
+
+    // 2. Handle Simple Replacements (Batch & Sorted)
+    if (replaces.length > 0) {
+        const sorted = [...replaces].sort((a, b) => {
+            const lenA = (a.from || a.original || "").length;
+            const lenB = (b.from || b.original || "").length;
+            return lenB - lenA;
+        });
+
+        const replacementMap = new Map(sorted.map(r => {
+            const from = (r.from || r.original || "").trim().normalize('NFC').replace(/\s+/g, ' ').toLowerCase();
+            const to = (r.to ?? r.replacement ?? "").normalize('NFC');
+            return [from, to];
+        }));
+
+        const pattern = new RegExp(
+            sorted
+                .map(r => {
+                    const cleanFrom = (r.from || r.original || "").trim().normalize('NFC').replace(/\s+/g, ' ');
+                    return escapeRegExp(cleanFrom);
+                })
+                .filter(p => p.length > 0)
+                .join('|'),
+            'gi'
+        );
+
+        if (pattern.source !== "(?:)" && pattern.source !== "") {
+            result = result.replace(pattern, (match) => {
+                const to = replacementMap.get(match.toLowerCase());
+                if (to === undefined) return match;
+
+                // Case preservation logic
+                if (match === match.toUpperCase() && match !== match.toLowerCase()) return to.toUpperCase();
+                if (match.length > 0 && match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+                    return to.charAt(0).toUpperCase() + to.slice(1);
+                }
+                return to;
+            });
+        }
+    }
+
+    // 3. Handle Wraps
+    for (const rule of wraps) {
+        result = safeWrap(result, rule.target!.normalize('NFC'), rule.open!, rule.close!);
+    }
+
+    // 4. Handle Regexes
+    for (const rule of regexes) {
+        try {
+            const p = rule.pattern || rule.original;
+            const r = rule.replace || rule.replacement || "";
+            if (p) {
+                result = result.replace(new RegExp(p, 'gi'), r);
+            }
+        } catch (e) {
+            console.error("Regex correction failed:", e, rule);
+        }
+    }
+
+    return result;
+}
+
+export function applyCorrectionRule(text: string, rule: any): string {
+    return applyAllCorrections(text, [rule]);
+}
+
 export function safeReplace(text: string, from: string, to: string) {
-    if (!from || !to) return text;
-    const escaped = escapeRegExp(from);
-    const regex = new RegExp(escaped, 'g');
-    return text.replace(regex, to);
+    return applyAllCorrections(text, [{ type: 'replace', from, to }]);
 }
 
 export function safeWrap(text: string, target: string, open: string, close: string) {
     if (!target || !open || !close) return text;
-    const escaped = escapeRegExp(target);
-    const regex = new RegExp(escaped, 'g');
+    const escaped = escapeRegExp(target.normalize('NFC'));
+    const regex = new RegExp(escaped, 'gi');
 
     return text.replace(regex, (match, offset, full) => {
         const before = full[offset - 1];
         const after = full[offset + match.length];
-
-        // Check if already wrapped
         if (before === open && after === close) return match;
-
         return `${open}${match}${close}`;
     });
-}
-
-/**
- * Universal dispatcher for all correction types
- */
-export function applyCorrectionRule(text: string, rule: {
-    type?: string,
-    target?: string,
-    open?: string,
-    close?: string,
-    pattern?: string,
-    original?: string,
-    replace?: string,
-    replacement?: string,
-    from?: string,
-    to?: string
-}): string {
-    if (!text || !rule) return text;
-
-    try {
-        if (rule.type === 'wrap' && rule.target && rule.open && rule.close) {
-            return safeWrap(text, rule.target, rule.open, rule.close);
-        } else if (rule.type === 'regex') {
-            const pattern = rule.pattern || rule.original;
-            const replacement = rule.replace || rule.replacement;
-            if (!pattern) return text;
-            return text.replace(new RegExp(pattern, 'g'), replacement || "");
-        } else {
-            // Default: replace (legacy support for items without type)
-            const from = rule.from || rule.original;
-            const to = rule.to || rule.replacement;
-            if (from) {
-                return safeReplace(text, from, to || "");
-            }
-            return text;
-        }
-    } catch (e) {
-        console.error("Failed to apply correction rule:", e, rule);
-        return text;
-    }
 }

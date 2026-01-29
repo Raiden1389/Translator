@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "3.3.0",
-        "last_updated": "2026-01-28T21:00:00Z"
+        "last_updated": "2026-01-30T00:30:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Production Ready - v1.5.0 Released"
+        "status": "Production Ready - v1.6.0 Released"
     },
     "tech_stack": {
         "frontend": {
@@ -31,6 +31,7 @@
         "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
         "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
         "Review UI v2.0: Trình duyệt kết quả AI tối ưu, phân cấp thị giác và hỗ trợ duyệt hàng loạt",
+        "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-insensitive, Case-preserving) và Cải chính trực tiếp vào Reader",
         "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
         "Offline Storage: Lưu trữ dữ liệu local hoàn toàn",
         "TTS: Hỗ trợ đọc truyện bằng giọng nói máy",
@@ -50,6 +51,10 @@
             {
                 "name": "dictionary",
                 "desc": "Từ điển thuật ngữ/nhân vật cho từng bộ truyện"
+            },
+            {
+                "name": "corrections",
+                "desc": "Quy tắc sửa lỗi văn bản (thay thế, bọc, regex)"
             },
             {
                 "name": "blacklist",

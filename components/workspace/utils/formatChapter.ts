@@ -2,10 +2,13 @@
 
 import { InspectionIssue } from "@/lib/types";
 
+import { applyAllCorrections } from "@/lib/gemini/helpers";
+
 interface FormatParams {
     text: string;
     activeTTSIndex?: number | null;
     inspectionIssues?: InspectionIssue[];
+    corrections?: any[];
 }
 
 export interface ParagraphData {
@@ -22,7 +25,8 @@ export interface ParagraphData {
 export function formatChapterToParagraphs({
     text,
     activeTTSIndex = null,
-    inspectionIssues = []
+    inspectionIssues = [],
+    corrections = []
 }: FormatParams): ParagraphData[] {
     const normalizedText = (text || "").normalize('NFC');
     if (!normalizedText) return [];
@@ -36,8 +40,9 @@ export function formatChapterToParagraphs({
 
     const rawParagraphs = cleaned.split('\n').filter(p => p.trim().length > 0);
 
-    return rawParagraphs.map((para, index) => {
+    return rawParagraphs.map((rawPara, index) => {
         const isHighlighted = activeTTSIndex === index;
+        const para = applyAllCorrections(rawPara, corrections);
 
         // Map inspection issues to this specific paragraph
         const paraIssues = (inspectionIssues || []).filter(issue =>

@@ -7,7 +7,7 @@ import { VIETNAMESE_VOICES } from "@/lib/tts";
 const DEFAULT_CONFIG: ReaderConfig = {
     fontFamily: "'Inter', sans-serif",
     fontSize: 16,
-    lineHeight: 1.75,
+    lineHeight: 1.6,
     textAlign: "left",
     textColor: "#1F2937", /* gray-800 */
     backgroundColor: "#FFFCF7", /* Warm Cream */

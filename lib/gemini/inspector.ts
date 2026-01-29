@@ -24,7 +24,7 @@ export const inspectChapter = async (workspaceId: string, text: string, onLog?: 
         : '';
 
     return withKeyRotation<any>({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         systemInstruction: "Bạn là biên tập viên truyện Trung-Việt khó tính. Hãy tìm lỗi Untranslated, Pronoun, Grammar.",
         prompt: `${glossaryContext}
 

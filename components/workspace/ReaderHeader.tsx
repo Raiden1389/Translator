@@ -77,6 +77,7 @@ interface ReaderHeaderProps {
 
     onClearTranslation: () => void;
     onAIExtract?: () => void;
+    isHeaderVisible?: boolean;
 }
 
 /* ===================== SMALL COMPONENTS ===================== */
@@ -528,7 +529,8 @@ export function ReaderHeader(props: ReaderHeaderProps) {
         setTtsRate,
         onClearTranslation,
         onAIExtract,
-        scrollProgress = 0
+        scrollProgress = 0,
+        isHeaderVisible = true
     } = props;
 
     const [showTTSSettings, setShowTTSSettings] = useState(false);
@@ -536,7 +538,10 @@ export function ReaderHeader(props: ReaderHeaderProps) {
     if (!chapter) return null;
 
     return (
-        <header className="h-[72px] border-b bg-background flex flex-col z-60 shrink-0 select-none relative">
+        <header className={cn(
+            "h-[72px] border-b bg-background flex flex-col z-60 absolute top-0 left-0 w-full select-none transition-all duration-500 ease-in-out",
+            !isHeaderVisible && "-translate-y-full opacity-0"
+        )}>
             <div className="flex-1 flex items-center justify-between px-8">
                 {/* LEFT: Context & Progress */}
                 <div className="flex items-center gap-4">

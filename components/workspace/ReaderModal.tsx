@@ -49,6 +49,7 @@ export function ReaderModal({
     // 1. DATA LAYER
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
     const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(chapter?.workspaceId || "").toArray(), [chapter?.workspaceId]);
+    const corrections = useLiveQuery(() => db.corrections.where("workspaceId").equals(chapter?.workspaceId || "").toArray(), [chapter?.workspaceId]);
 
     // 2. CORE UI STATE
     const [activeTab, setActiveTab] = useState<"translated" | "original">("translated");
@@ -75,6 +76,7 @@ export function ReaderModal({
 
     const {
         scrollViewportRef,
+        isHeaderVisible,
         handleScroll,
         handleWheel
     } = useReaderNavigation({
@@ -119,8 +121,11 @@ export function ReaderModal({
     // 5. EFFECTS & HANDLERS
 
     useEffect(() => {
-        if (chapter) setEditContent(chapter.content_translated || "");
-    }, [chapter?.id]);
+        if (chapter) {
+            const content = chapter.content_translated || "";
+            setTimeout(() => setEditContent(content), 0);
+        }
+    }, [chapter?.id, chapter]);
 
     useEffect(() => {
         if (!chapter) return;
@@ -130,11 +135,14 @@ export function ReaderModal({
             }
         }, 1000);
         return () => clearTimeout(timer);
-    }, [editContent, chapterId]);
+    }, [editContent, chapterId, chapter]);
 
     const paragraphsData = useMemo(() => formatChapterToParagraphs({
-        text: editContent, activeTTSIndex, inspectionIssues
-    }), [editContent, activeTTSIndex, inspectionIssues]);
+        text: editContent,
+        activeTTSIndex,
+        inspectionIssues,
+        corrections: corrections || []
+    }), [editContent, activeTTSIndex, inspectionIssues, corrections]);
 
     const handleClearTranslation = async () => {
         if (!confirm("Xóa bản dịch của chương này để dịch lại?")) return;
@@ -182,69 +190,71 @@ export function ReaderModal({
     return (
         <div className="fixed inset-x-0 bottom-0 top-[31px] z-100 flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
             <div className="w-full h-full bg-background rounded-t-[32px] overflow-hidden flex flex-col border-t border-border shadow-2xl relative">
-                <ReaderHeader
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    chapter={chapter}
-                    isParallel={isParallel}
-                    setIsParallel={setIsParallel}
-                    isInspecting={isInspecting}
-                    handleInspect={() => handleInspect(editContent)}
-                    inspectionIssues={inspectionIssues}
-                    showSettings={showSettings}
-                    setShowSettings={setShowSettings}
-                    readerConfig={readerConfig}
-                    setReaderConfig={setReaderConfig}
-                    onNext={onNext}
-                    hasPrev={hasPrev}
-                    hasNext={hasNext}
-                    onClose={onClose}
-                    isTTSPlaying={isTTSPlaying}
-                    isTTSLoading={isTTSLoading}
-                    handleTTSPlay={toggleTTS}
-                    handleTTSStop={stopTTS}
-                    selectedVoice={readerConfig.ttsVoice}
-                    setSelectedVoice={(voice) => setReaderConfig(prev => ({ ...prev, ttsVoice: voice }))}
-                    ttsPitch={readerConfig.ttsPitch}
-                    setTtsPitch={(pitch) => setReaderConfig(prev => ({ ...prev, ttsPitch: pitch }))}
-                    ttsRate={readerConfig.ttsRate}
-                    setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
-                    onClearTranslation={handleClearTranslation}
-                    onAIExtract={() => handleAIExtractChapter(chapter.content_original || "")}
-                    scrollProgress={scrollProgress}
-                />
+                <div className="relative flex-1 flex flex-col overflow-hidden">
+                    <ReaderHeader
+                        isHeaderVisible={isHeaderVisible}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        chapter={chapter}
+                        isParallel={isParallel}
+                        setIsParallel={setIsParallel}
+                        isInspecting={isInspecting}
+                        handleInspect={() => handleInspect(editContent)}
+                        inspectionIssues={inspectionIssues}
+                        showSettings={showSettings}
+                        setShowSettings={setShowSettings}
+                        readerConfig={readerConfig}
+                        setReaderConfig={setReaderConfig}
+                        onNext={onNext}
+                        hasPrev={hasPrev}
+                        hasNext={hasNext}
+                        onClose={onClose}
+                        isTTSPlaying={isTTSPlaying}
+                        isTTSLoading={isTTSLoading}
+                        handleTTSPlay={toggleTTS}
+                        handleTTSStop={stopTTS}
+                        selectedVoice={readerConfig.ttsVoice}
+                        setSelectedVoice={(voice) => setReaderConfig(prev => ({ ...prev, ttsVoice: voice }))}
+                        ttsPitch={readerConfig.ttsPitch}
+                        setTtsPitch={(pitch) => setReaderConfig(prev => ({ ...prev, ttsPitch: pitch }))}
+                        ttsRate={readerConfig.ttsRate}
+                        setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
+                        onClearTranslation={handleClearTranslation}
+                        onAIExtract={() => handleAIExtractChapter(chapter.content_original || "")}
+                        scrollProgress={scrollProgress}
+                    />
 
-                <ReaderContent
-                    key={chapter.id}
-                    activeTab={activeTab}
-                    isParallel={isParallel}
-                    readerConfig={readerConfig}
-                    chapter={chapter}
-                    inspectionIssues={inspectionIssues}
-                    activeTTSIndex={activeTTSIndex}
-                    paragraphsData={paragraphsData}
-                    setEditContent={setEditContent}
-                    handleTextSelection={handleTextSelection}
-                    handleContextMenu={handleContextMenu}
-                    setActiveIssue={setActiveIssue}
-                    scrollViewportRef={scrollViewportRef}
-                    editorRef={editorRef}
-                    handleScroll={(e) => {
-                        handleScroll(e);
-                        const target = e.currentTarget;
-                        const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
-                        setScrollProgress(progress);
+                    <ReaderContent
+                        key={chapter.id}
+                        activeTab={activeTab}
+                        isParallel={isParallel}
+                        readerConfig={readerConfig}
+                        chapter={chapter}
+                        inspectionIssues={inspectionIssues}
+                        activeTTSIndex={activeTTSIndex}
+                        paragraphsData={paragraphsData}
+                        setEditContent={setEditContent}
+                        handleTextSelection={handleTextSelection}
+                        handleContextMenu={handleContextMenu}
+                        setActiveIssue={setActiveIssue}
+                        scrollViewportRef={scrollViewportRef}
+                        editorRef={editorRef}
+                        handleScroll={(e) => {
+                            handleScroll(e);
+                            const target = e.currentTarget;
+                            const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
+                            setScrollProgress(progress);
 
-                        // Condition: scroll >= 1.5 viewports (approx 1500px or screen based)
-                        setShowBackToTop(target.scrollTop > target.clientHeight * 1.5);
+                            setShowBackToTop(target.scrollTop > target.clientHeight * 1.5);
 
-                        if (menuPosition) setMenuPosition(null);
-                        if (contextMenuPosition) setContextMenuPosition(null);
-                    }}
-                    handleWheel={handleWheel}
-                    onNext={onNext}
-                    hasNext={hasNext}
-                />
+                            if (menuPosition) setMenuPosition(null);
+                            if (contextMenuPosition) setContextMenuPosition(null);
+                        }}
+                        handleWheel={handleWheel}
+                        onNext={onNext}
+                        hasNext={hasNext}
+                    />
+                </div>
 
                 {/* MODULAR FLOATING UI STACK */}
                 <FloatingProgressPill

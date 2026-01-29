@@ -7,7 +7,7 @@ import { extractResponseText } from "./helpers";
  */
 export const analyzeStyleDNA = async (chaptersContent: string[], onLog?: (msg: string) => void): Promise<StyleDNA> => {
     return withKeyRotation<any>({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         systemInstruction: "Bạn là nhà phê bình văn học và chuyên gia phân tích văn phong truyện Trung-Việt.",
         prompt: `Phân tích đoạn văn mẫu sau để trích xuất \"DNA Văn Học\" (Style DNA): 
         

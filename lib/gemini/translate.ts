@@ -19,8 +19,8 @@ export const translateChapter = async (
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
 
-    // Clean text: Remove excessive whitespace to save tokens
-    text = text.trim().replace(/\n\s*\n/g, '\n\n');
+    // Clean text: Normalize Unicode (NFC) and remove excessive whitespace
+    text = text.normalize('NFC').trim().replace(/\n\s*\n/g, '\n\n');
 
     // 1. Get Glossary & Blacklist
     let relevantDict: DictionaryEntry[] = [];
@@ -122,53 +122,13 @@ export const translateChapter = async (
             if (lastMatch) parsed.translatedText = lastMatch[1].replace(/\\n/g, '\n');
         }
 
-        // 3. Apply Auto-Corrections (Optimized Regex Replacement for simple replacements)
+        // 3. Apply Auto-Corrections (Universal Logic: NFC + LongestFirst + CasePreserve)
         const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
         if (corrections.length > 0) {
-            // 3a. Batch replacement for 'replace' types (Efficient)
-            const replaceRules = corrections.filter(c =>
-                (c.type === 'replace' || !c.type) &&
-                (c.from || c.original)
-            );
-
-            if (replaceRules.length > 0) {
-                const sorted = [...replaceRules].sort((a, b) => {
-                    const lenA = (a.from || a.original || "").length;
-                    const lenB = (b.from || b.original || "").length;
-                    return lenB - lenA;
-                });
-
-                const replacementMap = new Map(sorted.map(c => [
-                    c.from || c.original || "",
-                    c.to ?? c.replacement ?? ""
-                ]));
-
-                const pattern = new RegExp(
-                    sorted
-                        .map(c => (c.from || c.original || "").replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                        .filter(p => p.length > 0)
-                        .join('|'),
-                    'g'
-                );
-
-                if (pattern.source !== "(?:)" && pattern.source !== "") {
-                    parsed.translatedText = parsed.translatedText.replace(pattern, (match) => replacementMap.get(match) || match);
-                    if (parsed.translatedTitle) {
-                        parsed.translatedTitle = parsed.translatedTitle.replace(pattern, (match) => replacementMap.get(match) || match);
-                    }
-                }
-            }
-
-            // 3b. Individual application for 'wrap' and 'regex' types
-            const complexRules = corrections.filter(c => c.type === 'wrap' || c.type === 'regex');
-            if (complexRules.length > 0) {
-                const { applyCorrectionRule } = await import("./helpers");
-                for (const rule of complexRules) {
-                    parsed.translatedText = applyCorrectionRule(parsed.translatedText, rule);
-                    if (parsed.translatedTitle) {
-                        parsed.translatedTitle = applyCorrectionRule(parsed.translatedTitle, rule);
-                    }
-                }
+            const { applyAllCorrections } = await import("./helpers");
+            parsed.translatedText = applyAllCorrections(parsed.translatedText, corrections);
+            if (parsed.translatedTitle) {
+                parsed.translatedTitle = applyAllCorrections(parsed.translatedTitle, corrections);
             }
         }
 

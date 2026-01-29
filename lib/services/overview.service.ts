@@ -102,7 +102,7 @@ export async function generateAiSummary(workspace: Workspace): Promise<string> {
     }
 
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = (modelSetting?.value as string) || "gemini-2.0-flash-exp";
+    const aiModel = (modelSetting?.value as string) || "gemini-2.0-flash";
 
     return await generateBookSummary(contextText, aiModel);
 }

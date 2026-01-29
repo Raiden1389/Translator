@@ -2,7 +2,7 @@ export const AI_MODELS = [
     { value: "gemini-3-flash-preview", label: "Gemini 3.0 Flash (Paid Tier)", inputPrice: 0.15, outputPrice: 0.6 },
     { value: "gemini-3-pro-preview", label: "Gemini 3.0 Pro (Paid Tier)", inputPrice: 1.25, outputPrice: 5.0 },
     { value: "gemini-2.5-flash-preview-09-2025", label: "Gemini 2.5 Flash (Paid Tier)", inputPrice: 0.075, outputPrice: 0.3 },
-    { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash Exp (Free)", inputPrice: 0, outputPrice: 0 },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Free)", inputPrice: 0, outputPrice: 0 },
     { value: "gemini-1.5-pro-002", label: "Gemini 1.5 Pro 002", inputPrice: 1.25, outputPrice: 5.0 },
     { value: "gemini-1.5-flash-002", label: "Gemini 1.5 Flash 002", inputPrice: 0.075, outputPrice: 0.3 },
     { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash", inputPrice: 0.075, outputPrice: 0.3 },

@@ -294,6 +294,13 @@ export const rehydrateFromStorage = async () => {
     }
 
     try {
+        // Auto-Migration for AI Model (Fix v1beta not found for experimental models)
+        const aiModelSetting = await db.settings.get("aiModel");
+        if (aiModelSetting && aiModelSetting.value === "gemini-2.0-flash-exp") {
+            await db.settings.put({ key: "aiModel", value: "gemini-2.0-flash" });
+            console.log("🔄 Auto-migrated AI Model from experimental to stable gemini-2.0-flash.");
+        }
+
         const count = await db.workspaces.count();
         if (count > 0) {
             isRehydrated = true;

@@ -11,9 +11,6 @@ interface UseReaderNavigationProps {
     isDisabled?: boolean; // Block navigation when dialogs are open or cooldown is active
 }
 
-/**
- * Hook for managing chapter navigation, scrolling, and "double scroll to next" logic.
- */
 export function useReaderNavigation({
     chapterId,
     hasNext,
@@ -23,42 +20,66 @@ export function useReaderNavigation({
 }: UseReaderNavigationProps) {
     const scrollViewportRef = useRef<HTMLDivElement>(null);
     const lastChapterIdRef = useRef<number | null>(null);
+    const lastScrollTopRef = useRef<number>(0);
 
     const [isReadyToNext, setIsReadyToNext] = useState(false);
     const [readyTimestamp, setReadyTimestamp] = useState(0);
     const [isAutoNavigating, setIsAutoNavigating] = useState(false);
 
-    // Reset Scroll on Chapter Change - PROTECT SCROLL POSITION
+    // UX States
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+
+    // 1. Persistence & Auto-scroll Offset
     useEffect(() => {
-        // Only scroll to top when chapter ID REALLY changes
         if (chapterId !== lastChapterIdRef.current) {
+            const savedPos = localStorage.getItem(`reader_pos_${chapterId}`);
             if (scrollViewportRef.current) {
-                scrollViewportRef.current.scrollTo(0, 0);
+                if (savedPos && Number(savedPos) > 100) {
+                    scrollViewportRef.current.scrollTo(0, Math.max(0, Number(savedPos) - 150));
+                } else {
+                    scrollViewportRef.current.scrollTo(0, 0);
+                }
             }
             stopTTS();
 
-            // Fixed: Avoid calling setState synchronously within effect body
-            const timer = setTimeout(() => {
+            setTimeout(() => {
                 setIsAutoNavigating(false);
                 setIsReadyToNext(false);
+                setIsHeaderVisible(true);
             }, 0);
 
             lastChapterIdRef.current = chapterId;
-            return () => clearTimeout(timer);
         }
     }, [chapterId, stopTTS]);
 
+
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        const { scrollTop, scrollHeight, clientHeight } = target;
+
+        // Auto-hide Header Logic
+        const diff = scrollTop - lastScrollTopRef.current;
+        if (Math.abs(diff) > 20) { // Threshold
+            if (diff > 0 && isHeaderVisible && scrollTop > 200) {
+                setIsHeaderVisible(false);
+            } else if (diff < 0 && !isHeaderVisible) {
+                setIsHeaderVisible(true);
+            }
+            lastScrollTopRef.current = scrollTop;
+        }
+
+        // Save Position
+        if (scrollTop > 0) {
+            localStorage.setItem(`reader_pos_${chapterId}`, scrollTop.toString());
+        }
+
         if (isDisabled) {
             if (isReadyToNext) setIsReadyToNext(false);
             return;
         }
 
-        const target = e.currentTarget;
-        const { scrollTop, scrollHeight, clientHeight } = target;
         const distanceToBottom = scrollHeight - scrollTop - clientHeight;
 
-        // "Double Scroll" Logic - Show Notification
         if (distanceToBottom < 10) {
             if (hasNext && !isAutoNavigating && onNext && !isReadyToNext) {
                 setIsReadyToNext(true);
@@ -70,19 +91,15 @@ export function useReaderNavigation({
                 });
             }
         } else if (distanceToBottom > 100) {
-            // Reset if user scrolls up significantly
             if (isReadyToNext) setIsReadyToNext(false);
         }
-    }, [hasNext, isAutoNavigating, onNext, isReadyToNext, isDisabled]);
+    }, [chapterId, hasNext, isAutoNavigating, onNext, isReadyToNext, isDisabled, isHeaderVisible]);
 
     const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
         if (isDisabled) return;
 
-        // "Double Scroll" Logic - Actual Navigation
         if (e.deltaY > 0 && isReadyToNext && !isAutoNavigating && hasNext && onNext) {
-            // Prevent accidental trigger (need ~500ms gap)
             if (Date.now() - readyTimestamp < 500) return;
-
             const target = e.currentTarget;
             const { scrollTop, scrollHeight, clientHeight } = target;
             const distanceToBottom = scrollHeight - scrollTop - clientHeight;
@@ -101,9 +118,7 @@ export function useReaderNavigation({
 
     return {
         scrollViewportRef,
-        isReadyToNext,
-        setIsReadyToNext,
-        isAutoNavigating,
+        isHeaderVisible,
         handleScroll,
         handleWheel,
         resetNavigationState

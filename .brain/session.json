@@ -1,74 +1,73 @@
 {
-    "updated_at": "2026-01-28T21:10:00Z",
+    "updated_at": "2026-01-30T00:30:00Z",
     "working_on": {
-        "feature": "AI NER v3.0 & Production Release (v1.5.0)",
-        "task": "Hợp nhất hệ thống trích xuất, nâng cấp UI Review và xuất bản bản build ổn định",
+        "feature": "AI Correction Engine v2.0 & Reader UX",
+        "task": "Nâng cấp bộ máy sửa lỗi hỗ trợ Case-Preserve, Live Corrections và tối ưu hóa hiển thị Reader",
         "status": "completed",
         "files": [
-            "lib/services/name-hunter/ai-extractor.ts",
-            "components/workspace/editor/hooks/useAIExtraction.ts",
-            "components/workspace/ReviewDialog.tsx",
-            "components/workspace/ReaderHeader.tsx",
-            "package.json",
-            "CHANGELOG.md"
+            "lib/gemini/helpers.ts",
+            "lib/gemini/translate.ts",
+            "components/workspace/dictionary/hooks/useCorrections.ts",
+            "components/workspace/dictionary/tabs/CorrectionsView.tsx",
+            "components/workspace/ReaderContent.tsx",
+            "components/workspace/utils/formatChapter.ts"
         ],
-        "notes": "Đã hoàn thành cột mốc quan trọng v1.5.0 với hệ thống quét AI thông minh vượt bậc."
+        "notes": "Đã giải quyết triệt để vấn đề sửa lỗi nhiều lần bằng bộ lọc Unicode NFC và cơ chế tóm gọn ký tự ẩn."
     },
     "recent_changes": [
         {
-            "type": "Architecture",
-            "description": "Unified AI Extraction (v3.0): Merge legacy scanners into a high-performance, chunked AI NER engine with auto-recovery.",
+            "type": "Logic",
+            "description": "Unified Correction Engine: Hỗ trợ 'Longest First' matching, Case-Preservation (giữ nguyên hoa thường), và Unicode Normalization (NFC).",
             "files": [
-                "ai-extractor.ts",
-                "useAIExtraction.ts"
+                "helpers.ts"
+            ]
+        },
+        {
+            "type": "Feature",
+            "description": "Live Corrections: Trình đọc tự động áp dụng quy tắc cải chính vào văn bản hiển thị trong thời gian thực, không cần dịch lại chương.",
+            "files": [
+                "ReaderModal.tsx",
+                "formatChapter.ts"
             ]
         },
         {
             "type": "UI/UX",
-            "description": "ReviewDialog v2.0: Optimized layout, visual anchoring for Chinese Serif/Vietnamese Emerald, and left indicators for selection.",
+            "description": "Reader Layout: Chia đoạn cho văn bản gốc Tiếng Trung; tối ưu hóa khoảng cách dòng và đoạn văn cho trải nghiệm đọc tập trung.",
             "files": [
-                "ReviewDialog.tsx"
+                "ReaderContent.tsx",
+                "globals.css"
             ]
         },
         {
-            "type": "Logic",
-            "description": "Implemented individual entity descriptions and preservation logic (don't overwrite user descriptions).",
+            "type": "UI/UX",
+            "description": "Corrections Panel: Thiết kế lại bố cục cuộn và nút bấm 'Áp dụng' để tăng tính tiện dụng.",
             "files": [
-                "ai-extractor.ts",
-                "CharacterTab.tsx"
-            ]
-        },
-        {
-            "type": "Cleanup",
-            "description": "Deleted redundant Name Hunter UI components and buttons from ReaderHeader.",
-            "files": [
-                "ReaderHeader.tsx",
-                "NameHunterDialog.tsx"
+                "CorrectionsView.tsx"
             ]
         }
     ],
     "decisions_made": [
         {
-            "decision": "Use AI to generate contextual descriptions for NEW entities",
-            "reason": "Cung cấp thông tin hữu ích ngay khi vừa tìm thấy nhân vật/thuật ngữ."
+            "decision": "Chuyển sang cơ chế Live Correction trong Reader",
+            "reason": "Giảm bớt thao tác thủ công của người dùng và mang lại phản hồi tức thì khi thay đổi từ điển/cải chính."
         },
         {
-            "decision": "Preserve existing descriptions during save/update",
-            "reason": "Bảo vệ công sức biên soạn thủ công của người dùng."
+            "decision": "Sắp xếp quy tắc theo độ dài (Longest Match First)",
+            "reason": "Ngăn chặn các quy tắc ngắn phá hỏng các cụm từ phức tạp hơn."
         },
         {
-            "decision": "Remove Name Hunter button entirely",
-            "reason": "Tránh gây nhiễu và thừa thãi khi AI NER v3.0 đã quá mạnh mẽ."
+            "decision": "Ép chuẩn Unicode NFC cho toàn bộ đầu vào/đầu ra",
+            "reason": "Khắc phục lỗi không khớp từ do khác biệt mã hóa ký tự Tiếng Việt."
         }
     ],
     "pending_tasks": [
         {
-            "task": "Theo dõi phản hồi về tính chuẩn xác của AI-generated descriptions",
-            "priority": "low"
+            "task": "Kiểm tra hiệu năng Live Correction khi số lượng quy tắc lên đến hàng trăm dòng",
+            "priority": "medium"
         },
         {
-            "task": "Nghiên cứu tối ưu hóa tốc độ build Tauri (hiện tại mất ~5-7p)",
-            "priority": "medium"
+            "task": "Nghiên cứu thêm tính năng 'Suggest Correction' khi người dùng bôi đen văn bản sai",
+            "priority": "low"
         }
     ]
 }

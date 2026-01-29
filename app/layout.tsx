@@ -53,34 +53,31 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-px select-none`}
       >
         <div className="flex-1 flex flex-col bg-background rounded-lg border border-border shadow-2xl overflow-hidden relative group/window">
-          {/* Window Shadow Overlay */}
-          <div className="absolute inset-0 rounded-lg pointer-events-none shadow-[0_0_20px_rgba(0,0,0,0.05)]" />
-
-          <TitleBar />
-          <main className="flex-1 overflow-hidden flex flex-col relative z-0">
+          <RaidenProvider>
             <ErrorBoundary>
-              <RaidenProvider>
-                <TranslationProvider>
-                  <TooltipProvider delayDuration={400}>
+              <TranslationProvider>
+                <TooltipProvider delayDuration={400}>
+                  <TitleBar />
+                  <main className="flex-1 overflow-hidden flex flex-col relative z-0">
                     {children}
                     <GlobalTranslationProgress />
-                  </TooltipProvider>
-                </TranslationProvider>
-              </RaidenProvider>
+                  </main>
+                  <StatusBar />
+                  <Toaster
+                    position="bottom-right"
+                    expand={true}
+                    richColors
+                    theme="light"
+                    toastOptions={{
+                      className: "bg-card border border-border text-foreground shadow-2xl rounded-xl",
+                    }}
+                  />
+                </TooltipProvider>
+              </TranslationProvider>
             </ErrorBoundary>
-          </main>
-          <StatusBar />
-          <Toaster
-            position="bottom-right"
-            expand={true}
-            richColors
-            theme="light"
-            toastOptions={{
-              className: "bg-card border border-border text-foreground shadow-2xl rounded-xl",
-            }}
-          />
-        </div >
-      </body >
+          </RaidenProvider>
+        </div>
+      </body>
     </html >
   );
 }

@@ -4,32 +4,10 @@ import { useState, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, CorrectionEntry } from "@/lib/db";
 import { toast } from "sonner";
-import { finalSweep, escapeRegExp, safeReplace, safeWrap } from "@/lib/gemini/helpers";
+import { applyAllCorrections, finalSweep } from "@/lib/gemini/helpers";
 
 function applyRule(text: string, rule: CorrectionEntry): string {
-    if (!text) return "";
-
-    // Fallback for legacy rules (migration should handle this, but safe check)
-    const type = rule.type || 'replace';
-
-    switch (type) {
-        case 'replace':
-            return safeReplace(text, rule.from || rule.original || "", rule.to || rule.replacement || ""); // Support legacy fields fallback
-        case 'wrap':
-            return safeWrap(text, rule.target || "", rule.open || "", rule.close || "");
-        case 'regex':
-            if (rule.pattern && rule.replace) {
-                try {
-                    return text.replace(new RegExp(rule.pattern, 'g'), rule.replace);
-                } catch (e) {
-                    console.error("Invalid regex rule:", rule);
-                    return text;
-                }
-            }
-            return text;
-        default:
-            return text;
-    }
+    return applyAllCorrections(text, [rule]);
 }
 
 export function useCorrections(workspaceId: string) {
@@ -70,43 +48,63 @@ export function useCorrections(workspaceId: string) {
         };
 
         if (ruleType === 'replace') {
-            if (!field1 || !field2) {
+            const f1 = field1.trim().normalize('NFC');
+            const f2 = field2.trim().normalize('NFC');
+            if (!f1 || !f2) {
                 toast.error("Vui lòng nhập đủ từ sai và từ đúng");
                 return;
             }
-            entry.from = field1;
-            entry.to = field2;
-            // Legacy support
-            entry.original = field1;
-            entry.replacement = field2;
+            // Duplicate Check
+            const exists = corrections.find(c =>
+                c.type === 'replace' &&
+                (c.from || c.original || "").normalize('NFC').toLowerCase() === f1.toLowerCase()
+            );
+            if (exists) {
+                toast.error("Quy tắc này đã tồn tại rồi!");
+                return;
+            }
+            entry.from = f1;
+            entry.to = f2;
+            entry.original = f1;
+            entry.replacement = f2;
         } else if (ruleType === 'wrap') {
-            if (!field1 || !field2 || !field3) {
+            const f1 = field1.trim().normalize('NFC');
+            const f2 = field2.trim();
+            const f3 = field3.trim();
+            if (!f1 || !f2 || !f3) {
                 toast.error("Vui lòng nhập Target, Open, Close");
                 return;
             }
-            if (field1.includes('[') || field1.includes(']')) {
-                toast.error("Target không được chứa dấu ngoặc [ ]");
+            // Duplicate Check
+            const exists = corrections.find(c =>
+                c.type === 'wrap' &&
+                c.target?.normalize('NFC').toLowerCase() === f1.toLowerCase()
+            );
+            if (exists) {
+                toast.error("Quy tắc bọc cho từ này đã có rồi!");
                 return;
             }
-            if (field2 === field3) {
-                toast.error("Open và Close không được giống nhau");
-                return;
-            }
-            entry.target = field1;
-            entry.open = field2;
-            entry.close = field3;
-            // Mock legacy for display
-            entry.original = field1;
-            entry.replacement = `${field2}${field1}${field3}`;
+            entry.target = f1;
+            entry.open = f2;
+            entry.close = f3;
+            entry.original = f1;
+            entry.replacement = `${f2}${f1}${f3}`;
         } else if (ruleType === 'regex') {
-            if (!field1 || !field2) {
-                toast.error("Vui lòng nhập Pattern và Replacement");
+            const f1 = field1.trim();
+            const f2 = field2.trim();
+            if (!f1) {
+                toast.error("Vui lòng nhập Pattern");
                 return;
             }
-            entry.pattern = field1;
-            entry.replace = field2;
-            entry.original = field1;
-            entry.replacement = field2;
+            const exists = corrections.find(c => c.type === 'regex' && c.pattern === f1);
+            if (exists) {
+                toast.error("Quy tắc Regex này đã tồn tại!");
+                return;
+            }
+            entry.pattern = f1;
+            entry.replace = f2;
+            entry.original = f1;
+            entry.replacement = f2;
         }
 
         await db.corrections.add(entry);
@@ -163,16 +161,12 @@ export function useCorrections(workspaceId: string) {
             const affectedNames: string[] = [];
 
             for (const chapter of validChapters) {
-                let content = chapter.content_translated || "";
-                let title = chapter.title_translated || chapter.title;
-                const originalContent = content;
-                const originalTitle = title;
+                const originalContent = chapter.content_translated || "";
+                const originalTitle = chapter.title_translated || chapter.title;
 
-                // Apply ALL rules sequentially
-                for (const rule of corrections) {
-                    content = applyRule(content, rule);
-                    title = applyRule(title, rule);
-                }
+                // Apply ALL rules at once (Efficient & Sorted)
+                let content = applyAllCorrections(originalContent, corrections);
+                let title = applyAllCorrections(originalTitle, corrections);
 
                 // Final Sweep (Safety Net)
                 content = finalSweep(content);

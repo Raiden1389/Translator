@@ -14,12 +14,14 @@ export function RaidenProvider({ children }: { children: React.ReactNode }) {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        const saved = localStorage.getItem("raiden-mode");
-        if (saved === "true") {
-            setIsRaidenMode(true);
-            document.documentElement.classList.add("raiden-mode");
-        }
-        setMounted(true);
+        setTimeout(() => {
+            const saved = localStorage.getItem("raiden-mode");
+            if (saved === "true") {
+                setIsRaidenMode(true);
+                document.documentElement.classList.add("raiden-mode");
+            }
+            setMounted(true);
+        }, 0);
     }, []);
 
     const toggleRaidenMode = () => {
@@ -35,13 +37,11 @@ export function RaidenProvider({ children }: { children: React.ReactNode }) {
         });
     };
 
-    if (!mounted) {
-        return <>{children}</>;
-    }
-
     return (
         <RaidenContext.Provider value={{ isRaidenMode, toggleRaidenMode }}>
-            {children}
+            <div style={{ visibility: mounted ? "visible" : "hidden" }}>
+                {children}
+            </div>
         </RaidenContext.Provider>
     );
 }

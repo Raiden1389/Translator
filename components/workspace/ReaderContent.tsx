@@ -69,7 +69,8 @@ const ParagraphItem = React.memo(({
         para.issues.forEach(issue => {
             if (!issue.original) return;
             const regex = new RegExp(issue.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-            text = text.replace(regex, `<span class="border-b-2 border-rose-400/50 bg-rose-400/10 cursor-help" data-issue-original="${issue.original}">${issue.original}</span>`);
+            // Subtle AI Underline: Low opacity by default, bright on hover
+            text = text.replace(regex, `<span class="border-b border-rose-400/20 hover:border-rose-400 hover:bg-rose-400/10 transition-all cursor-help" data-issue-original="${issue.original}">${issue.original}</span>`);
         });
 
         return { __html: text };
@@ -80,7 +81,7 @@ const ParagraphItem = React.memo(({
             id={`tts-para-${index}`}
             className={cn(
                 "mb-[var(--reader-paragraph-spacing)] transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
-                !isDialogue && "indent-8",
+                "indent-8",
                 isDialogue && !isRaidenMode && (para.text.startsWith("“") || para.text.startsWith("\"") || para.text.startsWith("-")) && "text-[hsl(var(--dialogue-text))] not-italic opacity-95",
                 isDialogue && !isRaidenMode && showDialogueLines && "border-l-2 border-l-[hsl(var(--dialogue-quote-border))]",
                 isHighlighted
@@ -88,7 +89,7 @@ const ParagraphItem = React.memo(({
                     : (isRaidenMode ? "hover:bg-slate-800/10" : "hover:bg-slate-50/20")
             )}
             style={{
-                lineHeight: isDialogue ? (Number(readerConfig?.lineHeight || 1.6) * 1.15) : undefined
+                lineHeight: readerConfig.lineHeight
             }}
             dangerouslySetInnerHTML={renderContent()}
         />
@@ -147,7 +148,11 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     color: "currentColor",
                                     opacity: isParallel ? 0.4 : 0.8
                                 }}>
-                                {chapter.content_original}
+                                {chapter.content_original?.split('\n').filter(p => p.trim()).map((p, i) => (
+                                    <p key={i} className="mb-[var(--reader-paragraph-spacing)]">
+                                        {p.trim()}
+                                    </p>
+                                ))}
                             </div>
                         </div>
                     </div>

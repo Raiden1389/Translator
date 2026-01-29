@@ -2,6 +2,20 @@
 
 Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
 
+## [1.6.0] - 2026-01-30
+
+### 🧠 Bộ máy Cải chính Thông minh (Correction Engine v2.0)
+- **Tự động nhận diện Chữ hoa/Chữ thường:** Chỉ cần thêm 1 quy tắc viết thường, hệ thống tự động sửa cho cả bản viết hoa và viết hoa đầu câu.
+- **Bảo lưu định dạng (Case-Preserving):** Ví dụ: `chủ công` -> `chúa công` thì `Chủ công` tự động thành `Chúa công`, `CHỦ CÔNG` thành `CHÚA CÔNG`.
+- **Cải chính Trực tiếp (Live Correction):** Các thay đổi trong bảng Cải chính sẽ được áp dụng ngay lập tức lên giao diện trình đọc mà không cần dịch lại hay load lại chương.
+- **Thanh tẩy ký tự ẩn (Invisible Character Nuke):** Tự động loại bỏ các ký tự tàng hình (zero-width) và chuẩn hóa khoảng trắng để đảm bảo khớp 100% quy tắc.
+- **Chuẩn hóa Unicode (NFC):** Đảm bảo tính đồng nhất của các ký tự Tiếng Việt (dấu hỏi, dấu ngã) giữa bản gốc AI và dữ liệu người dùng nhập.
+
+### 📖 Trình đọc & UI (Reader & UX Enhancements)
+- **Đối chiếu Song song (Better Parallel View):** Văn bản gốc Tiếng Trung giờ đây được chia đoạn (paragraph) khớp với bản dịch, giúp việc đối chiếu trở nên dễ dàng hơn.
+- **Độ chật văn bản (Compact Layout):** Giảm chiều cao dòng và khoảng cách đoạn văn để hiển thị được nhiều nội dung hơn trên một màn hình, giảm mỏi tay khi cuộn.
+- **Scrolling Cải chính:** Thiết kế lại tab Cải chính với danh sách có thể cuộn độc lập và nút "Áp dụng" luôn cố định ở dưới cùng, cực kỳ dễ dùng trên mọi kích cỡ màn hình.
+
 ## [1.5.0] - 2026-01-28
 
 ### 🚀 Tái cấu trúc Hệ thống Trình trích xuất (AI NER v3.0)
