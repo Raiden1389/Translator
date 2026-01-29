@@ -1,17 +1,5 @@
 import { useState, useEffect } from "react";
-
-export interface ReaderConfig {
-    fontFamily: string;
-    fontSize: number;
-    lineHeight: number;
-    textAlign: "left" | "center" | "right" | "justify";
-    textColor: string;
-    backgroundColor: string;
-    maxWidth: number;
-    ttsPitch: number;
-    ttsRate: number;
-    ttsVoice: string;
-}
+import { type ReaderConfig } from "../ReaderHeader";
 
 const DEFAULT_CONFIG: ReaderConfig = {
     fontFamily: "'Bookerly', serif",
@@ -21,6 +9,7 @@ const DEFAULT_CONFIG: ReaderConfig = {
     textColor: "#e2e8f0",
     backgroundColor: "#1e293b",
     maxWidth: 800,
+    showDialogueLines: true,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: "vi-VN-HoaiMyNeural", // Default Vietnamese voice
@@ -40,7 +29,8 @@ export function useReaderConfig() {
         const savedConfig = localStorage.getItem("readerConfig");
         if (savedConfig) {
             try {
-                setReaderConfig(JSON.parse(savedConfig));
+                const parsed = JSON.parse(savedConfig);
+                setReaderConfig({ ...DEFAULT_CONFIG, ...parsed });
             } catch (e) {
                 console.error("Failed to parse reader config", e);
             }
