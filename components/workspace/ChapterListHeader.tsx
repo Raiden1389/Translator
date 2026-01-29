@@ -40,10 +40,8 @@ interface ChapterListHeaderProps {
     setSelectedChapters: (value: number[]) => void;
     onExport: () => void;
     onImport: () => void;
-    importInputRef: React.RefObject<HTMLInputElement | null>;
     fileInputRef: React.RefObject<HTMLInputElement | null>;
     onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
     importing: boolean;
     onTranslate: () => void;
     onAIExtract?: () => void;
@@ -54,6 +52,7 @@ interface ChapterListHeaderProps {
     workspaceId: string;
     lastReadChapterId?: number;
     onReadContinue?: (id: number) => void;
+    onBulkClearTranslation?: () => void;
 }
 
 export function ChapterListHeader({
@@ -71,10 +70,8 @@ export function ChapterListHeader({
     setSelectedChapters,
     onExport,
     onImport,
-    importInputRef,
     fileInputRef,
     onFileUpload,
-    onImportJSON,
     importing,
     onTranslate,
     onAIExtract,
@@ -82,9 +79,9 @@ export function ChapterListHeader({
     viewMode,
     onViewModeChange,
     onSelectRange,
-    workspaceId,
     lastReadChapterId,
-    onReadContinue
+    onReadContinue,
+    onBulkClearTranslation
 }: ChapterListHeaderProps) {
     return (
         <div className="sticky top-2 z-30 bg-card/95 border border-border rounded-xl shadow-md mb-6 -mx-2 px-6 pb-2 transition-all duration-300 backdrop-blur-sm">
@@ -127,7 +124,7 @@ export function ChapterListHeader({
                     {/* Filter */}
                     <Select
                         value={filterStatus}
-                        onValueChange={(value) => setFilterStatus(value as any)}
+                        onValueChange={(value: "all" | "draft" | "translated") => setFilterStatus(value)}
                     >
                         <SelectTrigger className="h-8 w-[130px] bg-background border-border text-foreground focus:ring-primary">
                             <div className="flex items-center gap-2">
@@ -201,7 +198,7 @@ export function ChapterListHeader({
                                             try {
                                                 await clearTranslationCache();
                                                 toast.success("Đã dọn dẹp bộ nhớ Cache!");
-                                            } catch (e) {
+                                            } catch {
                                                 toast.error("Lỗi khi dọn dẹp Cache.");
                                             }
                                         }
@@ -213,6 +210,21 @@ export function ChapterListHeader({
                             <TooltipContent side="left">Dọn dẹp Cache</TooltipContent>
                         </Tooltip>
 
+                        {/* Import JSON */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={onImport}
+                                    className="h-7 w-7 text-primary hover:bg-primary/10"
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Nhập dữ liệu JSON</TooltipContent>
+                        </Tooltip>
+
                         {/* Export JSON */}
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -220,34 +232,12 @@ export function ChapterListHeader({
                                     size="icon"
                                     variant="ghost"
                                     onClick={onExport}
-                                    className="h-7 w-7 text-primary hover:bg-primary/10"
-                                >
-                                    <Download className="h-3.5 w-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">Xuất dữ liệu</TooltipContent>
-                        </Tooltip>
-
-                        {/* Import JSON */}
-                        <input
-                            ref={importInputRef}
-                            type="file"
-                            accept=".json"
-                            onChange={onImportJSON}
-                            className="hidden"
-                        />
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={onImport}
                                     className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
                                 >
                                     <Upload className="h-3.5 w-3.5" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="left">Nhập dữ liệu JSON</TooltipContent>
+                            <TooltipContent side="left">Xuất dữ liệu JSON</TooltipContent>
                         </Tooltip>
 
                         {/* Import EPUB/TXT */}
@@ -376,6 +366,14 @@ export function ChapterListHeader({
                             className="h-8 font-semibold px-5 shadow-sm"
                         >
                             <FileText className="mr-1.5 h-3.5 w-3.5" /> Dịch
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={onBulkClearTranslation}
+                            className="h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 font-semibold px-4 transition-colors"
+                        >
+                            <Eraser className="mr-1.5 h-3.5 w-3.5" /> Dọn bản dịch
                         </Button>
                         <Button
                             size="sm"

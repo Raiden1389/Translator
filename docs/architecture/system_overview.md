@@ -22,8 +22,11 @@ Sử dụng Gemini API để dịch nội dung.
 - **Smart Capitalization Engine (v2.0):** Một lớp hậu xử lý (post-processing) động. Nó kết hợp danh sách đại từ hệ thống với Từ điển của người dùng để "ép" các danh từ chung về viết thường khi đứng giữa câu, đảm bảo văn phong thuần Việt.
 
 ### C. AI Analysis Tools
-1. **Name Hunter:** Công cụ local sử dụng Regex kết hợp AI để bóc tách tên riêng nhanh chóng.
-2. **AI Scan (Legacy):** Sử dụng Gemini để phân tích ngữ cảnh và bóc tách thuật ngữ/nhân vật chuyên sâu.
+1. **AI NER v3.0 (Unified):** Công cụ trích xuất thực thể mạnh mẽ dựa trên Gemini AI, thay thế hoàn toàn Name Hunter cũ. 
+   - **Tự động hóa hoàn toàn:** Nhận diện Nhân vật, Địa danh, Công pháp, Tổ chức với độ chính xác cao.
+   - **Mô tả ngữ cảnh:** AI tự động viết giải nghĩa/vai trò cho các tên mới tìm thấy thay vì để trống.
+   - **Hán Việt chuẩn:** Tự động chuyển đổi tên từ chữ Hán sang âm Hán Việt.
+   - **Bảo vệ mô tả:** Đảm bảo không ghi đè lên các mô tả thủ công của người dùng.
 
 ### D. Reader & Editor
 - Chế độ đọc tập trung (Raiden Mode).

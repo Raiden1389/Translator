@@ -33,3 +33,20 @@ export async function clearChapterTranslation(id: number) {
         translationModel: undefined
     });
 }
+
+/**
+ * Xóa bản dịch của nhiều chương
+ */
+export async function bulkClearChapterTranslations(ids: number[]) {
+    return await db.transaction('rw', db.chapters, async () => {
+        for (const id of ids) {
+            await db.chapters.update(id, {
+                content_translated: "",
+                title_translated: "",
+                status: 'draft',
+                lastTranslatedAt: undefined,
+                translationModel: undefined
+            });
+        }
+    });
+}

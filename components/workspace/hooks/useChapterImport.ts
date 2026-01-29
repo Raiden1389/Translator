@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { db } from "@/lib/db";
+import { db, Chapter } from "@/lib/db";
 import { toast } from "sonner";
 
 export function useChapterImport(workspaceId: string, currentChaptersCount: number) {
@@ -7,7 +7,6 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
     const [progress, setProgress] = useState(0);
     const [importStatus, setImportStatus] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const importInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -25,7 +24,7 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
                 await book.open(await file.arrayBuffer());
 
                 const spine = await book.loaded.spine;
-                const items = (spine as any).items;
+                const items = (spine as unknown as { items: { href: string }[] }).items;
                 const total = items.length;
 
                 const chaptersToAdd = [];
@@ -86,7 +85,7 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
-                    if (/^\s*(Chương|Chapter|Tiết|Quyển|Episode)\s+\d+/i.test(line)) {
+                    if (/^\s*(Chương|Chapter|Tiết|Quyển|Episode|第|卷|回)\s*(\d+|[零一二三四五六七八九十百千]+)/i.test(line)) {
                         if (currentContent.length > 0) {
                             const contentStr = currentContent.join("\n").trim();
                             chaptersToAdd.push({
@@ -134,20 +133,51 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
         }
     };
 
-    const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const handleImportJSON = async (e?: React.ChangeEvent<HTMLInputElement>) => {
+        let text = "";
+
+        // 1. Try Tauri Native Dialog if available
+        if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+            try {
+                const { open } = await import("@tauri-apps/plugin-dialog");
+                const { readTextFile } = await import("@tauri-apps/plugin-fs");
+
+                const selected = await open({
+                    filters: [{ name: 'JSON', extensions: ['json'] }],
+                    multiple: false
+                });
+
+                if (selected && typeof selected === 'string') {
+                    text = await readTextFile(selected);
+                } else if (selected && typeof selected === 'object' && 'path' in selected) {
+                    text = await readTextFile((selected as { path: string }).path);
+                } else {
+                    return; // Canceled
+                }
+            } catch (err) {
+                console.error("Tauri Import Error:", err);
+                // Fallback to standard input if possible
+            }
+        }
+
+        // 2. Fallback to standard Input Element
+        if (!text && e?.target.files?.[0]) {
+            text = await e.target.files[0].text();
+        }
+
+        if (!text) return;
+
         try {
-            const text = await file.text();
             const data = JSON.parse(text);
             if (Array.isArray(data)) {
-                const chaptersWithWorkspace = data.map((c, index) => {
-                    const { id, ...rest } = c;
+                const chaptersWithWorkspace = data.map((c: any, index: number) => {
+                    const { id: _id, ...rest } = c;
+                    console.log("Importing chapter id (skipped):", _id);
                     return {
                         ...rest,
                         workspaceId,
                         order: (rest.order || currentChaptersCount + index + 1)
-                    };
+                    } as Chapter;
                 });
                 await db.chapters.bulkAdd(chaptersWithWorkspace);
                 toast.success(`Đã nhập thành công ${chaptersWithWorkspace.length} chương!`);
@@ -158,7 +188,7 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
             console.error(err);
             toast.error("Lỗi khi nhập file JSON.");
         } finally {
-            if (importInputRef.current) importInputRef.current.value = "";
+            // No reset needed for native dialogs as there's no input[type=file] state to clear
         }
     };
 
@@ -167,7 +197,6 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
         progress,
         importStatus,
         fileInputRef,
-        importInputRef,
         handleFileUpload,
         handleImportJSON
     };

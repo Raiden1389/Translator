@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "3.3.0",
-        "last_updated": "2026-01-28T17:10:00Z"
+        "last_updated": "2026-01-28T21:00:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Development - UI Refinement & AI Feature Integration"
+        "status": "Production Ready - v1.5.0 Released"
     },
     "tech_stack": {
         "frontend": {
@@ -29,11 +29,12 @@
     },
     "features": [
         "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
-        "Name Hunter: Tự động lọc tên riêng bằng Regex + AI",
-        "AI Scan: Quét thuật ngữ chuyên sâu bằng Gemini API",
+        "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
+        "Review UI v2.0: Trình duyệt kết quả AI tối ưu, phân cấp thị giác và hỗ trợ duyệt hàng loạt",
         "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
         "Offline Storage: Lưu trữ dữ liệu local hoàn toàn",
-        "TTS: Hỗ trợ đọc truyện bằng giọng nói máy"
+        "TTS: Hỗ trợ đọc truyện bằng giọng nói máy",
+        "Smart Capitalization: Engine tự động chuẩn hóa viết hoa viết thường chuẩn văn phong dịch"
     ],
     "database_schema": {
         "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",

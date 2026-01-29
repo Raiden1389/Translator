@@ -9,4 +9,9 @@
 - **19:00:** Created `ScanConfigDialog` for selective entity type extraction.
 - **19:45:** Integrated Hán Việt normalization for extracted Chinese names.
 - **20:10:** Implemented **Smart Term Filter**: Existing dictionary entries are now automatically hidden from AI scan results.
-- **20:15:** Updated all project documentation (`CHANGELOG.md`, `task_plan.md`, `findings.md`) to reflect the current system state.
+- **20:30:** Implemented **AI-Generated Context**: AI NER now generates brief descriptions for new entities.
+- **20:45:** Refined **ReviewDialog UI**: Added visual anchoring for name pairs and left-side selection indicators.
+- **20:50:** Streamlined UI: Removed legacy Name Hunter buttons and redundant components from ReaderHeader.
+- **20:55:** Production Readiness: Successfully completed `npm run build`, bumped version to **v1.5.0**, and Pushed to Git.
+- **21:10:** Initiated **Tauri Build** for stable desktop release distribution.
+- **21:15:** Executed `/save-brain` workflow to sync all project knowledge and memory.

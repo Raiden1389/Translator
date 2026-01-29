@@ -9,16 +9,25 @@ Streamline the entity extraction process by merging the experimental Name Hunter
 - [x] Create documentation files (`findings.md`, `progress.md`) for assistant memory.
 - [x] Summarize core system logic.
 
-## Phase 2: Name Hunter Deprecation & AI NER Integration (Current)
+## Phase 2: AI NER v3.0 & Review UI Refinement (Complete)
 - [x] Scrapped separate `NameHunterDialog` (Too complex, redundant).
 - [x] Unified AI extraction logic in `useAIExtraction` hook.
-- [x] Implemented **AI NER v3.0** in `AiExtractor.ts`:
+- [x] Implemented **AI NER v3.0**:
     - [x] Chunked scanning (supports 300+ chapters).
-    - [x] Robust JSON parsing with auto-recovery.
+    - [x] AI-Generated Descriptions for entities (context-aware).
+    - [x] Description preservation logic (no overrides).
     - [x] Hán Việt normalization for extracted names.
-- [x] Added `ScanConfigDialog`: Configuration for entity types (Person, Location, Skill...).
-- [x] Implemented **Smart Filter**: Automatically hide terms already present in the dictionary.
-- [ ] Add Custom Pattern Rules (Regex) to the unified UI.
+- [x] Refined **ReviewDialog UI**:
+    - [x] Visual anchoring (Chinese Serif vs. Vietnamese Emerald).
+    - [x] Compact layout with left selection indicators.
+    - [x] Simplified reader header (removed old buttons).
+- [x] **Production Readiness**:
+    - [x] Bumped version to v1.5.0.
+    - [x] Successful `npm run build`.
+    - [x] Committed and Pushed to Git.
+    - [x] Initiated `tauri build`.
+
+---
 
 ## Phase 3: Research & Optimization
 - [ ] Experiment with cheaper models (Gemini Flash 2.0) for high-frequency scanning.

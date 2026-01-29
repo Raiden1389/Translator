@@ -47,9 +47,10 @@ CẤU TRÚC:
 export const CORE_RULES = `
 YÊU CẦU CỐT LÕI:
 1. Trả về JSON { "title": "...", "content": "..." }.
-2. Văn phong tiểu thuyết mượt mà, thoát ý, ưu tiên Thuần Việt. 
-3. GIỮ HÁN VIỆT cho: Tên người, Địa danh, Binh chủng (VD: Tịnh Châu Lang Kỵ), Chiêu thức.
-4. KHÔNG giải thích nghĩa đằng sau.
+2. Tiêu đề (title) PHẢI bao gồm số chương nếu bản gốc có (VD: 第10章 -> Chương 10).
+3. Văn phong tiểu thuyết mượt mà, thoát ý, ưu tiên Thuần Việt. 
+4. GIỮ HÁN VIỆT cho: Tên người, Địa danh, Binh chủng (VD: Tịnh Châu Lang Kỵ), Chiêu thức.
+5. KHÔNG giải thích nghĩa đằng sau.
 `;
 
 /**

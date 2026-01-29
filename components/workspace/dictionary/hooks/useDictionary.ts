@@ -181,6 +181,135 @@ export function useDictionary(workspaceId: string) {
         URL.revokeObjectURL(url); // Cleanup
     }, [dictionary]);
 
+    const handleExportJSON = useCallback(async () => {
+        const fileName = `dictionary-export-${new Date().getTime()}.json`;
+        const content = JSON.stringify(dictionary, null, 2);
+
+        // 1. Try Tauri Native Save Dialog if available
+        if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+            try {
+                const { save } = await import("@tauri-apps/plugin-dialog");
+                const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+
+                const path = await save({
+                    defaultPath: fileName,
+                    filters: [{ name: 'JSON', extensions: ['json'] }]
+                });
+
+                if (path) {
+                    await writeTextFile(path, content);
+                    toast.success("Đã xuất từ điển thành công!");
+                    return;
+                }
+                return; // Canceled
+            } catch (err) {
+                console.error("Tauri Export Error:", err);
+            }
+        }
+
+        // 2. Fallback to standard Browser download
+        const blob = new Blob([content], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("Đã xuất từ điển thành công!");
+    }, [dictionary]);
+
+    const handleImportJSON = useCallback(async () => {
+        let text = "";
+
+        // 1. Try Tauri Native Dialog if available
+        if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+            try {
+                const { open } = await import("@tauri-apps/plugin-dialog");
+                const { readTextFile } = await import("@tauri-apps/plugin-fs");
+
+                const selected = await open({
+                    filters: [{ name: 'JSON', extensions: ['json'] }],
+                    multiple: false
+                });
+
+                if (selected && typeof selected === 'string') {
+                    text = await readTextFile(selected);
+                } else if (selected && typeof selected === 'object' && 'path' in selected) {
+                    text = await readTextFile((selected as { path: string }).path);
+                } else {
+                    return; // Canceled
+                }
+            } catch (err) {
+                console.error("Tauri Import Error:", err);
+                toast.error("Lỗi khi mở file JSON.");
+                return;
+            }
+        } else {
+            // 2. Fallback to standard file input for web
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) {
+                    text = await file.text();
+                    await processJSONImport(text);
+                }
+            };
+            input.click();
+            return;
+        }
+
+        await processJSONImport(text);
+
+        async function processJSONImport(jsonText: string) {
+            try {
+                const data = JSON.parse(jsonText);
+                if (!Array.isArray(data)) {
+                    toast.error("Định dạng JSON không hợp lệ.");
+                    return;
+                }
+
+                let imported = 0;
+                let updated = 0;
+
+                for (const item of data) {
+                    if (!item.original || !item.translated) continue;
+
+                    const existing = await db.dictionary
+                        .where('[workspaceId+original]')
+                        .equals([workspaceId, item.original])
+                        .first();
+
+                    if (existing) {
+                        await db.dictionary.update(existing.id!, {
+                            translated: item.translated,
+                            type: (item.type || 'general') as any,
+                            description: item.description,
+                            createdAt: new Date()
+                        });
+                        updated++;
+                    } else {
+                        await db.dictionary.add({
+                            workspaceId,
+                            original: item.original,
+                            translated: item.translated,
+                            type: (item.type || 'general') as any,
+                            description: item.description,
+                            createdAt: new Date()
+                        });
+                        imported++;
+                    }
+                }
+
+                toast.success(`Nhập thành công: ${imported} mới, ${updated} cập nhật.`);
+            } catch (err) {
+                console.error(err);
+                toast.error("Lỗi khi nhập file JSON.");
+            }
+        }
+    }, [workspaceId]);
+
     return {
         dictionary,
         filteredDic,

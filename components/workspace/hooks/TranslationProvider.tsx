@@ -140,9 +140,15 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
                 }
 
+                // Combine title and content if title exists and isn't already at the start of original content
+                let contentToTranslate = chapter.content_original;
+                if (chapter.title && !chapter.content_original.startsWith(chapter.title)) {
+                    contentToTranslate = `${chapter.title}\n\n${chapter.content_original}`;
+                }
+
                 const result = await translateWithChunking(
                     workspaceId,
-                    chapter.content_original,
+                    contentToTranslate,
                     translateChapter,
                     onLog,
                     {
@@ -156,11 +162,28 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
 
                 const duration = Date.now() - startTime;
 
-                let finalTitle = result.translatedTitle || chapter.title || "";
-                if (!result.translatedTitle && finalTitle) {
-                    finalTitle = finalTitle.replace(/Chapter\s+(\d+)/i, "Chương $1")
-                        .replace(/第\s*(\d+)\s*章/, "Chương $1")
-                        .replace(/第\s*([0-9]+)\s*章/, "Chương $1");
+                let finalTitle = result.translatedTitle || "";
+                const originalTitle = chapter.title || "";
+
+                // extraction of chapter number from original (Chinese, English, or Vietnamese)
+                const chapterMatch = originalTitle.match(/(?:第|Chapter|Chương|Episode|Tiết|Quyển)\s*(\d+)/i);
+
+                if (chapterMatch) {
+                    const chapterNum = chapterMatch[1];
+                    const chapterPrefix = `Chương ${chapterNum}`;
+
+                    // If AI translated title is missing the chapter number, prepend it
+                    if (finalTitle && !finalTitle.includes(chapterNum)) {
+                        finalTitle = `${chapterPrefix}: ${finalTitle}`;
+                    } else if (!finalTitle) {
+                        // Fallback if no translation at all
+                        finalTitle = originalTitle
+                            .replace(/Chapter\s+(\d+)/i, "Chương $1")
+                            .replace(/第\s*(\d+)\s*章/g, "Chương $1")
+                            .replace(/第\s*(\d+)\s*/g, "Chương $1 ");
+                    }
+                } else if (!finalTitle) {
+                    finalTitle = originalTitle;
                 }
 
                 await db.chapters.update(chapter.id!, {

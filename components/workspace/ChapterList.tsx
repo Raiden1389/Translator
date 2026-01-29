@@ -53,14 +53,14 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
         readingChapterId, translateDialogOpen, inspectingChapter, isInspectOpen,
         historyOpen, filtered, currentChapters, totalPages,
         selectedChapters, importing, importProgress, importStatus,
-        fileInputRef, importInputRef
+        fileInputRef
     } = state;
 
     const {
         setSearch, setFilterStatus, setCurrentPage, setItemsPerPage, setViewMode,
         setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen,
         setSelectedChapters, toggleSingleSelection, handleSelectRange, handleInspect,
-        handleApplyCorrections, handleClearTranslationAction, handleExport,
+        handleApplyCorrections, handleClearTranslationAction, handleBulkClearTranslation, handleExport,
         handleFileUpload, handleImportJSON,
         setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI,
         isAIExtracting, pendingCharacters, pendingTerms, isReviewOpen
@@ -111,12 +111,10 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 selectedChapters={selectedChapters}
                 setSelectedChapters={setSelectedChapters}
                 onExport={handleExport}
-                onImport={() => importInputRef.current?.click()}
+                onImport={() => handleImportJSON()}
                 onTranslate={() => setTranslateDialogOpen(true)}
-                importInputRef={importInputRef}
                 fileInputRef={fileInputRef}
                 onFileUpload={handleFileUpload}
-                onImportJSON={handleImportJSON}
                 importing={importing}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
@@ -133,6 +131,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 workspaceId={workspaceId}
                 lastReadChapterId={workspace?.lastReadChapterId}
                 onReadContinue={(id) => setReadingChapterId(id)}
+                onBulkClearTranslation={handleBulkClearTranslation}
             />
 
             <ErrorBoundary name="ChapterListView">

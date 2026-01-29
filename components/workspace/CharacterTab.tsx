@@ -5,21 +5,14 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, DictionaryEntry } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Trash2, Save, MoreHorizontal, Sparkles, FileText } from "lucide-react";
+import { Search, Plus, Trash2, Save, Download, Upload } from "lucide-react";
 import { ReviewDialog } from "./ReviewDialog";
 import { extractGlossary } from "@/lib/gemini";
 import { GlossaryCharacter, GlossaryTerm } from "@/lib/types";
 import type { Chapter } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import * as Popover from "@radix-ui/react-popover";
 import { toast } from "sonner";
@@ -43,12 +36,10 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
     });
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-    // AI Extraction State
-    const [isExtracting, setIsExtracting] = useState(false);
+    // AI Extraction State (still used by ReviewDialog)
     const [pendingCharacters, setPendingCharacters] = useState<GlossaryCharacter[]>([]);
     const [pendingTerms, setPendingTerms] = useState<GlossaryTerm[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
-    const [extractDialogOpen, setExtractDialogOpen] = useState(false);
 
     const filteredChars = dictionary
         .filter(d =>
@@ -96,60 +87,6 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         if (confirm(`Xóa ${selectedIds.length} nhân vật đã chọn?`)) {
             await db.dictionary.bulkDelete(selectedIds);
             setSelectedIds([]);
-        }
-    };
-
-
-    const handleAIExtract = async (source: "latest" | "current" | "select") => {
-        if (!workspaceId) return;
-        setIsExtracting(true);
-        try {
-            const chapters = await db.chapters.where("workspaceId").equals(workspaceId).toArray();
-            if (chapters.length === 0) {
-                toast.warning("Chưa có chương nào để phân tích!");
-                setIsExtracting(false);
-                return;
-            }
-
-            let targetChapter: Chapter | undefined;
-            if (source === "latest") {
-                chapters.sort((a, b) => b.order - a.order);
-                targetChapter = chapters[0];
-            } else if (source === "current") {
-                chapters.sort((a, b) => b.id! - a.id!);
-                targetChapter = chapters[0];
-            }
-
-            if (!targetChapter) {
-                toast.error("Không tìm thấy chương để quét.");
-                setIsExtracting(false);
-                return;
-            }
-
-            toast.info(`Đang quét: ${targetChapter.title}...`);
-            const result = await extractGlossary(targetChapter.content_original);
-
-            if (result) {
-                const existingOriginals = new Set(dictionary.map(d => d.original));
-                const newChars: GlossaryCharacter[] = result.characters.map((c: GlossaryCharacter) => ({
-                    ...c,
-                    isExisting: existingOriginals.has(c.original)
-                }));
-                const newTerms: GlossaryTerm[] = result.terms.map((t: GlossaryTerm) => ({
-                    ...t,
-                    isExisting: existingOriginals.has(t.original)
-                }));
-                setPendingCharacters(newChars);
-                setPendingTerms(newTerms);
-                setIsReviewOpen(true);
-            }
-        } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : String(e);
-            console.error(e);
-            toast.error("Lỗi khi trích xuất: " + msg);
-        } finally {
-            setIsExtracting(false);
-            setExtractDialogOpen(false);
         }
     };
 
@@ -237,6 +174,139 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         await db.dictionary.update(id, updates);
     };
 
+    const handleExportJSON = async () => {
+        const fileName = `characters-export-${new Date().getTime()}.json`;
+        const content = JSON.stringify(dictionary, null, 2);
+
+        // 1. Try Tauri Native Save Dialog if available
+        if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+            try {
+                const { save } = await import("@tauri-apps/plugin-dialog");
+                const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+
+                const path = await save({
+                    defaultPath: fileName,
+                    filters: [{ name: 'JSON', extensions: ['json'] }]
+                });
+
+                if (path) {
+                    await writeTextFile(path, content);
+                    toast.success("Đã xuất danh sách nhân vật thành công!");
+                    return;
+                }
+                return; // Canceled
+            } catch (err) {
+                console.error("Tauri Export Error:", err);
+            }
+        }
+
+        // 2. Fallback to standard Browser download
+        const blob = new Blob([content], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("Đã xuất danh sách nhân vật thành công!");
+    };
+
+    const handleImportJSON = async () => {
+        let text = "";
+
+        // 1. Try Tauri Native Dialog if available
+        if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+            try {
+                const { open } = await import("@tauri-apps/plugin-dialog");
+                const { readTextFile } = await import("@tauri-apps/plugin-fs");
+
+                const selected = await open({
+                    filters: [{ name: 'JSON', extensions: ['json'] }],
+                    multiple: false
+                });
+
+                if (selected && typeof selected === 'string') {
+                    text = await readTextFile(selected);
+                } else if (selected && typeof selected === 'object' && 'path' in selected) {
+                    text = await readTextFile((selected as { path: string }).path);
+                } else {
+                    return; // Canceled
+                }
+            } catch (err) {
+                console.error("Tauri Import Error:", err);
+                toast.error("Lỗi khi mở file JSON.");
+                return;
+            }
+        } else {
+            // 2. Fallback to standard file input for web
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) {
+                    text = await file.text();
+                    await processJSONImport(text);
+                }
+            };
+            input.click();
+            return;
+        }
+
+        await processJSONImport(text);
+
+        async function processJSONImport(jsonText: string) {
+            try {
+                const data = JSON.parse(jsonText);
+                if (!Array.isArray(data)) {
+                    toast.error("Định dạng JSON không hợp lệ.");
+                    return;
+                }
+
+                let imported = 0;
+                let updated = 0;
+
+                for (const item of data) {
+                    if (!item.original || !item.translated) continue;
+
+                    const existing = await db.dictionary
+                        .where('[workspaceId+original]')
+                        .equals([workspaceId, item.original])
+                        .first();
+
+                    if (existing) {
+                        await db.dictionary.update(existing.id!, {
+                            translated: item.translated,
+                            type: 'name',
+                            gender: item.gender,
+                            role: item.role,
+                            description: item.description,
+                            createdAt: new Date()
+                        });
+                        updated++;
+                    } else {
+                        await db.dictionary.add({
+                            workspaceId,
+                            original: item.original,
+                            translated: item.translated,
+                            type: 'name',
+                            gender: item.gender,
+                            role: item.role,
+                            description: item.description,
+                            createdAt: new Date()
+                        });
+                        imported++;
+                    }
+                }
+
+                toast.success(`Nhập thành công: ${imported} mới, ${updated} cập nhật.`);
+            } catch (err) {
+                console.error(err);
+                toast.error("Lỗi khi nhập file JSON.");
+            }
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Toolbar */}
@@ -254,109 +324,31 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                 </div>
 
                 <div className="flex gap-2">
-                    <Dialog open={extractDialogOpen} onOpenChange={setExtractDialogOpen}>
-                        <Button
-                            onClick={() => setExtractDialogOpen(true)}
-                            className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
-                        >
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Quét AI
-                        </Button>
-                        <Button
-                            onClick={async () => {
-                                if (confirm("Nạp danh sách nhân vật Tam Quốc kinh điển vào từ điển?")) {
-                                    const { TK_PERSONS } = await import("@/lib/services/name-hunter/data/three-kingdoms");
-                                    let added = 0;
-                                    for (const p of TK_PERSONS) {
-                                        const existing = await db.dictionary.where({ original: p, workspaceId }).first();
-                                        if (!existing) {
-                                            await db.dictionary.add({
-                                                workspaceId,
-                                                original: p,
-                                                translated: p,
-                                                type: 'name',
-                                                description: 'Tam Quốc Diễn Nghĩa Core',
-                                                createdAt: new Date()
-                                            });
-                                            added++;
-                                        }
-                                    }
-                                    toast.success(`Đã nạp ${added} nhân vật Tam Quốc!`);
-                                }
-                            }}
-                            variant="outline"
-                            className="bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
-                        >
-                            <FileText className="mr-2 h-4 w-4" />
-                            Nạp Tam Quốc 3K
-                        </Button>
-                        <DialogContent className="sm:max-w-[400px] bg-popover border-border text-popover-foreground">
-                            <DialogHeader>
-                                <DialogTitle>Chọn nguồn quét AI</DialogTitle>
-                                <DialogDescription className="text-muted-foreground">
-                                    Mày muốn AI quét dữ liệu từ đâu để trích xuất nhân vật?
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <Button
-                                    variant="outline"
-                                    className="justify-start h-16 border-border hover:bg-muted bg-transparent group"
-                                    onClick={() => handleAIExtract("current")}
-                                    disabled={isExtracting}
-                                >
-                                    <div className="flex items-center gap-3 text-left">
-                                        <div className="p-2 rounded bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20">
-                                            <FileText className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold">Chương đang đọc</div>
-                                            <div className="text-xs text-muted-foreground">Quét chương mày vừa mở gần đây nhất.</div>
-                                        </div>
-                                    </div>
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="justify-start h-16 border-border hover:bg-muted bg-transparent group"
-                                    onClick={() => handleAIExtract("latest")}
-                                    disabled={isExtracting}
-                                >
-                                    <div className="flex items-center gap-3 text-left">
-                                        <div className="p-2 rounded bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20">
-                                            <Sparkles className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold">Chương mới nhất</div>
-                                            <div className="text-xs text-muted-foreground">Quét chương cuối cùng vừa đăng.</div>
-                                        </div>
-                                    </div>
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="justify-start h-16 border-border hover:bg-muted bg-transparent group"
-                                    onClick={() => {
-                                        setExtractDialogOpen(false);
-                                        toast.info("Mày hãy sang tab Chương, chọn các chương muốn quét rồi bấm Quét nhé!");
-                                    }}
-                                    disabled={isExtracting}
-                                >
-                                    <div className="flex items-center gap-3 text-left">
-                                        <div className="p-2 rounded bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20">
-                                            <MoreHorizontal className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold">Chọn từ danh sách</div>
-                                            <div className="text-xs text-muted-foreground">Mày sang tab Chương để chọn nhiều chương.</div>
-                                        </div>
-                                    </div>
-                                </Button>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
                     <Button
+                        variant="outline"
+                        className="border-border text-primary hover:text-primary/80 hover:bg-primary/10"
+                        onClick={handleImportJSON}
+                        title="Nhập danh sách nhân vật từ file JSON"
+                    >
+                        <Download className="mr-2 h-4 w-4" /> Nhập JSON
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        className="border-border text-emerald-600 hover:text-emerald-500 hover:bg-emerald-500/10"
+                        onClick={handleExportJSON}
+                        title="Xuất danh sách nhân vật ra file JSON"
+                    >
+                        <Upload className="mr-2 h-4 w-4" /> Xuất JSON
+                    </Button>
+
+                    <Button
+                        size="icon"
                         className="bg-primary hover:bg-primary/90 text-primary-foreground"
                         onClick={() => setIsAdding(!isAdding)}
+                        title="Thêm nhân vật mới"
                     >
-                        <Plus className="mr-2 h-4 w-4" /> Thêm Nhân Vật
+                        <Plus className="h-4 w-4" />
                     </Button>
                 </div>
             </div>
@@ -437,11 +429,11 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                 <div
                                     key={char.id}
                                     className={cn(
-                                        "grid grid-cols-12 gap-4 p-4 items-center transition-colors group",
+                                        "grid grid-cols-12 gap-4 p-4 items-start transition-colors group",
                                         isSelected ? "bg-primary/10" : "hover:bg-muted"
                                     )}
                                 >
-                                    <div className="col-span-1 flex justify-center items-center gap-2">
+                                    <div className="col-span-1 flex justify-center items-center gap-2 h-8">
                                         <Checkbox
                                             checked={isSelected}
                                             onCheckedChange={(checked) => handleSelect(char.id!, !!checked)}
@@ -449,10 +441,10 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                         />
                                         <span className="text-muted-foreground text-[10px] font-mono w-4 text-center">{index + 1}</span>
                                     </div>
-                                    <div className="col-span-3 text-foreground font-serif select-text">{char.original}</div>
-                                    <div className="col-span-4">
+                                    <div className="col-span-3 text-foreground font-serif select-text flex items-center h-8">{char.original}</div>
+                                    <div className="col-span-4 h-8 flex items-center">
                                         <Input
-                                            className="h-8 bg-background border-none focus:ring-1 focus:ring-emerald-500 text-emerald-400 font-bold px-2 py-0"
+                                            className="h-full w-full bg-background border-none focus:ring-1 focus:ring-emerald-500 text-emerald-400 font-bold px-2 py-0"
                                             defaultValue={char.translated}
                                             onBlur={(e) => {
                                                 if (e.target.value !== char.translated) {
@@ -467,7 +459,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                             }}
                                         />
                                     </div>
-                                    <div className="col-span-4 flex items-center justify-end gap-2 pr-2">
+                                    <div className="col-span-4 flex items-center justify-end gap-2 pr-2 h-8">
                                         <div className="flex-1 overflow-hidden">
                                             <Tooltip.Provider delayDuration={200}>
                                                 <Tooltip.Root>

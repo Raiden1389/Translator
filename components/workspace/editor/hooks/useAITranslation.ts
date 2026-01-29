@@ -33,15 +33,33 @@ export function useAITranslation(workspaceId: string, chapterId: string) {
         try {
             const { aiQueue } = await import("@/lib/services/ai-queue");
             await aiQueue.enqueue('HIGH', async () => {
+                // Fetch chapter for title
+                const chapter = await db.chapters.get(parseInt(chapterId));
+                let contentToTranslate = content_original;
+                if (chapter?.title && !content_original.startsWith(chapter.title)) {
+                    contentToTranslate = `${chapter.title}\n\n${content_original}`;
+                }
+
                 return translateChapter(
                     workspaceId,
-                    content_original,
+                    contentToTranslate,
                     addLog,
                     (result) => {
                         const text = result.translatedText;
+                        let title = result.translatedTitle || chapter?.title || "";
+
+                        // preservation of chapter number
+                        const chapterMatch = chapter?.title?.match(/(?:第|Chapter|Chương|Episode|Tiết|Quyển)\s*(\d+)/i);
+                        if (chapterMatch && title && !title.includes(chapterMatch[1])) {
+                            title = `Chương ${chapterMatch[1]}: ${title}`;
+                        } else if (chapterMatch && !result.translatedTitle) {
+                            title = title.replace(/第\s*(\d+)\s*章/g, "Chương $1").replace(/Chapter\s+(\d+)/i, "Chương $1");
+                        }
+
                         onGenerated(text);
                         db.chapters.update(parseInt(chapterId), {
                             content_translated: text,
+                            title_translated: title,
                             wordCountTranslated: text.length,
                             status: 'translated'
                         });

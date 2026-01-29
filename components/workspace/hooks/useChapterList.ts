@@ -9,7 +9,7 @@ import {
     runChapterInspection,
     applyBulkCorrections
 } from "@/lib/services/chapter-list.service";
-import { clearChapterTranslation } from "@/lib/services/chapter.service";
+import { clearChapterTranslation, bulkClearChapterTranslations } from "@/lib/services/chapter.service";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 import { useChapterSelection } from "./useChapterSelection";
 import { useChapterImport } from "./useChapterImport";
@@ -63,7 +63,6 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
         progress: importProgress,
         importStatus,
         fileInputRef,
-        importInputRef,
         handleFileUpload,
         handleImportJSON
     } = useChapterImport(workspaceId, chapters?.length || 0);
@@ -140,16 +139,55 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
         }
     };
 
+    const handleBulkClearTranslation = async () => {
+        if (selectedChapters.length === 0) return;
+        if (!confirm(`Xóa bản dịch của ${selectedChapters.length} chương đã chọn?`)) return;
+        try {
+            await bulkClearChapterTranslations(selectedChapters);
+            toast.success(`Đã xóa bản dịch của ${selectedChapters.length} chương.`);
+        } catch {
+            toast.error("Lỗi khi xóa bản dịch hàng loạt.");
+        }
+    };
+
     const handleExport = async () => {
         const selectedIds = selectedChapters.length > 0 ? selectedChapters : filtered.map(c => c.id!);
         if (selectedIds.length === 0) return toast.error("Không có gì để xuất.");
+
         const data = await db.chapters.bulkGet(selectedIds);
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const fileName = `workspace-export-${new Date().getTime()}.json`;
+        const content = JSON.stringify(data, null, 2);
+
+        // 1. Try Tauri Native Save Dialog if available
+        if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+            try {
+                const { save } = await import("@tauri-apps/plugin-dialog");
+                const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+
+                const path = await save({
+                    defaultPath: fileName,
+                    filters: [{ name: 'JSON', extensions: ['json'] }]
+                });
+
+                if (path) {
+                    await writeTextFile(path, content);
+                    toast.success("Đã xuất file thành công!");
+                    return;
+                }
+                return; // Canceled
+            } catch (err) {
+                console.error("Tauri Export Error:", err);
+            }
+        }
+
+        // 2. Fallback to standard Browser download
+        const blob = new Blob([content], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `workspace-export-${new Date().getTime()}.json`;
+        a.download = fileName;
         a.click();
+        URL.revokeObjectURL(url);
     };
 
     return {
@@ -158,13 +196,13 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
             readingChapterId, translateDialogOpen, inspectingChapter, isInspectOpen,
             historyOpen, filtered, currentChapters, totalPages,
             selectedChapters, importing, importProgress, importStatus,
-            fileInputRef, importInputRef
+            fileInputRef
         },
         actions: {
             setSearch, setFilterStatus, setCurrentPage, setItemsPerPage, setViewMode,
             setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen,
             setSelectedChapters, toggleSingleSelection, handleSelectRange, handleInspect,
-            handleApplyCorrections, handleClearTranslationAction, handleExport,
+            handleApplyCorrections, handleClearTranslationAction, handleBulkClearTranslation, handleExport,
             handleFileUpload, handleImportJSON,
             setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI,
             isAIExtracting, pendingCharacters, pendingTerms, isReviewOpen
