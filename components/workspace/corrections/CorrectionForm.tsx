@@ -3,6 +3,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface CorrectionFormProps {
     type: 'replace' | 'wrap' | 'regex';
@@ -24,7 +25,8 @@ export function CorrectionForm({
     onAdd
 }: CorrectionFormProps) {
     return (
-        <div className="bg-amber-500/10 p-4 rounded-lg border border-amber-500/30 shadow-lg mb-4 space-y-4">
+        <div className="bg-card p-5 rounded-2xl border border-border shadow-sm mb-6 space-y-6 relative overflow-hidden transition-all duration-500">
+            <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
             {/* Type Selector */}
             <div className="flex bg-muted/20 p-1 rounded-lg w-fit">
                 {[
@@ -34,8 +36,13 @@ export function CorrectionForm({
                 ].map((t) => (
                     <button
                         key={t.value}
-                        onClick={() => setType(t.value as any)}
-                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${type === t.value ? 'bg-amber-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => setType(t.value as 'replace' | 'wrap' | 'regex')}
+                        className={cn(
+                            "px-5 py-2 rounded-lg text-xs font-black transition-all uppercase tracking-wider",
+                            type === t.value
+                                ? "bg-primary text-white shadow-md shadow-primary/20"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
                     >
                         {t.label}
                     </button>
@@ -118,7 +125,7 @@ export function CorrectionForm({
 
                 <div className="md:col-span-2">
                     <Button
-                        className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                        className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-tighter"
                         onClick={onAdd}
                     >
                         Thêm

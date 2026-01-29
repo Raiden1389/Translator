@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useExport } from "./hooks/useExport";
+import { useRaiden } from "@/components/theme/RaidenProvider";
 
 /* ===================== SMALL COMPONENTS ===================== */
 
@@ -43,20 +44,20 @@ function LanguageSelector({ lang, setLang, options }: LanguageSelectorProps) {
                         key={opt.id}
                         onClick={() => setLang(opt.id)}
                         className={cn(
-                            "flex items-center justify-between p-3 px-4 rounded-xl border text-left transition-all",
+                            "flex items-center justify-between p-3 px-4 rounded-xl border text-left transition-all shadow-sm",
                             lang === opt.id
-                                ? "bg-amber-500/10 border-amber-500 ring-1 ring-amber-500 shadow-sm"
-                                : "bg-muted/50 border-border hover:bg-muted hover:border-border/80"
+                                ? "bg-primary/5 border-primary ring-1 ring-primary"
+                                : "bg-card border-border hover:bg-muted/80 hover:border-border/80"
                         )}
                     >
                         <div className="flex items-center gap-3">
-                            <div className={cn("w-2 h-2 rounded-full", lang === opt.id ? "bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" : "bg-slate-300")} />
+                            <div className={cn("w-2 h-2 rounded-full", lang === opt.id ? "bg-primary shadow-[0_0_8px_rgba(37,99,235,0.4)]" : "bg-muted-foreground/30")} />
                             <div>
-                                <div className="font-bold text-sm text-slate-900">{opt.label}</div>
-                                <div className="text-[10px] text-slate-500 font-medium">{opt.desc}</div>
+                                <div className={cn("font-bold text-sm", lang === opt.id ? "text-primary" : "text-foreground")}>{opt.label}</div>
+                                <div className="text-[10px] text-muted-foreground font-medium">{opt.desc}</div>
                             </div>
                         </div>
-                        {lang === opt.id && <Check className="w-4 h-4 text-indigo-600" />}
+                        {lang === opt.id && <Check className="w-4 h-4 text-primary" />}
                     </button>
                 ))}
             </div>
@@ -92,13 +93,13 @@ function GDriveSection({
     manualToken, setManualToken, handleManualTokenSave, getManualAuthUrl
 }: GDriveSectionProps) {
     return (
-        <div className="space-y-4 p-5 bg-card/30 border border-border rounded-2xl">
+        <div className="space-y-4 p-5 bg-card border border-border rounded-2xl shadow-sm">
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black flex items-center gap-2 text-foreground uppercase tracking-tight">
-                    <Cloud className="w-4 h-4 text-indigo-600" />
+                    <Cloud className="w-4 h-4 text-primary" />
                     Google Drive Sync
                 </h3>
-                <Switch checked={useDrive} onCheckedChange={setUseDrive} className="data-[state=checked]:bg-indigo-600" />
+                <Switch checked={useDrive} onCheckedChange={setUseDrive} className="data-[state=checked]:bg-primary" />
             </div>
 
             {useDrive && (
@@ -140,7 +141,7 @@ function GDriveSection({
                                 </div>
                             ) : (
                                 <div className="text-center pt-1">
-                                    <button onClick={() => setShowManualInput(true)} className="text-[10px] text-amber-500/70 hover:text-amber-500 underline">Gặp lỗi? Thử kết nối thủ công</button>
+                                    <button onClick={() => setShowManualInput(true)} className="text-[10px] text-primary/70 hover:text-primary underline">Gặp lỗi? Thử kết nối thủ công</button>
                                 </div>
                             )}
                         </div>
@@ -185,6 +186,7 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
         return items.sort((a, b) => a.order - b.order);
     }, [workspaceId]) || [];
 
+    const { isRaidenMode } = useRaiden();
     const { state, actions } = useExport({ workspace, chapters });
 
     const {
@@ -207,8 +209,8 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                     <div className="space-y-4">
-                        <h3 className="text-lg font-bold flex items-center gap-2">
-                            <Layout className="w-5 h-5 text-primary" /> 1. Định dạng file
+                        <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-tight text-foreground/80">
+                            <Layout className="w-4 h-4 text-primary" /> 1. Định dạng file
                         </h3>
                         <div className="grid grid-cols-2 gap-3">
                             <FormatCard id="epub" label="EPUB" icon={Book} description="E-book chuẩn, có bìa" isActive={format === "epub"} onClick={() => setFormat("epub")} />
@@ -219,8 +221,8 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
                     <LanguageSelector
                         lang={lang} setLang={setLang}
                         options={[
-                            { id: "vi", label: "Tiếng Việt", icon: <ImageIcon className="w-5 h-5" />, desc: "Nội dung bản dịch" },
-                            { id: "zh", label: "Tiếng Trung", icon: <Book className="w-5 h-5" />, desc: "Nội dung bản gốc" }
+                            { id: "vi", label: "Tiểu thuyết (Việt)", icon: <ImageIcon className="w-5 h-5" />, desc: "Nội dung bản dịch" },
+                            { id: "zh", label: "Tiểu thuyết (Trung)", icon: <Book className="w-5 h-5" />, desc: "Nội dung bản gốc" }
                         ]}
                     />
 
@@ -240,13 +242,20 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
                     <ExportForm
                         rangeStart={rangeStart} rangeEnd={rangeEnd} setRangeStart={setRangeStart} setRangeEnd={setRangeEnd}
                         totalAvailable={chapters.length} isExporting={isExporting} exportProgress={exportProgress}
-                        onExport={handleStartExport} formatLabel={`${format.toUpperCase()} (${lang === 'vi' ? 'Tiếng Việt' : 'Tiếng Trung'})`} useDrive={useDrive}
+                        onExport={handleStartExport} formatLabel={`${format.toUpperCase()} (${lang === 'vi' ? 'Việt' : 'Trung'})`} useDrive={useDrive}
                     />
-                    <div className="p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-3">
-                        <ImageIcon className="w-4 h-4 text-amber-500 mt-1" />
-                        <div className="text-[12px] text-muted-foreground leading-relaxed">
-                            <span className="text-amber-500 font-bold mr-1">Lưu ý:</span>
-                            Kiểm tra ảnh bìa ở tab Tổng quan để EPUB đẹp nhất.
+                    <div className={cn(
+                        "p-5 rounded-2xl flex items-start gap-4 border transition-all shadow-sm",
+                        isRaidenMode ? "bg-purple-900/10 border-purple-500/20" : "bg-primary/5 border-primary/20"
+                    )}>
+                        <div className={cn("mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center", isRaidenMode ? "bg-purple-500/20 text-purple-400" : "bg-primary/20 text-primary")}>
+                            <ImageIcon className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1">
+                            <h4 className={cn("text-xs font-bold", isRaidenMode ? "text-purple-300" : "text-primary/80")}>Lưu ý quan trọng</h4>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Kiểm tra ảnh bìa ở tab Tổng quan để EPUB có giao diện tốt nhất trên các thiết bị đọc sách.
+                            </p>
                         </div>
                     </div>
                 </div>

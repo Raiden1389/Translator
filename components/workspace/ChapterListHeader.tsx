@@ -4,8 +4,8 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Search, ChevronLeft, ChevronRight, Download, Upload, Loader2,
-    FileText, X, Sparkles, Trash2, Filter, LayoutGrid, LayoutList
+    Search, ChevronLeft, ChevronRight, Upload, Loader2,
+    FileText, LayoutGrid, LayoutList, Zap, Plus
 } from "lucide-react";
 import {
     Select,
@@ -14,14 +14,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { db, clearTranslationCache } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { Eraser } from "lucide-react";
 import {
     Tooltip,
     TooltipContent,
-    TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -34,25 +30,16 @@ interface ChapterListHeaderProps {
     currentPage: number;
     setCurrentPage: (value: number) => void;
     totalPages: number;
-    itemsPerPage: number;
-    setItemsPerPage: (value: number) => void;
-    selectedChapters: number[];
-    setSelectedChapters: (value: number[]) => void;
     onExport: () => void;
-    onImport: () => void;
     fileInputRef: React.RefObject<HTMLInputElement | null>;
     onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     importing: boolean;
-    onTranslate: () => void;
-    onAIExtract?: () => void;
     viewMode: "grid" | "table";
     onViewModeChange: (mode: "grid" | "table") => void;
-    onSelectRange: (range: string) => void;
-    isAIExtracting?: boolean;
-    workspaceId: string;
+    itemsPerPage: number;
+    setItemsPerPage: (value: number) => void;
     lastReadChapterId?: number;
     onReadContinue?: (id: number) => void;
-    onBulkClearTranslation?: () => void;
 }
 
 export function ChapterListHeader({
@@ -64,106 +51,94 @@ export function ChapterListHeader({
     currentPage,
     setCurrentPage,
     totalPages,
-    itemsPerPage,
-    setItemsPerPage,
-    selectedChapters,
-    setSelectedChapters,
     onExport,
-    onImport,
     fileInputRef,
     onFileUpload,
     importing,
-    onTranslate,
-    onAIExtract,
-    isAIExtracting,
     viewMode,
     onViewModeChange,
-    onSelectRange,
+    itemsPerPage,
+    setItemsPerPage,
     lastReadChapterId,
-    onReadContinue,
-    onBulkClearTranslation
+    onReadContinue
 }: ChapterListHeaderProps) {
     return (
-        <div className="sticky top-2 z-30 bg-card/95 border border-border rounded-xl shadow-md mb-6 -mx-2 px-6 pb-2 transition-all duration-300 backdrop-blur-sm">
-            {/* Main Header Row */}
-            <div className="flex items-center justify-between py-3 flex-wrap gap-y-3">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        {totalChapters} chương
-                    </h2>
-
-                    {/* Continue Reading Button - Compact */}
-                    {lastReadChapterId && onReadContinue && (
-                        <div className="flex items-center">
-                            <Button
+        <div className="sticky top-0 z-30 bg-background/80 border-b border-border mb-6 -mx-8 px-8 py-3 backdrop-blur-md transition-all">
+            <div className="flex items-center justify-between gap-4">
+                {/* Left: Info & Search */}
+                <div className="flex items-center gap-4 flex-1">
+                    <div className="flex flex-col">
+                        <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary" />
+                            {totalChapters} chương
+                        </h2>
+                        {lastReadChapterId && onReadContinue && (
+                            <button
                                 onClick={() => onReadContinue(lastReadChapterId)}
-                                size="sm"
-                                className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20 font-bold text-xs h-8 px-2 animate-in fade-in slide-in-from-left-2 shadow-none"
-                                variant="outline"
-                                title="Đọc tiếp chương đang dở"
+                                className="text-[10px] text-emerald-500 hover:text-emerald-400 font-bold flex items-center gap-1 mt-0.5"
                             >
-                                <span className="mr-1">🚀</span> Đọc Tiếp
-                            </Button>
-                        </div>
-                    )}
+                                <Zap className="h-3 w-3 animate-pulse" /> Đọc tiếp
+                            </button>
+                        )}
+                    </div>
 
-                    <div className="h-4 w-px bg-border/40 mx-2" />
+                    <div className="h-8 w-px bg-border/40 mx-2 hidden md:block" />
 
-                    {/* Search */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                    <div className="relative flex-1 max-w-[320px]">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/40" />
                         <Input
-                            placeholder="Tìm chương..."
+                            placeholder="Tìm kiếm chương nhanh..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 w-64 bg-background border-border text-foreground placeholder:text-muted-foreground/30 h-8"
+                            className="pl-9 w-full bg-muted/20 border-border/50 text-foreground placeholder:text-muted-foreground/30 h-9 rounded-xl focus:bg-background transition-all"
                         />
                     </div>
+                </div>
 
-                    {/* Filter */}
-                    <Select
-                        value={filterStatus}
-                        onValueChange={(value: "all" | "draft" | "translated") => setFilterStatus(value)}
-                    >
-                        <SelectTrigger className="h-8 w-[130px] bg-background border-border text-foreground focus:ring-primary">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-3 w-3 text-muted-foreground/50" />
-                                <SelectValue placeholder="Trạng thái" />
-                            </div>
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border text-popover-foreground font-sans">
-                            <SelectItem value="all">Tất cả</SelectItem>
-                            <SelectItem value="draft">Chưa dịch</SelectItem>
-                            <SelectItem value="translated">Đã dịch</SelectItem>
-                        </SelectContent>
-                    </Select>
+                {/* Right: Actions & Utils */}
+                <div className="flex items-center gap-2">
+                    {/* View Controls Group */}
+                    <div className="flex items-center bg-muted/30 p-0.5 rounded-xl border border-border/40 mr-2">
+                        <Select
+                            value={filterStatus}
+                            onValueChange={(value: "all" | "draft" | "translated") => setFilterStatus(value)}
+                        >
+                            <SelectTrigger className="h-7 w-[95px] bg-transparent border-0 text-[10px] font-black uppercase tracking-widest focus:ring-0">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover border-border text-popover-foreground">
+                                <SelectItem value="all" className="text-[11px] font-bold">TẤT CẢ</SelectItem>
+                                <SelectItem value="draft" className="text-[11px] font-bold">CHƯA DỊCH</SelectItem>
+                                <SelectItem value="translated" className="text-[11px] font-bold">ĐÃ DỊCH</SelectItem>
+                            </SelectContent>
+                        </Select>
 
-                    {/* Range Select */}
-                    <div className="relative group">
-                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                            <span className="text-muted-foreground/40 text-[10px] font-mono">#</span>
-                        </div>
-                        <Input
-                            placeholder="1-10..."
-                            className="pl-7 w-[90px] bg-background border-border text-foreground placeholder:text-muted-foreground/30 h-8 text-xs focus:w-[130px] transition-all"
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    onSelectRange((e.target as HTMLInputElement).value);
-                                    (e.target as HTMLInputElement).value = '';
-                                }
-                            }}
-                        />
-                    </div>
+                        <div className="w-px h-4 bg-border/40 mx-0.5" />
 
-                    {/* View Mode Toggle */}
-                    <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border ml-2">
+                        <Select
+                            value={itemsPerPage.toString()}
+                            onValueChange={(value) => setItemsPerPage(parseInt(value))}
+                        >
+                            <SelectTrigger className="h-7 w-[80px] bg-transparent border-0 text-[10px] font-black uppercase tracking-widest focus:ring-0">
+                                <SelectValue placeholder="Per Page" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover border-border text-popover-foreground">
+                                {[20, 50, 100, 200, 500].map(size => (
+                                    <SelectItem key={size} value={size.toString()} className="text-[11px] font-bold">
+                                        {size} / PAGE
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <div className="w-px h-4 bg-border/40 mx-1" />
+
                         <Button
                             variant="ghost"
                             size="icon"
                             className={cn(
-                                "h-7 w-7",
-                                viewMode === "grid" ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"
+                                "h-7 w-7 rounded-lg",
+                                viewMode === "grid" ? "bg-background shadow-xs text-primary" : "text-muted-foreground"
                             )}
                             onClick={() => onViewModeChange("grid")}
                         >
@@ -173,223 +148,76 @@ export function ChapterListHeader({
                             variant="ghost"
                             size="icon"
                             className={cn(
-                                "h-7 w-7",
-                                viewMode === "table" ? "bg-primary text-primary-foreground hover:bg-primary/90" : "text-muted-foreground hover:text-foreground"
+                                "h-7 w-7 rounded-lg",
+                                viewMode === "table" ? "bg-background shadow-xs text-primary" : "text-muted-foreground"
                             )}
                             onClick={() => onViewModeChange("table")}
                         >
                             <LayoutList className="h-3.5 w-3.5" />
                         </Button>
                     </div>
-                </div>
 
-                {/* Utility Action Hub - Autosizing Grid */}
-                <TooltipProvider>
-                    <div className="grid grid-cols-3 gap-1 bg-muted/30 p-1.5 rounded-xl border border-border/50 shadow-sm transition-all hover:bg-muted/40 h-fit">
-                        {/* Clear Cache */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
-                                    onClick={async () => {
-                                        if (confirm("Xóa TOÀN BỘ bộ nhớ cache dịch thuật?")) {
-                                            try {
-                                                await clearTranslationCache();
-                                                toast.success("Đã dọn dẹp bộ nhớ Cache!");
-                                            } catch {
-                                                toast.error("Lỗi khi dọn dẹp Cache.");
-                                            }
-                                        }
-                                    }}
-                                >
-                                    <Eraser className="w-3.5 h-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">Dọn dẹp Cache</TooltipContent>
-                        </Tooltip>
+                    <div className="h-6 w-px bg-border/40 mx-1" />
 
-                        {/* Import JSON */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={onImport}
-                                    className="h-7 w-7 text-primary hover:bg-primary/10"
-                                >
-                                    <Download className="h-3.5 w-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">Nhập dữ liệu JSON</TooltipContent>
-                        </Tooltip>
-
-                        {/* Export JSON */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={onExport}
-                                    className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                                >
-                                    <Upload className="h-3.5 w-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">Xuất dữ liệu JSON</TooltipContent>
-                        </Tooltip>
-
-                        {/* Import EPUB/TXT */}
-                        <input
-                            type="file"
-                            accept=".txt,.text,.html,.epub"
-                            ref={fileInputRef}
-                            className="hidden"
-                            onChange={onFileUpload}
-                        />
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={importing}
-                                    className="h-7 w-7 text-amber-600 hover:bg-amber-500/10"
-                                >
-                                    {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">Nhập truyện (EPUB/TXT)</TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={onAIExtract}
-                                    className="h-7 w-7 text-purple-500 hover:bg-purple-500/10"
-                                >
-                                    <Sparkles className="h-3.5 w-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">Quét Thuật Ngữ AI</TooltipContent>
-                        </Tooltip>
+                    {/* Pagination - Slim */}
+                    <div className="flex items-center gap-1 bg-muted/20 px-2 py-1 rounded-xl border border-border/30">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="h-6 w-6 text-muted-foreground disabled:opacity-20"
+                        >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="text-[10px] font-black text-muted-foreground/60 min-w-[50px] text-center tracking-tighter">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="h-6 w-6 text-muted-foreground disabled:opacity-20"
+                        >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
                     </div>
-                </TooltipProvider>
-            </div>
 
-            {/* Pagination Row */}
-            <div className="flex items-center justify-between pt-3 border-t border-border">
-                <div className="flex items-center gap-2">
+                    {/* Export/Import Popover Trigger */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-xl hover:bg-muted/50 border border-transparent hover:border-border/30"
+                                onClick={onExport}
+                            >
+                                <Upload className="h-4 w-4 text-emerald-500" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Xuất JSON</TooltipContent>
+                    </Tooltip>
+
+                    <input
+                        type="file"
+                        accept=".txt,.text,.html,.epub"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={onFileUpload}
+                    />
+
                     <Button
                         size="sm"
-                        variant="ghost"
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 gap-2 ml-2"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={importing}
                     >
-                        <ChevronLeft className="h-4 w-4" />
+                        {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        {importing ? "Đang nhập..." : "Nhập truyện"}
                     </Button>
-                    <span className="text-sm text-muted-foreground min-w-[100px] text-center font-medium">
-                        Trang {currentPage} / {totalPages}
-                    </span>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground/50">Hiển thị:</span>
-                    <Select
-                        value={itemsPerPage.toString()}
-                        onValueChange={(value) => {
-                            setItemsPerPage(Number(value));
-                            setCurrentPage(1);
-                        }}
-                    >
-                        <SelectTrigger className="h-8 w-[80px] bg-background border-border text-foreground focus:ring-primary font-mono text-xs">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border text-popover-foreground font-mono text-xs">
-                            <SelectItem value="20">20</SelectItem>
-                            <SelectItem value="50">50</SelectItem>
-                            <SelectItem value="100">100</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <span className="text-sm text-muted-foreground/50">/ trang</span>
                 </div>
             </div>
-
-            {/* Batch Actions Bar (Conditional) */}
-            {selectedChapters.length > 0 && (
-                <div className="mt-3 flex items-center justify-between bg-primary/5 p-3 rounded-xl border border-primary/20 animate-in slide-in-from-top-2 shadow-md">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-primary px-4 py-1.5 rounded-full text-primary-foreground text-[10px] uppercase font-bold tracking-wider shadow-sm">
-                            {selectedChapters.length} Selected
-                        </div>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setSelectedChapters([])}
-                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                        >
-                            <X className="mr-1.5 h-3 w-3" /> Clear selection
-                        </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="default"
-                            onClick={onAIExtract}
-                            disabled={isAIExtracting}
-                            className="h-8 bg-purple-600 hover:bg-purple-700 font-semibold px-5 shadow-sm min-w-[110px]"
-                        >
-                            {isAIExtracting ? (
-                                <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Đang quét...</>
-                            ) : (
-                                <><Sparkles className="mr-1.5 h-3.5 w-3.5" /> Quét AI</>
-                            )}
-                        </Button>
-                        <div className="w-px h-6 bg-border/50 mx-1" />
-                        <Button
-                            size="sm"
-                            variant="default"
-                            onClick={onTranslate}
-                            className="h-8 font-semibold px-5 shadow-sm"
-                        >
-                            <FileText className="mr-1.5 h-3.5 w-3.5" /> Dịch
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={onBulkClearTranslation}
-                            className="h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 font-semibold px-4 transition-colors"
-                        >
-                            <Eraser className="mr-1.5 h-3.5 w-3.5" /> Dọn bản dịch
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                                if (confirm(`Xóa ${selectedChapters.length} chương?`)) {
-                                    db.chapters.bulkDelete(selectedChapters).then(() => setSelectedChapters([]));
-                                }
-                            }}
-                            className="h-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                            <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Xóa
-                        </Button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

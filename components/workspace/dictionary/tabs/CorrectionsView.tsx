@@ -1,14 +1,19 @@
 "use client";
 
-import React from "react";
+import { useState } from "react";
 import { useCorrections } from "../hooks/useCorrections";
-import { Search, Save, Trash2, Clock } from "lucide-react";
-import { db } from "@/lib/db";
-import { EditableCell } from "../../shared/EditableCell";
+import { Search, Save, Trash2, Clock, MoreVertical } from "lucide-react";
 import { HistoryDialog } from "../../HistoryDialog";
 import { CorrectionForm } from "../../corrections/CorrectionForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { useRaiden } from "@/components/theme/RaidenProvider";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface CorrectionsViewProps {
     workspaceId: string;
@@ -29,31 +34,51 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
         handleDeleteCorrection,
         handleApplyCorrections,
     } = useCorrections(workspaceId);
+    const { isRaidenMode } = useRaiden();
 
-    const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const hasData = filteredCorrections.length > 0;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Toolbar */}
-            <div className="flex items-center justify-between">
-                <div className="relative flex-1 md:w-[400px]">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        value={correctionSearch}
-                        onChange={(e) => setCorrectionSearch(e.target.value)}
-                        className="pl-9 bg-background border-border text-foreground"
-                        placeholder="Tìm kiếm..."
-                    />
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                    {hasData && (
+                        <div className="relative max-w-[450px] animate-in fade-in slide-in-from-left-2 duration-300">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                value={correctionSearch}
+                                onChange={(e) => setCorrectionSearch(e.target.value)}
+                                className="pl-9 bg-background border-border text-foreground h-10 rounded-xl"
+                                placeholder="Tìm kiếm quy tắc..."
+                            />
+                        </div>
+                    )}
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsHistoryOpen(true)}
-                    className="flex items-center gap-2 border-border hover:bg-muted font-bold rounded-xl h-10 px-4"
-                >
-                    <Clock className="h-4 w-4" />
-                    Lịch sử
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-10 w-10 rounded-xl border border-transparent hover:border-border transition-all text-muted-foreground hover:text-foreground"
+                            >
+                                <MoreVertical className="h-5 w-5" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 p-2 rounded-xl" align="end">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-[13px] font-medium h-9 rounded-lg px-3"
+                                onClick={() => setIsHistoryOpen(true)}
+                            >
+                                <Clock className="mr-2 h-4 w-4 text-primary" /> Lịch sử thay đổi
+                            </Button>
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </div>
 
             {/* Add Form */}
@@ -71,10 +96,13 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
             />
 
             {/* Corrections List */}
-            <div className="rounded-md border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+            <div className={cn(
+                "rounded-xl border border-border overflow-hidden flex flex-col shadow-sm transition-all duration-500",
+                isRaidenMode ? "bg-card" : "bg-muted/30"
+            )}>
                 <div className="divide-y divide-border h-[calc(100vh-420px)] overflow-y-auto scrollbar-hide">
                     {filteredCorrections
-                        .map((c) => {
+                        .map((c, index) => {
                             const cType = c.type || 'replace';
                             let displayLeft = "";
                             let displayRight = "";
@@ -91,24 +119,31 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
                             }
 
                             return (
-                                <div key={c.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 group">
+                                <div key={c.id} className={cn(
+                                    "grid grid-cols-12 gap-4 p-4 items-center transition-all duration-150 group",
+                                    isRaidenMode
+                                        ? "border-b border-border/40 hover:bg-muted/30"
+                                        : (index % 2 === 0 ? "bg-card hover:bg-blue-50/80" : "bg-muted/20 hover:bg-blue-50/80")
+                                )}>
                                     <div className="col-span-1 flex justify-center">
-                                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded text-white ${cType === 'replace' ? 'bg-blue-500' :
-                                                cType === 'wrap' ? 'bg-amber-500' : 'bg-purple-500'
-                                            }`}>
+                                        <span className={cn(
+                                            "text-[10px] uppercase font-black px-2 py-0.5 rounded shadow-xs text-white",
+                                            cType === 'replace' ? 'bg-primary' :
+                                                cType === 'wrap' ? 'bg-indigo-500' : 'bg-purple-500'
+                                        )}>
                                             {cType === 'replace' ? 'RPL' : cType === 'wrap' ? 'WRP' : 'RGX'}
                                         </span>
                                     </div>
-                                    <div className="col-span-3 text-muted-foreground line-through decoration-red-500/50 truncate" title={displayLeft}>
+                                    <div className="col-span-3 text-muted-foreground line-through decoration-red-500/50 truncate font-serif" title={displayLeft}>
                                         {displayLeft}
                                     </div>
-                                    <div className="col-span-1 text-center text-muted-foreground">➔</div>
+                                    <div className="col-span-1 text-center text-muted-foreground opacity-30">➔</div>
                                     <div className="col-span-5">
-                                        <div className="font-bold text-emerald-600 truncate" title={displayRight}>
+                                        <div className="font-bold text-primary truncate text-lg" title={displayRight}>
                                             {displayRight}
                                         </div>
                                     </div>
-                                    <div className="col-span-2 flex justify-end">
+                                    <div className="col-span-2 flex justify-end pr-2">
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -126,12 +161,12 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
 
             {/* Apply Button */}
             <Button
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-6 text-lg shadow-lg"
+                className="w-full bg-primary hover:bg-primary/90 text-white font-black py-7 text-lg shadow-xl shadow-primary/10 rounded-2xl group transition-all duration-300 active:scale-95"
                 onClick={handleApplyCorrections}
                 disabled={isApplyingCorrections || filteredCorrections.length === 0}
             >
-                <Save className="mr-2 h-5 w-5" />
-                {isApplyingCorrections ? "Đang áp dụng..." : `Áp dụng ${filteredCorrections.length} quy tắc cho tất cả chương`}
+                <Save className={cn("mr-2 h-5 w-5 transition-transform group-hover:scale-110", isApplyingCorrections && "animate-spin")} />
+                {isApplyingCorrections ? "Đang áp dụng..." : `Áp dụng ${filteredCorrections.length} quy tắc cho toàn bộ truyện`}
             </Button>
 
             <HistoryDialog
@@ -139,6 +174,6 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
                 open={isHistoryOpen}
                 onOpenChange={setIsHistoryOpen}
             />
-        </div>
+        </div >
     );
 }

@@ -5,13 +5,14 @@ import { ReaderConfig } from "../ReaderHeader";
 import { VIETNAMESE_VOICES } from "@/lib/tts";
 
 const DEFAULT_CONFIG: ReaderConfig = {
-    fontFamily: "'Bookerly', serif",
-    fontSize: 18,
-    lineHeight: 1.85,
-    textAlign: "justify",
+    fontFamily: "'Inter', sans-serif",
+    fontSize: 16,
+    lineHeight: 1.75,
+    textAlign: "left",
     textColor: "#1F2937", /* gray-800 */
-    backgroundColor: "#ffffff",
-    maxWidth: 850,
+    backgroundColor: "#FFFCF7", /* Warm Cream */
+    maxWidth: 720,
+    showDialogueLines: true,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: VIETNAMESE_VOICES[0].value,

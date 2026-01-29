@@ -31,43 +31,62 @@ export function DictionaryBulkActions({
     if (selectedCount === 0) return null;
 
     return (
-        <div className="flex items-center gap-4 bg-primary/20 p-2 px-4 rounded-lg border border-primary/50 mb-4 animate-in slide-in-from-top-2">
-            <span className="text-sm font-medium text-foreground">{selectedCount} đã chọn</span>
-            <Button
-                size="sm"
-                variant="destructive"
-                className="h-8 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50"
-                onClick={onBulkDelete}
-            >
-                <Trash2 className="mr-2 h-4 w-4" /> Xóa hàng loạt
-            </Button>
-            <div className="h-6 w-px bg-border mx-2" />
-            <Button
-                variant="outline"
-                size="sm"
-                className="h-8 border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
-                onClick={onBulkAICategorize}
-                disabled={isExtracting}
-            >
-                <Sparkles className={cn("mr-2 h-3.5 w-3.5", isExtracting && "animate-spin")} />
-                {isExtracting ? "Đang xử lý..." : "AI Phân Loại"}
-            </Button>
-            <div className="h-6 w-px bg-border mx-2" />
-            <Select onValueChange={onBulkUpdateType}>
-                <SelectTrigger className="h-8 w-[180px] bg-background border-border text-foreground text-xs">
-                    <SelectValue placeholder="Đổi phân loại..." />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border text-popover-foreground">
-                    {DIC_TYPES.map(t => (
-                        <SelectItem key={t.value} value={t.value}>
-                            <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${t.color}`} />
-                                {t.label}
-                            </div>
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+        <div className={cn(
+            "flex items-center justify-between p-3 px-6 rounded-xl border-2 animate-in slide-in-from-top-4 duration-300 shadow-xl relative overflow-hidden mb-4",
+            "bg-primary border-primary text-white"
+        )}>
+            {/* Glowing background effect */}
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent animate-pulse" />
+
+            <div className="flex items-center gap-4 relative z-10">
+                <div className="bg-white/20 p-2 rounded-lg backdrop-blur-md">
+                    <Sparkles className="h-5 w-5 text-white animate-pulse" />
+                </div>
+                <div>
+                    <p className="text-sm font-bold leading-none">Đã chọn {selectedCount} thuật ngữ</p>
+                    <p className="text-[10px] opacity-80 mt-1">Chọn thao tác để xử lý hàng loạt</p>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-3 relative z-10">
+                <Select onValueChange={onBulkUpdateType}>
+                    <SelectTrigger className="h-9 w-[160px] bg-white/10 border-white/20 text-white text-xs hover:bg-white/20 transition-all font-medium">
+                        <SelectValue placeholder="Đổi phân loại..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                        {DIC_TYPES.map(t => (
+                            <SelectItem key={t.value} value={t.value}>
+                                <div className="flex items-center gap-2 font-medium">
+                                    <div className={`w-2 h-2 rounded-full ${t.color}`} />
+                                    {t.label}
+                                </div>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-4 text-white hover:bg-white/10 hover:text-white font-medium"
+                    onClick={onBulkAICategorize}
+                    disabled={isExtracting}
+                >
+                    <Sparkles className={cn("mr-2 h-4 w-4", isExtracting && "animate-spin")} />
+                    {isExtracting ? "Đang xử lý..." : "AI Phân Loại"}
+                </Button>
+
+                <div className="h-6 w-px bg-white/20 mx-1" />
+
+                <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-9 px-6 bg-red-500 hover:bg-red-600 border border-red-400/50 shadow-lg font-bold"
+                    onClick={onBulkDelete}
+                >
+                    <Trash2 className="mr-2 h-4 w-4" /> Xóa vĩnh viễn
+                </Button>
+            </div>
         </div>
     );
 }

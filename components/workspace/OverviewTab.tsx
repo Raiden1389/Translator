@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AutoResizeTextarea } from "@/components/ui/AutoResizeTextarea";
 import {
     Upload, BookOpen, Zap, Users,
-    FileText, Database, Sparkles, Loader2, Image as ImageIcon
+    FileText, Database, Sparkles, Loader2
 } from "lucide-react";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { useOverview } from "./hooks/useOverview";
@@ -47,7 +47,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                 <div className="lg:col-span-1 space-y-6">
                     <Card className={cn(
                         "overflow-hidden relative transition-all",
-                        isRaidenMode ? "bg-[#1E293B] border-transparent shadow-2xl" : "bg-white border-slate-200 shadow-sm hover:shadow-md"
+                        isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-sm hover:shadow-md"
                     )}>
                         <CardHeader className="pb-2">
                             <CardTitle className={cn("text-base flex items-center gap-2", isRaidenMode ? "text-slate-200" : "text-foreground")}>
@@ -55,12 +55,12 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className={cn("flex justify-between items-center text-sm p-3 rounded-xl", isRaidenMode ? "bg-slate-900/40" : "bg-slate-50 border border-slate-100")}>
-                                <span className={isRaidenMode ? "text-slate-400" : "text-slate-600 font-medium"}>Tổng số chương</span>
-                                <span className={cn("font-bold font-mono text-xl", isRaidenMode ? "text-slate-100" : "text-slate-900")}>{stats.totalChapters.toLocaleString()}</span>
+                            <div className={cn("flex justify-between items-center text-sm p-3 rounded-xl", isRaidenMode ? "bg-slate-900/40" : "bg-muted/30 border border-border/50")}>
+                                <span className={isRaidenMode ? "text-slate-400" : "text-muted-foreground font-medium"}>Tổng số chương</span>
+                                <span className={cn("font-bold font-mono text-xl", isRaidenMode ? "text-slate-100" : "text-foreground")}>{stats.totalChapters.toLocaleString()}</span>
                             </div>
-                            <div className={cn("flex justify-between items-center text-sm p-3 rounded-xl", isRaidenMode ? "bg-slate-900/40" : "bg-slate-50 border border-slate-100")}>
-                                <span className={isRaidenMode ? "text-slate-400" : "text-slate-600 font-medium"}>Đã dịch</span>
+                            <div className={cn("flex justify-between items-center text-sm p-3 rounded-xl", isRaidenMode ? "bg-slate-900/40" : "bg-muted/30 border border-border/50")}>
+                                <span className={isRaidenMode ? "text-slate-400" : "text-muted-foreground font-medium"}>Đã dịch</span>
                                 <span className="text-emerald-500 font-bold font-mono text-xl">{stats.translatedChapters.toLocaleString()}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -92,7 +92,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                         </CardContent>
                     </Card>
 
-                    <Card className={cn("overflow-hidden transition-all", isRaidenMode ? "bg-[#1E293B] border-transparent shadow-2xl" : "bg-white border-slate-200 shadow-sm")}>
+                    <Card className={cn("overflow-hidden transition-all", isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-sm")}>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-foreground text-base flex items-center gap-2">
                                 <BookOpen className="w-4 h-4 text-primary" /> Thông Tin
@@ -128,7 +128,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                 {/* Right Column: Cover & Description */}
                 <div className="lg:col-span-2 space-y-6 flex flex-col h-full">
                     <Card
-                        className={cn("shadow-md h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300", isDragging ? 'border-primary border-2 bg-primary/5' : '', isRaidenMode ? "bg-slate-900 border-transparent shadow-2xl" : "bg-white border-border shadow-md")}
+                        className={cn("h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300", isDragging ? 'border-primary border-2 bg-primary/5' : '', isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-md")}
                         onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
                     >
                         {workspace.cover ? (
@@ -136,7 +136,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                                 <div className="absolute inset-0 bg-cover bg-center blur-2xl opacity-30 scale-110 transition-transform duration-700 group-hover:scale-125" style={{ backgroundImage: `url(${workspace.cover})` }} />
                                 <div className="absolute inset-0 bg-linear-to-t from-background via-transparent to-transparent opacity-80" />
                                 <div className="absolute inset-0 flex items-center justify-center p-6">
-                                    <img src={workspace.cover} alt="Cover" className="h-full w-auto object-contain rounded-lg shadow-xl z-10 transition-transform duration-500 group-hover:scale-[1.02]" />
+                                    <img src={workspace.cover} alt="Cover" loading="lazy" className="h-full w-auto object-contain rounded-lg shadow-xl z-10 transition-transform duration-500 group-hover:scale-[1.02]" />
                                 </div>
                             </div>
                         ) : (
@@ -155,7 +155,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                         </div>
                     </Card>
 
-                    <Card className={cn("flex-1 flex flex-col overflow-hidden transition-all", isRaidenMode ? "bg-[#1E293B] border-transparent shadow-2xl" : "bg-white border-slate-200 shadow-sm")}>
+                    <Card className={cn("flex-1 flex flex-col overflow-hidden transition-all", isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-sm")}>
                         <CardHeader className="pb-2">
                             <CardTitle className={cn("text-base flex items-center justify-between", isRaidenMode ? "text-slate-200" : "text-foreground")}>
                                 <div className="flex items-center gap-2">

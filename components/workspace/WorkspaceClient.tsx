@@ -5,15 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     ArrowLeft, BookOpen,
-    Settings, Users, FileText,
-    Database, LayoutDashboard, Swords, Sparkles, Zap
+    Settings, FileText,
+    Database, LayoutDashboard, Swords, Zap
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChapterList } from "@/components/workspace/ChapterList";
 import { DictionaryTab } from "@/components/workspace/DictionaryTab";
-import { CorrectionsView } from "@/components/workspace/dictionary/tabs/CorrectionsView";
-import { CharacterTab } from "@/components/workspace/CharacterTab";
 import { PromptLab } from "@/components/workspace/PromptLab";
 import { AISettingsTab } from "./AISettingsTab";
 import { ExportTab } from "./ExportTab";
@@ -53,9 +51,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
     const tabs = [
         { id: "overview", label: "Tổng Quan", icon: LayoutDashboard },
         { id: "chapters", label: "Chương", icon: FileText },
-        { id: "dictionary", label: "Từ Điển", icon: BookOpen },
-        { id: "characters", label: "Nhân Vật", icon: Users },
-        { id: "corrections", label: "Cải Chính", icon: Sparkles },
+        { id: "dictionary", label: "Dữ Liệu Dịch", icon: BookOpen },
         { id: "promptLab", label: "Prompt Lab", icon: Swords },
         { id: "settings", label: "Cài Đặt", icon: Settings },
         { id: "export", label: "Xuất File", icon: Database },
@@ -109,33 +105,33 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                 key={tab.id}
                                 onClick={() => changeTab(tab.id)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-3 transition-all group relative",
+                                    "w-full flex items-center gap-3 px-4 py-3 transition-all group relative rounded-xl",
                                     isActive
-                                        ? (isRaidenMode ? "text-slate-100 bg-slate-400/5" : "text-indigo-700 bg-indigo-50/80")
-                                        : (isRaidenMode ? "text-slate-500 hover:text-slate-300 hover:bg-slate-400/10" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50")
+                                        ? (isRaidenMode ? "text-slate-100 bg-slate-400/5 shadow-inner" : "text-primary bg-primary/5")
+                                        : (isRaidenMode ? "text-slate-500 hover:text-slate-300 hover:bg-slate-400/10" : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80")
                                 )}
                             >
                                 {isActive && (
                                     <div className={cn(
-                                        "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full transition-all duration-300",
-                                        isRaidenMode ? "bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.6)]" : "bg-indigo-600"
+                                        "absolute left-1 top-1/2 -translate-y-1/2 w-[4px] h-6 rounded-full transition-all duration-300 shadow-xs",
+                                        isRaidenMode ? "bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.6)]" : "bg-primary"
                                     )} />
                                 )}
                                 <Icon className={cn(
                                     "h-4 w-4 transition-colors",
                                     isActive
-                                        ? (isRaidenMode ? "text-purple-400" : "text-indigo-600")
+                                        ? (isRaidenMode ? "text-purple-400" : "text-primary")
                                         : (isRaidenMode ? "text-slate-600 group-hover:text-slate-400" : "text-slate-400 group-hover:text-slate-600")
                                 )} />
-                                <span className="font-semibold tracking-tight text-sm">{tab.label}</span>
+                                <span className={cn("tracking-tight text-sm", isActive ? "font-bold" : "font-semibold")}>{tab.label}</span>
                             </button>
                         )
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-sidebar-border">
-                    <div className="group flex items-center gap-3 p-4 rounded-3xl bg-linear-to-br from-muted/50 to-transparent border border-sidebar-border hover:border-primary/30 transition-all cursor-default text-sidebar-foreground">
-                        <div className="w-9 h-9 rounded-2xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-[10px] font-black text-white shadow-xl group-hover:scale-110 transition-transform">
+                <div className="p-4 border-t border-sidebar-border mt-auto">
+                    <div className="group flex items-center gap-3 p-3 rounded-2xl bg-muted/30 border border-sidebar-border/50 hover:border-primary/30 transition-all cursor-default text-sidebar-foreground">
+                        <div className="w-8 h-8 rounded-xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-[10px] font-black text-white shadow-lg group-hover:scale-110 transition-transform">
                             AI
                         </div>
                         <div className="flex flex-col">
@@ -160,8 +156,14 @@ export default function WorkspaceClient({ id }: { id: string }) {
             </aside>
 
             {/* Content Area */}
-            <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative h-full text-foreground bg-background">
-                <header className="h-20 flex items-center justify-between px-8 pt-4 border-b border-border bg-background shrink-0">
+            <div className={cn(
+                "flex-1 min-w-0 overflow-hidden flex flex-col relative h-full transition-colors duration-500",
+                isRaidenMode ? "bg-background text-foreground" : "bg-muted/40 text-foreground"
+            )}>
+                <header className={cn(
+                    "h-20 flex items-center justify-between px-8 pt-4 border-b shrink-0 transition-colors duration-500",
+                    isRaidenMode ? "bg-background border-border" : "bg-white/80 backdrop-blur-md border-border"
+                )}>
                     <h2 className="text-sm font-bold capitalize flex items-center gap-2">
                         {tabs.find(t => t.id === activeTab)?.label}
                         <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-mono font-black">WS_ID: {id.slice(0, 8)}</span>
@@ -174,8 +176,6 @@ export default function WorkspaceClient({ id }: { id: string }) {
                             {activeTab === "overview" && <OverviewTab workspace={workspace} />}
                             {activeTab === "chapters" && <ChapterList workspaceId={id} onTranslate={startBatchTranslate} />}
                             {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
-                            {activeTab === "characters" && <CharacterTab workspaceId={id} />}
-                            {activeTab === "corrections" && <CorrectionsView workspaceId={id} />}
                             {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
 
                             {activeTab === "settings" && (

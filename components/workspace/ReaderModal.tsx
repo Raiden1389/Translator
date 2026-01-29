@@ -12,6 +12,8 @@ import { ReaderDialogs } from "./ReaderDialogs";
 import { ReviewDialog } from "./ReviewDialog";
 import { TextSelectionMenu } from "./TextSelectionMenu";
 import { ReaderContextMenu } from "./ReaderContextMenu";
+import { FloatingProgressPill } from "./FloatingProgressPill";
+import { BackToTop } from "./BackToTop";
 
 // Hooks
 import { useReaderSettings } from "./hooks/useReaderSettings";
@@ -44,7 +46,7 @@ export function ReaderModal({
     hasPrev,
     hasNext
 }: ReaderModalProps) {
-    // 1. DATA LAYER (External Sync)
+    // 1. DATA LAYER
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
     const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(chapter?.workspaceId || "").toArray(), [chapter?.workspaceId]);
 
@@ -55,22 +57,22 @@ export function ReaderModal({
     const [showSettings, setShowSettings] = useState(false);
     const [isDisabled, setIsDisabled] = useState(false);
 
-    // 3. FEATURE HOOKS
+    // 3. UI PROGRESS STATE
+    const [scrollProgress, setScrollProgress] = useState(0);
+    const [showBackToTop, setShowBackToTop] = useState(false);
+
+    // 4. FEATURE HOOKS
     const { readerConfig, setReaderConfig } = useReaderSettings();
     const {
         isTTSPlaying, isTTSLoading, activeTTSIndex, toggleTTS, stopTTS
     } = useReaderTTS(chapterId, chapter?.content_translated || "", readerConfig);
 
-    // Cooldown logic for actions
     const handleActionStart = useCallback(() => {
         setIsDisabled(true);
-        const timer = setTimeout(() => {
-            setIsDisabled(false);
-        }, 1500);
+        const timer = setTimeout(() => setIsDisabled(false), 1500);
         return () => clearTimeout(timer);
     }, []);
 
-    // 3.1. Navigation & Scroll
     const {
         scrollViewportRef,
         handleScroll,
@@ -80,10 +82,9 @@ export function ReaderModal({
         hasNext: !!hasNext,
         onNext,
         stopTTS,
-        isDisabled // Cooldown from actions
+        isDisabled
     });
 
-    // 3.2. Text Selection & Menu
     const {
         menuPosition, setMenuPosition,
         contextMenuPosition, setContextMenuPosition,
@@ -94,67 +95,33 @@ export function ReaderModal({
         clearSelection
     } = useReaderSelection();
 
-    // 3.3. Inspection
     const {
-        isInspecting,
-        inspectionIssues,
-        activeIssue,
-        setActiveIssue,
-        handleInspect,
-        handleApplyFix
+        isInspecting, inspectionIssues, activeIssue, setActiveIssue, handleInspect, handleApplyFix
     } = useReaderInspection(chapterId, chapter);
 
     const {
-        isAIExtracting,
-        pendingCharacters,
-        pendingTerms,
-        isReviewOpen,
-        setIsReviewOpen,
-        handleAIExtractChapter,
-        handleConfirmSaveAI
+        pendingCharacters, pendingTerms, isReviewOpen, setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI
     } = useAIExtraction(chapter?.workspaceId || "", dictEntries || []);
 
-    // 3.4. Corrections & Dictionary
     const {
-        correctionOpen, setCorrectionOpen,
-        correctionType, setCorrectionType,
-        correctionOriginal, setCorrectionOriginal,
-        correctionReplacement, setCorrectionReplacement,
-        correctionField3, setCorrectionField3,
-        handleSaveCorrection,
-        openCorrection,
-        dictDialogOpen, setDictDialogOpen,
-        dictOriginal, setDictOriginal,
-        dictTranslated, setDictTranslated,
-        handleSaveDictionary,
-        openDictionary
+        correctionOpen, setCorrectionOpen, correctionType, setCorrectionType,
+        correctionOriginal, setCorrectionOriginal, correctionReplacement, setCorrectionReplacement,
+        correctionField3, setCorrectionField3, handleSaveCorrection, openCorrection,
+        dictDialogOpen, setDictDialogOpen, dictOriginal, setDictOriginal,
+        dictTranslated, setDictTranslated, handleSaveDictionary, openDictionary
     } = useCorrections({
-        chapterId,
-        chapter,
-        editContent,
-        setEditContent,
-        onActionStart: () => {
-            handleActionStart();
-            clearSelection();
-        }
+        chapterId, chapter, editContent, setEditContent,
+        onActionStart: () => { handleActionStart(); clearSelection(); }
     });
 
-    // 3.5. Keybinds
     useReaderKeybinds({ onClose, onNext, onPrev, hasPrev, hasNext, scrollViewportRef });
 
-    // 4. EFFECTS & LOGIC
+    // 5. EFFECTS & HANDLERS
 
-    // Sync DB -> Local State
     useEffect(() => {
-        if (chapter) {
-            const timer = setTimeout(() => {
-                setEditContent(chapter.content_translated || "");
-            }, 0);
-            return () => clearTimeout(timer);
-        }
-    }, [chapter?.id, chapter]);
+        if (chapter) setEditContent(chapter.content_translated || "");
+    }, [chapter?.id]);
 
-    // Auto-Save
     useEffect(() => {
         if (!chapter) return;
         const timer = setTimeout(async () => {
@@ -163,16 +130,12 @@ export function ReaderModal({
             }
         }, 1000);
         return () => clearTimeout(timer);
-    }, [editContent, chapterId, chapter]);
+    }, [editContent, chapterId]);
 
-    // Format Logic
     const paragraphsData = useMemo(() => formatChapterToParagraphs({
-        text: editContent,
-        activeTTSIndex,
-        inspectionIssues
+        text: editContent, activeTTSIndex, inspectionIssues
     }), [editContent, activeTTSIndex, inspectionIssues]);
 
-    // Reader Actions Handlers
     const handleClearTranslation = async () => {
         if (!confirm("Xóa bản dịch của chương này để dịch lại?")) return;
         await clearChapterTranslation(chapterId);
@@ -181,40 +144,43 @@ export function ReaderModal({
 
     const handleMenuAction = async (action: "dictionary" | "blacklist" | "correction" | "copy") => {
         if (!selectedText || !chapter) return;
-
         switch (action) {
             case "copy":
                 await navigator.clipboard.writeText(selectedText);
                 toast.success("Đã sao chép!");
-                clearSelection();
                 break;
             case "dictionary":
                 openDictionary(selectedText);
-                clearSelection();
                 break;
             case "correction":
                 openCorrection(selectedText);
-                clearSelection();
                 break;
             case "blacklist":
                 if (!chapter.workspaceId) return;
                 await db.blacklist.add({
                     workspaceId: chapter.workspaceId,
-                    word: selectedText,
-                    translated: selectedText,
-                    source: 'manual',
-                    createdAt: new Date()
+                    word: selectedText, translated: selectedText,
+                    source: 'manual', createdAt: new Date()
                 });
                 toast.success(`Đã thêm vào Blacklist`);
-                clearSelection();
                 break;
         }
+        clearSelection();
     };
+
+    const scrollToTop = useCallback(() => {
+        if (scrollViewportRef.current) {
+            scrollViewportRef.current.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        }
+    }, [scrollViewportRef]);
 
     if (!chapter) return null;
 
     return (
-        <div className="fixed inset-x-0 bottom-0 top-[31px] z-[100] flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
+        <div className="fixed inset-x-0 bottom-0 top-[31px] z-100 flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
             <div className="w-full h-full bg-background rounded-t-[32px] overflow-hidden flex flex-col border-t border-border shadow-2xl relative">
                 <ReaderHeader
                     activeTab={activeTab}
@@ -245,6 +211,7 @@ export function ReaderModal({
                     setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
                     onClearTranslation={handleClearTranslation}
                     onAIExtract={() => handleAIExtractChapter(chapter.content_original || "")}
+                    scrollProgress={scrollProgress}
                 />
 
                 <ReaderContent
@@ -264,6 +231,13 @@ export function ReaderModal({
                     editorRef={editorRef}
                     handleScroll={(e) => {
                         handleScroll(e);
+                        const target = e.currentTarget;
+                        const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
+                        setScrollProgress(progress);
+
+                        // Condition: scroll >= 1.5 viewports (approx 1500px or screen based)
+                        setShowBackToTop(target.scrollTop > target.clientHeight * 1.5);
+
                         if (menuPosition) setMenuPosition(null);
                         if (contextMenuPosition) setContextMenuPosition(null);
                     }}
@@ -271,55 +245,31 @@ export function ReaderModal({
                     onNext={onNext}
                     hasNext={hasNext}
                 />
+
+                {/* MODULAR FLOATING UI STACK */}
+                <FloatingProgressPill
+                    progress={scrollProgress}
+                    className="bottom-20 right-6" // Shift up to avoid overlap
+                />
+
+                <BackToTop
+                    isVisible={showBackToTop}
+                    onClick={scrollToTop}
+                    color={readerConfig.textColor}
+                />
             </div>
 
-            <TextSelectionMenu
-                position={menuPosition}
-                selectedText={selectedText}
-                onAction={handleMenuAction}
-                onClose={() => setMenuPosition(null)}
-            />
-
-            <ReaderContextMenu
-                position={contextMenuPosition}
-                selectedText={selectedText}
-                onAction={handleMenuAction}
-                onClose={() => setContextMenuPosition(null)}
-            />
-
+            <TextSelectionMenu position={menuPosition} selectedText={selectedText} onAction={handleMenuAction} onClose={() => setMenuPosition(null)} />
+            <ReaderContextMenu position={contextMenuPosition} selectedText={selectedText} onAction={handleMenuAction} onClose={() => setContextMenuPosition(null)} />
             <ReaderDialogs
-                correctionOpen={correctionOpen}
-                setCorrectionOpen={setCorrectionOpen}
-                correctionType={correctionType}
-                setCorrectionType={setCorrectionType}
-                correctionOriginal={correctionOriginal}
-                setCorrectionOriginal={setCorrectionOriginal}
-                correctionReplacement={correctionReplacement}
-                setCorrectionReplacement={setCorrectionReplacement}
-                correctionField3={correctionField3}
-                setCorrectionField3={setCorrectionField3}
-                handleSaveCorrection={handleSaveCorrection}
-
-                dictDialogOpen={dictDialogOpen}
-                setDictDialogOpen={setDictDialogOpen}
-                dictOriginal={dictOriginal}
-                setDictOriginal={setDictOriginal}
-                dictTranslated={dictTranslated}
-                setDictTranslated={setDictTranslated}
-                handleSaveDictionary={handleSaveDictionary}
-
-                activeIssue={activeIssue}
-                setActiveIssue={setActiveIssue}
-                handleApplyFix={(issue, save) => handleApplyFix(issue, editContent, save, setEditContent)}
+                correctionOpen={correctionOpen} setCorrectionOpen={setCorrectionOpen} correctionType={correctionType} setCorrectionType={setCorrectionType}
+                correctionOriginal={correctionOriginal} setCorrectionOriginal={setCorrectionOriginal} correctionReplacement={correctionReplacement} setCorrectionReplacement={setCorrectionReplacement}
+                correctionField3={correctionField3} setCorrectionField3={setCorrectionField3} handleSaveCorrection={handleSaveCorrection}
+                dictDialogOpen={dictDialogOpen} setDictDialogOpen={setDictDialogOpen} dictOriginal={dictOriginal} setDictOriginal={setDictOriginal}
+                dictTranslated={dictTranslated} setDictTranslated={setDictTranslated} handleSaveDictionary={handleSaveDictionary}
+                activeIssue={activeIssue} setActiveIssue={setActiveIssue} handleApplyFix={(issue, save) => handleApplyFix(issue, editContent, save, setEditContent)}
             />
-
-            <ReviewDialog
-                open={isReviewOpen}
-                onOpenChange={setIsReviewOpen}
-                characters={pendingCharacters as any}
-                terms={pendingTerms as any}
-                onSave={handleConfirmSaveAI}
-            />
+            <ReviewDialog open={isReviewOpen} onOpenChange={setIsReviewOpen} characters={pendingCharacters as any} terms={pendingTerms as any} onSave={handleConfirmSaveAI} />
         </div>
     );
 }

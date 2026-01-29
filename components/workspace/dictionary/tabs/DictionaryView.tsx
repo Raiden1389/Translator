@@ -76,7 +76,7 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
                 onFilterTypeChange={setFilterType}
                 onImport={handleImport}
                 onExport={handleExport}
-                onAIExtract={(source: string) => handleAIExtract(source as any, dictionary)}
+                onAIExtract={(source: string) => handleAIExtract(source as 'latest' | 'current' | 'select', dictionary)}
                 isExtracting={isExtracting}
                 extractDialogOpen={extractDialogOpen}
                 onExtractDialogChange={setExtractDialogOpen}
@@ -87,6 +87,7 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
                     toast.info("Mày hãy chọn các chương muốn quét ở danh sách rồi bấm Quét nhé!");
                 }}
                 workspaceId={workspaceId}
+                totalCount={dictionary.length}
             />
 
             {isAdding && (
@@ -111,30 +112,29 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
 
             {/* Virtual Scrolling Table */}
             <div className={cn(
-                "rounded-xl overflow-hidden shadow-sm",
-                isRaidenMode ? "bg-[#1E293B] border-transparent shadow-2xl" : "bg-white border border-slate-200"
+                "rounded-xl overflow-hidden shadow-sm border transition-all duration-500",
+                isRaidenMode ? "bg-card border-border shadow-2xl" : "bg-muted/30 border-border shadow-sm"
             )}>
                 {/* Header */}
                 <div className={cn(
-                    "grid grid-cols-12 gap-4 p-4 border-b text-[10px] font-black uppercase tracking-widest sticky top-0 z-10",
-                    isRaidenMode ? "bg-slate-900 border-slate-800 text-slate-500" : "bg-slate-50/50 border-slate-200 text-slate-500"
+                    "grid grid-cols-[40px_1fr_1fr_120px_110px] gap-4 px-4 py-3 border-b-2 text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-all duration-500",
+                    isRaidenMode ? "bg-card border-border text-muted-foreground" : "bg-muted/50 border-border-strong text-foreground/80"
                 )}>
-                    <div className="col-span-1 flex justify-center">
+                    <div className="flex justify-center items-center">
                         <Checkbox
                             checked={filteredDic.length > 0 && selectedEntries.length === filteredDic.length}
                             onCheckedChange={toggleSelectAll}
                             className={cn(
                                 isRaidenMode
-                                    ? "border-slate-600 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
-                                    : "border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                                    ? "border-slate-600 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                    : "border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                             )}
                         />
                     </div>
-                    <div className="col-span-1 text-center">#</div>
-                    <div className="col-span-3">Thuật ngữ gốc</div>
-                    <div className="col-span-3">Bản dịch</div>
-                    <div className="col-span-2">Phân loại</div>
-                    <div className="col-span-2 text-right">Actions</div>
+                    <div className="px-2 flex items-center">Thuật ngữ gốc</div>
+                    <div className="px-2 flex items-center">Bản dịch</div>
+                    <div className="px-2 flex items-center">Phân loại</div>
+                    <div className="text-right pr-4 flex items-center justify-end">Actions</div>
                 </div>
 
                 {/* Virtual Rows */}

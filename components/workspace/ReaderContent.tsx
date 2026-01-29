@@ -39,19 +39,29 @@ interface ReaderContentProps {
 
 import { useRaiden } from "@/components/theme/RaidenProvider";
 
-// Memoized individual paragraph for snappiness.
 const ParagraphItem = React.memo(({
     para,
     index,
-    setActiveIssue,
-    isRaidenMode
+    isRaidenMode,
+    showDialogueLines,
+    readerConfig
 }: {
     para: ParagraphData,
     index: number,
-    setActiveIssue: (i: InspectionIssue | null) => void,
-    isRaidenMode: boolean
+    isRaidenMode: boolean,
+    showDialogueLines: boolean,
+    readerConfig: ReaderConfig
 }) => {
     const isHighlighted = para.isHighlighted;
+    const cleanText = para.text.trim();
+
+    const isDialogue = cleanText.startsWith("“") ||
+        cleanText.startsWith("\"") ||
+        cleanText.startsWith("「") ||
+        cleanText.startsWith("『") ||
+        cleanText.startsWith("-") ||
+        cleanText.startsWith("–") ||
+        cleanText.startsWith("—");
 
     const renderContent = () => {
         let text = para.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -69,11 +79,17 @@ const ParagraphItem = React.memo(({
         <p
             id={`tts-para-${index}`}
             className={cn(
-                "mb-[1.2em] transition-all duration-500 rounded-sm px-2 py-1 -mx-2 border border-transparent",
+                "mb-[var(--reader-paragraph-spacing)] transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
+                !isDialogue && "indent-8",
+                isDialogue && !isRaidenMode && (para.text.startsWith("“") || para.text.startsWith("\"") || para.text.startsWith("-")) && "text-[hsl(var(--dialogue-text))] not-italic opacity-95",
+                isDialogue && !isRaidenMode && showDialogueLines && "border-l-2 border-l-[hsl(var(--dialogue-quote-border))]",
                 isHighlighted
-                    ? (isRaidenMode ? "bg-purple-500/10 border-purple-500/20" : "bg-amber-100/60 border-amber-200/50 shadow-sm")
-                    : (isRaidenMode ? "hover:bg-slate-800/20" : "hover:bg-slate-50/50")
+                    ? (isRaidenMode ? "bg-purple-500/10 border-purple-500/20" : "bg-blue-50/60 border-blue-200/50 shadow-xs")
+                    : (isRaidenMode ? "hover:bg-slate-800/10" : "hover:bg-slate-50/20")
             )}
+            style={{
+                lineHeight: isDialogue ? (Number(readerConfig?.lineHeight || 1.6) * 1.15) : undefined
+            }}
             dangerouslySetInnerHTML={renderContent()}
         />
     );
@@ -111,18 +127,28 @@ export const ReaderContent = React.memo(function ReaderContent({
             >
                 {(activeTab === 'original' || isParallel) && (
                     <div className={cn(
-                        "min-h-full p-8 md:p-12 pb-20 border-r",
-                        isRaidenMode ? "border-slate-800/50" : "border-border/10"
+                        "min-h-full p-8 md:p-12 pb-20 border-r flex flex-col items-center",
+                        isRaidenMode ? "border-slate-800/50" : "border-border/50 bg-slate-50/30"
                     )}>
-                        {isParallel && (
-                            <div className="mb-6 text-[10px] font-black opacity-50 uppercase tracking-[0.3em] sticky top-0 flex items-center gap-2"
-                                style={{ color: isRaidenMode ? "#94A3B8" : readerConfig.textColor }}>
-                                <div className="w-8 h-px bg-current opacity-20" /> Bản gốc (Trung)
+                        <div className="w-full" style={{ maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`) }}>
+                            {isParallel && (
+                                <div className="mb-8 text-[10px] font-black opacity-40 uppercase tracking-[0.3em] flex items-center gap-2"
+                                    style={{ color: isRaidenMode ? "#94A3B8" : "hsl(var(--muted-foreground))" }}>
+                                    <div className="w-8 h-px bg-current opacity-20" /> Bản gốc (Trung)
+                                </div>
+                            )}
+                            <div className="leading-relaxed select-text antialiased transition-opacity duration-700"
+                                style={{
+                                    fontFamily: "'Noto Sans SC', sans-serif",
+                                    fontSize: `${readerConfig.fontSize}px`,
+                                    lineHeight: readerConfig.lineHeight,
+                                    fontWeight: isRaidenMode ? 400 : 500,
+                                    textAlign: readerConfig.textAlign,
+                                    color: "currentColor",
+                                    opacity: isParallel ? 0.4 : 0.8
+                                }}>
+                                {chapter.content_original}
                             </div>
-                        )}
-                        <div className="text-xl leading-loose font-serif whitespace-pre-wrap select-text"
-                            style={{ color: isRaidenMode ? "#94A3B8" : readerConfig.textColor, fontFamily: readerConfig.fontFamily }}>
-                            {chapter.content_original}
                         </div>
                     </div>
                 )}
@@ -136,22 +162,23 @@ export const ReaderContent = React.memo(function ReaderContent({
                             )}>Translation</div>
                         )}
 
-                        <div className={cn(
-                            "font-bold text-4xl font-serif mb-12 text-center",
-                            "max-w-[800px] mx-auto px-6",
-                            "drop-shadow-sm",
-                            isRaidenMode ? "text-slate-100" : "text-primary",
-                            isParallel ? "pt-6" : "pt-16 md:pt-24"
-                        )}
-                            style={{
-                                fontFamily: readerConfig.fontFamily,
-                                maxWidth: isParallel ? "none" : `${readerConfig.maxWidth}px`
-                            }}
-                        >
-                            {(chapter.title_translated || chapter.title).normalize('NFC')}
+                        <div className="relative animate-in fade-in duration-1000 slide-in-from-bottom-4">
+                            <div className={cn(
+                                "font-bold text-4xl mb-12 text-center antialiased",
+                                "mx-auto px-6",
+                                "drop-shadow-sm transition-all duration-500",
+                                isRaidenMode ? "text-slate-100" : "text-gray-900",
+                                isParallel ? "pt-6" : "pt-16 md:pt-24"
+                            )}
+                                style={{
+                                    fontFamily: readerConfig.fontFamily,
+                                    maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`)
+                                }}
+                            >
+                                {(chapter.title_translated || chapter.title).normalize('NFC')}
+                            </div>
                         </div>
 
-                        {/* Rendering Paragraphs individually for snappiness */}
                         <div
                             contentEditable
                             suppressContentEditableWarning
@@ -160,14 +187,15 @@ export const ReaderContent = React.memo(function ReaderContent({
                             onContextMenu={handleContextMenu}
                             className={cn(
                                 "w-full flex-1 bg-transparent focus:outline-none outline-none",
-                                "max-w-[800px] mx-auto px-8 pb-12 transition-colors duration-500"
+                                "mx-auto px-8 pb-4 transition-all duration-500 animate-in fade-in duration-700"
                             )}
                             style={{
                                 fontFamily: readerConfig.fontFamily,
                                 fontSize: `${readerConfig.fontSize}px`,
                                 lineHeight: readerConfig.lineHeight,
                                 color: finalTextColor,
-                                maxWidth: isParallel ? "none" : `${readerConfig.maxWidth}px`
+                                textAlign: readerConfig.textAlign,
+                                maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`)
                             }}
                             spellCheck={false}
                             ref={editorRef}
@@ -185,14 +213,26 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     key={para.id}
                                     para={para}
                                     index={index}
-                                    setActiveIssue={setActiveIssue}
                                     isRaidenMode={isRaidenMode}
+                                    showDialogueLines={readerConfig.showDialogueLines}
+                                    readerConfig={readerConfig}
                                 />
                             ))}
                         </div>
 
+                        {/* ZEN DIVIDER - Visual Chapter End Marker */}
+                        <div className="flex items-center justify-center py-20 opacity-20 select-none animate-in fade-in zoom-in duration-1000"
+                            style={{ maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`), margin: "0 auto" }}>
+                            <div className="flex gap-6">
+                                <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                                <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                                <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                            </div>
+                        </div>
+
                         {/* Explicit Next Chapter Navigation */}
-                        <div className="max-w-[800px] mx-auto px-8 pb-32 pt-8 w-full flex items-center justify-center">
+                        <div className="mx-auto px-8 pb-32 w-full flex items-center justify-center"
+                            style={{ maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`) }}>
                             {hasNext ? (
                                 <button
                                     onClick={onNext}

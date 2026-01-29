@@ -14,7 +14,7 @@ interface ChapterTableProps {
     chapters: Chapter[];
     selectedChapters: number[];
     setSelectedChapters: (ids: number[]) => void;
-    toggleSelect: (id: number) => void;
+    onSelect: (id: number, shiftKey?: boolean) => void;
 
     // Selection handlers
     onSelectPage: () => void;
@@ -31,7 +31,7 @@ interface ChapterTableProps {
 
 export function ChapterTable(props: ChapterTableProps) {
     const {
-        chapters, selectedChapters, setSelectedChapters, toggleSelect,
+        chapters, selectedChapters, setSelectedChapters, onSelect,
         onSelectPage, onSelectGlobal, onDeselectAll,
         onRead, onInspect, onClearTranslation, onApplyCorrections,
         lastReadChapterId
@@ -57,9 +57,9 @@ export function ChapterTable(props: ChapterTableProps) {
     });
 
     return (
-        <div className="rounded-xl border bg-card overflow-hidden flex flex-col h-[70vh]">
+        <div className="border border-border bg-muted/40 overflow-hidden flex flex-col h-[75vh] shadow-sm rounded-xl transition-all duration-500">
             {/* Virtualized Header - Sticky Grid */}
-            <div className="grid grid-cols-[50px_60px_1fr_1fr_140px_100px] bg-muted/50 border-b py-3 px-4 font-black text-[10px] uppercase tracking-widest text-muted-foreground z-20 shrink-0">
+            <div className="grid grid-cols-[50px_60px_1fr_1fr_140px_100px] bg-muted border-b-2 border-border/80 py-3 px-4 shadow-sm font-semibold text-[10px] uppercase tracking-widest text-muted-foreground z-20 shrink-0 transition-all duration-500">
                 <div className="flex items-center gap-1">
                     <Checkbox
                         checked={isPageAllSelected || (isPageSomeSelected && "indeterminate")}
@@ -120,6 +120,7 @@ export function ChapterTable(props: ChapterTableProps) {
                                 <ChapterRow
                                     id={chapter.id!}
                                     order={chapter.order}
+                                    index={virtualRow.index}
                                     title={chapter.title}
                                     title_translated={chapter.title_translated}
                                     status={chapter.status || 'draft'}
@@ -134,7 +135,7 @@ export function ChapterTable(props: ChapterTableProps) {
                                     hasTitle={!!chapter.title_translated && chapter.title_translated.length > 0}
                                     onMouseDown={handleMouseDown}
                                     onMouseEnter={handleMouseEnter}
-                                    toggleSelect={toggleSelect}
+                                    onSelect={onSelect}
                                     onRead={onRead}
                                     onDelete={handleDelete}
                                     onInspect={onInspect}

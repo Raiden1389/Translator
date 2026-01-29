@@ -77,6 +77,12 @@ async fn native_list_models(api_key: String) -> Result<String, String> {
     Ok(text)
 }
 
+#[tauri::command]
+fn get_gemini_key() -> Result<String, String> {
+    dotenvy::dotenv().ok();
+    env::var("GEMINI_API_KEY").map_err(|_| "Không tìm thấy GEMINI_API_KEY trong .env".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -87,7 +93,8 @@ pub fn run() {
             tts::edge_tts_speak,
             auth::start_auth_server,
             native_gemini_request,
-            segment_chinese
+            segment_chinese,
+            get_gemini_key
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

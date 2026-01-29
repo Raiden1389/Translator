@@ -40,6 +40,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RaidenProvider } from "@/components/theme/RaidenProvider";
 import { TranslationProvider } from "@/components/workspace/hooks/TranslationProvider";
 import { GlobalTranslationProgress } from "@/components/layout/GlobalTranslationProgress";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default function RootLayout({
   children,
@@ -49,7 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-[1px] select-none`}
+        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-px select-none`}
       >
         <div className="flex-1 flex flex-col bg-background rounded-lg border border-border shadow-2xl overflow-hidden relative group/window">
           {/* Window Shadow Overlay */}
@@ -60,8 +61,10 @@ export default function RootLayout({
             <ErrorBoundary>
               <RaidenProvider>
                 <TranslationProvider>
-                  {children}
-                  <GlobalTranslationProgress />
+                  <TooltipProvider delayDuration={400}>
+                    {children}
+                    <GlobalTranslationProgress />
+                  </TooltipProvider>
                 </TranslationProvider>
               </RaidenProvider>
             </ErrorBoundary>

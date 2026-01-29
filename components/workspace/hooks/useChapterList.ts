@@ -43,7 +43,7 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
     const {
         selectedChapters,
         setSelectedChapters,
-        toggleSingleSelection
+        handleSelect
     } = useChapterSelection(filtered.map(c => c.id!));
 
     const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(workspaceId).toArray(), [workspaceId]);
@@ -76,11 +76,8 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
 
     // Reset page to 1 when filters change
     useEffect(() => {
-        if (currentPage !== 1) {
-            const timer = setTimeout(() => setCurrentPage(1), 0);
-            return () => clearTimeout(timer);
-        }
-    }, [search, filterStatus, currentPage]);
+        setCurrentPage(1);
+    }, [search, filterStatus]);
 
     // Actions
     const handleSelectRange = (rangeStr: string) => {
@@ -201,7 +198,7 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
         actions: {
             setSearch, setFilterStatus, setCurrentPage, setItemsPerPage, setViewMode,
             setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen,
-            setSelectedChapters, toggleSingleSelection, handleSelectRange, handleInspect,
+            setSelectedChapters, handleSelect, handleSelectRange, handleInspect,
             handleApplyCorrections, handleClearTranslationAction, handleBulkClearTranslation, handleExport,
             handleFileUpload, handleImportJSON,
             setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI,

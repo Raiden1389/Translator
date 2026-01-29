@@ -10,7 +10,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 interface ChapterCardGridProps {
     chapters: Chapter[];
     selectedChapters: number[];
-    toggleSelect: (id: number) => void;
+    onSelect: (id: number, shiftKey?: boolean) => void;
     onRead: (id: number) => void;
     onInspect: (id: number) => void;
     onClearTranslation: (id: number) => void;
@@ -21,7 +21,7 @@ interface ChapterCardGridProps {
 export function ChapterCardGrid({
     chapters,
     selectedChapters,
-    toggleSelect,
+    onSelect,
     onRead,
     onInspect,
     onClearTranslation,
@@ -108,7 +108,7 @@ export function ChapterCardGrid({
                                     isLastRead={lastReadChapterId === chapter.id}
                                     hasContent={!!chapter.content_translated && chapter.content_translated.length > 0}
                                     hasTitle={!!chapter.title_translated && chapter.title_translated.length > 0}
-                                    onSelect={() => toggleSelect(chapter.id!)}
+                                    onSelect={(checked, shiftKey) => onSelect(chapter.id!, shiftKey)}
                                     onRead={() => onRead(chapter.id!)}
                                     onTranslate={() => {/* Unified batch handler preferred */ }}
                                     onInspect={() => onInspect(chapter.id!)}

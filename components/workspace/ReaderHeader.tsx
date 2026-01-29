@@ -22,6 +22,11 @@ import { Chapter } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InspectionIssue } from "@/lib/types";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /* ===================== TYPES ===================== */
 
@@ -33,6 +38,7 @@ export interface ReaderConfig {
     textColor: string;
     backgroundColor: string;
     maxWidth: number;
+    showDialogueLines: boolean;
     ttsPitch: number;
     ttsRate: number;
     ttsVoice: string;
@@ -50,12 +56,13 @@ interface ReaderHeaderProps {
     showSettings: boolean;
     setShowSettings: (v: boolean) => void;
     readerConfig: ReaderConfig;
-    setReaderConfig: (config: ReaderConfig) => void;
+    setReaderConfig: React.Dispatch<React.SetStateAction<ReaderConfig>>;
     onPrev?: () => void;
     onNext?: () => void;
     hasPrev?: boolean;
     hasNext?: boolean;
     onClose: () => void;
+    scrollProgress?: number;
 
     isTTSPlaying: boolean;
     isTTSLoading: boolean;
@@ -89,13 +96,12 @@ function HeaderIconButton({
     title?: string;
     children?: React.ReactNode;
 }) {
-    return (
+    const button = (
         <Button
             variant="ghost"
             size="icon"
             onClick={onClick}
             disabled={disabled}
-            title={title}
             className={cn(
                 "w-11 h-11 rounded-xl border border-border transition-all duration-300 relative",
                 className
@@ -104,6 +110,17 @@ function HeaderIconButton({
             {icon}
             {children}
         </Button>
+    );
+
+    if (!title) return button;
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                {button}
+            </TooltipTrigger>
+            <TooltipContent>{title}</TooltipContent>
+        </Tooltip>
     );
 }
 
@@ -275,7 +292,7 @@ interface ReaderSettingsPanelProps {
     showSettings: boolean;
     setShowSettings: (v: boolean) => void;
     readerConfig: ReaderConfig;
-    setReaderConfig: (config: ReaderConfig) => void;
+    setReaderConfig: React.Dispatch<React.SetStateAction<ReaderConfig>>;
 }
 
 function ReaderSettingsPanel({
@@ -308,7 +325,7 @@ function ReaderSettingsPanel({
                                 el.classList.toggle('hidden');
                             }}
                         />
-                        <div className="hidden absolute top-full left-0 mt-2 p-2 bg-popover border border-border rounded-xl shadow-2xl z-[210] grid grid-cols-4 gap-2 w-48 animate-in zoom-in-95 duration-100">
+                        <div className="hidden absolute top-full left-0 mt-2 p-2 bg-popover border border-border rounded-xl shadow-2xl z-210 grid-cols-4 gap-2 w-48 animate-in zoom-in-95 duration-100 data-[state=visible]:grid">
                             {["#ffffff", "#f8fafc", "#f1f5f9", "#fdfcf0", "#f5f5f4", "#faf7ed", "#f3f4f6", "#ecfdf5"].map((color) => (
                                 <button
                                     key={color}
@@ -341,7 +358,7 @@ function ReaderSettingsPanel({
                                 el.classList.toggle('hidden');
                             }}
                         />
-                        <div className="hidden absolute top-full right-0 mt-2 p-2 bg-popover border border-border rounded-xl shadow-2xl z-[210] grid grid-cols-4 gap-2 w-48 animate-in zoom-in-95 duration-100">
+                        <div className="hidden absolute top-full right-0 mt-2 p-2 bg-popover border border-border rounded-xl shadow-2xl z-210 grid-cols-4 gap-2 w-48 animate-in zoom-in-95 duration-100 data-[state=visible]:grid">
                             {["#171717", "#262626", "#404040", "#525252", "#7c2d12", "#1e3a8a", "#064e3b", "#701a75"].map((color) => (
                                 <button
                                     key={color}
@@ -375,7 +392,7 @@ function ReaderSettingsPanel({
                     ].map((font) => (
                         <button
                             key={font.name}
-                            onClick={() => setReaderConfig({ ...readerConfig, fontFamily: font.value })}
+                            onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, fontFamily: font.value }))}
                             className={cn(
                                 "px-3 py-2 rounded-xl text-sm transition-all border font-medium text-left",
                                 readerConfig.fontFamily === font.value
@@ -391,29 +408,69 @@ function ReaderSettingsPanel({
             </div>
 
             <div className="space-y-3">
-                <div className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">Độ rộng: {readerConfig.maxWidth >= 1800 ? "Full" : readerConfig.maxWidth + "px"}</div>
+                <div className="flex items-center justify-between">
+                    <label className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">
+                        Độ rộng: {
+                            readerConfig.maxWidth < 700 ? "Hẹp" :
+                                readerConfig.maxWidth < 1000 ? "Tiêu chuẩn" :
+                                    readerConfig.maxWidth < 1400 ? "Rộng" : "Full"
+                        }
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">Kẻ lời thoại</span>
+                        <button
+                            onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, showDialogueLines: !prev.showDialogueLines }))}
+                            className={cn(
+                                "w-8 h-4 rounded-full transition-all relative",
+                                readerConfig.showDialogueLines ? "bg-primary" : "bg-muted"
+                            )}
+                        >
+                            <div className={cn(
+                                "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm",
+                                readerConfig.showDialogueLines ? "left-[18px]" : "left-0.5"
+                            )} />
+                        </button>
+                    </div>
+                </div>
                 <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-xl border border-border/50">
-                    <button onClick={() => setReaderConfig({ ...readerConfig, maxWidth: Math.max(600, readerConfig.maxWidth - 100) })} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">-</button>
-                    <input type="range" min="600" max="1800" step="50" value={readerConfig.maxWidth} onChange={(e) => setReaderConfig({ ...readerConfig, maxWidth: parseInt(e.target.value) })} className="flex-1 h-1 bg-background rounded-full appearance-none accent-primary" />
-                    <button onClick={() => setReaderConfig({ ...readerConfig, maxWidth: Math.min(1800, readerConfig.maxWidth + 100) })} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">+</button>
+                    <button onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, maxWidth: Math.max(500, prev.maxWidth - 50) }))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">-</button>
+                    <input type="range" min="500" max="1400" step="10" value={readerConfig.maxWidth} onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setReaderConfig((prev: ReaderConfig) => ({ ...prev, maxWidth: val }));
+                    }} className="flex-1 h-1 bg-background rounded-full appearance-none accent-primary" />
+                    <button onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, maxWidth: Math.min(1400, prev.maxWidth + 50) }))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">+</button>
                 </div>
             </div>
 
             <div className="space-y-3">
-                <div className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">Cỡ chữ: {readerConfig.fontSize}px</div>
+                <div className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">
+                    Cỡ chữ: {
+                        readerConfig.fontSize < 18 ? "Nhỏ" :
+                            readerConfig.fontSize < 24 ? "Vừa" :
+                                readerConfig.fontSize < 30 ? "Lớn" : "Rất lớn"
+                    } ({readerConfig.fontSize}px)
+                </div>
                 <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-xl border border-border/50">
-                    <button onClick={() => setReaderConfig({ ...readerConfig, fontSize: Math.max(14, readerConfig.fontSize - 1) })} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">A-</button>
-                    <input type="range" min="14" max="32" value={readerConfig.fontSize} onChange={(e) => setReaderConfig({ ...readerConfig, fontSize: parseInt(e.target.value) })} className="flex-1 h-1 bg-background rounded-full appearance-none accent-primary" />
-                    <button onClick={() => setReaderConfig({ ...readerConfig, fontSize: Math.min(32, readerConfig.fontSize + 1) })} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">A+</button>
+                    <button onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, fontSize: Math.max(14, prev.fontSize - 1) }))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">A-</button>
+                    <input type="range" min="14" max="32" value={readerConfig.fontSize} onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setReaderConfig((prev: ReaderConfig) => ({ ...prev, fontSize: val }));
+                    }} className="flex-1 h-1 bg-background rounded-full appearance-none accent-primary" />
+                    <button onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, fontSize: Math.min(32, prev.fontSize + 1) }))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">A+</button>
                 </div>
             </div>
 
             <div className="flex gap-4">
                 <div className="flex-1 space-y-2">
-                    <div className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">Dòng: {readerConfig.lineHeight.toFixed(1)}</div>
+                    <div className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">
+                        Dòng: {
+                            readerConfig.lineHeight < 1.5 ? "Chặt" :
+                                readerConfig.lineHeight < 1.9 ? "Dễ đọc" : "Thoáng"
+                        }
+                    </div>
                     <div className="flex items-center bg-muted/30 p-1 rounded-xl border border-border/50 overflow-hidden">
-                        <button onClick={() => setReaderConfig({ ...readerConfig, lineHeight: Math.max(1.2, readerConfig.lineHeight - 0.1) })} className="flex-1 h-8 text-muted-foreground hover:bg-background hover:text-foreground transition-all">-</button>
-                        <button onClick={() => setReaderConfig({ ...readerConfig, lineHeight: Math.min(2.5, readerConfig.lineHeight + 0.1) })} className="flex-1 h-8 text-muted-foreground hover:bg-background hover:text-foreground transition-all">+</button>
+                        <button onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, lineHeight: Math.max(1.2, prev.lineHeight - 0.1) }))} className="flex-1 h-8 text-muted-foreground hover:bg-background hover:text-foreground transition-all">-</button>
+                        <button onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, lineHeight: Math.min(2.5, prev.lineHeight + 0.1) }))} className="flex-1 h-8 text-muted-foreground hover:bg-background hover:text-foreground transition-all">+</button>
                     </div>
                 </div>
                 <div className="space-y-2">
@@ -422,7 +479,7 @@ function ReaderSettingsPanel({
                         {[{ v: "left", i: AlignLeft }, { v: "center", i: AlignCenter }, { v: "justify", i: AlignJustify }].map((a) => (
                             <button
                                 key={a.v}
-                                onClick={() => setReaderConfig({ ...readerConfig, textAlign: a.v as ReaderConfig["textAlign"] })}
+                                onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, textAlign: a.v as ReaderConfig["textAlign"] }))}
                                 className={cn(
                                     "p-2 rounded-lg transition-all",
                                     readerConfig.textAlign === a.v ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-background"
@@ -470,7 +527,8 @@ export function ReaderHeader(props: ReaderHeaderProps) {
         ttsRate,
         setTtsRate,
         onClearTranslation,
-        onAIExtract
+        onAIExtract,
+        scrollProgress = 0
     } = props;
 
     const [showTTSSettings, setShowTTSSettings] = useState(false);
@@ -478,113 +536,124 @@ export function ReaderHeader(props: ReaderHeaderProps) {
     if (!chapter) return null;
 
     return (
-        <header className="h-[72px] border-b bg-background flex items-center justify-between px-8 z-60 shrink-0 select-none">
-            {/* LEFT: Tab Switch & Parallel Toggle */}
-            <div className="flex items-center gap-3">
-                <TabSwitch activeTab={activeTab} setActiveTab={setActiveTab} />
+        <header className="h-[72px] border-b bg-background flex flex-col z-60 shrink-0 select-none relative">
+            <div className="flex-1 flex items-center justify-between px-8">
+                {/* LEFT: Context & Progress */}
+                <div className="flex items-center gap-4">
+                    {activeTab === "translated" && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsParallel(!isParallel)}
+                            className={cn(
+                                "rounded-xl h-11 px-4 border transition-all",
+                                isParallel
+                                    ? "bg-primary/10 text-primary border-primary/30 shadow-sm"
+                                    : "text-muted-foreground hover:bg-muted border-border"
+                            )}
+                        >
+                            <SplitSquareHorizontal className="w-4 h-4 mr-2" />
+                            <span className="hidden lg:inline text-xs font-bold uppercase tracking-tight">
+                                {isParallel ? "Đang song song" : "Song song"}
+                            </span>
+                        </Button>
+                    )}
+                </div>
 
-                {activeTab === "translated" && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsParallel(!isParallel)}
+                {/* Middle: Tab Switch ONLY (Cleaned) */}
+                <div className="absolute left-1/2 -translate-x-1/2">
+                    <TabSwitch activeTab={activeTab} setActiveTab={setActiveTab} />
+                </div>
+
+                {/* RIGHT: Tools & Nav */}
+                <div className="flex items-center gap-2">
+                    <HeaderIconButton
+                        icon={<Sparkles className="w-5 h-5 text-purple-500" />}
+                        title="Quét thuật ngữ AI"
+                        className="text-muted-foreground hover:text-purple-600 hover:bg-purple-500/5"
+                        onClick={onAIExtract}
+                    />
+
+                    <HeaderIconButton
+                        icon={isInspecting ? <Sparkles className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+                        onClick={handleInspect}
+                        disabled={isInspecting}
+                        title="Soi lỗi bằng AI"
                         className={cn(
-                            "rounded-xl h-11 px-4 border transition-all",
-                            isParallel
-                                ? "bg-primary/10 text-primary border-primary/30 shadow-sm"
-                                : "text-muted-foreground hover:bg-muted border-border"
+                            isInspecting ? "bg-amber-500/10 text-amber-600" : "text-muted-foreground hover:text-amber-600 hover:bg-amber-500/5"
                         )}
                     >
-                        <SplitSquareHorizontal className="w-4 h-4 mr-2" />
-                        <span className="hidden lg:inline text-xs font-bold uppercase tracking-tight">
-                            {isParallel ? "Đang song song" : "Song song"}
-                        </span>
-                    </Button>
-                )}
-            </div>
-
-            {/* RIGHT: Tools & Nav */}
-            <div className="flex items-center gap-2">
-                <HeaderIconButton
-                    icon={<Sparkles className="w-5 h-5 text-purple-500" />}
-                    title="Quét thuật ngữ AI"
-                    className="text-muted-foreground hover:text-purple-600 hover:bg-purple-500/5"
-                    onClick={onAIExtract}
-                />
-
-                <HeaderIconButton
-                    icon={isInspecting ? <Sparkles className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
-                    onClick={handleInspect}
-                    disabled={isInspecting}
-                    title="Soi lỗi bằng AI"
-                    className={cn(
-                        isInspecting ? "bg-amber-500/10 text-amber-600" : "text-muted-foreground hover:text-amber-600 hover:bg-amber-500/5"
-                    )}
-                >
-                    {inspectionIssues.length > 0 && (
-                        <span className="absolute -top-1 -right-1 h-4 w-4 text-[10px] rounded-full bg-red-500 text-white flex items-center justify-center font-bold ring-2 ring-background">
-                            {inspectionIssues.length}
-                        </span>
-                    )}
-                </HeaderIconButton>
-
-                {activeTab === "translated" && (
-                    <HeaderIconButton
-                        icon={<Eraser className="w-5 h-5" />}
-                        title="Xóa bản dịch (giữ bản gốc)"
-                        onClick={onClearTranslation}
-                        className="text-muted-foreground hover:text-amber-500 hover:bg-amber-500/5"
-                    />
-                )}
-
-                {/* TTS Section */}
-                <TTSControls
-                    isTTSPlaying={isTTSPlaying}
-                    isTTSLoading={isTTSLoading}
-                    handleTTSPlay={handleTTSPlay}
-                    handleTTSStop={handleTTSStop}
-                    showTTSSettings={showTTSSettings}
-                    setShowTTSSettings={setShowTTSSettings}
-                    selectedVoice={selectedVoice}
-                    setSelectedVoice={setSelectedVoice}
-                    ttsPitch={ttsPitch}
-                    setTtsPitch={setTtsPitch}
-                    ttsRate={ttsRate}
-                    setTtsRate={setTtsRate}
-                />
-
-                {/* Display Settings */}
-                <div className="relative">
-                    <HeaderIconButton
-                        icon={<Type className="w-5 h-5" />}
-                        title="Tùy chỉnh giao diện"
-                        onClick={() => setShowSettings(!showSettings)}
-                        className={cn(
-                            showSettings ? "bg-primary/10 text-primary border-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        {inspectionIssues.length > 0 && (
+                            <span className="absolute -top-1 -right-1 h-4 w-4 text-[10px] rounded-full bg-red-500 text-white flex items-center justify-center font-bold ring-2 ring-background">
+                                {inspectionIssues.length}
+                            </span>
                         )}
+                    </HeaderIconButton>
+
+                    {activeTab === "translated" && (
+                        <HeaderIconButton
+                            icon={<Eraser className="w-5 h-5" />}
+                            title="Xóa bản dịch (giữ bản gốc)"
+                            onClick={onClearTranslation}
+                            className="text-muted-foreground hover:text-amber-500 hover:bg-amber-500/5"
+                        />
+                    )}
+
+                    {/* TTS Section */}
+                    <TTSControls
+                        isTTSPlaying={isTTSPlaying}
+                        isTTSLoading={isTTSLoading}
+                        handleTTSPlay={handleTTSPlay}
+                        handleTTSStop={handleTTSStop}
+                        showTTSSettings={showTTSSettings}
+                        setShowTTSSettings={setShowTTSSettings}
+                        selectedVoice={selectedVoice}
+                        setSelectedVoice={setSelectedVoice}
+                        ttsPitch={ttsPitch}
+                        setTtsPitch={setTtsPitch}
+                        ttsRate={ttsRate}
+                        setTtsRate={setTtsRate}
                     />
-                    <ReaderSettingsPanel
-                        showSettings={showSettings}
-                        setShowSettings={setShowSettings}
-                        readerConfig={readerConfig}
-                        setReaderConfig={setReaderConfig}
+
+                    {/* Display Settings */}
+                    <div className="relative">
+                        <HeaderIconButton
+                            icon={<Type className="w-5 h-5" />}
+                            title="Tùy chỉnh giao diện"
+                            onClick={() => setShowSettings(!showSettings)}
+                            className={cn(
+                                showSettings ? "bg-primary/10 text-primary border-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                            )}
+                        />
+                        <ReaderSettingsPanel
+                            showSettings={showSettings}
+                            setShowSettings={setShowSettings}
+                            readerConfig={readerConfig}
+                            setReaderConfig={setReaderConfig}
+                        />
+                    </div>
+
+                    {/* Navigation */}
+                    <div className="flex items-center bg-muted/50 rounded-xl border border-border p-1 mx-1">
+                        <Button variant="ghost" size="icon" disabled={!hasPrev} onClick={onPrev} className="w-10 h-10 rounded-lg"><ChevronLeft className="w-5 h-5" /></Button>
+                        <Button variant="ghost" size="icon" disabled={!hasNext} onClick={onNext} className="w-10 h-10 rounded-lg"><ChevronRight className="w-5 h-5" /></Button>
+                    </div>
+
+                    <HeaderIconButton
+                        icon={<X className="w-5 h-5" />}
+                        onClick={onClose}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     />
                 </div>
-
-                {/* Navigation */}
-                <div className="flex items-center bg-muted/50 rounded-xl border border-border p-1 mx-1">
-                    <Button variant="ghost" size="icon" disabled={!hasPrev} onClick={onPrev} className="w-10 h-10 rounded-lg"><ChevronLeft className="w-5 h-5" /></Button>
-                    <Button variant="ghost" size="icon" disabled={!hasNext} onClick={onNext} className="w-10 h-10 rounded-lg"><ChevronRight className="w-5 h-5" /></Button>
-                </div>
-
-                <HeaderIconButton
-                    icon={<X className="w-5 h-5" />}
-                    onClick={onClose}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                />
             </div>
 
-            {/* Overlays / Dialogs */}
+            {/* SLEEK PROGRESS BAR (Bottom of header) */}
+            <div className="absolute bottom-0 left-0 h-[2px] bg-primary/20 w-full overflow-hidden">
+                <div
+                    className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_8px_rgba(var(--primary),0.5)]"
+                    style={{ width: `${Math.round(scrollProgress)}%` }}
+                />
+            </div>
         </header>
     );
 }

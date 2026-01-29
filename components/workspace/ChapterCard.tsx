@@ -4,8 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-    FileText, BookOpen, Zap, ShieldCheck, AlertCircle, Trash2, Clock, Eraser,
-    CheckCircle2, Loader2
+    BookOpen, Zap, ShieldCheck, AlertCircle, Clock, Eraser
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -35,7 +34,7 @@ interface ChapterCardProps {
     hasTitle: boolean;
 
     // Handlers
-    onSelect: (checked: boolean) => void;
+    onSelect: (checked: boolean, shiftKey?: boolean) => void;
     onRead: () => void;
     onTranslate: () => void;
     onInspect: () => void;
@@ -45,21 +44,6 @@ interface ChapterCardProps {
     onMouseEnter?: () => void;
 }
 
-const statusConfig = {
-    draft: {
-        label: "Chưa dịch",
-        className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 raiden-mode:bg-[#a0a0a01a] raiden-mode:text-[#a0a0a0] raiden-mode:border-[#a0a0a033]"
-    },
-    translated: {
-        label: "Đã dịch",
-        className: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 raiden-mode:bg-[#00ff991a] raiden-mode:text-[#00ff99] raiden-mode:border-[#00ff9933]"
-    },
-    reviewing: {
-        label: "Đang soi",
-        className: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 raiden-mode:bg-[#ffcc001a] raiden-mode:text-[#ffcc00] raiden-mode:border-[#ffcc0033]"
-    }
-} as const;
-
 export const ChapterCard = React.memo(function ChapterCard({
     id,
     order,
@@ -68,7 +52,6 @@ export const ChapterCard = React.memo(function ChapterCard({
     status,
     issueCount,
     lastTranslatedAtTime,
-    translationDurationMs,
     wordCountOriginal,
     isSelected,
     isLastRead,
@@ -79,137 +62,170 @@ export const ChapterCard = React.memo(function ChapterCard({
     onTranslate,
     onInspect,
     onClearTranslation,
-    onDelete,
     onContextMenu,
     onMouseEnter
 }: ChapterCardProps) {
     const { isRaidenMode } = useRaiden();
 
     const isTranslated = status === 'translated' || hasContent || hasTitle;
-    const isDraft = !isTranslated;
 
     return (
         <div
             className={cn(
-                "group relative p-3 rounded-lg border transition-all duration-300",
-                isRaidenMode ? "bg-[#1E293B]" : "bg-card",
-                "hover:scale-[1.01] hover:shadow-2xl",
+                "group relative p-4 rounded-2xl border transition-all duration-300",
+                isRaidenMode ? "bg-slate-900/50" : "bg-card",
                 isSelected
-                    ? (isRaidenMode ? "border-purple-500/50 shadow-purple-500/10" : "border-primary/50 shadow-lg shadow-primary/10")
-                    : (isRaidenMode ? "border-slate-800 hover:border-slate-700" : "border-border hover:border-primary/30"),
-                isDraft && "opacity-50 grayscale-[0.3] hover:opacity-100 hover:grayscale-0",
-                isLastRead && (isRaidenMode ? "shadow-[0_0_20px_rgba(168,85,247,0.15)] border-purple-500/40" : "shadow-[0_0_15px_rgba(79,70,229,0.1)] border-primary/30")
+                    ? (isRaidenMode ? "border-purple-500 bg-purple-900/20 shadow-[0_0_20px_rgba(168,85,247,0.1)]" : "border-blue-300 bg-blue-50/80 shadow-md scale-[1.01]")
+                    : (isRaidenMode ? "border-slate-800 hover:border-slate-700 hover:bg-slate-800/40" : "border-slate-100 hover:bg-white hover:border-blue-200 hover:shadow-lg"),
+                isLastRead && (isRaidenMode ? "ring-2 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "ring-2 ring-emerald-500/30 border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]")
             )}
             onContextMenu={onContextMenu}
             onMouseEnter={onMouseEnter}
+            onClick={(e) => {
+                // If modifier is held, toggle selection instead of reading
+                if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) {
+                    onSelect(!isSelected, e.shiftKey);
+                    return;
+                }
+                onRead();
+            }}
         >
-            {/* Header Row */}
-            <div className="flex items-start justify-between mb-2">
-                <div className="flex items-start gap-2 flex-1 min-w-0">
+            {/* Last Read Pulse */}
+            {isLastRead && (
+                <div className="absolute -top-1.5 -right-1.5 z-10 flex">
+                    <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                </div>
+            )}
+
+            <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
                     <Checkbox
                         checked={isSelected}
-                        onCheckedChange={onSelect}
-                        className="mt-1"
+                        onCheckedChange={(checked) => onSelect(!!checked, (window.event as MouseEvent)?.shiftKey)}
+                        className={cn(
+                            "mt-1 rounded-md transition-all",
+                            isRaidenMode ? "border-slate-700 data-[state=checked]:bg-purple-600" : "border-slate-200 data-[state=checked]:bg-blue-600"
+                        )}
                     />
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <FileText
-                                className="h-4 w-4 text-primary shrink-0 cursor-pointer hover:text-primary/80 transition-colors"
-                                onClick={onRead}
-                            />
-                            <h3 className="font-semibold text-foreground truncate">
+                        <div className="flex items-center gap-2 mb-0.5 group/title">
+                            <span className={cn(
+                                "text-[10px] font-mono px-1.5 py-0.5 rounded-md",
+                                isRaidenMode ? "bg-slate-800 text-slate-500" : "bg-slate-100 text-slate-400"
+                            )}>
+                                #{order}
+                            </span>
+                            <h3 className={cn(
+                                "font-bold text-sm truncate font-serif transition-colors",
+                                isRaidenMode ? "text-slate-200 group-hover/title:text-purple-400" : "text-slate-900 group-hover/title:text-blue-600"
+                            )}>
                                 {title}
                             </h3>
                         </div>
-                        {title_translated && (
-                            <p className="text-xs text-muted-foreground/60 truncate">
-                                {title_translated}
-                            </p>
-                        )}
+                        <p className={cn(
+                            "text-xs truncate italic",
+                            isRaidenMode ? "text-slate-500" : "text-slate-500"
+                        )}>
+                            {title_translated || "Chưa dịch tiêu đề..."}
+                        </p>
                     </div>
                 </div>
 
-                {/* Quick Read Button */}
                 <Button
                     size="icon"
                     variant="ghost"
                     onClick={onRead}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    className={cn(
+                        "h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all",
+                        isRaidenMode ? "hover:bg-purple-500/20 text-purple-400" : "hover:bg-blue-50 text-blue-600"
+                    )}
                 >
                     <BookOpen className="h-4 w-4" />
                 </Button>
             </div>
 
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <Badge className={cn(
-                    "text-[10px] border shadow-sm uppercase tracking-tighter font-black gap-1",
-                    statusConfig[status].className,
-                    isDraft && "opacity-70"
+            {/* Progress Visualization */}
+            <div className="space-y-2 mb-3">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
+                    <Badge className={cn(
+                        "px-2 py-0.5 rounded-full border-0 gap-1.5",
+                        isTranslated
+                            ? (isRaidenMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600")
+                            : (isRaidenMode ? "bg-slate-800 text-slate-500" : "bg-slate-100 text-slate-400")
+                    )}>
+                        <div className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            isTranslated ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                        )} />
+                        {isTranslated ? "Đã hoàn thành" : "Bản thảo"}
+                    </Badge>
+                    <span className="text-muted-foreground/40">{wordCountOriginal?.toLocaleString() || 0} chữ</span>
+                </div>
+                <div className={cn(
+                    "h-1.5 w-full rounded-full overflow-hidden",
+                    isRaidenMode ? "bg-slate-800" : "bg-slate-100"
                 )}>
-                    {isDraft ? <Clock className="w-2.5 h-2.5" /> : isTranslated ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Loader2 className="w-2.5 h-2.5 animate-spin" />}
-                    {statusConfig[status].label}
-                </Badge>
-
-                {lastTranslatedAtTime && (
-                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground/40 ml-auto" title={`Dịch lúc: ${format(new Date(lastTranslatedAtTime), "PPpp", { locale: vi })}${translationDurationMs ? ` (${(translationDurationMs / 1000).toFixed(1)}s)` : ''} | Words: ${wordCountOriginal?.toLocaleString()}`}>
-                        <Clock className="h-3 w-3" />
-                        {format(new Date(lastTranslatedAtTime), "HH:mm dd/MM", { locale: vi })}
-                    </span>
-                )}
-
-                {issueCount > 0 && (
-                    <span className="flex items-center gap-1 text-rose-500 font-bold text-[10px] animate-pulse">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        {issueCount} LỖI
-                    </span>
-                )}
+                    <div
+                        className={cn(
+                            "h-full transition-all duration-1000 ease-out",
+                            isTranslated
+                                ? "w-full bg-linear-to-r from-emerald-500 to-emerald-400"
+                                : "w-[15%] bg-slate-400/30"
+                        )}
+                    />
+                </div>
             </div>
 
-            {/* Quick Actions (on hover) */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={onTranslate}
-                    className="h-6 text-[10px] px-2 text-primary hover:text-primary-foreground hover:bg-primary/90 raiden-mode:hover:bg-primary raiden-mode:hover:text-black"
-                >
-                    <Zap className="mr-1 h-3 w-3" />
-                    Dịch
-                </Button>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={onInspect}
-                    className="h-6 text-[10px] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-500/10 raiden-mode:text-[#ffcc00] raiden-mode:hover:bg-[#ffcc00] raiden-mode:hover:text-black"
-                >
-                    <ShieldCheck className="mr-1 h-3 w-3" />
-                    Soi lỗi
-                </Button>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={onClearTranslation}
-                    className="h-6 text-[10px] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-500/10 raiden-mode:text-[#ffcc00] raiden-mode:hover:bg-[#ffcc00] raiden-mode:hover:text-black"
-                    title="Xóa bản dịch (giữ bản gốc)"
-                >
-                    <Eraser className="mr-1 h-3 w-3" />
-                    Reset
-                </Button>
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={onDelete}
-                    className="h-6 text-[10px] px-2 text-destructive hover:text-destructive-foreground hover:bg-destructive raiden-mode:hover:bg-destructive raiden-mode:hover:text-white"
-                >
-                    <Trash2 className="mr-1 h-3 w-3" />
-                    Xóa
-                </Button>
-            </div>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                    {issueCount > 0 && (
+                        <div className="flex items-center gap-1 text-[9px] font-black text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded-md animate-pulse">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            {issueCount} LỖI
+                        </div>
+                    )}
+                    {lastTranslatedAtTime && (
+                        <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50">
+                            <Clock className="h-2.5 w-2.5" />
+                            {format(new Date(lastTranslatedAtTime), "HH:mm", { locale: vi })}
+                        </div>
+                    )}
+                </div>
 
-            {/* Selection Indicator */}
-            {isSelected && (
-                <div className="absolute top-0 left-0 w-1 h-full bg-primary rounded-l-lg" />
-            )}
+                {/* Hover Actions */}
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={onTranslate}
+                        className="h-7 w-7 rounded-lg hover:bg-primary/10 text-primary"
+                        title="Dịch chương"
+                    >
+                        <Zap className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={onInspect}
+                        className="h-7 w-7 rounded-lg hover:bg-amber-500/10 text-amber-500"
+                        title="Soi lỗi"
+                    >
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={onClearTranslation}
+                        className="h-7 w-7 rounded-lg hover:bg-rose-500/10 text-rose-500"
+                        title="Reset bản dịch"
+                    >
+                        <Eraser className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 });

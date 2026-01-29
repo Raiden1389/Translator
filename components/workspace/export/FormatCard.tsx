@@ -17,26 +17,26 @@ export function FormatCard({ label, description, icon: Icon, isActive, onClick }
         <button
             onClick={onClick}
             className={cn(
-                "flex items-start gap-4 p-4 rounded-xl border text-left transition-all group relative overflow-hidden h-full",
+                "flex items-start gap-4 p-4 rounded-xl border text-left transition-all group relative overflow-hidden h-full shadow-sm",
                 isActive
-                    ? "bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500 shadow-sm"
-                    : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                    ? "bg-primary/5 border-primary ring-1 ring-primary shadow-primary/10"
+                    : "bg-card border-border hover:bg-muted/80 hover:border-border/80"
             )}
         >
             <div className={cn(
-                "p-3 rounded-lg shrink-0 transition-colors",
-                isActive ? "bg-indigo-600 text-white shadow-md shadow-indigo-100" : "bg-slate-200 text-slate-500 group-hover:bg-slate-300"
+                "p-3 rounded-lg shrink-0 transition-all",
+                isActive ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105" : "bg-muted text-muted-foreground group-hover:bg-muted/80"
             )}>
                 <Icon className="w-6 h-6" />
             </div>
             <div>
                 <div className={cn(
-                    "font-bold text-slate-900 transition-colors",
-                    isActive ? "text-indigo-700" : "group-hover:text-slate-900"
+                    "font-bold transition-colors",
+                    isActive ? "text-primary" : "text-foreground group-hover:text-primary"
                 )}>
                     {label}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
                     {description}
                 </div>
             </div>

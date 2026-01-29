@@ -5,180 +5,229 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Key, Database, Sparkles, Loader2, RefreshCw, CheckCircle, Calculator, Save, ShieldCheck } from "lucide-react";
+import {
+    Key, Database, Sparkles, Loader2, RefreshCw, Save, ShieldCheck
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAISettings } from "./hooks/useAISettings";
+import { useRaiden } from "@/components/theme/RaidenProvider";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function AISettingsTab() {
+    const { isRaidenMode } = useRaiden();
     const { state, actions } = useAISettings();
     const {
         primaryKey, poolKeys, model, availableModels,
         isLoadingModels, isSaving, checkingKeys, keyStatuses,
-        isBackendKeyLoading, isFixingWordCount
+        isBackendKeyLoading
     } = state;
 
     const {
         setPrimaryKey, setPoolKeys, setModel,
         handleSaveAll, handleLoadFromBackend, handleFetchModels,
-        handleCheckAllKeys, handleFixWordCounts
+        handleCheckAllKeys
     } = actions;
 
     return (
-        <Card className="bg-card border-border shadow-xl">
-            <CardHeader>
-                <CardTitle className="text-foreground flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-indigo-400" />
-                    Cấu Hình AI & API
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                    Quản lý kết nối Gemini, model dịch thuật thông qua Backend.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                {/* Primary Key */}
-                <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-primary">
-                        <Key className="h-4 w-4" /> Primary API Key (Gemini)
-                    </Label>
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="AIzaSy..."
-                            value={primaryKey}
-                            onChange={(e) => setPrimaryKey(e.target.value)}
-                            className="bg-background border-border text-foreground focus-visible:ring-primary flex-1"
-                        />
-                        <Button
-                            variant="outline"
-                            onClick={handleLoadFromBackend}
-                            disabled={isBackendKeyLoading}
-                            className="border-primary/30 hover:bg-primary/5 text-primary gap-2"
-                            title="Nạp Key từ file .env (Backend)"
-                        >
-                            {isBackendKeyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                            <span className="hidden sm:inline">Nạp từ .env</span>
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={handleFetchModels}
-                            disabled={!primaryKey || isLoadingModels}
-                            className="border-border hover:bg-muted text-muted-foreground"
-                            title="Lấy danh sách Model từ Key này"
-                        >
-                            {isLoadingModels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                        </Button>
-                    </div>
-                </div>
+        <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-8 space-y-1 px-1">
+                <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
+                    <Sparkles className={cn("h-6 w-6", isRaidenMode ? "text-purple-400" : "text-primary")} />
+                    Cấu hình Trí tuệ nhân tạo
+                </h2>
+                <p className="text-muted-foreground text-sm">Quản lý các kết nối AI, mô hình ngôn ngữ và kho khóa dự phòng.</p>
+            </div>
 
-                {/* Model Selection */}
-                <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-primary">
-                        <Sparkles className="h-4 w-4" /> AI Model
-                    </Label>
-                    <Select value={model} onValueChange={setModel}>
-                        <SelectTrigger className="bg-background border-border text-foreground">
-                            <SelectValue placeholder="Chọn Model" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border text-popover-foreground">
-                            <SelectGroup>
-                                {availableModels.map((m) => (
-                                    <SelectItem key={m.value} value={m.value} className="focus:bg-accent focus:text-accent-foreground cursor-pointer hover:bg-accent">
-                                        {m.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectGroup>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Key Pool */}
-                <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-primary">
-                        <Database className="h-4 w-4" />
-                        Key Pool (Dự phòng)
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                            {poolKeys.split(/[\n,;]+/).filter(k => k.trim().length > 10).length} keys
-                        </span>
-                    </Label>
-                    <Textarea
-                        placeholder={`AIzaSy...
-AIzaSy...`}
-                        value={poolKeys}
-                        onChange={(e) => setPoolKeys(e.target.value)}
-                        className="bg-background border-border text-foreground focus-visible:ring-primary font-mono text-xs h-[150px]"
-                    />
-                    <p className="text-xs text-muted-foreground">Mỗi dòng một Key. Hệ thống sẽ tự động chuyển Key khi key chính bị lỗi 429.</p>
-
-                    {/* Key Checker */}
-                    <div className="pt-2">
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={handleCheckAllKeys}
-                            disabled={checkingKeys}
-                            className="w-full bg-muted/50 hover:bg-muted text-primary border border-primary/20"
-                        >
-                            {checkingKeys ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                            Kiểm tra tình trạng toàn bộ Key (Qua Backend)
-                        </Button>
-
-                        {keyStatuses.length > 0 && (
-                            <div className="mt-2 space-y-1 max-h-[200px] overflow-y-auto p-2 bg-muted/30 rounded border border-border custom-scrollbar">
-                                {keyStatuses.map((k, i) => (
-                                    <div key={i} className="flex items-center justify-between text-xs px-2 py-2 rounded bg-muted/50">
-                                        <div className="flex items-center gap-2 truncate max-w-[70%]">
-                                            <div className={cn("h-2 w-2 rounded-full flex-shrink-0",
-                                                k.status === 'valid' ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" :
-                                                    k.status === 'invalid' ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                                                        "bg-yellow-500 animate-pulse"
-                                            )} />
-                                            <span className="font-mono text-muted-foreground truncate">{k.key}</span>
-                                        </div>
-                                        <div className="text-right flex-shrink-0">
-                                            {k.status === 'valid' ? (
-                                                <span className="text-green-400 font-mono">{k.ms}ms</span>
-                                            ) : k.status === 'invalid' ? (
-                                                <span className="text-red-400 text-[10px]">{k.error || "Lỗi"}</span>
-                                            ) : (
-                                                <span className="text-amber-400">Checking...</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+            <div className="grid gap-6">
+                {/* SECTION: Connection & Primary Key */}
+                <Card className={cn(
+                    "border-none shadow-xl overflow-hidden",
+                    isRaidenMode ? "bg-slate-900/40 backdrop-blur-xl ring-1 ring-purple-500/20" : "bg-card shadow-slate-200/50"
+                )}>
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
+                            <Key className="h-4 w-4" />
+                            Kết nối chính (Primary)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-xs font-bold text-foreground/70 uppercase">Google Gemini API Key</Label>
+                                <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-bold">Encrypted</span>
                             </div>
-                        )}
-                    </div>
-                </div>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1 group">
+                                    <Input
+                                        type="password"
+                                        placeholder="AIzaSy... (Dán key của bạn vào đây)"
+                                        value={primaryKey}
+                                        onChange={(e) => setPrimaryKey(e.target.value)}
+                                        className="bg-muted/30 border-border/50 h-10 px-4 focus-visible:ring-primary focus-visible:bg-muted/50 transition-all font-mono"
+                                    />
+                                    {!primaryKey && (
+                                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                            <span className="text-[10px] text-rose-500 font-bold animate-pulse">Chưa có key</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleLoadFromBackend}
+                                            disabled={isBackendKeyLoading}
+                                            className="h-10 px-4 border-border/50 hover:bg-primary hover:text-primary-foreground transition-all gap-2 font-bold"
+                                        >
+                                            {isBackendKeyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                                            <span className="hidden sm:inline">Nạp từ .env</span>
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Nạp Key từ file .env (Backend)</TooltipContent>
+                                </Tooltip>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground italic">Phím tắt: Bấm Refresh bên dưới để cập nhật danh sách model sau khi dán key.</p>
+                        </div>
 
-                <Button
-                    onClick={handleSaveAll}
-                    disabled={isSaving}
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-6 text-lg shadow-lg"
-                >
-                    {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-                    Lưu Thay Đổi
-                </Button>
+                        <div className="space-y-3 pt-2 border-t border-border/50">
+                            <Label className="text-xs font-bold text-foreground/70 uppercase flex items-center gap-2">
+                                Mô hình ngôn ngữ
+                                {isLoadingModels && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                            </Label>
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Select value={model} onValueChange={setModel}>
+                                        <SelectTrigger className="bg-muted/30 border-border/50 h-10 font-bold">
+                                            <SelectValue placeholder="Chọn Model" />
+                                        </SelectTrigger>
+                                        <SelectContent className="backdrop-blur-xl">
+                                            <SelectGroup>
+                                                {availableModels.map((m) => (
+                                                    <SelectItem key={m.value} value={m.value} className="cursor-pointer font-medium">
+                                                        {m.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={handleFetchModels}
+                                            disabled={!primaryKey || isLoadingModels}
+                                            className="h-10 w-10 border-border/50 hover:bg-muted"
+                                        >
+                                            <RefreshCw className={cn("h-4 w-4", isLoadingModels && "animate-spin")} />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Lấy danh sách Model mới nhất từ Key này</TooltipContent>
+                                </Tooltip>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                {/* Word Count Fix */}
-                <div className="space-y-2 pt-4 border-t border-border">
-                    <Label className="flex items-center gap-2 text-amber-500">
-                        <Calculator className="h-4 w-4" />
-                        Sửa lại Word Count
-                    </Label>
-                    <p className="text-xs text-muted-foreground">Nếu số từ dịch bị sai, bấm nút này để tính lại tất cả.</p>
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={handleFixWordCounts}
-                        disabled={isFixingWordCount}
-                        className="w-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                    >
-                        {isFixingWordCount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
-                        {isFixingWordCount ? "Đang sửa..." : "Sửa lại Word Count"}
-                    </Button>
+                {/* SECTION: Key Pool */}
+                <Card className={cn(
+                    "border-none shadow-xl overflow-hidden",
+                    isRaidenMode ? "bg-slate-900/40 backdrop-blur-xl ring-1 ring-purple-500/20" : "bg-card shadow-slate-200/50"
+                )}>
+                    <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
+                                <Database className="h-4 w-4" />
+                                Kho Key dự phòng (Pool)
+                            </CardTitle>
+                            <div className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-lg border border-primary/20">
+                                {poolKeys.split(/[\n,;]+/).filter(k => k.trim().length > 10).length} KEYS ACTIVE
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Textarea
+                            placeholder={`AIzaSy... (Key 1)\nAIzaSy... (Key 2)`}
+                            value={poolKeys}
+                            onChange={(e) => setPoolKeys(e.target.value)}
+                            className="bg-muted/30 border-border/50 text-foreground focus-visible:ring-primary font-mono text-xs h-[120px] resize-none px-4 py-3"
+                        />
+                        <div className="flex items-start gap-3 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                            <div className="bg-amber-500/20 p-1.5 rounded-lg">
+                                <ShieldCheck className="h-4 w-4 text-amber-500" />
+                            </div>
+                            <p className="text-[11px] text-amber-600/80 leading-relaxed font-medium">
+                                <strong>Thông minh:</strong> Hệ thống sẽ tự động xoay tua (Rotation) key trong pool nếu key chính gặp lỗi giới hạn (429). Nhập mỗi dòng một key.
+                            </p>
+                        </div>
+
+                        {/* Status Check Board */}
+                        <div className="pt-2">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleCheckAllKeys}
+                                        disabled={checkingKeys}
+                                        className="w-full h-10 border-border/50 hover:bg-muted font-bold text-xs"
+                                    >
+                                        {checkingKeys ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                                        Kiểm tra Sức khỏe toàn bộ kho Key
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Kiểm tra trạng thái hoạt động của tất cả các Key</TooltipContent>
+                            </Tooltip>
+
+                            {keyStatuses.length > 0 && (
+                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto p-2 custom-scrollbar">
+                                    {keyStatuses.map((k, i) => (
+                                        <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/20 border border-border/30 hover:bg-muted/40 transition-colors">
+                                            <div className="flex items-center gap-2 truncate pr-2">
+                                                <div className={cn("h-2 w-2 rounded-full shrink-0",
+                                                    k.status === 'valid' ? "bg-emerald-500" :
+                                                        k.status === 'invalid' ? "bg-rose-500" :
+                                                            "bg-amber-500 animate-pulse"
+                                                )} />
+                                                <span className="font-mono text-[10px] text-muted-foreground truncate">{k.key.substring(0, 15)}...</span>
+                                            </div>
+                                            <div className="shrink-0">
+                                                {k.status === 'valid' ? (
+                                                    <span className="text-emerald-500 font-bold text-[10px]">{k.ms}ms</span>
+                                                ) : k.status === 'invalid' ? (
+                                                    <span className="text-rose-500 font-bold text-[10px]">FAILED</span>
+                                                ) : (
+                                                    <span className="text-amber-500 text-[10px] animate-pulse">...</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Final Save Button */}
+                <div className="flex items-center gap-4 pt-4">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                onClick={handleSaveAll}
+                                disabled={isSaving}
+                                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-black h-14 rounded-2xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98] gap-3 text-lg"
+                            >
+                                {isSaving ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
+                                LƯU TOÀN BỘ CÀI ĐẶT
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Lưu các cài đặt API Key và Model xuống bộ nhớ máy</TooltipContent>
+                    </Tooltip>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }

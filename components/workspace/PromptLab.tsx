@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { translateChapter, generatePromptVariants, evaluateTranslation, analyzeStyleDNA } from "@/lib/gemini";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useRaiden } from "@/components/theme/RaidenProvider";
 import {
     Dialog,
     DialogContent,
@@ -24,6 +25,7 @@ import { Label } from "@/components/ui/label";
 const SAMPLE_TEXT = `许七安走在京城的街道上，周围是熙熙攘攘的人群。他必须要搞清楚，这个世界到底发生了什么。"天道崩塌，妖魔横行..." 脑海中回荡着这句话。作为一名穿越者，他本想安稳度日，但命运似乎并不打算放过他。前方的打更人衙门威严耸立，那是他唯一的去处。`;
 
 export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
+    const { isRaidenMode } = useRaiden();
     const [testSample, setTestSample] = useState("");
     const [promptGoals, setPromptGoals] = useState("Văn phong trôi chảy, tự nhiên. Giữ nguyên Hán Việt các từ tu tiên.");
     const [promptA, setPromptA] = useState("Mày là dịch giả chuyên nghiệp Trung - Việt. Dịch tự nhiên, giữ nguyên tên riêng.");
@@ -182,7 +184,7 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
-                        <Swords className="w-6 h-6 text-orange-500" />
+                        <Swords className="w-6 h-6 text-primary" />
                         Prompt Lab
                     </h2>
                     <p className="text-muted-foreground text-sm">Thử nghiệm và tối ưu hóa câu lệnh dịch (A/B Testing)</p>
@@ -190,83 +192,85 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
                 <Button
                     onClick={handleFight}
                     disabled={isFighting}
-                    className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-black px-8 py-6 rounded-2xl shadow-lg shadow-orange-900/20 gap-3 group overflow-hidden relative"
+                    className="bg-primary hover:bg-primary/90 text-white font-black px-10 py-7 rounded-2xl shadow-xl shadow-primary/20 gap-3 group overflow-hidden relative active:scale-95 transition-all"
                 >
                     <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                     <RefreshCw className={cn("w-5 h-5", isFighting && "animate-spin")} />
-                    {isFighting ? "ĐANG CHIẾN ĐẤU..." : "FIGHT! (Start Test)"}
+                    {isFighting ? "ĐANG CHIẾN ĐẤU..." : "START A/B TEST"}
                 </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left: Input & Generator */}
-                <Card className="bg-card border-border shadow-xl">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-foreground text-sm font-bold flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-purple-400" />
-                            VĂN BẢN MẪU (TEST SAMPLE)
+                <Card className={cn("border-border shadow-sm", isRaidenMode ? "bg-card border-transparent" : "bg-card")}>
+                    <CardHeader className={cn("pb-3 border-b border-l-4 border-l-indigo-500", !isRaidenMode && "bg-muted/30")}>
+                        <CardTitle className="text-foreground text-sm font-bold flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-indigo-500" />
+                                VĂN BẢN MẪU (TEST SAMPLE)
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    if (firstChapter?.content_original) {
+                                        setTestSample(firstChapter.content_original.substring(0, 800) + "...");
+                                        toast.success("Đã lấy nội dung gốc từ Chương 1!");
+                                    } else {
+                                        setTestSample(SAMPLE_TEXT);
+                                        toast.info("Không tìm thấy chương nào, dùng văn bản mẫu.");
+                                    }
+                                }}
+                                className="text-[10px] bg-white border-slate-200 text-slate-600 hover:text-primary h-6 px-2"
+                            >
+                                <RefreshCw className="w-2.5 h-2.5 mr-1" />
+                                Reset
+                            </Button>
                         </CardTitle>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                                if (firstChapter?.content_original) {
-                                    setTestSample(firstChapter.content_original.substring(0, 800) + "...");
-                                    toast.success("Đã lấy nội dung gốc từ Chương 1!");
-                                } else {
-                                    setTestSample(SAMPLE_TEXT);
-                                    toast.info("Không tìm thấy chương nào, dùng văn bản mẫu.");
-                                }
-                            }}
-                            className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 h-7"
-                        >
-                            <RefreshCw className="w-3 h-3 mr-2" />
-                            Lấy lại Text Gốc (Chương 1)
-                        </Button>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-4">
                         <Textarea
                             value={testSample}
                             onChange={(e) => setTestSample(e.target.value)}
-                            className="bg-background border-border text-foreground text-sm h-32 focus:border-primary transition-all resize-none"
+                            className="bg-slate-50/30 border-border text-foreground text-sm h-36 focus:bg-white transition-all resize-none font-sans"
                             placeholder="Nhập đoạn văn bản muốn test dịch..."
                         />
                     </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border shadow-xl">
-                    <CardHeader className="pb-2">
+                <Card className={cn("border-border shadow-sm", isRaidenMode ? "bg-card border-transparent" : "bg-card")}>
+                    <CardHeader className={cn("pb-3 border-b border-l-4 border-l-primary", !isRaidenMode && "bg-muted/30")}>
                         <CardTitle className="text-foreground text-sm font-bold flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-emerald-400" />
+                            <Zap className="w-4 h-4 text-primary" />
                             MỤC TIÊU CẦN ĐẠT
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="pt-4 space-y-4">
                         <p className="text-[11px] text-muted-foreground italic">
-                            * Nhập từ khóa hoặc phong cách bạn muốn (VD: Kiếm hiệp, Hiện đại, Hài hước...) để AI tự tạo prompt.
+                            * Nhập phong cách bạn muốn (VD: Kiếm hiệp, Hiện đại...) AI sẽ tối ưu prompt.
                         </p>
                         <Textarea
                             value={promptGoals}
                             onChange={(e) => setPromptGoals(e.target.value)}
-                            className="bg-background border-border text-foreground text-sm h-20 focus:border-primary transition-all resize-none"
-                            placeholder="Mô tả mục tiêu (VD: Văn phong kiếm hiệp cổ trang, dùng nhiều từ Hán Việt...)"
+                            className="bg-slate-50/30 border-border text-foreground text-sm h-16 focus:bg-white transition-all resize-none font-sans"
+                            placeholder="Mô tả mục tiêu..."
                         />
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                             <Button
                                 disabled={isGenerating}
                                 onClick={handleExtractSpirit}
                                 variant="outline"
-                                className="flex-1 bg-purple-600/10 hover:bg-purple-600/20 text-purple-400 border border-purple-500/30"
+                                className="flex-1 bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 h-9 text-xs font-bold"
                             >
-                                <Wand2 className={cn("w-4 h-4 mr-2", isGenerating && "animate-spin")} />
-                                Trích Xuất DNA
+                                <Wand2 className={cn("w-3.5 h-3.5 mr-1.5", isGenerating && "animate-spin")} />
+                                Spirit DNA
                             </Button>
                             <Button
                                 disabled={isGenerating}
                                 onClick={handleGeneratePrompts}
-                                className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30"
+                                className="flex-1 h-9 text-xs font-bold"
                             >
-                                <SparklesIcon className={cn("w-4 h-4 mr-2", isGenerating && "animate-spin")} />
+                                <SparklesIcon className={cn("w-3.5 h-3.5 mr-1.5", isGenerating && "animate-spin")} />
                                 Tạo Prompt
                             </Button>
                         </div>
@@ -282,54 +286,54 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
                 </div>
 
                 {/* Prompt A */}
-                <Card className="bg-card border-orange-500/20 shadow-xl overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-500/50" />
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-orange-400 text-sm font-black flex items-center gap-2">
+                <Card className={cn("shadow-sm overflow-hidden group border", isRaidenMode ? "bg-card border-indigo-500/20" : "bg-card border-border")}>
+                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                    <CardHeader className={cn("pb-2 border-b border-indigo-200/50", !isRaidenMode && "bg-indigo-50/30")}>
+                        <CardTitle className="text-indigo-600 text-sm font-black flex items-center justify-between uppercase">
                             PROMPT A (Base)
+                            {scoreA && <span className="text-2xl font-black text-indigo-500/50 italic">{scoreA}</span>}
                         </CardTitle>
-                        {scoreA && <span className="text-2xl font-black text-orange-500/50 italic">{scoreA}</span>}
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-4">
                         <Textarea
                             value={promptA}
                             onChange={(e) => setPromptA(e.target.value)}
-                            className="bg-background border-border text-foreground font-mono text-xs h-24"
+                            className="bg-muted/30 border-border text-foreground font-mono text-[13px] h-32 tracking-tight leading-normal focus:bg-background transition-all"
                         />
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-muted-foreground">Kết quả dịch A</span>
-                            <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt A - " + new Date().toLocaleTimeString('vi-VN'), promptA)} className="h-6 text-[10px] hover:bg-orange-500/20 hover:text-orange-400">
-                                <Save className="w-3 h-3 mr-1" /> Lưu Prompt A
+                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">KẾT QUẢ DỊCH A</span>
+                            <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt A - " + new Date().toLocaleTimeString('vi-VN'), promptA)} className="h-6 text-[10px] bg-indigo-100/50 hover:bg-indigo-200/50 text-indigo-700 rounded-lg px-3 border border-indigo-200/50">
+                                <Save className="w-2.5 h-2.5 mr-1" /> Lưu Prompt
                             </Button>
                         </div>
-                        <div className="min-h-[200px] p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 text-foreground text-sm italic leading-relaxed">
+                        <div className="min-h-[220px] p-4 rounded-xl bg-muted/20 border border-border/50 text-foreground text-sm italic leading-relaxed shadow-xs">
                             {resultA || (isFighting ? "Đang dịch..." : "Chưa có dữ liệu.")}
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Prompt B */}
-                <Card className="bg-card border-emerald-500/20 shadow-xl overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-1 h-full bg-emerald-500/50" />
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-emerald-400 text-sm font-black flex items-center gap-2">
+                <Card className={cn("shadow-sm overflow-hidden group border", isRaidenMode ? "bg-card border-primary/20" : "bg-card border-border")}>
+                    <div className="absolute top-0 right-0 w-1 h-full bg-primary" />
+                    <CardHeader className={cn("pb-2 border-b border-primary/20", !isRaidenMode && "bg-primary/5")}>
+                        <CardTitle className="text-primary text-sm font-black flex items-center justify-between uppercase">
                             PROMPT B (Variant)
+                            {scoreB && <span className="text-2xl font-black text-primary/50 italic">{scoreB}</span>}
                         </CardTitle>
-                        {scoreB && <span className="text-2xl font-black text-emerald-500/50 italic">{scoreB}</span>}
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-4">
                         <Textarea
                             value={promptB}
                             onChange={(e) => setPromptB(e.target.value)}
-                            className="bg-background border-border text-foreground font-mono text-xs h-24"
+                            className="bg-muted/30 border-border text-foreground font-mono text-[13px] h-32 tracking-tight leading-normal focus:bg-background transition-all"
                         />
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-muted-foreground">Kết quả dịch B</span>
-                            <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt B - " + new Date().toLocaleTimeString('vi-VN'), promptB)} className="h-6 text-[10px] hover:bg-emerald-500/20 hover:text-emerald-400">
-                                <Save className="w-3 h-3 mr-1" /> Lưu Prompt B
+                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">KẾT QUẢ DỊCH B</span>
+                            <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt B - " + new Date().toLocaleTimeString('vi-VN'), promptB)} className="h-6 text-[10px] bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-3 border border-primary/20">
+                                <Save className="w-2.5 h-2.5 mr-1" /> Lưu Prompt
                             </Button>
                         </div>
-                        <div className="min-h-[200px] p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-foreground text-sm italic leading-relaxed">
+                        <div className="min-h-[220px] p-4 rounded-xl bg-muted/20 border border-border/50 text-foreground text-sm italic leading-relaxed shadow-xs">
                             {resultB || (isFighting ? "Đang dịch..." : "Chưa có dữ liệu.")}
                         </div>
                     </CardContent>
@@ -338,13 +342,13 @@ export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
 
             {winner && (
                 <div className="animate-in zoom-in-95 duration-500">
-                    <Card className="bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 p-2 bg-yellow-500 text-black font-black text-[10px] rounded-b-xl shadow-lg">
+                    <Card className={cn("shadow-lg relative overflow-hidden border", isRaidenMode ? "bg-gradient-to-br from-primary/10 to-transparent border-primary/20" : "bg-card border-primary/20")}>
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 p-2 bg-primary text-white font-black text-[10px] rounded-b-xl shadow-lg uppercase tracking-widest">
                             WINNER
                         </div>
                         <CardContent className="pt-8 pb-6 flex items-center gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center shrink-0 shadow-inner">
-                                <Trophy className="w-8 h-8 text-yellow-500" />
+                            <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 shadow-inner">
+                                <Trophy className="w-8 h-8 text-primary" />
                             </div>
                             <div>
                                 <h3 className="text-xl font-black text-foreground">{winner}</h3>
