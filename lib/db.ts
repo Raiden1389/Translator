@@ -34,6 +34,7 @@ export interface Chapter {
     glossaryExtractedAt?: Date; // Added: Track when glossary was extracted
     translationModel?: string; // e.g. "gemini-1.5-pro"
     translationDurationMs?: number; // e.g. 5000
+    sourceUrl?: string; // Added: URL for crawling content on-demand
     updatedAt?: Date;
 }
 

@@ -2,20 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, rehydrateFromStorage } from "@/lib/db";
+import { db, rehydrateFromStorage, Workspace } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NewWorkspaceDialog } from "@/components/dashboard/NewWorkspaceDialog";
+import { JSONImportDialog } from "@/components/dashboard/JSONImportDialog";
 import { BookOpen, Trash2, Search, Clock, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import Link from 'next/link';
-import { toast } from "sonner";
 
 const EditableTitle = ({ id, initialTitle }: { id: string, initialTitle: string }) => {
     const [title, setTitle] = useState(initialTitle);
-
-    // Sync with external changes if needed (optional, keeping it simple for now)
-    // If the DB updates from elsewhere, this local state might be stale, but it prevents cursor jumping.
 
     const handleBlur = () => {
         if (title !== initialTitle) {
@@ -38,7 +35,7 @@ const EditableTitle = ({ id, initialTitle }: { id: string, initialTitle: string 
     );
 };
 
-const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDelete: (e: React.MouseEvent, id: string) => void }) => {
+const WorkspaceCard = ({ ws, index, onDelete }: { ws: Workspace, index: number, onDelete: (e: React.MouseEvent, id: string) => void }) => {
     const stats = useLiveQuery(async () => {
         const total = await db.chapters.where("workspaceId").equals(ws.id).count();
         const translated = await db.chapters.where("workspaceId").equals(ws.id).and(c => c.status === 'translated').count();
@@ -51,11 +48,11 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
         <Link href={`/workspace?id=${ws.id}`}>
             <div className="group relative h-full transition-all hover:-translate-y-2 duration-500 active:scale-[0.98]">
                 <Card className="h-full border-border bg-card overflow-hidden rounded-3xl shadow-lg transition-all group-hover:border-primary/30 group-hover:shadow-primary/5">
-                    <div className={`h-32 p-6 relative flex flex-col justify-between transition-all duration-500 ${!ws.cover && (index % 2 === 0 ? 'bg-gradient-to-r from-orange-500 to-amber-600' : 'bg-gradient-to-r from-purple-600 to-indigo-600')}`}>
+                    <div className={`h-32 p-6 relative flex flex-col justify-between transition-all duration-500 ${!ws.cover && (index % 2 === 0 ? 'bg-linear-to-r from-orange-500 to-amber-600' : 'bg-linear-to-r from-purple-600 to-indigo-600')}`}>
                         {ws.cover && (
                             <>
                                 <img src={ws.cover} alt={ws.title} className="absolute inset-0 w-full h-full object-cover scale-95 z-0 transition-transform duration-700 group-hover:scale-100" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/20 to-transparent z-0" />
+                                <div className="absolute inset-0 bg-linear-to-t from-black/40 via-black/20 to-transparent z-0" />
                             </>
                         )}
 
@@ -101,7 +98,7 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: any, index: number, onDele
                         <div className="flex items-center justify-between pt-2 border-t border-border">
                             <div className="flex items-center text-[10px] text-muted-foreground bg-secondary px-2 py-1 rounded-full">
                                 <Clock className="mr-1 h-3 w-3" />
-                                {ws.updatedAt.toLocaleDateString()}
+                                {ws.updatedAt?.toLocaleDateString()}
                             </div>
                         </div>
                     </CardContent>
@@ -118,7 +115,6 @@ export function WorkspaceList() {
     useEffect(() => {
         const checkAndRecover = async () => {
             if (workspaces && workspaces.length === 0) {
-                // Potential recovery case
                 await rehydrateFromStorage();
             }
         };
@@ -137,11 +133,10 @@ export function WorkspaceList() {
 
     const filtered = workspaces?.filter(w => w.title.toLowerCase().includes(search.toLowerCase()));
 
-    if (!workspaces) return <div className="p-10 text-center text-muted-foreground">Đang tải dữ liệu...</div>;
+    if (!workspaces) return <div className="p-10 text-center text-muted-foreground animate-pulse">Đang tải dữ liệu...</div>;
 
     return (
         <div className="space-y-6">
-            {/* Action Bar - Floating Dock Style */}
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-foreground">My Library</h2>
 
@@ -156,6 +151,8 @@ export function WorkspaceList() {
                         />
                     </div>
                     <div className="h-5 w-px bg-border" />
+                    <JSONImportDialog />
+                    <div className="h-5 w-px bg-border" />
                     <NewWorkspaceDialog />
                 </div>
             </div>
@@ -169,7 +166,8 @@ export function WorkspaceList() {
                     <p className="text-muted-foreground mt-2 max-w-sm">
                         Tạo workspace mới để bắt đầu dịch truyện với sức mạnh của AI.
                     </p>
-                    <div className="mt-6">
+                    <div className="mt-6 flex gap-3">
+                        <JSONImportDialog />
                         <NewWorkspaceDialog />
                     </div>
                 </div>

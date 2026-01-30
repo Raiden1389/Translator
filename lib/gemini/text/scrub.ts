@@ -71,3 +71,26 @@ export function cleanIdiomExplanations(text: string): string {
         .replace(/[“"‘\-\—]([^”"’]+)[”"’]\s*\([^)]+\)/g, '$1')
         .replace(/([A-ZÀ-Ỹ][a-zà-ỹ]*(\s+[A-ZÀ-Ỹ][a-zà-ỹ]*){1,4})\s*\([^)]+\)/g, '$1');
 }
+
+/**
+ * Removes typical web novel site ads, link watermarks, and noise.
+ */
+export function scrubSourceRags(text: string): string {
+    if (!text) return "";
+
+    return text
+        // 1. Common URLs and domain patterns
+        .replace(/https?:\/\/[^\s]+/gi, "")
+        .replace(/www\.[a-z0-9-]+\.[a-z]{2,}/gi, "")
+        .replace(/[a-z0-9-]+\.com/gi, "")
+        // 2. 69shuba specific patterns (Chinese & Vietnamese common rác)
+        .replace(/69书吧/g, "")
+        .replace(/69shuba/gi, "")
+        .replace(/本章未完，请点击下一页继续阅读/g, "")
+        .replace(/请收藏本站：/g, "")
+        .replace(/最新章节/g, "")
+        .replace(/&nbsp;/g, " ")
+        // 3. Spacing normalization
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+}

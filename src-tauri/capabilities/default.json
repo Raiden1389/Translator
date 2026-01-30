@@ -3,10 +3,13 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-create",
+    "core:webview:allow-create-webview-window",
+    "core:event:default",
     "core:window:allow-start-dragging",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
@@ -15,6 +18,24 @@
     "dialog:default",
     "log:default",
     "shell:default",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        {
+          "url": "https://www.69shuba.com/**"
+        },
+        {
+          "url": "https://69shuba.com/**"
+        },
+        {
+          "url": "https://www.69xinshu.com/**"
+        },
+        {
+          "url": "https://69xinshu.com/**"
+        }
+      ]
+    },
     {
       "identifier": "fs:allow-read-file",
       "allow": [
