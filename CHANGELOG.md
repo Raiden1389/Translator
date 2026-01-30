@@ -2,6 +2,17 @@
 
 Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
 
+## [1.7.0] - 2026-01-30
+
+### 📤 Cổng Nhập Dữ liệu Thông minh (JSON Import Gateway)
+- **Kiến trúc "Chia để trị":** Chuyển đổi toàn bộ engine cào truyện (Crawler) sang công cụ Web bên ngoài để phá đảo Cloudflare, giúp App chính luôn ổn định và không bị chặn IP.
+- **Import Universal:** Hỗ trợ nạp bộ truyện cực nhanh từ file JSON chuẩn hóa. Tự động khởi tạo Workspace, nạp Metadata (Bìa, Tên, Tác giả) và hàng loạt chương chỉ trong một nốt nhạc.
+- **Dọn dẹp UI:** Gỡ bỏ các thành phần crawler cũ gây nặng máy và dễ lỗi, thay bằng giao diện nạp file chuyên dụng và tinh gọn.
+
+### 🎨 Tối ưu hóa Giao diện (Premium UI Polish)
+- **Chapter Preview Redesign:** Làm lại hoàn toàn bảng xem trước chương với phong cách Glassmorphism, đổ bóng sâu và typography hiện đại.
+- **Hệ thống Thông báo Toàn cục:** Tích hợp thanh tiến trình nạp dữ liệu đồng bộ, giúp người dùng theo dõi trạng thái import chuẩn xác hơn.
+
 ## [1.6.0] - 2026-01-30
 
 ### 🧠 Bộ máy Cải chính Thông minh (Correction Engine v2.0)

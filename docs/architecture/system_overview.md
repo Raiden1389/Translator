@@ -33,8 +33,13 @@ Sử dụng Gemini API để dịch nội dung.
 - Chế độ sửa Chapter song song (Parallel View).
 - Hỗ trợ đổi font, cỡ chữ, màu nền linh hoạt.
 
+### E. External Crawler Integration
+Hệ thống chuyển đổi từ cào dữ liệu trực tiếp sang nạp dữ liệu chuẩn hóa:
+- **Web Crawler Tool:** Một công cụ chạy trên nền web (Workspace riêng) giúp người dùng vượt Cloudflare bằng trình duyệt thật.
+- **JSON Gateway:** App chính cung cấp cổng nạp file JSON xuất ra từ Web Crawler, tự động hóa việc khởi tạo bộ truyện.
+
 ## 3. Luồng dữ liệu (Data Flow)
-1. **Import:** Người dùng nạp text/epub -> Tauri đọc file -> Lưu vào IndexedDB.
+1. **Import:** Người dùng nạp text/epub/json -> Tauri đọc file -> Lưu vào IndexedDB.
 2. **Analysis:** Quét AI -> Lưu nhân vật vào Dictionary.
 3. **Translation:** Gửi text + Dictionary -> Gemini API -> Nhận kết quả -> Lưu vào IndexedDB.
 4. **Display:** UI lắng nghe thay đổi thông qua `useLiveQuery` (Dexie) để cập nhật real-time.

@@ -1,73 +1,67 @@
 {
-    "updated_at": "2026-01-30T00:30:00Z",
+    "updated_at": "2026-01-30T18:40:00Z",
     "working_on": {
-        "feature": "AI Correction Engine v2.0 & Reader UX",
-        "task": "Nâng cấp bộ máy sửa lỗi hỗ trợ Case-Preserve, Live Corrections và tối ưu hóa hiển thị Reader",
+        "feature": "JSON Import Gateway & External Crawler Pivot",
+        "task": "Thay thế Crawler nội bộ bằng cổng nạp JSON từ Crawler Web bên ngoài để vượt Cloudflare",
         "status": "completed",
         "files": [
-            "lib/gemini/helpers.ts",
-            "lib/gemini/translate.ts",
-            "components/workspace/dictionary/hooks/useCorrections.ts",
-            "components/workspace/dictionary/tabs/CorrectionsView.tsx",
-            "components/workspace/ReaderContent.tsx",
-            "components/workspace/utils/formatChapter.ts"
+            "components/dashboard/JSONImportDialog.tsx",
+            "components/dashboard/WorkspaceList.tsx",
+            "app/layout.tsx",
+            "lib/services/crawler/engines/universalEngine.ts",
+            "components/crawler/ChapterPreviewDialog.tsx"
         ],
-        "notes": "Đã giải quyết triệt để vấn đề sửa lỗi nhiều lần bằng bộ lọc Unicode NFC và cơ chế tóm gọn ký tự ẩn."
+        "notes": "Đã quyết định tách Crawler ra công cụ Web riêng để tận dụng Session trình duyệt thật, App chính đóng vai trò nạp dữ liệu chuẩn hóa."
     },
     "recent_changes": [
         {
-            "type": "Logic",
-            "description": "Unified Correction Engine: Hỗ trợ 'Longest First' matching, Case-Preservation (giữ nguyên hoa thường), và Unicode Normalization (NFC).",
+            "type": "Architecture",
+            "description": "Scrap Internal Crawler: Gỡ bỏ UI và logic cào truyện trực tiếp trong App để tránh vấn đề Cloudflare Blocking.",
             "files": [
-                "helpers.ts"
+                "WorkspaceList.tsx",
+                "layout.tsx"
             ]
         },
         {
             "type": "Feature",
-            "description": "Live Corrections: Trình đọc tự động áp dụng quy tắc cải chính vào văn bản hiển thị trong thời gian thực, không cần dịch lại chương.",
+            "description": "JSON Import Gateway: Phát triển Dialog nạp file JSON từ Crawler ngoài, hỗ trợ tự động tạo Workspace và nạp hàng loạt chương.",
             "files": [
-                "ReaderModal.tsx",
-                "formatChapter.ts"
+                "JSONImportDialog.tsx"
+            ]
+        },
+        {
+            "type": "Logic",
+            "description": "Crawler Engine Enhancement: Nâng cấp UniversalEngine với cơ chế phát hiện Cloudflare và fallback trích xuất thô (nếu cần).",
+            "files": [
+                "universalEngine.ts"
             ]
         },
         {
             "type": "UI/UX",
-            "description": "Reader Layout: Chia đoạn cho văn bản gốc Tiếng Trung; tối ưu hóa khoảng cách dòng và đoạn văn cho trải nghiệm đọc tập trung.",
+            "description": "Chapter Preview Redesign: Thiết kế lại giao diện xem trước chương truyện theo phong cách Glassmorphism hiện đại.",
             "files": [
-                "ReaderContent.tsx",
-                "globals.css"
-            ]
-        },
-        {
-            "type": "UI/UX",
-            "description": "Corrections Panel: Thiết kế lại bố cục cuộn và nút bấm 'Áp dụng' để tăng tính tiện dụng.",
-            "files": [
-                "CorrectionsView.tsx"
+                "ChapterPreviewDialog.tsx"
             ]
         }
     ],
     "decisions_made": [
         {
-            "decision": "Chuyển sang cơ chế Live Correction trong Reader",
-            "reason": "Giảm bớt thao tác thủ công của người dùng và mang lại phản hồi tức thì khi thay đổi từ điển/cải chính."
+            "decision": "Chuyển sang kiến trúc Crawler Web rời rạc",
+            "reason": "Vượt rào Cloudflare ổn định hơn bằng cách dùng trình duyệt thật của người dùng, giảm thiểu bảo trì engine trong App Tauri."
         },
         {
-            "decision": "Sắp xếp quy tắc theo độ dài (Longest Match First)",
-            "reason": "Ngăn chặn các quy tắc ngắn phá hỏng các cụm từ phức tạp hơn."
-        },
-        {
-            "decision": "Ép chuẩn Unicode NFC cho toàn bộ đầu vào/đầu ra",
-            "reason": "Khắc phục lỗi không khớp từ do khác biệt mã hóa ký tự Tiếng Việt."
+            "decision": "Chuẩn hóa Format JSON cho Crawler Export",
+            "reason": "Đảm bảo tính tương thích và dễ dàng mở rộng cho nhiều nguồn truyện khác nhau mà không cần sửa code App chính."
         }
     ],
     "pending_tasks": [
         {
-            "task": "Kiểm tra hiệu năng Live Correction khi số lượng quy tắc lên đến hàng trăm dòng",
-            "priority": "medium"
+            "task": "Hoàn thiện Web Crawler công cụ bên Workspace mới",
+            "priority": "high"
         },
         {
-            "task": "Nghiên cứu thêm tính năng 'Suggest Correction' khi người dùng bôi đen văn bản sai",
-            "priority": "low"
+            "task": "Kiểm tra giới hạn dung lượng file JSON khi import hàng nghìn chương",
+            "priority": "medium"
         }
     ]
 }

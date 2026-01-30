@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "3.3.0",
-        "last_updated": "2026-01-30T00:30:00Z"
+        "last_updated": "2026-01-30T18:40:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Production Ready - v1.6.0 Released"
+        "status": "Production Ready - v1.7.0 (JSON Gateway) Released"
     },
     "tech_stack": {
         "frontend": {
@@ -35,7 +35,8 @@
         "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
         "Offline Storage: Lưu trữ dữ liệu local hoàn toàn",
         "TTS: Hỗ trợ đọc truyện bằng giọng nói máy",
-        "Smart Capitalization: Engine tự động chuẩn hóa viết hoa viết thường chuẩn văn phong dịch"
+        "Smart Capitalization: Engine tự động chuẩn hóa viết hoa viết thường chuẩn văn phong dịch",
+        "JSON Import Gateway: Cổng nạp dữ liệu từ Crawler Web bên ngoài, vượt rào Cloudflare tuyệt đối"
     ],
     "database_schema": {
         "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",
