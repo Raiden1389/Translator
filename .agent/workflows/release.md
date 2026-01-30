@@ -20,16 +20,21 @@ Quy trình này đảm bảo việc đẩy code lên production một cách an t
    - ⚠️ Nếu build thất bại, **DỪNG LẠI NGAY LẬP TỨC** và báo cáo lỗi cho người dùng.
 
 ## Phase 3: Versioning
-1. Sử dụng `npm version patch` **CHỈ DÀNH CHO** các bugfix có tính tương thích ngược.
-   - ⚠️ Nếu thay đổi có ảnh hưởng đến hành vi (behavior) hoặc trải nghiệm người dùng (UX), **DỪNG LẠI** và hỏi ý kiến người dùng trước khi quyết định bump version (patch/minor/major).
+1. Sử dụng `npm version patch` **CHỈ DÀNH CHO** các bugfix có tương thích ngược.
+   - ⚠️ Nếu có tính năng mới hoặc thay đổi lớn, hỏi ý kiến người dùng để bump minor/major.
 // turbo
-2. Đẩy code và tags lên server bằng lệnh:
+2. Đồng bộ version sang Tauri: 
+   Cập nhật field `"version"` trong `src-tauri/tauri.conf.json` để khớp với `package.json`.
+// turbo
+3. Đẩy code và tags lên server bằng lệnh:
    `git push origin --tags` 
-   *(Tự động phát hiện current branch)*
 
-## Phase 4: Desktop Packaging (Tauri)
-1. Sau khi đẩy thành công, hãy hỏi người dùng:
-   "Code đã được đẩy lên an toàn. Bạn có muốn chạy **`npm run tauri build`** ngay bây giờ không?"
+## Phase 4: Desktop Packaging (Portable)
+1. Sau khi đẩy thành công, hỏi người dùng:
+   "Bạn có muốn build bản Desktop (.exe portable) không?"
+2. Nếu có, chạy lệnh: **`npm run f9`** (Lệnh này sử dụng script siêu nhanh).
+3. Lưu ý: File portable sẽ nằm tại `src-tauri/target/release/raiden-ai-translator.exe`.
+   (Đã cấu hình `targets: []` trong `tauri.conf.json` để bỏ qua bộ cài MSI/NSIS cồng kềnh).
 
 ## Next Steps
 - /test

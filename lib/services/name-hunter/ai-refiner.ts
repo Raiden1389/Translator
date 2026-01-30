@@ -71,7 +71,7 @@ JSON ARRAY:`;
         try {
             onProgress?.(`Đang kết nối AI...`);
             const { withKeyRotation } = await import("@/lib/gemini/client");
-            const { extractResponseText, cleanJsonResponse } = await import("@/lib/gemini/helpers");
+            const { extractResponseText, cleanJsonResponse } = await import("@/lib/gemini/contentProcessor");
             const { DEFAULT_MODEL } = await import("@/lib/ai-models");
 
             const response = await withKeyRotation<unknown>({

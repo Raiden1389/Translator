@@ -4,8 +4,15 @@ export * from "./types";
 // Re-export client functions
 export { recordUsage, getAvailableKeys, withKeyRotation } from "./client";
 
-// Re-export helpers
-export { normalizeVietnameseContent, scrubAIChatter, extractResponseText, cleanJsonResponse } from "./helpers";
+// Re-export core processing engine
+export {
+    normalizeVietnameseContent,
+    scrubAIChatter,
+    extractResponseText,
+    cleanJsonResponse,
+    applyAllCorrections,
+    finalSweep
+} from "./contentProcessor";
 
 // Re-export constants
 export { PRONOUN_RULE, STRUCTURE_RULE, CORE_RULES, buildSystemInstruction } from "./constants";

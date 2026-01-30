@@ -2,7 +2,7 @@ import { db } from "../db";
 import { DEFAULT_MODEL } from "../ai-models";
 import { AnalyzedEntity, ExtractedCharacter, ExtractedTerm } from "./types";
 import { withKeyRotation } from "./client";
-import { extractResponseText, cleanJsonResponse } from "./helpers";
+import { extractResponseText, cleanJsonResponse } from "./contentProcessor";
 
 /**
  * Extract Glossary (Characters + Terms)

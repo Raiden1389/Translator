@@ -1,6 +1,6 @@
-import { db, Chapter } from "@/lib/db";
+import { db } from "@/lib/db";
 import { inspectChapter as aiInspectChapter } from "@/lib/gemini";
-import { applyCorrectionRule } from "@/lib/gemini/helpers";
+import { applyCorrectionRule } from "@/lib/gemini/contentProcessor";
 import { InspectionIssue } from "@/lib/types";
 
 /**

@@ -90,7 +90,7 @@ JSON:`;
 
         try {
             const { withKeyRotation } = await import("@/lib/gemini/client");
-            const { extractResponseText, cleanJsonResponse } = await import("@/lib/gemini/helpers");
+            const { extractResponseText, cleanJsonResponse } = await import("@/lib/gemini/contentProcessor");
             const { DEFAULT_MODEL } = await import("@/lib/ai-models");
 
             const response = await withKeyRotation<unknown>({
@@ -111,7 +111,7 @@ JSON:`;
                 return [];
             }
 
-            let results: any;
+            let results: unknown;
             try {
                 results = JSON.parse(jsonStr);
             } catch (e) {
@@ -128,16 +128,14 @@ JSON:`;
             }
 
             // Standardize output to an array
-            let finalArray: any[] = [];
+            let finalArray: Array<{ original?: string; chinese?: string; type?: string; description?: string }> = [];
             if (Array.isArray(results)) {
                 finalArray = results;
             } else if (results && typeof results === 'object') {
-                // Look for common keys like 'candidates', 'entities', 'results'
-                const possible = results.candidates || results.entities || results.results || results.items || results.data;
-                if (Array.isArray(possible)) finalArray = possible;
-                else if (Object.keys(results).length > 0) {
-                    // Maybe the object IS the list of types? Not standard, but let's be safe.
-                    // For now, if no array found, we skip to avoid garbage.
+                const resultsObj = results as Record<string, unknown>;
+                const possible = resultsObj.candidates || resultsObj.entities || resultsObj.results || resultsObj.items || resultsObj.data;
+                if (Array.isArray(possible)) {
+                    finalArray = possible;
                 }
             }
 

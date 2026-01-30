@@ -4,11 +4,9 @@ import { useState, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, CorrectionEntry } from "@/lib/db";
 import { toast } from "sonner";
-import { applyAllCorrections, finalSweep } from "@/lib/gemini/helpers";
+import { applyAllCorrections, finalSweep } from "@/lib/gemini/contentProcessor";
 
-function applyRule(text: string, rule: CorrectionEntry): string {
-    return applyAllCorrections(text, [rule]);
-}
+
 
 export function useCorrections(workspaceId: string) {
     const liveCorrections = useLiveQuery(
@@ -41,7 +39,7 @@ export function useCorrections(workspaceId: string) {
     }, [corrections, correctionSearch]);
 
     const handleAddCorrection = useCallback(async () => {
-        const entry: any = {
+        const entry: Partial<CorrectionEntry> = {
             workspaceId,
             type: ruleType,
             createdAt: new Date()
@@ -107,13 +105,13 @@ export function useCorrections(workspaceId: string) {
             entry.replacement = f2;
         }
 
-        await db.corrections.add(entry);
+        await db.corrections.add(entry as CorrectionEntry);
 
         setField1("");
         setField2("");
         setField3("");
         toast.success("Đã thêm quy tắc sửa lỗi!");
-    }, [ruleType, field1, field2, field3, workspaceId]);
+    }, [ruleType, field1, field2, field3, workspaceId, corrections]);
 
     const handleDeleteCorrection = useCallback(async (id: number) => {
         await db.corrections.delete(id);

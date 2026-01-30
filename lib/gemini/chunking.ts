@@ -1,6 +1,6 @@
-import { db } from "../db";
+import { db, DictionaryEntry } from "../db";
 import { ChunkOptions, TranslationResult, TranslationLog } from "./types";
-import { finalSweep, generateCacheKey } from "./helpers";
+import { finalSweep, generateCacheKey } from "./contentProcessor";
 import { SYSTEM_VERSION } from "./constants";
 import pLimit from "p-limit";
 import { DEFAULT_MODEL } from "../ai-models";
@@ -71,9 +71,9 @@ export async function shouldUseChunking(text: string): Promise<ChunkOptions> {
 export async function translateSingleChunk(
     workspaceId: string,
     chunk: string,
-    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: any[]) => Promise<void>,
+    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[]) => Promise<void>,
     customInstruction?: string,
-    sharedGlossary?: any[]
+    sharedGlossary?: DictionaryEntry[]
 ): Promise<TranslationResult> {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = (modelSetting?.value as string) || DEFAULT_MODEL;
@@ -117,11 +117,11 @@ export async function translateSingleChunk(
 export async function translateWithChunking(
     workspaceId: string,
     text: string,
-    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: any[]) => Promise<void>,
+    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[]) => Promise<void>,
     onLog: (log: TranslationLog) => void,
     options?: Partial<ChunkOptions> & { onProgress?: (current: number, total: number) => void },
     customInstruction?: string,
-    sharedGlossary?: any[]
+    sharedGlossary?: DictionaryEntry[]
 ): Promise<TranslationResult> {
     const dbOptions = await shouldUseChunking(text);
     const finalOptions = { ...dbOptions, ...options };

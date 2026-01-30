@@ -2,7 +2,7 @@ import { db, DictionaryEntry } from "../db";
 import { DEFAULT_MODEL } from "../ai-models";
 import { TranslationResult, TranslationLog } from "./types";
 import { withKeyRotation, recordUsage } from "./client";
-import { extractResponseText, finalSweep } from "./helpers";
+import { extractResponseText, finalSweep } from "./contentProcessor";
 import { buildSystemInstruction } from "./constants";
 
 /**
@@ -125,7 +125,7 @@ export const translateChapter = async (
         // 3. Apply Auto-Corrections (Universal Logic: NFC + LongestFirst + CasePreserve)
         const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
         if (corrections.length > 0) {
-            const { applyAllCorrections } = await import("./helpers");
+            const { applyAllCorrections } = await import("./contentProcessor");
             parsed.translatedText = applyAllCorrections(parsed.translatedText, corrections);
             if (parsed.translatedTitle) {
                 parsed.translatedTitle = applyAllCorrections(parsed.translatedTitle, corrections);

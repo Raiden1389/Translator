@@ -1,5 +1,5 @@
-import { InspectionIssue } from "@/lib/types";
-import { normalizeVietnameseContent } from "@/lib/gemini/helpers";
+
+import { normalizeVietnameseContent } from "@/lib/gemini/contentProcessor";
 
 const escapeHTML = (str: string) => {
     return str
@@ -45,7 +45,6 @@ export function splitIntoParagraphs(text: string): string[] {
  */
 export function formatReaderText(
     text: string,
-    issues: InspectionIssue[] = [],
     activeTTSIndex: number | null = null
 ): string {
     if (!text) return "";

@@ -1,5 +1,5 @@
 import { withKeyRotation, recordUsage } from "./client";
-import { extractResponseText } from "./helpers";
+import { extractResponseText } from "./contentProcessor";
 
 /**
  * Generate a book summary (blurb) based on context
@@ -16,8 +16,9 @@ export async function generateBookSummary(context: string, aiModel: string, onLo
     }, onLog).then(raw => {
         const text = extractResponseText(raw);
         // usage recording logic remains
-        if ((raw as any).usageMetadata) {
-            recordUsage(aiModel, (raw as any).usageMetadata);
+        const rawResponse = raw as { usageMetadata?: { promptTokenCount?: number, candidatesTokenCount?: number } };
+        if (rawResponse.usageMetadata) {
+            recordUsage(aiModel, rawResponse.usageMetadata);
         }
         return text.trim();
     });

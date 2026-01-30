@@ -2,13 +2,14 @@
 
 import { InspectionIssue } from "@/lib/types";
 
-import { applyAllCorrections } from "@/lib/gemini/helpers";
+import { applyAllCorrections, finalSweep } from "@/lib/gemini/contentProcessor";
 
 interface FormatParams {
     text: string;
     activeTTSIndex?: number | null;
     inspectionIssues?: InspectionIssue[];
     corrections?: any[];
+    glossary?: any[]; // Added glossary support for dynamic capitalization
 }
 
 export interface ParagraphData {
@@ -26,7 +27,8 @@ export function formatChapterToParagraphs({
     text,
     activeTTSIndex = null,
     inspectionIssues = [],
-    corrections = []
+    corrections = [],
+    glossary = []
 }: FormatParams): ParagraphData[] {
     const normalizedText = (text || "").normalize('NFC');
     if (!normalizedText) return [];
@@ -42,7 +44,12 @@ export function formatChapterToParagraphs({
 
     return rawParagraphs.map((rawPara, index) => {
         const isHighlighted = activeTTSIndex === index;
-        const para = applyAllCorrections(rawPara, corrections);
+
+        // 1. Apply user corrections first
+        let para = applyAllCorrections(rawPara, corrections);
+
+        // 2. Apply Smart Capitalization and final polish (LIVE)
+        para = finalSweep(para, glossary);
 
         // Map inspection issues to this specific paragraph
         const paraIssues = (inspectionIssues || []).filter(issue =>

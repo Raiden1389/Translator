@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { InspectionIssue } from "../types";
 import { withKeyRotation } from "./client";
-import { extractResponseText } from "./helpers";
+import { extractResponseText } from "./contentProcessor";
 
 /**
  * AI Inspector (Quality Control)
@@ -23,7 +23,7 @@ export const inspectChapter = async (workspaceId: string, text: string, onLog?: 
         ? `\n\nDANH SÁCH THUẬT NGỮ ĐÚNG (KHÔNG BÁO LỖI): \n${relevantDict.map(d => `- "${d.translated}" (Gốc: ${d.original})`).join('\n')}`
         : '';
 
-    return withKeyRotation<any>({
+    return withKeyRotation<unknown>({
         model: "gemini-2.0-flash",
         systemInstruction: "Bạn là biên tập viên truyện Trung-Việt khó tính. Hãy tìm lỗi Untranslated, Pronoun, Grammar.",
         prompt: `${glossaryContext}

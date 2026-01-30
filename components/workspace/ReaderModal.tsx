@@ -141,8 +141,9 @@ export function ReaderModal({
         text: editContent,
         activeTTSIndex,
         inspectionIssues,
-        corrections: corrections || []
-    }), [editContent, activeTTSIndex, inspectionIssues, corrections]);
+        corrections: corrections || [],
+        glossary: dictEntries || []
+    }), [editContent, activeTTSIndex, inspectionIssues, corrections, dictEntries]);
 
     const handleClearTranslation = async () => {
         if (!confirm("Xóa bản dịch của chương này để dịch lại?")) return;

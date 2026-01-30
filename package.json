@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev --webpack",
     "d": "npm run tauri dev",
+    "bxf": "node scripts/build-ultra-fast.mjs",
+    "f9": "node scripts/build-ultra-fast.mjs",
     "build": "next build",
-    "bxf": "node scripts/build-ultra-fast.js",
     "start": "next start",
     "lint": "eslint",
     "tauri": "tauri",
