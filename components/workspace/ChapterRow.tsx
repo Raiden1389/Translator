@@ -116,7 +116,7 @@ export const ChapterRow = React.memo(function ChapterRow({
                         {hasGlossary && (
                             <Book className={cn("w-3 h-3 shrink-0", isRaidenMode ? "text-purple-500/60" : "text-blue-500/60")} />
                         )}
-                        <span className="truncate">{title}</span>
+                        <span className="truncate">{title.replace(/<br\s*\/?>/gi, " ")}</span>
                     </div>
                 </button>
             </div>
@@ -126,7 +126,7 @@ export const ChapterRow = React.memo(function ChapterRow({
                     onClick={(e) => { e.stopPropagation(); onRead(id); }}
                     className={cn("transition-colors block w-full text-left truncate italic text-sm font-medium", isRaidenMode ? "hover:text-purple-300" : "hover:text-blue-600")}
                 >
-                    {title_translated || "—"}
+                    {(title_translated || "—").replace(/<br\s*\/?>/gi, " ")}
                 </button>
             </div>
 

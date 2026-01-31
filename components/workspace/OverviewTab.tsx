@@ -133,10 +133,15 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                     >
                         {workspace.cover ? (
                             <div className="absolute inset-0 w-full h-full">
-                                <div className="absolute inset-0 bg-cover bg-center blur-2xl opacity-30 scale-110 transition-transform duration-700 group-hover:scale-125" style={{ backgroundImage: `url(${workspace.cover})` }} />
+                                <img
+                                    src={workspace.cover}
+                                    alt=""
+                                    referrerPolicy="no-referrer"
+                                    className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110 transition-transform duration-700 group-hover:scale-125"
+                                />
                                 <div className="absolute inset-0 bg-linear-to-t from-background via-transparent to-transparent opacity-80" />
                                 <div className="absolute inset-0 flex items-center justify-center p-6">
-                                    <img src={workspace.cover} alt="Cover" loading="lazy" className="h-full w-auto object-contain rounded-lg shadow-xl z-10 transition-transform duration-500 group-hover:scale-[1.02]" />
+                                    <img src={workspace.cover} alt="Cover" referrerPolicy="no-referrer" loading="lazy" className="h-full w-auto object-contain rounded-lg shadow-xl z-10 transition-transform duration-500 group-hover:scale-[1.02]" />
                                 </div>
                             </div>
                         ) : (

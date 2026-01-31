@@ -51,7 +51,7 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: Workspace, index: number, 
                     <div className={`h-32 p-6 relative flex flex-col justify-between transition-all duration-500 ${!ws.cover && (index % 2 === 0 ? 'bg-linear-to-r from-orange-500 to-amber-600' : 'bg-linear-to-r from-purple-600 to-indigo-600')}`}>
                         {ws.cover && (
                             <>
-                                <img src={ws.cover} alt={ws.title} className="absolute inset-0 w-full h-full object-cover scale-95 z-0 transition-transform duration-700 group-hover:scale-100" />
+                                <img src={ws.cover} alt={ws.title} referrerPolicy="no-referrer" className="absolute inset-0 w-full h-full object-cover scale-95 z-0 transition-transform duration-700 group-hover:scale-100" />
                                 <div className="absolute inset-0 bg-linear-to-t from-black/40 via-black/20 to-transparent z-0" />
                             </>
                         )}

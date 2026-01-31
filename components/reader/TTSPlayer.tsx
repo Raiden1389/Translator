@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Square, SkipForward, SkipBack, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 import { toast } from "sonner";
 
 interface TTSPlayerProps {
@@ -157,11 +156,11 @@ export function TTSPlayer({
                 {/* Album Art */}
                 <div className="relative w-48 h-48 rounded-xl overflow-hidden shadow-2xl border-2 border-white/10">
                     {coverImage ? (
-                        <Image
+                        <img
                             src={coverImage}
                             alt={chapterTitle}
-                            fill
-                            className="object-cover"
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
                         />
                     ) : (
                         <div className="w-full h-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">

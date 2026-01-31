@@ -4,8 +4,10 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Search, ChevronLeft, ChevronRight, Upload, Loader2,
-    FileText, LayoutGrid, LayoutList, Zap, Plus
+    Search, ChevronLeft, ChevronRight,
+    FileText, LayoutGrid, LayoutList, Zap,
+    Clock, ShieldCheck, Eraser,
+    Download, UploadCloud, ScanLine
 } from "lucide-react";
 import {
     Select,
@@ -40,6 +42,11 @@ interface ChapterListHeaderProps {
     setItemsPerPage: (value: number) => void;
     lastReadChapterId?: number;
     onReadContinue?: (id: number) => void;
+    onHistoryOpen: () => void;
+    onScan: () => void;
+    onApplyCorrections: () => void;
+    onClearCache: () => void;
+    onImportJSON: () => void;
 }
 
 export function ChapterListHeader({
@@ -60,7 +67,12 @@ export function ChapterListHeader({
     itemsPerPage,
     setItemsPerPage,
     lastReadChapterId,
-    onReadContinue
+    onReadContinue,
+    onHistoryOpen,
+    onScan,
+    onApplyCorrections,
+    onClearCache,
+    onImportJSON
 }: ChapterListHeaderProps) {
     return (
         <div className="sticky top-0 z-30 bg-background/80 border-b border-border mb-6 -mx-8 px-8 py-3 backdrop-blur-md transition-all">
@@ -157,6 +169,96 @@ export function ChapterListHeader({
                         </Button>
                     </div>
 
+                    {/* Action Hub - Missing feature restoration (2-row Grid Layout) */}
+                    <div className="grid grid-cols-3 gap-1 bg-muted/40 p-1.5 rounded-2xl border border-border/40 mx-1 overflow-hidden shadow-inner w-fit">
+                        {/* Top Row */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-md text-slate-500 transition-all hover:scale-110 active:scale-95"
+                                    onClick={onClearCache}
+                                >
+                                    <Eraser className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[10px] font-bold">Dọn dẹp Cache AI</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-md text-blue-500 transition-all hover:scale-110 active:scale-95"
+                                    onClick={onExport}
+                                >
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[10px] font-bold">Xuất dữ liệu JSON</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-md text-emerald-500 transition-all hover:scale-110 active:scale-95"
+                                    onClick={onImportJSON}
+                                >
+                                    <UploadCloud className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[10px] font-bold">Nhập dữ liệu JSON</TooltipContent>
+                        </Tooltip>
+
+                        {/* Bottom Row */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-md text-orange-500 transition-all hover:scale-110 active:scale-95"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <FileText className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px] font-bold">Nhập Epub/Txt</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-md text-indigo-500 transition-all hover:scale-110 active:scale-95"
+                                    onClick={onScan}
+                                >
+                                    <ScanLine className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px] font-bold">Quét Thuật Ngữ (AI Extract)</TooltipContent>
+                        </Tooltip>
+
+                        {/* Empty or Helper Slots */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-md text-purple-500 transition-all hover:scale-110 active:scale-95"
+                                    onClick={onHistoryOpen}
+                                >
+                                    <Clock className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px] font-bold">Lịch sử & Hoàn tác</TooltipContent>
+                        </Tooltip>
+                    </div>
+
                     <div className="h-6 w-px bg-border/40 mx-1" />
 
                     {/* Pagination - Slim */}
@@ -184,21 +286,6 @@ export function ChapterListHeader({
                         </Button>
                     </div>
 
-                    {/* Export/Import Popover Trigger */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 rounded-xl hover:bg-muted/50 border border-transparent hover:border-border/30"
-                                onClick={onExport}
-                            >
-                                <Upload className="h-4 w-4 text-emerald-500" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Xuất JSON</TooltipContent>
-                    </Tooltip>
-
                     <input
                         type="file"
                         accept=".txt,.text,.html,.epub"
@@ -209,12 +296,12 @@ export function ChapterListHeader({
 
                     <Button
                         size="sm"
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 gap-2 ml-2"
-                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 gap-2"
+                        onClick={onApplyCorrections}
                         disabled={importing}
                     >
-                        {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                        {importing ? "Đang nhập..." : "Nhập truyện"}
+                        <ShieldCheck className="h-4 w-4" />
+                        Cải chính
                     </Button>
                 </div>
             </div>

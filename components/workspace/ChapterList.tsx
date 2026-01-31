@@ -19,6 +19,7 @@ import { type TranslationSettings } from "@/lib/types";
 import { useChapterList } from "./hooks/useChapterList";
 import { Button } from "@/components/ui/button";
 import { Trash2, Eraser, Sparkles, X, Loader2, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -124,6 +125,22 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 setItemsPerPage={setItemsPerPage}
                 lastReadChapterId={workspace?.lastReadChapterId}
                 onReadContinue={(id: number) => setReadingChapterId(id)}
+                onHistoryOpen={() => setHistoryOpen(true)}
+                onScan={() => setScanConfigOpen(true)}
+                onApplyCorrections={handleApplyCorrections}
+                onClearCache={async () => {
+                    if (!confirm("Dọn dẹp bộ nhớ đệm AI? (Buộc AI dịch mới hoàn toàn cho các yêu cầu sau)")) return;
+                    await db.translationCache.clear();
+                    toast.success("Đã dọn dẹp cache AI.");
+                }}
+                onImportJSON={() => {
+                    // Create a temporary input to handle standard browser uploads
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    input.onchange = (e: Event) => actions.handleImportJSON(e as unknown as React.ChangeEvent<HTMLInputElement>);
+                    input.click();
+                }}
             />
 
             <ErrorBoundary name="ChapterListView">

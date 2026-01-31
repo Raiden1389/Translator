@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "3.3.0",
-        "last_updated": "2026-01-30T18:40:00Z"
+        "last_updated": "2026-01-31T22:15:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Production Ready - v1.7.0 (JSON Gateway) Released"
+        "status": "Production Ready - v1.8.0 (Action Hub Restored)"
     },
     "tech_stack": {
         "frontend": {
@@ -29,14 +29,14 @@
     },
     "features": [
         "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
+        "Action Hub 2.0: Hệ thống công cụ nhanh 2 hàng (Cache, JSON Import/Export, AI Scan, History)",
         "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
-        "Review UI v2.0: Trình duyệt kết quả AI tối ưu, phân cấp thị giác và hỗ trợ duyệt hàng loạt",
-        "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-insensitive, Case-preserving) và Cải chính trực tiếp vào Reader",
+        "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-preserving) và Cải chính trực tiếp vào Reader",
         "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
         "Offline Storage: Lưu trữ dữ liệu local hoàn toàn",
-        "TTS: Hỗ trợ đọc truyện bằng giọng nói máy",
-        "Smart Capitalization: Engine tự động chuẩn hóa viết hoa viết thường chuẩn văn phong dịch",
-        "JSON Import Gateway: Cổng nạp dữ liệu từ Crawler Web bên ngoài, vượt rào Cloudflare tuyệt đối"
+        "TTS: Hỗ trợ đọc truyện bằng giọng nói máy với cơ chế xử lý lỗi timeout",
+        "Smart Capitalization: Engine tự động chuẩn hóa viết hoa viết thường",
+        "JSON Import Gateway: Cổng nạp dữ liệu thông minh với cơ chế khử thẻ <br> lỗi"
     ],
     "database_schema": {
         "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",
@@ -64,6 +64,10 @@
             {
                 "name": "settings",
                 "desc": "Cấu hình API, theme, font chữ"
+            },
+            {
+                "name": "translationCache",
+                "desc": "Bộ nhớ đệm kết quả dịch từ AI để tiết kiệm token và tăng tốc"
             }
         ]
     },

@@ -28,7 +28,7 @@ export function JSONImportDialog() {
             }
 
             const workspaceId = crypto.randomUUID();
-            
+
             // 1. Create Workspace
             await db.workspaces.add({
                 id: workspaceId,
@@ -44,16 +44,25 @@ export function JSONImportDialog() {
             });
 
             // 2. Add Chapters
-            const chapters = data.chapters.map((ch: any, index: number) => ({
-                workspaceId,
-                title: ch.title,
-                content_original: ch.content || "",
-                order: ch.order || index + 1,
-                status: 'draft' as const,
-                wordCountOriginal: (ch.content || "").length,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            }));
+            const chapters = data.chapters.map((ch: any, index: number) => {
+                const rawContent = ch.content || "";
+                // Normalize line breaks: convert <br> variants to \n
+                const normalizedContent = rawContent
+                    .replace(/<br\s*\/?>/gi, "\n")
+                    .replace(/&lt;br\s*\/?&gt;/gi, "\n")
+                    .replace(/\\n/g, "\n"); // Handle escaped newlines if any
+
+                return {
+                    workspaceId,
+                    title: ch.title,
+                    content_original: normalizedContent,
+                    order: ch.order || index + 1,
+                    status: 'draft' as const,
+                    wordCountOriginal: normalizedContent.length,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                };
+            });
 
             await db.chapters.bulkAdd(chapters);
 
@@ -71,9 +80,9 @@ export function JSONImportDialog() {
 
     if (!isOpen) {
         return (
-            <Button 
-                onClick={() => setIsOpen(true)} 
-                variant="outline" 
+            <Button
+                onClick={() => setIsOpen(true)}
+                variant="outline"
                 className="rounded-full px-6 border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 transition-all text-xs h-9"
             >
                 <Download className="mr-2 h-3.5 w-3.5 text-primary" /> Import JSON
@@ -101,7 +110,7 @@ export function JSONImportDialog() {
                         </p>
                     </div>
 
-                    <div 
+                    <div
                         onClick={() => fileInputRef.current?.click()}
                         className="group relative border-2 border-dashed border-border/40 hover:border-primary/40 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-primary/5 transition-all duration-300"
                     >
@@ -128,7 +137,7 @@ export function JSONImportDialog() {
                         </div>
                     </div>
 
-                    <Button 
+                    <Button
                         onClick={() => setIsOpen(false)}
                         variant="secondary"
                         className="w-full h-12 rounded-xl font-bold"

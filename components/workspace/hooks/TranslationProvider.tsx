@@ -10,7 +10,6 @@ import {
     TranslationLog
 } from "@/lib/gemini";
 import { aiQueue } from "@/lib/services/ai-queue";
-import { ensureChapterContent } from "@/lib/services/crawler.service";
 import type { Chapter } from "@/lib/db";
 
 interface BatchTranslateProps {
@@ -141,8 +140,11 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
                 }
 
-                // 0. Ensure Content (Crawler Support)
-                const content_original = await ensureChapterContent(chapter.id!);
+                // 0. Ensure Content
+                const content_original = chapter.content_original || "";
+                if (!content_original || content_original.trim().length === 0) {
+                    throw new Error("Chương này chưa có nội dung gốc. Hãy kiểm tra lại file JSON nhập vào.");
+                }
 
                 // Combine title and content if title exists and isn't already at the start of original content
                 let contentToTranslate = content_original;

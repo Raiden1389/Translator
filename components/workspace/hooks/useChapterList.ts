@@ -108,10 +108,24 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
     };
 
     const handleApplyCorrections = async () => {
-        if (selectedChapters.length === 0) return toast.error("Vui lòng chọn chương cần sửa.");
+        let targets = selectedChapters;
+
+        if (targets.length === 0) {
+            const hasTranslated = (chapters || []).some(c => c.status === 'translated');
+            if (!hasTranslated) return toast.info("Không có chương nào đã dịch để cải chính.");
+
+            if (!confirm("Chưa chọn chương nào. Áp dụng cải chính cho TẤT CẢ chương đã dịch trong bộ?")) return;
+
+            targets = (chapters || [])
+                .filter(c => c.status === 'translated' || !!c.content_translated)
+                .map(c => c.id!);
+        }
+
+        if (targets.length === 0) return;
+
         toast.loading(`Đang áp dụng cải chính...`, { id: "applying-corrections" });
         try {
-            const { updatedCount } = await applyBulkCorrections(workspaceId, selectedChapters);
+            const { updatedCount } = await applyBulkCorrections(workspaceId, targets);
             if (updatedCount > 0) {
                 toast.success(`Đã cập nhật ${updatedCount} chương!`, {
                     id: "applying-corrections",

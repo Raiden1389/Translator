@@ -1,67 +1,63 @@
 {
-    "updated_at": "2026-01-30T18:40:00Z",
+    "updated_at": "2026-01-31T22:15:00Z",
     "working_on": {
-        "feature": "JSON Import Gateway & External Crawler Pivot",
-        "task": "Thay thế Crawler nội bộ bằng cổng nạp JSON từ Crawler Web bên ngoài để vượt Cloudflare",
+        "feature": "Action Hub Restoration & Content Normalization",
+        "task": "Khôi phục Action Hub, sửa lỗi hiển thị gạch dòng/thẻ <br> và cải tiến độ ổn định của TTS",
         "status": "completed",
         "files": [
+            "components/workspace/ChapterListHeader.tsx",
+            "components/workspace/ChapterList.tsx",
+            "components/workspace/ReaderContent.tsx",
             "components/dashboard/JSONImportDialog.tsx",
-            "components/dashboard/WorkspaceList.tsx",
-            "app/layout.tsx",
-            "lib/services/crawler/engines/universalEngine.ts",
-            "components/crawler/ChapterPreviewDialog.tsx"
+            "components/workspace/hooks/useReaderTTS.ts"
         ],
-        "notes": "Đã quyết định tách Crawler ra công cụ Web riêng để tận dụng Session trình duyệt thật, App chính đóng vai trò nạp dữ liệu chuẩn hóa."
+        "notes": "Đã thiết kế lại Action Hub thành dạng lưới 2 hàng chuyên nghiệp. Xử lý triệt để các lỗi văn bản thô xuất hiện sau khi import."
     },
     "recent_changes": [
         {
-            "type": "Architecture",
-            "description": "Scrap Internal Crawler: Gỡ bỏ UI và logic cào truyện trực tiếp trong App để tránh vấn đề Cloudflare Blocking.",
+            "type": "UI/UX",
+            "description": "Action Hub 2.0: Restructured tools into a 2-row grid for better accessibility and cleaner header.",
             "files": [
-                "WorkspaceList.tsx",
-                "layout.tsx"
+                "ChapterListHeader.tsx",
+                "ChapterList.tsx"
             ]
         },
         {
-            "type": "Feature",
-            "description": "JSON Import Gateway: Phát triển Dialog nạp file JSON từ Crawler ngoài, hỗ trợ tự động tạo Workspace và nạp hàng loạt chương.",
+            "type": "Bug Fix",
+            "description": "Content Normalization: Implemented <br> tag removal during JSON import and rendering to fix 'txt lỗi' issues.",
             "files": [
-                "JSONImportDialog.tsx"
+                "JSONImportDialog.tsx",
+                "ReaderContent.tsx",
+                "ChapterRow.tsx",
+                "ChapterCard.tsx"
             ]
         },
         {
             "type": "Logic",
-            "description": "Crawler Engine Enhancement: Nâng cấp UniversalEngine với cơ chế phát hiện Cloudflare và fallback trích xuất thô (nếu cần).",
+            "description": "TTS Stability: Added timeout handling and empty segment filtering to prevent infinite loading states.",
             "files": [
-                "universalEngine.ts"
-            ]
-        },
-        {
-            "type": "UI/UX",
-            "description": "Chapter Preview Redesign: Thiết kế lại giao diện xem trước chương truyện theo phong cách Glassmorphism hiện đại.",
-            "files": [
-                "ChapterPreviewDialog.tsx"
+                "useReaderTTS.ts"
             ]
         }
     ],
     "decisions_made": [
         {
-            "decision": "Chuyển sang kiến trúc Crawler Web rời rạc",
-            "reason": "Vượt rào Cloudflare ổn định hơn bằng cách dùng trình duyệt thật của người dùng, giảm thiểu bảo trì engine trong App Tauri."
+            "decision": "Chuyển nút Nhập truyện chính thành nút Cải chính",
+            "reason": "Vì quy trình bây giờ là Import JSON xong rồi mới thao tác dịch/cải chính, việc đưa nút Cải chính lên đầu giúp UX mượt mà hơn cho người dịch chuyên nghiệp."
         },
         {
-            "decision": "Chuẩn hóa Format JSON cho Crawler Export",
-            "reason": "Đảm bảo tính tương thích và dễ dàng mở rộng cho nhiều nguồn truyện khác nhau mà không cần sửa code App chính."
+            "decision": "Sử dụng Regex quét <br> ở cả tầng Import và Rendering",
+            "reason": "Đảm bảo dữ liệu mới nạp vào sẽ sạch, nhưng vẫn hỗ trợ hiển thị đúng cho các dữ liệu cũ đã nạp sẵn trong máy người dùng."
         }
     ],
     "pending_tasks": [
         {
-            "task": "Hoàn thiện Web Crawler công cụ bên Workspace mới",
-            "priority": "high"
+            "task": "Kiểm tra tính tương thích của file JSON khi xuất/nhập chéo giữa nhiều Workspace",
+            "priority": "medium"
         },
         {
-            "task": "Kiểm tra giới hạn dung lượng file JSON khi import hàng nghìn chương",
-            "priority": "medium"
+            "task": "Nghiên cứu thêm các giọng đọc TTS mới ổn định hơn nếu Edge TTS bị limit",
+            "priority": "low"
         }
     ]
 }

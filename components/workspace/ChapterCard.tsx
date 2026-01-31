@@ -122,14 +122,14 @@ export const ChapterCard = React.memo(function ChapterCard({
                                 "font-bold text-sm truncate font-serif transition-colors",
                                 isRaidenMode ? "text-slate-200 group-hover/title:text-purple-400" : "text-slate-900 group-hover/title:text-blue-600"
                             )}>
-                                {title}
+                                {title.replace(/<br\s*\/?>/gi, " ")}
                             </h3>
                         </div>
                         <p className={cn(
                             "text-xs truncate italic",
                             isRaidenMode ? "text-slate-500" : "text-slate-500"
                         )}>
-                            {title_translated || "Chưa dịch tiêu đề..."}
+                            {(title_translated || "Chưa dịch tiêu đề...").replace(/<br\s*\/?>/gi, " ")}
                         </p>
                     </div>
                 </div>

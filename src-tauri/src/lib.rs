@@ -2,7 +2,6 @@ mod tts;
 mod auth;
 
 use std::env;
-use std::fs;
 use jieba_rs::Jieba;
 use once_cell::sync::Lazy;
 use serde::Serialize;
@@ -78,50 +77,6 @@ fn get_gemini_key() -> Result<String, String> {
     env::var("GEMINI_API_KEY").map_err(|_| "Không tìm thấy GEMINI_API_KEY trong .env".to_string())
 }
 
-// Simple approach: Just fetch HTML directly from Rust
-#[tauri::command]
-async fn native_crawl_v2(
-    _app: tauri::AppHandle,
-    url: String,
-    extraction_script: Option<String>,
-    _timeout_ms: u64,
-) -> Result<String, String> {
-    println!("[Rust] Fetching URL directly: {}", url);
-    
-    // Fetch the page HTML using reqwest with browser-like headers
-    let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .build()
-        .map_err(|e| e.to_string())?;
-    
-    let html = client
-        .get(&url)
-        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-        .header("Accept-Language", "en-US,en;q=0.9")
-        .header("DNT", "1")
-        .header("Connection", "keep-alive")
-        .header("Upgrade-Insecure-Requests", "1")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch: {}", e))?
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
-    
-    println!("[Rust] Fetched {} bytes of HTML", html.len());
-    
-    // Debug: Save HTML to file
-    let debug_path = env::temp_dir().join("crawler_debug.html");
-    if let Err(e) = fs::write(&debug_path, &html) {
-        println!("[Rust] Failed to save debug HTML: {}", e);
-    } else {
-        println!("[Rust] Saved HTML to: {}", debug_path.display());
-    }
-    
-    // Return HTML - TypeScript will parse it
-    Ok(html)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -135,8 +90,7 @@ pub fn run() {
             native_gemini_request,
             native_list_models,
             segment_chinese,
-            get_gemini_key,
-            native_crawl_v2
+            get_gemini_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

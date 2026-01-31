@@ -1,6 +1,36 @@
-# Changelog
-
 Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
+
+## [1.8.0] - 2026-01-31
+
+### 🚀 Khôi phục & Tái cấu trúc Action Hub (Feature Restoration)
+- **Action Hub 2.0:** Thiết kế lại thanh công cụ nhanh dưới dạng lưới 2 hàng (Grid Layout) cực kỳ tối ưu.
+    - **Hàng 1:** Dọn dẹp Cache AI (Eraser), Xuất JSON (Download), Nhập JSON (UploadCloud).
+    - **Hàng 2:** Nhập Epub/Txt (FileText), Quét thuật ngữ AI (ScanLine), Lịch sử & Hoàn tác (Clock).
+- **Nút Cải chính Thông minh:** Chuyển nút hành động chính trên Header thành "Cải chính" (ShieldCheck) để người dùng áp dụng quy tắc từ điển nhanh chóng.
+- **Batch Processing UX:** Nâng cấp `handleApplyCorrections` - tự động hỏi để áp dụng cho toàn bộ chương đã dịch nếu người dùng không chọn chương cụ thể nào.
+
+### 🧹 Xử lý triệt để Lỗi hiển thị ("txt lỗi")
+- **Auto-Normalization:** Tự động phát hiện và chuyển đổi các thẻ `<br>`, `&lt;br&gt;` thành ký tự xuống dòng thật sự ngay khi nạp file JSON (Import) và khi hiển thị (Reader).
+- **Title Cleaning:** Loại bỏ hoàn toàn dấu xuống dòng thừa trong tiêu đề chương ở chế độ xem Danh sách và Thẻ.
+- **HTML Safety:** Cho phép hiển thị các thẻ định dạng cơ bản (`<b>`, `<i>`) trong văn bản dịch thay vì mã hóa chúng.
+
+### 🔇 Tối ưu hóa Giọng đọc (TTS Stability)
+- **Timeout Protection:** Thêm cơ chế tự ngắt sau 10 giây nếu Edge TTS không phản hồi, tránh treo giao diện.
+- **State Cleanup:** Tự động reset trạng thái "Đang phát" khi gặp lỗi mạng hoặc lỗi API.
+- **Segment Filtering:** Tự động bỏ qua các đoạn văn bản rỗng hoặc chỉ chứa khoảng trắng để giọng đọc mượt mà hơn.
+
+### 🛠️ Kỹ thuật (Technical Maintenance)
+- **Tailwind v4 Migration:** Cập nhật cú pháp biến CSS `mb-(...)` thay thế cho `mb-[var(...)]` theo chuẩn mới.
+- **Codebase Cleanup:** Loại bỏ hoàn toàn các prop và import dư thừa (`onFixBrackets`, `Wand2`, `Plus`...) để tối ưu hiệu năng.
+- **Safe Database Clean:** Bổ sung tính năng xóa cache AI trong Action Hub giúp xử lý các trường hợp AI bị "kẹt" prompt cũ.
+
+## [1.7.5] - 2026-01-30
+
+### 🧹 Loại bỏ Crawler & Tinh gọn Hệ thống (System Streamlining)
+- **Scrap Internal Crawler:** Gỡ bỏ hoàn toàn bộ máy cào truyện nội bộ và các UI liên quan (`CrawlerDialog`, `GlobalCrawlerProgress`, etc.) để giảm nhẹ dung lượng app và loại bỏ triệt để các lỗi liên quan đến Cloudflare chặn.
+- **JSON Direct Workflow:** Chuyển đổi sang quy trình làm việc 100% dựa trên file JSON nạp từ bên ngoài. Hệ thống giờ đây tập trung hoàn toàn vào việc dịch và quản lý dữ liệu thay vì cào dữ liệu.
+- **Tối ưu hóa Backend:** Xóa bỏ các lệnh Rust không còn sử dụng (`native_crawl_v2`), giúp file thực thi gọn gàng và ổn định hơn.
+- **Cải thiện TranslationProvider:** Tự động kiểm tra nội dung gốc trước khi dịch, đưa ra cảnh báo rõ ràng nếu chương thiếu nội dung (do import lỗi).
 
 ## [1.7.0] - 2026-01-30
 

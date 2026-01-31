@@ -39,7 +39,10 @@ export function RaidenProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <RaidenContext.Provider value={{ isRaidenMode, toggleRaidenMode }}>
-            <div style={{ visibility: mounted ? "visible" : "hidden" }}>
+            <div
+                className="flex-1 flex flex-col min-h-0"
+                style={{ visibility: mounted ? "visible" : "hidden" }}
+            >
                 {children}
             </div>
         </RaidenContext.Provider>

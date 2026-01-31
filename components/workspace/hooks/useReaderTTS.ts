@@ -66,7 +66,13 @@ export function useReaderTTS(chapterId: number, content: string, readerConfig: R
 
         try {
             setIsLoading(true);
-            const text = segments[index];
+            const text = segments[index].trim();
+            if (!text) {
+                // Skip empty segments
+                playSegment(index + 1);
+                return;
+            }
+
             const pitchStr = `${readerConfig.ttsPitch >= 0 ? '+' : ''}${readerConfig.ttsPitch}Hz`;
             const rateStr = `${readerConfig.ttsRate >= 0 ? '+' : ''}${readerConfig.ttsRate}%`;
 
@@ -83,18 +89,28 @@ export function useReaderTTS(chapterId: number, content: string, readerConfig: R
             audio.onerror = (e) => {
                 console.error("Audio Error:", e);
                 setIsPlaying(false);
+                setIsLoading(false);
                 toast.error("Lỗi khi phát âm thanh!");
+                stop();
             };
 
-            await audio.play();
+            // Set a timeout to prevent infinite loading if audio.play() hangs
+            const playPromise = audio.play();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Audio play timeout")), 10000)
+            );
+
+            await Promise.race([playPromise, timeoutPromise]);
+
             setIsPlaying(true);
             setIsLoading(false);
 
         } catch (error) {
             console.error("TTS Error:", error);
-            toast.error("Lỗi tạo giọng đọc");
             setIsLoading(false);
             setIsPlaying(false);
+            toast.error("Không thể tạo giọng đọc (Edge TTS lỗi hoặc mất mạng)");
+            stop();
         }
     };
 
