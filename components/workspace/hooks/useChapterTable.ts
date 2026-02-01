@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useCallback, useRef, useEffect, useMemo } from "react";
 import { Chapter } from "@/lib/db";
 import { deleteChapter } from "@/lib/services/chapter.service";
 
@@ -67,9 +67,7 @@ export function useChapterTable({ chapters, selectedChapters, setSelectedChapter
     }, [chapters, chapterIndexMap, setSelectedChapters]);
 
     const handleDelete = useCallback(async (id: number) => {
-        if (confirm("Xóa chương này?")) {
-            await deleteChapter(id);
-        }
+        await deleteChapter(id);
     }, []);
 
     const isPageAllSelected = chapters.length > 0 && chapters.every(c => selectedSet.has(c.id!));

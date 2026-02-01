@@ -50,7 +50,7 @@ export const FloatingProgressPill = React.memo(({
                 {/* Vertical Visual Indicator */}
                 <div className="w-1.5 h-12 bg-muted/30 rounded-full overflow-hidden flex flex-col justify-end">
                     <div
-                        className="w-full bg-primary transition-all duration-500 ease-out shadow-[0_0_10px_rgba(var(--primary),0.8)]"
+                        className="w-full bg-primary transition-all duration-500 ease-out shadow-[0_0_10px] shadow-primary/80"
                         style={{ height: `${roundedProgress}%` }}
                     />
                 </div>

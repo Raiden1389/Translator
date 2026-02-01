@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, X, FileJson, CheckCircle2, AlertCircle } from "lucide-react";
+import { Download, Loader2, X, FileJson, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -22,9 +22,16 @@ export function JSONImportDialog() {
             const text = await file.text();
             const data = JSON.parse(text);
 
-            // Basic Validation
-            if (!data.book || !data.chapters || !Array.isArray(data.chapters)) {
-                throw new Error("Định dạng file JSON không hợp lệ. Phải có 'book' và 'chapters'.");
+            let bookInfo = (data as any).book || {};
+            const chaptersList = Array.isArray(data) ? data : ((data as any).chapters || []);
+
+            // Handle Case: Export from Action Hub (already has book info)
+            if (Array.isArray(data)) {
+                bookInfo = { title: "Bộ truyện mới (Imported)", author: "Chưa rõ" };
+            }
+
+            if (!chaptersList || chaptersList.length === 0) {
+                throw new Error("Định dạng file JSON không hợp lệ hoặc không có chương nào.");
             }
 
             const workspaceId = crypto.randomUUID();
@@ -32,34 +39,39 @@ export function JSONImportDialog() {
             // 1. Create Workspace
             await db.workspaces.add({
                 id: workspaceId,
-                title: data.book.title || "Tác phẩm mới",
-                author: data.book.author || "Chưa rõ",
-                cover: data.book.cover || "",
-                description: data.book.description || "",
-                genre: data.book.genre || "Khác",
-                sourceLang: data.book.language || "Chinese (中文)",
+                title: bookInfo.title || "Tác phẩm mới",
+                author: bookInfo.author || "Chưa rõ",
+                cover: bookInfo.cover || "",
+                description: bookInfo.description || "",
+                genre: bookInfo.genre || "Khác",
+                sourceLang: bookInfo.language || "Chinese (中文)",
                 targetLang: "Vietnamese (Tiếng Việt)",
                 createdAt: new Date(),
                 updatedAt: new Date(),
             });
 
             // 2. Add Chapters
-            const chapters = data.chapters.map((ch: any, index: number) => {
-                const rawContent = ch.content || "";
-                // Normalize line breaks: convert <br> variants to \n
+            const chapters = chaptersList.map((ch: any, index: number) => {
+                const rest = { ...ch };
+                delete rest.id;
+                const rawContent = rest.content || rest.content_original || "";
+                // Normalize line breaks
                 const normalizedContent = rawContent
                     .replace(/<br\s*\/?>/gi, "\n")
                     .replace(/&lt;br\s*\/?&gt;/gi, "\n")
-                    .replace(/\\n/g, "\n"); // Handle escaped newlines if any
+                    .replace(/\\n/g, "\n");
 
                 return {
+                    ...rest,
                     workspaceId,
-                    title: ch.title,
+                    title: rest.title || `Chương ${index + 1}`,
                     content_original: normalizedContent,
-                    order: ch.order || index + 1,
-                    status: 'draft' as const,
+                    content_translated: rest.content_translated || "",
+                    order: rest.order || index + 1,
+                    status: rest.status || 'draft',
                     wordCountOriginal: normalizedContent.length,
-                    createdAt: new Date(),
+                    lastTranslatedAt: rest.lastTranslatedAt ? new Date(rest.lastTranslatedAt) : undefined,
+                    createdAt: rest.createdAt ? new Date(rest.createdAt) : new Date(),
                     updatedAt: new Date(),
                 };
             });

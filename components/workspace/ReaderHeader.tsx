@@ -671,7 +671,7 @@ export function ReaderHeader(props: ReaderHeaderProps) {
             {/* SLEEK PROGRESS BAR (Bottom of header) */}
             <div className="absolute bottom-0 left-0 h-[2px] bg-primary/20 w-full overflow-hidden">
                 <div
-                    className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_8px_rgba(var(--primary),0.5)]"
+                    className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_8px] shadow-primary/50"
                     style={{ width: `${Math.round(scrollProgress)}%` }}
                 />
             </div>

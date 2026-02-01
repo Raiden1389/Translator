@@ -18,11 +18,21 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { type TranslationSettings } from "@/lib/types";
 import { useChapterList } from "./hooks/useChapterList";
 import { Button } from "@/components/ui/button";
-import { Trash2, Eraser, Sparkles, X, Loader2, FileText } from "lucide-react";
+import { Trash2, Eraser, Sparkles, X, Loader2, FileText, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface BatchTranslateHandlerProps {
     workspaceId: string;
@@ -76,6 +86,10 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
     const [scanConfigOpen, setScanConfigOpen] = useState(false);
     const [tempScanText, setTempScanText] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Custom states for premium AlertDialogs
+    const [clearCacheConfirmOpen, setClearCacheConfirmOpen] = useState(false);
+    const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
@@ -136,16 +150,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 onHistoryOpen={() => setHistoryOpen(true)}
                 onScan={() => setScanConfigOpen(true)}
                 onApplyCorrections={handleApplyCorrections}
-                onClearCache={async () => {
-                    if (!confirm("Dọn dẹp bộ nhớ đệm AI? (Buộc AI dịch mới hoàn toàn cho các yêu cầu sau)")) return;
-                    setIsProcessing(true);
-                    try {
-                        await db.translationCache.clear();
-                        toast.success("Đã dọn dẹp cache AI.");
-                    } finally {
-                        setIsProcessing(false);
-                    }
-                }}
+                onClearCache={() => setClearCacheConfirmOpen(true)}
                 onImportJSON={() => {
                     const input = document.createElement('input');
                     input.type = 'file';
@@ -232,24 +237,6 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                                     <span className="text-sm font-black">{selectedChapters.length}</span>
                                     <span className="text-[10px] opacity-60">chương</span>
                                 </div>
-
-                                <div className="hidden md:flex flex-col">
-                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Quy mô xử lý</span>
-                                    <span className="text-[11px] font-black text-foreground/80">
-                                        ~{(() => {
-                                            const selectedData = (chapters || []).filter(c => selectedChapters.includes(c.id!));
-                                            const words = selectedData.reduce((acc, c) => acc + (c.wordCountOriginal || 0), 0);
-                                            return words.toLocaleString();
-                                        })()} chữ • {(() => {
-                                            const selectedData = (chapters || []).filter(c => selectedChapters.includes(c.id!));
-                                            const words = selectedData.reduce((acc, c) => acc + (c.wordCountOriginal || 0), 0);
-                                            // Tối ưu dự kiến dựa trên phản hồi thực tế (20-26s/chương) 
-                                            // Giả định tốc độ trung bình ~5000-6000 chữ/phút
-                                            const mins = Math.ceil(words / 5000);
-                                            return mins <= 1 ? "tầm 1-2 phút xử lý" : `~${mins}-${mins + 1} phút xử lý`;
-                                        })()}
-                                    </span>
-                                </div>
                             </div>
 
                             <Button
@@ -316,11 +303,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                                         <Button
                                             size="icon"
                                             variant="ghost"
-                                            onClick={() => {
-                                                if (confirm(`Xóa vĩnh viễn ${selectedChapters.length} chương đã chọn? Hành động này không thể hoàn tác.`)) {
-                                                    db.chapters.bulkDelete(selectedChapters).then(() => setSelectedChapters([]));
-                                                }
-                                            }}
+                                            onClick={() => setBulkDeleteConfirmOpen(true)}
                                             className="h-9 w-9 text-rose-500 hover:text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -416,6 +399,65 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 terms={pendingTerms}
                 onSave={handleConfirmSaveAI}
             />
+
+            {/* Premium AlertDialogs */}
+            <AlertDialog open={clearCacheConfirmOpen} onOpenChange={setClearCacheConfirmOpen}>
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-blue-100 shadow-2xl">
+                    <AlertDialogHeader className="items-center text-center">
+                        <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center mb-2">
+                            <Eraser className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Dọn dẹp Cache AI?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-500">
+                            Việc này sẽ buộc AI dịch mới hoàn toàn cho các yêu cầu sau. Hữu ích khi bạn thay đổi prompt hoặc muốn kết quả khác đi.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
+                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                setIsProcessing(true);
+                                try {
+                                    await db.translationCache.clear();
+                                    toast.success("Đã dọn dẹp cache AI.");
+                                } finally {
+                                    setIsProcessing(false);
+                                }
+                            }}
+                            className="rounded-2xl bg-blue-600 hover:bg-blue-700 text-white border-0 px-8 shadow-lg shadow-blue-200"
+                        >
+                            Xác nhận Dọn
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-rose-100 shadow-2xl">
+                    <AlertDialogHeader className="items-center text-center">
+                        <div className="h-16 w-16 rounded-full bg-rose-50 flex items-center justify-center mb-2">
+                            <AlertTriangle className="h-8 w-8 text-rose-500 animate-bounce" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Xóa vĩnh viễn {selectedChapters.length} chương?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-500">
+                            Bạn không thể hoàn tác hành động này. Mọi dữ liệu bản gốc và bản dịch của các chương đã chọn sẽ biến mất.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
+                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                await db.chapters.bulkDelete(selectedChapters);
+                                setSelectedChapters([]);
+                                toast.success(`Đã xóa ${selectedChapters.length} chương.`);
+                            }}
+                            className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white border-0 px-8 shadow-lg shadow-rose-200"
+                        >
+                            Xác nhận Xóa
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

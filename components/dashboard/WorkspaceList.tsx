@@ -7,8 +7,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { NewWorkspaceDialog } from "@/components/dashboard/NewWorkspaceDialog";
 import { JSONImportDialog } from "@/components/dashboard/JSONImportDialog";
-import { BookOpen, Trash2, Search, Clock, Zap } from "lucide-react";
+import { BookOpen, Trash2, Search, Clock, Zap, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 
 const EditableTitle = ({ id, initialTitle }: { id: string, initialTitle: string }) => {
@@ -111,6 +121,7 @@ const WorkspaceCard = ({ ws, index, onDelete }: { ws: Workspace, index: number, 
 export function WorkspaceList() {
     const workspaces = useLiveQuery(() => db.workspaces.orderBy("updatedAt").reverse().toArray());
     const [search, setSearch] = useState("");
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
     useEffect(() => {
         const checkAndRecover = async () => {
@@ -121,14 +132,18 @@ export function WorkspaceList() {
         checkAndRecover();
     }, [workspaces]);
 
-    const deleteWorkspace = async (e: React.MouseEvent, id: string) => {
+    const handleDeleteConfirm = async () => {
+        if (!deleteId) return;
+        await db.workspaces.delete(deleteId);
+        const chapters = await db.chapters.where("workspaceId").equals(deleteId).primaryKeys();
+        await db.chapters.bulkDelete(chapters);
+        setDeleteId(null);
+    };
+
+    const deleteWorkspace = (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
-        if (confirm("Xóa bộ này nhé?")) {
-            await db.workspaces.delete(id);
-            const chapters = await db.chapters.where("workspaceId").equals(id).primaryKeys();
-            await db.chapters.bulkDelete(chapters);
-        }
+        setDeleteId(id);
     }
 
     const filtered = workspaces?.filter(w => w.title.toLowerCase().includes(search.toLowerCase()));
@@ -178,6 +193,29 @@ export function WorkspaceList() {
                     ))}
                 </div>
             )}
+
+            <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-rose-100 shadow-2xl">
+                    <AlertDialogHeader className="items-center text-center">
+                        <div className="h-16 w-16 rounded-full bg-rose-50 flex items-center justify-center mb-2">
+                            <AlertTriangle className="h-8 w-8 text-rose-500 animate-bounce" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Xác nhận xóa bộ này?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-500">
+                            Hành động này sẽ xóa vĩnh viễn toàn bộ chương truyện và dữ liệu liên quan. Bạn không thể hoàn tác.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
+                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteConfirm}
+                            className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white border-0 px-8 shadow-lg shadow-rose-200"
+                        >
+                            Xác nhận Xóa
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

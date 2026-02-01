@@ -3,7 +3,7 @@ import { DEFAULT_MODEL } from "../ai-models";
 import { TranslationResult, TranslationLog } from "./types";
 import { withKeyRotation, recordUsage } from "./client";
 import { extractResponseText, finalSweep } from "./contentProcessor";
-import { buildSystemInstruction } from "./constants";
+import { analyzeTextHeuristics, assembleSystemInstruction } from "./rules/assembler";
 
 /**
  * Main Translation Function
@@ -43,8 +43,16 @@ export const translateChapter = async (
         ? `\n\nTHUẬT NGỮ (ƯU TIÊN DÙNG):\n${relevantDict.map(d => `${d.original} -> ${d.translated}`).join('\n')}`
         : '';
 
-    // 2. Build System Instruction (with pronoun mapping + line alignment)
-    const fullInstruction = buildSystemInstruction(customInstruction, glossaryContext);
+    // 2. Perform Heuristic Scan (Multi-point Start-Middle-End)
+    const analysis = analyzeTextHeuristics(text);
+    onLog({
+        timestamp: new Date(),
+        message: `🧠 Phân tích ngữ cảnh: ${analysis.detectedRegister} | Confidence: ${analysis.confidence}% | Combat: ${analysis.isCombat ? 'Có' : 'Không'}`,
+        type: 'info'
+    });
+
+    // 3. Build System Instruction (Dynamic Assembly v5.0)
+    const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction);
 
     try {
         console.log(`📡 [PAYLOAD] Model: ${aiModel} | Content Size: ${text.length} chars | System Instruction Size: ${fullInstruction.length} chars`);

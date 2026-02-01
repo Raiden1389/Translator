@@ -303,7 +303,7 @@ export function ChapterListHeader({
                                     <Download className="h-4 w-4 group-hover:scale-110 transition-transform" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-[10px] font-bold">Lưu JSON</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px] font-bold">Save JSON</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -318,7 +318,7 @@ export function ChapterListHeader({
                                     <UploadCloud className="h-4 w-4 group-hover:scale-110 transition-transform" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-[10px] font-bold">Nạp JSON</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px] font-bold">Load JSON</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>

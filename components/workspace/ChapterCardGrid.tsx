@@ -6,6 +6,17 @@ import { FileUp } from "lucide-react";
 import { db, type Chapter } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle } from "lucide-react";
 
 interface ChapterCardGridProps {
     chapters: Chapter[];
@@ -28,6 +39,7 @@ export function ChapterCardGrid({
     onImport,
     lastReadChapterId
 }: ChapterCardGridProps) {
+    const [deleteId, setDeleteId] = React.useState<number | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
 
     const rowVirtualizer = useVirtualizer({
@@ -101,7 +113,7 @@ export function ChapterCardGrid({
                                     title_translated={chapter.title_translated}
                                     status={chapter.status || 'draft'}
                                     issueCount={chapter.inspectionResults?.length || 0}
-                                    lastTranslatedAtTime={chapter.lastTranslatedAt?.getTime()}
+                                    lastTranslatedAtTime={chapter.lastTranslatedAt instanceof Date ? chapter.lastTranslatedAt.getTime() : (chapter.lastTranslatedAt ? new Date(chapter.lastTranslatedAt).getTime() : undefined)}
                                     translationDurationMs={chapter.translationDurationMs}
                                     wordCountOriginal={chapter.wordCountOriginal}
                                     isSelected={selectedSet.has(chapter.id!)}
@@ -113,17 +125,41 @@ export function ChapterCardGrid({
                                     onTranslate={() => {/* Unified batch handler preferred */ }}
                                     onInspect={() => onInspect(chapter.id!)}
                                     onClearTranslation={() => onClearTranslation(chapter.id!)}
-                                    onDelete={async () => {
-                                        if (confirm("Xóa chương này?")) {
-                                            await db.chapters.delete(chapter.id!);
-                                        }
-                                    }}
+                                    onDelete={() => setDeleteId(chapter.id!)}
                                 />
                             </div>
                         );
                     })}
                 </div>
             </div>
+
+            <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-rose-100 shadow-2xl">
+                    <AlertDialogHeader className="items-center text-center">
+                        <div className="h-16 w-16 rounded-full bg-rose-50 flex items-center justify-center mb-2">
+                            <AlertTriangle className="h-8 w-8 text-rose-500 animate-bounce" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Xác nhận xóa chương?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-500">
+                            Bạn sắp xóa vĩnh viễn chương truyện này khỏi thư viện. Hành động này không thể hoàn tác.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
+                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                if (deleteId) {
+                                    await db.chapters.delete(deleteId);
+                                    setDeleteId(null);
+                                }
+                            }}
+                            className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white border-0 px-8 shadow-lg shadow-rose-200"
+                        >
+                            Xác nhận Xóa
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

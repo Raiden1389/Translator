@@ -9,6 +9,17 @@ import { ChapterRow } from "./ChapterRow";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useChapterTable } from "./hooks/useChapterTable";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle } from "lucide-react";
 
 interface ChapterTableProps {
     chapters: Chapter[];
@@ -38,6 +49,8 @@ export function ChapterTable(props: ChapterTableProps) {
     } = props;
 
     const parentRef = useRef<HTMLDivElement>(null);
+
+    const [deleteId, setDeleteId] = React.useState<number | null>(null);
 
     const { state, actions } = useChapterTable({
         chapters,
@@ -137,7 +150,7 @@ export function ChapterTable(props: ChapterTableProps) {
                                     onMouseEnter={handleMouseEnter}
                                     onSelect={onSelect}
                                     onRead={onRead}
-                                    onDelete={handleDelete}
+                                    onDelete={(id) => setDeleteId(id)}
                                     onInspect={onInspect}
                                     onClearTranslation={onClearTranslation}
                                 />
@@ -146,6 +159,34 @@ export function ChapterTable(props: ChapterTableProps) {
                     })}
                 </div>
             </div>
+
+            <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-rose-100 shadow-2xl">
+                    <AlertDialogHeader className="items-center text-center">
+                        <div className="h-16 w-16 rounded-full bg-rose-50 flex items-center justify-center mb-2">
+                            <AlertTriangle className="h-8 w-8 text-rose-500 animate-bounce" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Xác nhận xóa chương?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-500">
+                            Bạn sắp xóa vĩnh viễn chương truyện này khỏi thư viện. Hành động này không thể hoàn tác.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
+                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                if (deleteId) {
+                                    await handleDelete(deleteId);
+                                    setDeleteId(null);
+                                }
+                            }}
+                            className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white border-0 px-8 shadow-lg shadow-rose-200"
+                        >
+                            Xác nhận Xóa
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

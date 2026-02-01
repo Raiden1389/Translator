@@ -165,9 +165,23 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
         const selectedIds = selectedChapters.length > 0 ? selectedChapters : filtered.map(c => c.id!);
         if (selectedIds.length === 0) return toast.error("Không có gì để xuất.");
 
-        const data = await db.chapters.bulkGet(selectedIds);
-        const fileName = `workspace-export-${new Date().getTime()}.json`;
-        const content = JSON.stringify(data, null, 2);
+        const workspace = await db.workspaces.get(workspaceId);
+        const chapters = await db.chapters.bulkGet(selectedIds);
+
+        const exportData = {
+            book: {
+                title: workspace?.title || "Tác phẩm mới",
+                author: workspace?.author || "Chưa rõ",
+                cover: workspace?.cover || "",
+                description: workspace?.description || "",
+                genre: workspace?.genre || "Khác",
+                language: workspace?.sourceLang || "Chinese (中文)"
+            },
+            chapters: chapters.filter(Boolean) // Remove any undefined entries
+        };
+
+        const fileName = `raiden-export-${workspace?.title || 'unnamed'}-${new Date().getTime()}.json`;
+        const content = JSON.stringify(exportData, null, 2);
 
         // 1. Try Tauri Native Save Dialog if available
         if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {

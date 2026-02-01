@@ -1,5 +1,28 @@
 Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
 
+## [1.9.0] - 2026-02-01
+
+### 🧠 Động cơ Kể chuyện v5.1 (Storyteller Engine v5.1) - "SỐNG ĐỘNG HÓA AI"
+- **Sensory Structure (Cấu trúc Cảm quan):** Thay đổi hoàn toàn tư duy của AI. Chuyển đổi từ mô tả sinh lý học (phản xạ cơ thể) sang mô tả cảm giác xã hội.
+    - *Ví dụ:* Tự động chuyển "Hít một hơi lạnh" thành "Xuýt xoa", "Kinh ngạc".
+- **Emotion Intensity Ladder (Ma trận Cường độ):** Thiết lập 7 kênh cảm xúc (Bất ngờ, Sợ hãi, Regret, Nhịp điệu, Khinh miệt, Đau đớn, Giận dữ) với 3 cấp độ cường độ. AI giờ đây biết chọn từ ngữ "đủ liều lượng" cho từng tình huống (Lv1: Khẽ giật mình -> Lv3: Sững sờ/Vỡ vụn).
+- **Social Register (Phân cấp Vai diễn):** Nâng cấp Heuristic Scan để nhận diện và áp dụng phong thái riêng cho từng nhân vật:
+    - *Tiểu thư/Tiên tử:* Mỹ miều, nhã nhặn.
+    - *Lưu manh/Côn đồ:* Thô, gãy, lóng gắt.
+    - *Lão quái/Trưởng bối:* Uy nghiêm, triết lý, cô đọng.
+    - *Thiếu nhi/Linh thú:* Nhí nhảnh, cảm thán nhiều (nha, ạ, nhé).
+- **Onomatopoeia (Âm thanh huyên náo):** Tích hợp bộ từ tượng thanh thuần Việt (Bốp, Chát, Thịch, Rầm, Vút) vào cảnh chiến đấu để tăng tính hình động.
+- **Battle Feedback & Face Metaphors:** Tự động chuyển đổi các cụm từ ước lệ (Máu chảy thành sông -> Máu tươi loang lổ) và các ẩn dụ thể diện (Mất mặt -> Muối mặt, Ếch ngồi đáy giếng) để câu văn đậm chất Việt.
+
+### 🛡️ Chốt chặn An toàn & Chống Over-polish
+- **Anti-Overdramatization:** Khóa các mô tả kịch tính quá mức (rợn người, sát khí...) trong các tình huống đời thường hoặc thoại ngắn.
+- **Dialogue Protection:** Đảm bảo lời thoại ngắn (Ví dụ: "Cút!") luôn được giữ sự thô ráp, trực diện, không bị AI "hoa lá cành".
+- **Slang Pacing:** Giãn cách mật độ dùng tiếng lóng mạnh để tránh loạn tone truyện.
+- **Whitelist Flexibility:** Cho phép AI phá rào Whitelist nếu việc rewrite mang lại câu văn tự nhiên hơn cho người Việt.
+
+### 📊 Thang điểm Chấm dịch v5.1
+- Áp dụng Framework chấm điểm 10 điểm (Tầng Cứng - Tầng Mượt - Tầng Linh Hồn - Xuất Thần) để kiểm soát chất lượng đầu ra một cách khoa học.
+
 ## [1.8.0] - 2026-01-31
 
 ### 🚀 Khôi phục & Tái cấu trúc Action Hub (Feature Restoration)
