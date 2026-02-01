@@ -1,7 +1,7 @@
 import { IDIOM_SYSTEM_RULE } from "./idioms";
 
 // Update this version whenever CORE_RULES, PRONOUN_RULE or STRUCTURE_RULE changes
-export const SYSTEM_VERSION = "v2.4";
+export const SYSTEM_VERSION = "v2.5";
 
 /**
  * System Instruction Constants (Optimized for Novel Translation)
@@ -49,8 +49,9 @@ YÊU CẦU CỐT LÕI:
 1. Trả về JSON { "title": "...", "content": "..." }.
 2. Tiêu đề (title) PHẢI bao gồm số chương nếu bản gốc có (VD: 第10章 -> Chương 10).
 3. Văn phong tiểu thuyết mượt mà, thoát ý, ưu tiên Thuần Việt. 
-4. GIỮ HÁN VIỆT cho: Tên người, Địa danh, Binh chủng (VD: Tịnh Châu Lang Kỵ), Chiêu thức.
-5. KHÔNG giải thích nghĩa đằng sau.
+4. TUYỆT ĐỐI KHÔNG để lại bất kỳ ký tự tiếng Trung (Hán tự) nào trong bản dịch. Mọi tên riêng, địa danh, chiêu thức phải được dịch sang âm Hán Việt (VD: 秦铭 -> Tần Minh).
+5. BẢN DỊCH KHÔNG ĐƯỢC CHỨA CHỮ HÁN (HANZI). Đây là yêu cầu bắt buộc và tối thượng. Nếu không biết dịch, hãy dùng âm Hán Việt phổ thông nhất. 
+6. KHÔNG giải thích nghĩa đằng sau.
 `;
 
 /**

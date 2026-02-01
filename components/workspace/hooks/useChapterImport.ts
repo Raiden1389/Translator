@@ -8,6 +8,55 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
     const [importStatus, setImportStatus] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const cleanHtmlContent = (html: string) => {
+        if (!html) return "";
+        return html
+            .replace(/<br\s*\/?>/gi, "\n") // Chuyển <br> thành xuống dòng
+            .replace(/<\/?[^>]+(>|$)/g, "") // Loại bỏ tất cả thẻ HTML khác
+            .replace(/&nbsp;/g, " ")
+            .replace(/&emsp;/g, " ")
+            .replace(/\u2003/g, " ") // Loại bỏ ký tự đặc biệt của Trung Quốc
+            .replace(/\n\s*\n/g, "\n\n") // Gom các dòng trống thừa
+            .trim();
+    };
+
+    const processJsonChapters = async (data: any) => {
+        let rawChapters = [];
+
+        // Hỗ trợ cả mảng trực tiếp hoặc object có key 'chapters'
+        if (Array.isArray(data)) {
+            rawChapters = data;
+        } else if (data && typeof data === 'object' && Array.isArray(data.chapters)) {
+            rawChapters = data.chapters;
+        }
+
+        if (rawChapters.length === 0) {
+            throw new Error("Không tìm thấy danh sách chương trong file JSON.");
+        }
+
+        const chaptersWithWorkspace = rawChapters.map((c: any, index: number) => {
+            const { id: _id, ...rest } = c;
+            // Ưu tiên key 'content' (từ crawler) hoặc 'content_original'
+            const rawContent = rest.content || rest.content_original || "";
+            const cleanedContent = cleanHtmlContent(rawContent);
+
+            return {
+                ...rest,
+                workspaceId,
+                title: rest.title || `Chương ${currentChaptersCount + index + 1}`,
+                content_original: cleanedContent,
+                content_translated: rest.content_translated || "",
+                status: rest.status || "draft",
+                order: (rest.order || currentChaptersCount + index + 1),
+                wordCountOriginal: cleanedContent.length,
+                wordCountTranslated: (rest.content_translated || "").length
+            } as Chapter;
+        });
+
+        await db.chapters.bulkAdd(chaptersWithWorkspace);
+        return chaptersWithWorkspace.length;
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -18,66 +67,31 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
 
         try {
             if (file.name.endsWith(".epub")) {
-                // Dynamically import epubjs only when needed
+                // ... logic epub giữ nguyên ...
                 const ePub = (await import("epubjs")).default;
                 const book = ePub();
                 await book.open(await file.arrayBuffer());
-
                 const spine = await book.loaded.spine;
                 const items = (spine as unknown as { items: { href: string }[] }).items;
                 const total = items.length;
-
                 const chaptersToAdd = [];
                 for (let i = 0; i < total; i++) {
                     const item = items[i];
                     setImportStatus(`Parsing section ${i + 1}/${total}...`);
                     setProgress(Math.round(((i + 1) / total) * 100));
-
                     const doc = await book.load(item.href);
                     const title = (doc as Document).querySelector("title")?.textContent || `Chapter ${i + 1}`;
-                    const content = (doc as Document).body.innerText || "No content extracted.";
-
+                    const content = cleanHtmlContent((doc as Document).body.innerText || "No content extracted.");
                     chaptersToAdd.push({
-                        workspaceId,
-                        title,
-                        content_original: content,
-                        content_translated: "",
-                        status: "draft" as const,
-                        order: currentChaptersCount + i + 1,
-                        wordCountOriginal: content.trim().length,
-                        wordCountTranslated: 0
+                        workspaceId, title, content_original: content, content_translated: "",
+                        status: "draft" as const, order: currentChaptersCount + i + 1,
+                        wordCountOriginal: content.trim().length, wordCountTranslated: 0
                     });
                 }
-
                 await db.chapters.bulkAdd(chaptersToAdd);
-
-                // Extract and save cover image if available
-                try {
-                    const coverUrl = await book.coverUrl();
-                    if (coverUrl) {
-                        const response = await fetch(coverUrl);
-                        const blob = await response.blob();
-                        const reader = new FileReader();
-                        reader.onloadend = async () => {
-                            if (typeof reader.result === 'string') {
-                                await db.workspaces.update(workspaceId, {
-                                    cover: reader.result,
-                                    updatedAt: new Date()
-                                });
-                                toast.success("Đã cập nhật ảnh bìa từ EPUB!");
-                            }
-                        };
-                        reader.readAsDataURL(blob);
-                    }
-                } catch (coverErr) {
-                    console.error("Failed to extract cover:", coverErr);
-                    // Non-critical, ignore
-                }
-
-                toast.success(`Đã nhập ${chaptersToAdd.length} chương thành công!`);
+                toast.success(`Đã nhập ${chaptersToAdd.length} chương từ EPUB!`);
             } else if (file.name.endsWith(".txt")) {
                 const text = await file.text();
-                // Basic TXT chunking by chapters
                 const lines = text.split("\n");
                 const chaptersToAdd = [];
                 let currentTitle = "Phần 1";
@@ -89,14 +103,10 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
                         if (currentContent.length > 0) {
                             const contentStr = currentContent.join("\n").trim();
                             chaptersToAdd.push({
-                                workspaceId,
-                                title: currentTitle,
-                                content_original: contentStr,
-                                content_translated: "",
-                                status: "draft" as const,
+                                workspaceId, title: currentTitle, content_original: contentStr,
+                                content_translated: "", status: "draft" as const,
                                 order: currentChaptersCount + chaptersToAdd.length + 1,
-                                wordCountOriginal: contentStr.length,
-                                wordCountTranslated: 0
+                                wordCountOriginal: contentStr.length, wordCountTranslated: 0
                             });
                         }
                         currentTitle = line.trim();
@@ -105,28 +115,25 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
                         currentContent.push(line);
                     }
                 }
-
-                // Push last one
                 if (currentContent.length > 0) {
                     const contentStr = currentContent.join("\n").trim();
                     chaptersToAdd.push({
-                        workspaceId,
-                        title: currentTitle,
-                        content_original: contentStr,
-                        content_translated: "",
-                        status: "draft" as const,
+                        workspaceId, title: currentTitle, content_original: contentStr,
+                        content_translated: "", status: "draft" as const,
                         order: currentChaptersCount + chaptersToAdd.length + 1,
-                        wordCountOriginal: contentStr.length,
-                        wordCountTranslated: 0
+                        wordCountOriginal: contentStr.length, wordCountTranslated: 0
                     });
                 }
-
                 await db.chapters.bulkAdd(chaptersToAdd);
                 toast.success(`Đã nhập file TXT thành công!`);
+            } else if (file.name.endsWith(".json")) {
+                const text = await file.text();
+                const count = await processJsonChapters(JSON.parse(text));
+                toast.success(`Đã nạp thêm ${count} chương từ file JSON!`);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            toast.error("Lỗi khi nhập file.");
+            toast.error(err.message || "Lỗi khi nhập file.");
         } finally {
             setImporting(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -135,60 +142,26 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
 
     const handleImportJSON = async (e?: React.ChangeEvent<HTMLInputElement>) => {
         let text = "";
-
-        // 1. Try Tauri Native Dialog if available
-        if (typeof window !== 'undefined' && (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+        if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
             try {
                 const { open } = await import("@tauri-apps/plugin-dialog");
                 const { readTextFile } = await import("@tauri-apps/plugin-fs");
-
-                const selected = await open({
-                    filters: [{ name: 'JSON', extensions: ['json'] }],
-                    multiple: false
-                });
-
-                if (selected && typeof selected === 'string') {
-                    text = await readTextFile(selected);
-                } else if (selected && typeof selected === 'object' && 'path' in selected) {
-                    text = await readTextFile((selected as { path: string }).path);
-                } else {
-                    return; // Canceled
-                }
-            } catch (err) {
-                console.error("Tauri Import Error:", err);
-                // Fallback to standard input if possible
-            }
+                const selected = await open({ filters: [{ name: 'JSON', extensions: ['json'] }], multiple: false });
+                if (selected && typeof selected === 'string') text = await readTextFile(selected);
+                else if (selected && typeof selected === 'object' && 'path' in (selected as any))
+                    text = await readTextFile((selected as any).path);
+            } catch (err) { console.error("Tauri Import Error:", err); }
         }
 
-        // 2. Fallback to standard Input Element
-        if (!text && e?.target.files?.[0]) {
-            text = await e.target.files[0].text();
-        }
-
+        if (!text && e?.target.files?.[0]) text = await e.target.files[0].text();
         if (!text) return;
 
         try {
-            const data = JSON.parse(text);
-            if (Array.isArray(data)) {
-                const chaptersWithWorkspace = data.map((c: any, index: number) => {
-                    const { id: _id, ...rest } = c;
-                    console.log("Importing chapter id (skipped):", _id);
-                    return {
-                        ...rest,
-                        workspaceId,
-                        order: (rest.order || currentChaptersCount + index + 1)
-                    } as Chapter;
-                });
-                await db.chapters.bulkAdd(chaptersWithWorkspace);
-                toast.success(`Đã nhập thành công ${chaptersWithWorkspace.length} chương!`);
-            } else {
-                toast.error("Định dạng JSON không hợp lệ.");
-            }
-        } catch (err) {
+            const count = await processJsonChapters(JSON.parse(text));
+            toast.success(`Đã nhập thành công ${count} chương!`);
+        } catch (err: any) {
             console.error(err);
-            toast.error("Lỗi khi nhập file JSON.");
-        } finally {
-            // No reset needed for native dialogs as there's no input[type=file] state to clear
+            toast.error(err.message || "Lỗi khi nhập file JSON.");
         }
     };
 

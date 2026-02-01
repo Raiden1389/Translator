@@ -15,7 +15,7 @@ export const extractGlossary = async (text: string, onLog?: (msg: string) => voi
 YÊU CẦU:
 1. "characters": Danh sách các nhân vật riêng biệt (tên người).
 2. "terms": Danh sách các thuật ngữ đặc biệt (địa danh, công pháp, vật phẩm, tổ chức).
-3. LUÔN ƯU TIÊN tên Hán Việt chuẩn cho phần "translated".
+3. LUÔN DÙNG tên Hán Việt chuẩn cho phần "translated". TUYỆT ĐỐI KHÔNG để lại chữ Hán (Hanzi) ở phần translated.
 4. "description": Giải nghĩa ngắn gọn ngữ cảnh của từ đó trong chương này.
 5. "type": Phân loại cụ thể (cho terms: location, skill, item, organization, other).
 
@@ -29,7 +29,7 @@ MẪU PHẢN HỒI (JSON BẮT BUỘC):
   ]
 }
 
-LƯU Ý: Nếu không tìm thấy thực thể nào đáng chú ý, trả về các mảng trống. Không được thêm bất kỳ lời dẫn nào ngoài JSON.`;
+LƯU Ý: Nếu không tìm thấy thực thể nào đáng chú ý, trả về các mảng trống. Tuyệt đối không để lại bất kỳ chữ Hán nào trong kết quả dịch (phần translated). Không được thêm bất kỳ lời dẫn nào ngoài JSON.`;
 
     try {
         const response = await withKeyRotation({
@@ -125,7 +125,9 @@ Output: JSON array { "original", "category" }`;
  * Translate Terms
  */
 export const translateTerms = async (terms: string[], onLog?: (msg: string) => void): Promise<{ original: string, translated: string }[]> => {
-    const prompt = `Translate terms to Vietnamese Hán Việt:
+    const prompt = `Translate terms to Vietnamese Hán Việt. 
+TUYỆT ĐỐI KHÔNG để lại chữ Hán nào trong kết quả dịch.
+Terms:
 ${terms.join('\n')}
 
 Output: JSON array { "original", "translated" }`;

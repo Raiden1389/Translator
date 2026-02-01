@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, clearChapterTranslation } from "@/lib/db";
+import { db, clearChapterTranslation, type Chapter } from "@/lib/db";
 import { toast } from "sonner";
 
 // Components
@@ -24,9 +24,23 @@ import { useReaderSelection } from "./hooks/useReaderSelection";
 import { useCorrections } from "./hooks/useCorrections";
 import { useReaderInspection } from "./hooks/useReaderInspection";
 import { useAIExtraction } from "./editor/hooks/useAIExtraction";
+import { type ExtractedCharacter, type ExtractedTerm } from "@/lib/gemini/types";
 
 // Utils
 import { formatChapterToParagraphs } from "./utils/formatChapter";
+
+const ReaderSkeleton = () => (
+    <div className="animate-pulse space-y-8 p-12 max-w-[720px] mx-auto w-full">
+        <div className="h-10 bg-muted/40 rounded-xl w-3/4 mx-auto mb-16" />
+        {[...Array(12)].map((_, i) => (
+            <div key={i} className="space-y-3">
+                <div className="h-4 bg-muted/30 rounded-lg w-full" />
+                <div className="h-4 bg-muted/30 rounded-lg w-11/12" />
+                <div className="h-4 bg-muted/30 rounded-lg w-4/5" />
+            </div>
+        ))}
+    </div>
+);
 
 interface ReaderModalProps {
     chapterId: number;
@@ -57,6 +71,7 @@ export function ReaderModal({
     const [editContent, setEditContent] = useState("");
     const [showSettings, setShowSettings] = useState(false);
     const [isDisabled, setIsDisabled] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     // 3. UI PROGRESS STATE
     const [scrollProgress, setScrollProgress] = useState(0);
@@ -186,17 +201,15 @@ export function ReaderModal({
         }
     }, [scrollViewportRef]);
 
-    if (!chapter) return null;
-
     return (
-        <div className="fixed inset-x-0 bottom-0 top-[31px] z-100 flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
+        <div className="fixed inset-x-0 bottom-[28px] top-[32px] z-100 flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
             <div className="w-full h-full bg-background rounded-t-[32px] overflow-hidden flex flex-col border-t border-border shadow-2xl relative">
                 <div className="relative flex-1 flex flex-col overflow-hidden">
                     <ReaderHeader
                         isHeaderVisible={isHeaderVisible}
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
-                        chapter={chapter}
+                        chapter={chapter || { id: chapterId, workspaceId: "", title: "Loading...", content_original: "", content_translated: "", order: 0, status: "draft" } as unknown as Chapter}
                         isParallel={isParallel}
                         setIsParallel={setIsParallel}
                         isInspecting={isInspecting}
@@ -204,8 +217,11 @@ export function ReaderModal({
                         inspectionIssues={inspectionIssues}
                         showSettings={showSettings}
                         setShowSettings={setShowSettings}
+                        isEditing={isEditing}
+                        setIsEditing={setIsEditing}
                         readerConfig={readerConfig}
                         setReaderConfig={setReaderConfig}
+                        onPrev={onPrev}
                         onNext={onNext}
                         hasPrev={hasPrev}
                         hasNext={hasNext}
@@ -221,40 +237,45 @@ export function ReaderModal({
                         ttsRate={readerConfig.ttsRate}
                         setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
                         onClearTranslation={handleClearTranslation}
-                        onAIExtract={() => handleAIExtractChapter(chapter.content_original || "")}
+                        onAIExtract={() => handleAIExtractChapter(chapter?.content_original || "")}
                         scrollProgress={scrollProgress}
                     />
 
-                    <ReaderContent
-                        key={chapter.id}
-                        activeTab={activeTab}
-                        isParallel={isParallel}
-                        readerConfig={readerConfig}
-                        chapter={chapter}
-                        inspectionIssues={inspectionIssues}
-                        activeTTSIndex={activeTTSIndex}
-                        paragraphsData={paragraphsData}
-                        setEditContent={setEditContent}
-                        handleTextSelection={handleTextSelection}
-                        handleContextMenu={handleContextMenu}
-                        setActiveIssue={setActiveIssue}
-                        scrollViewportRef={scrollViewportRef}
-                        editorRef={editorRef}
-                        handleScroll={(e) => {
-                            handleScroll(e);
-                            const target = e.currentTarget;
-                            const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
-                            setScrollProgress(progress);
+                    {chapter ? (
+                        <ReaderContent
+                            key={chapter.id}
+                            activeTab={activeTab}
+                            isParallel={isParallel}
+                            readerConfig={readerConfig}
+                            chapter={chapter}
+                            inspectionIssues={inspectionIssues}
+                            activeTTSIndex={activeTTSIndex}
+                            paragraphsData={paragraphsData}
+                            setEditContent={setEditContent}
+                            isEditing={isEditing}
+                            handleTextSelection={handleTextSelection}
+                            handleContextMenu={handleContextMenu}
+                            setActiveIssue={setActiveIssue}
+                            scrollViewportRef={scrollViewportRef}
+                            editorRef={editorRef}
+                            handleScroll={(e) => {
+                                handleScroll(e);
+                                const target = e.currentTarget;
+                                const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100;
+                                setScrollProgress(progress);
 
-                            setShowBackToTop(target.scrollTop > target.clientHeight * 1.5);
+                                setShowBackToTop(target.scrollTop > target.clientHeight * 1.5);
 
-                            if (menuPosition) setMenuPosition(null);
-                            if (contextMenuPosition) setContextMenuPosition(null);
-                        }}
-                        handleWheel={handleWheel}
-                        onNext={onNext}
-                        hasNext={hasNext}
-                    />
+                                if (menuPosition) setMenuPosition(null);
+                                if (contextMenuPosition) setContextMenuPosition(null);
+                            }}
+                            handleWheel={handleWheel}
+                            onNext={onNext}
+                            hasNext={hasNext}
+                        />
+                    ) : (
+                        <ReaderSkeleton />
+                    )}
                 </div>
 
                 {/* MODULAR FLOATING UI STACK */}
@@ -268,6 +289,14 @@ export function ReaderModal({
                     onClick={scrollToTop}
                     color={readerConfig.textColor}
                 />
+
+                {/* SLIM PERSISTENT BOTTOM PROGRESS BAR */}
+                <div className="absolute bottom-0 left-0 w-full h-px bg-border/20 z-50">
+                    <div
+                        className="h-full bg-primary/40 transition-all duration-300 ease-out"
+                        style={{ width: `${Math.round(scrollProgress)}%` }}
+                    />
+                </div>
             </div>
 
             <TextSelectionMenu position={menuPosition} selectedText={selectedText} onAction={handleMenuAction} onClose={() => setMenuPosition(null)} />
@@ -280,7 +309,7 @@ export function ReaderModal({
                 dictTranslated={dictTranslated} setDictTranslated={setDictTranslated} handleSaveDictionary={handleSaveDictionary}
                 activeIssue={activeIssue} setActiveIssue={setActiveIssue} handleApplyFix={(issue, save) => handleApplyFix(issue, editContent, save, setEditContent)}
             />
-            <ReviewDialog open={isReviewOpen} onOpenChange={setIsReviewOpen} characters={pendingCharacters as any} terms={pendingTerms as any} onSave={handleConfirmSaveAI} />
+            <ReviewDialog open={isReviewOpen} onOpenChange={setIsReviewOpen} characters={pendingCharacters as ExtractedCharacter[]} terms={pendingTerms as ExtractedTerm[]} onSave={handleConfirmSaveAI} />
         </div>
     );
 }

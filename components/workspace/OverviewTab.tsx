@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AutoResizeTextarea } from "@/components/ui/AutoResizeTextarea";
 import {
     Upload, BookOpen, Zap, Users,
-    FileText, Database, Sparkles, Loader2
+    FileText, Database, Sparkles, Loader2,
+    Search, Link as LinkIcon
 } from "lucide-react";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { useOverview } from "./hooks/useOverview";
@@ -130,6 +131,14 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                     <Card
                         className={cn("h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300", isDragging ? 'border-primary border-2 bg-primary/5' : '', isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-md")}
                         onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                                navigator.clipboard.readText().then(text => {
+                                    if (text.startsWith('http')) handleUpdateField('cover', text);
+                                }).catch(() => { });
+                            }
+                        }}
                     >
                         {workspace.cover ? (
                             <div className="absolute inset-0 w-full h-full">
@@ -150,11 +159,93 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                                     <Upload className="h-8 w-8 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
                                 </div>
                                 <p className="text-muted-foreground/40 text-sm font-medium">Kéo thả hoặc tải ảnh bìa</p>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-[10px] gap-1.5 bg-background/50 border-dashed hover:bg-background hover:text-primary transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const query = `${workspace.title} ${workspace.author || ""} novel cover`;
+                                            window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`, '_blank');
+                                        }}
+                                    >
+                                        <Search className="w-3 h-3" /> Tìm ảnh
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-[10px] gap-1.5 bg-background/50 border-dashed hover:bg-background hover:text-primary transition-colors"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            try {
+                                                const text = await navigator.clipboard.readText();
+                                                if (text && text.startsWith('http')) {
+                                                    handleUpdateField('cover', text);
+                                                } else {
+                                                    alert("Clipboard không chứa link hợp lệ! Hãy thử copy link ảnh rồi dán lại.");
+                                                }
+                                            } catch (err) {
+                                                console.error("Clipboard read failed:", err);
+                                                const manualPaste = prompt("Trình duyệt chặn đọc clipboard tự động. Vui lòng dán link ảnh vào đây:");
+                                                if (manualPaste && manualPaste.startsWith('http')) {
+                                                    handleUpdateField('cover', manualPaste);
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <LinkIcon className="w-3 h-3" /> Dán Link
+                                    </Button>
+                                </div>
                             </div>
                         )}
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleProcessFile(e.target.files[0])} />
-                        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-40">
-                            <Button variant="secondary" size="sm" className="bg-background/80 text-foreground hover:bg-background border border-border shadow-md" onClick={() => fileInputRef.current?.click()} >
+                        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-40 flex flex-col gap-2">
+                            {workspace.cover && (
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="secondary"
+                                        size="icon"
+                                        className="h-8 w-8 bg-background/80 text-foreground hover:bg-background border border-border shadow-md rounded-full"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const query = `${workspace.title} ${workspace.author || ""} novel cover`;
+                                            window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`, '_blank');
+                                        }}
+                                        title="Tìm ảnh khác trên Google"
+                                    >
+                                        <Search className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        size="icon"
+                                        className="h-8 w-8 bg-background/80 text-foreground hover:bg-background border border-border shadow-md rounded-full"
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            try {
+                                                const text = await navigator.clipboard.readText();
+                                                if (text && text.startsWith('http')) {
+                                                    handleUpdateField('cover', text);
+                                                } else {
+                                                    alert("Clipboard không chứa link hợp lệ! Hãy thử copy link ảnh rồi dán lại.");
+                                                }
+                                            } catch (err) {
+                                                console.error("Clipboard read failed:", err);
+                                                // Fallback: Ask user to paste manually
+                                                const manualPaste = prompt("Trình duyệt chặn đọc clipboard tự động. Vui lòng dán link ảnh vào đây:");
+                                                if (manualPaste && manualPaste.startsWith('http')) {
+                                                    handleUpdateField('cover', manualPaste);
+                                                }
+                                            }
+                                        }}
+                                        title="Dán link ảnh mới"
+                                    >
+                                        <LinkIcon className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+
+                            <Button variant="secondary" size="sm" className="bg-background/80 text-foreground hover:bg-background border border-border shadow-md" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} >
                                 <Upload className="h-4 w-4 mr-2" /> {workspace.cover ? "Đổi ảnh" : "Tải ảnh"}
                             </Button>
                         </div>

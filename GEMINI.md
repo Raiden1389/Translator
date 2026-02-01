@@ -46,6 +46,14 @@ Sử dụng bộ lệnh chuẩn để quản lý dự án. Nếu user không ra 
 4.  **Error Handling**:
     - Khi có lỗi: Nêu rõ **Nguyên nhân** -> **Giải pháp** -> **Cách phòng tránh**.
 
+## 🛑 UI/UX SAFETY LOCK (MANDATORY)
+
+1.  **NO UNSOLICITED DELETIONS**: Tuyệt đối KHÔNG được xóa bất kỳ phần tử UI, nút bấm, hay tính năng nào trừ khi User yêu cầu rõ ràng.
+2.  **STRICT SCOPE**: Nếu được yêu cầu "Refactor" hoặc "Clean code", chỉ được sửa Logic bên trong hoặc đặt lại tên biến. KHÔNG được thay đổi Layout hay cấu trúc giao diện.
+3.  **FEATURE AUDIT**: Trước khi nhấn "Lưu" bất kỳ file UI nào (Header, Sidebar, Modal), phải đối chiếu lại với danh sách tính năng hiện có để đảm bảo không có gì bị "biến mất".
+4.  **NO "CLEANUP" BY REMOVAL**: "Gọn gàng" nghĩa là code sạch, không phải là xóa bớt tính năng của người dùng.
+5.  **PRESERVE CUSTOM LOGIC**: Luôn tôn trọng những logic UI tùy chỉnh mà User đã dày công thiết kế (ví dụ: Reader Navigation, Range Selector).
+
 ## 4. 📁 WORKSPACE STRUCTURE
 - `.agent/skills/`: Kho vũ khí 251+ skills.
 - `.agent/knowledge/task.md`: Theo dõi tiến độ task hiện tại.

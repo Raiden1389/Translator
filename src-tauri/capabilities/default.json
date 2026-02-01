@@ -40,6 +40,9 @@
       "identifier": "fs:allow-read-file",
       "allow": [
         {
+          "path": "$APPDATA/**"
+        },
+        {
           "path": "$APP_DATA/**"
         },
         {
@@ -50,9 +53,26 @@
         },
         {
           "path": "$DESKTOP/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [
+        {
+          "path": "$APPDATA/**"
         },
         {
-          "path": "H:/**"
+          "path": "$APP_DATA/**"
+        },
+        {
+          "path": "$DOWNLOADS/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DESKTOP/**"
         }
       ]
     },
@@ -60,6 +80,9 @@
       "identifier": "fs:allow-write-file",
       "allow": [
         {
+          "path": "$APPDATA/**"
+        },
+        {
           "path": "$APP_DATA/**"
         },
         {
@@ -70,9 +93,26 @@
         },
         {
           "path": "$DESKTOP/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        {
+          "path": "$APPDATA/**"
         },
         {
-          "path": "H:/**"
+          "path": "$APP_DATA/**"
+        },
+        {
+          "path": "$DOWNLOADS/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DESKTOP/**"
         }
       ]
     },
@@ -80,6 +120,9 @@
       "identifier": "fs:allow-exists",
       "allow": [
         {
+          "path": "$APPDATA/**"
+        },
+        {
           "path": "$APP_DATA/**"
         },
         {
@@ -90,9 +133,50 @@
         },
         {
           "path": "$DESKTOP/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [
+        {
+          "path": "$APPDATA/**"
         },
         {
-          "path": "H:/**"
+          "path": "$APP_DATA/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        {
+          "path": "$APPDATA/**"
+        },
+        {
+          "path": "$APP_DATA/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [
+        {
+          "path": "$APPDATA/**"
+        },
+        {
+          "path": "$APP_DATA/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-rename",
+      "allow": [
+        {
+          "path": "$APPDATA/**"
+        },
+        {
+          "path": "$APP_DATA/**"
         }
       ]
     }

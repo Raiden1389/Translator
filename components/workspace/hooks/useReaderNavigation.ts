@@ -59,10 +59,10 @@ export function useReaderNavigation({
 
         // Auto-hide Header Logic
         const diff = scrollTop - lastScrollTopRef.current;
-        if (Math.abs(diff) > 20) { // Threshold
+        if (Math.abs(diff) > 40) { // Increased Threshold
             if (diff > 0 && isHeaderVisible && scrollTop > 200) {
                 setIsHeaderVisible(false);
-            } else if (diff < 0 && !isHeaderVisible) {
+            } else if (diff < -50 && !isHeaderVisible) { // Higher threshold for scrolling up
                 setIsHeaderVisible(true);
             }
             lastScrollTopRef.current = scrollTop;

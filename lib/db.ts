@@ -238,38 +238,43 @@ if (typeof window !== 'undefined' && (window as any).__TAURI__) {
         if (dirtyWorkspaces.size > 0) {
             const ids = Array.from(dirtyWorkspaces);
             for (const id of ids) {
-                dirtyWorkspaces.delete(id); // Delete individual to avoid race condition
+                dirtyWorkspaces.delete(id);
                 const ws = await db.workspaces.get(id);
                 if (ws) await storage.saveMetadata(id, ws);
             }
         }
 
-        // 2. Process Dictionary (with Content Check)
+        // 2. Process Dictionary
         if (dirtyDictionaries.size > 0) {
             const ids = Array.from(dirtyDictionaries);
             for (const id of ids) {
                 dirtyDictionaries.delete(id);
+                const ws = await db.workspaces.get(id);
+                if (!ws) continue;
+
                 const dict = await db.dictionary.where('workspaceId').equals(id).toArray();
                 const contentStr = JSON.stringify(dict);
 
-                // Only save if content actually changed
                 if (lastSavedDictContent.get(id) !== contentStr) {
-                    await storage.saveDictionary(id, dict);
+                    await storage.saveDictionary(id, ws.title, dict);
                     lastSavedDictContent.set(id, contentStr);
-                    console.log(`💾 [Sync Worker] Dictionary for ${id} saved (content changed).`);
+                    console.log(`💾 [Sync Worker] Dictionary for ${ws.title} saved.`);
                 }
             }
         }
 
-        // 3. Process Chapters (Coalesced via Set already)
+        // 3. Process Chapters
         if (dirtyChapters.size > 0) {
             const compoundIds = Array.from(dirtyChapters);
             for (const cid of compoundIds) {
                 dirtyChapters.delete(cid);
                 const [wsId, chapIdStr] = cid.split(':');
+                const ws = await db.workspaces.get(wsId);
+                if (!ws) continue;
+
                 const chapId = parseInt(chapIdStr);
                 const chap = await db.chapters.get(chapId);
-                if (chap) await storage.saveChapter(wsId, chapId, chap);
+                if (chap) await storage.saveChapter(wsId, ws.title, chapId, chap);
             }
         }
     }, 5000);

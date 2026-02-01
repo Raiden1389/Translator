@@ -22,6 +22,7 @@ interface ReaderContentProps {
     activeTTSIndex: number | null;
     paragraphsData: ParagraphData[];
     setEditContent: (content: string) => void;
+    isEditing: boolean;
     // Handlers
     handleTextSelection: () => void;
     handleContextMenu: (e: React.MouseEvent) => void;
@@ -86,8 +87,8 @@ const ParagraphItem = React.memo(({
             id={`tts-para-${index}`}
             className={cn(
                 "mb-(--reader-paragraph-spacing) transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
-                "indent-8",
-                isDialogue && !isRaidenMode && (para.text.startsWith("“") || para.text.startsWith("\"") || para.text.startsWith("-")) && "text-[hsl(var(--dialogue-text))] not-italic opacity-95",
+                "indent-8 hover:cursor-text",
+                isDialogue && !isRaidenMode && (para.text.startsWith("“") || para.text.startsWith("\"") || para.text.startsWith("-")) && "text-[hsl(var(--dialogue-text))] italic opacity-95",
                 isDialogue && !isRaidenMode && showDialogueLines && "border-l-2 border-l-[hsl(var(--dialogue-quote-border))]",
                 isHighlighted
                     ? (isRaidenMode ? "bg-purple-500/10 border-purple-500/20" : "bg-blue-50/60 border-blue-200/50 shadow-xs")
@@ -106,6 +107,7 @@ ParagraphItem.displayName = "ParagraphItem";
 export const ReaderContent = React.memo(function ReaderContent({
     activeTab, isParallel, readerConfig, chapter,
     inspectionIssues, paragraphsData, setEditContent,
+    isEditing,
     handleTextSelection, handleContextMenu, setActiveIssue,
     scrollViewportRef, editorRef,
     handleScroll, handleWheel,
@@ -153,9 +155,9 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     color: "currentColor",
                                     opacity: isParallel ? 0.4 : 0.8
                                 }}>
-                                {chapter.content_original?.replace(/<br\s*\/?>/gi, '\n').split('\n').filter(p => p.trim()).map((p, i) => (
+                                {chapter.content_original?.replace(/<br\s*\/?>/gi, '\n').split(/\n+/).map(p => p.trim()).filter(p => p.length > 0).map((p, i) => (
                                     <p key={i} className="mb-(--reader-paragraph-spacing)">
-                                        {p.trim()}
+                                        {p}
                                     </p>
                                 ))}
                             </div>
@@ -190,7 +192,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                         </div>
 
                         <div
-                            contentEditable
+                            contentEditable={isEditing}
                             suppressContentEditableWarning
                             onInput={(e) => setEditContent(e.currentTarget.innerText)}
                             onSelect={handleTextSelection}

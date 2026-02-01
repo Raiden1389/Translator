@@ -75,6 +75,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
 
     const [scanConfigOpen, setScanConfigOpen] = useState(false);
     const [tempScanText, setTempScanText] = useState("");
+    const [isProcessing, setIsProcessing] = useState(false);
 
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
@@ -115,7 +116,14 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
                 totalPages={totalPages}
-                onExport={handleExport}
+                onExport={async () => {
+                    setIsProcessing(true);
+                    try {
+                        await handleExport();
+                    } finally {
+                        setIsProcessing(false);
+                    }
+                }}
                 fileInputRef={fileInputRef}
                 onFileUpload={handleFileUpload}
                 importing={importing}
@@ -130,16 +138,40 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 onApplyCorrections={handleApplyCorrections}
                 onClearCache={async () => {
                     if (!confirm("Dọn dẹp bộ nhớ đệm AI? (Buộc AI dịch mới hoàn toàn cho các yêu cầu sau)")) return;
-                    await db.translationCache.clear();
-                    toast.success("Đã dọn dẹp cache AI.");
+                    setIsProcessing(true);
+                    try {
+                        await db.translationCache.clear();
+                        toast.success("Đã dọn dẹp cache AI.");
+                    } finally {
+                        setIsProcessing(false);
+                    }
                 }}
                 onImportJSON={() => {
-                    // Create a temporary input to handle standard browser uploads
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.accept = '.json';
                     input.onchange = (e: Event) => actions.handleImportJSON(e as unknown as React.ChangeEvent<HTMLInputElement>);
                     input.click();
+                }}
+                onRefresh={async () => {
+                    setIsProcessing(true);
+                    setSearch("");
+                    setFilterStatus("all");
+                    // Simulate a small delay for better UX feedback as requested in Suggestion #5
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                    setIsProcessing(false);
+                    toast.success("Đã làm mới dữ liệu và bộ lọc.");
+                }}
+                processing={isProcessing}
+                onSelectRange={(start, end) => {
+                    // Select chapters within the visual range (1-based index)
+                    // If filtered is sorted by order, this selects Chapter X to Y.
+                    const targetChapters = filtered.slice(start - 1, end);
+                    const ids = targetChapters.map((c: Chapter) => c.id!).filter(Boolean);
+                    setSelectedChapters(ids);
+                    if (ids.length > 0) {
+                        toast.success(`Đã chọn ${ids.length} chương`);
+                    }
                 }}
             />
 
@@ -318,22 +350,48 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                     chapterId={readingChapterId}
                     isOpen={!!readingChapterId}
                     onClose={() => setReadingChapterId(null)}
-                    hasPrev={filtered.findIndex((c: Chapter) => c.id === readingChapterId) > 0}
-                    hasNext={filtered.findIndex((c: Chapter) => c.id === readingChapterId) < filtered.length - 1}
-                    onPrev={() => {
+                    hasPrev={(() => {
                         const idx = filtered.findIndex((c: Chapter) => c.id === readingChapterId);
+                        if (idx !== -1) return idx > 0;
+                        const globalIdx = (chapters || []).findIndex((c: Chapter) => c.id === readingChapterId);
+                        return globalIdx > 0;
+                    })()}
+                    hasNext={(() => {
+                        const idx = filtered.findIndex((c: Chapter) => c.id === readingChapterId);
+                        if (idx !== -1) return idx < filtered.length - 1;
+                        const globalIdx = (chapters || []).findIndex((c: Chapter) => c.id === readingChapterId);
+                        return globalIdx !== -1 && globalIdx < (chapters?.length || 0) - 1;
+                    })()}
+                    onPrev={() => {
+                        let list = filtered;
+                        let idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
+                        if (idx === -1) {
+                            list = chapters || [];
+                            idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
+                        }
+
                         if (idx > 0) {
-                            const newId = filtered[idx - 1].id!;
+                            const newId = list[idx - 1].id!;
                             setReadingChapterId(newId);
                             db.workspaces.update(workspaceId, { lastReadChapterId: newId });
+                        } else {
+                            toast.info("Đã ở chương đầu tiên");
                         }
                     }}
                     onNext={() => {
-                        const idx = filtered.findIndex((c: Chapter) => c.id === readingChapterId);
-                        if (idx < filtered.length - 1) {
-                            const newId = filtered[idx + 1].id!;
+                        let list = filtered;
+                        let idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
+                        if (idx === -1) {
+                            list = chapters || [];
+                            idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
+                        }
+
+                        if (idx < list.length - 1 && idx !== -1) {
+                            const newId = list[idx + 1].id!;
                             setReadingChapterId(newId);
                             db.workspaces.update(workspaceId, { lastReadChapterId: newId });
+                        } else {
+                            toast.info("Đã ở chương cuối cùng");
                         }
                     }}
                 />

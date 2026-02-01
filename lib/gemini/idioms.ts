@@ -1,106 +1,77 @@
 /**
- * Idiom Control System
- * Purpose:
- * - Blacklist: Force AI to translate "Convert-look" phrases into natural Vietnamese.
- * - Whitelist: Protect iconic historical/martial arts allusions.
- * - Pattern Rules: Detect & neutralize AI-style / Convert-style sentence patterns.
+ * IDIOM & STYLE CONTROL SYSTEM v4.0 - SENSORY STRUCTURE
+ * Role: The "Soul" of the translation engine.
+ * Focus: Social Feelings vs. Physiological Descriptions.
  */
 
-export const IDIOM_BLACKLIST = [
-   // Văn ngôn cấu trúc (Grammar structures that make it look like "Convert")
-   "nghênh nhận nhi giải",
-   "dĩ hậu", "dĩ tiền", "dĩ chí", "sở dĩ", "dĩ kỳ", "nhi hậu", "hà dĩ",
-   "do thử", "cố nhi", "vị chi", "vị tất", "bất đắc dĩ", "dĩ nhiên",
-   "bất quá", "kỳ thực", "vô luận", "phát sinh", "tiêu thất",
-
-   // Convert-look phrases (Redundant / unnatural Vietnamese)
-   "nhất thời chi gian",
-   "trong khoảnh khắc chi gian",
-   "tự cổ chí kim",
-   "từ đầu chí cuối",
-   "nhất cử nhất động",
-   "nhất ngôn nhất hành",
-   "nhất thời bán khắc",
-   "thanh âm vang lên",
-   "trong lòng thầm nghĩ",
-   "xoay người rời đi",
-   "cái địa phương này"
+// 1. HARD BLACKLIST (Cấm tuyệt đối - Diệt tận gốc văn phong Convert giả cầy)
+export const HARD_BLACKLIST = [
+   "hít một hơi lạnh", "mặt không đỏ tim không đập", "vấn đề không lớn",
+   "trong lòng không khỏi", "không khỏi giật mình", "nghênh nhận nhi giải",
+   "nhất thời chi gian", "trong khoảnh khắc chi gian", "thanh âm vang lên",
+   "trong lòng thầm nghĩ", "xoay người rời đi", "cái địa phương này", "khủng bố như tư"
 ] as const;
 
-export const IDIOM_WHITELIST = [
-   // Tam Quốc / Lịch sử kinh điển
-   "nhân trung Lữ Bố",
-   "mã trung Xích Thố",
-   "tam anh chiến Lữ Bố",
-   "ngũ hổ tướng",
-   "thiên hạ vô song",
-   "nhất kỵ đương thiên",
-   "vạn phu bất đương",
-   "ngôn quá kỳ thực",
-   "danh bất hư truyền",
+// 2. STYLE PRESSURE (Ép thay thế mềm - Rewrite sang tiếng Việt tự nhiên)
+export const STYLE_PRESSURE_MAP = [
+   { from: "vấn đề không lớn", to: ["không sao", "chẳng đáng ngại", "không thành vấn đề"] },
+   { from: "trong nháy mắt", to: ["thoáng chốc", "chớp mắt", "trong chớp mắt"] },
+   { from: "ánh mắt lóe lên", to: ["ánh mắt chợt sáng", "ánh mắt sắc lẹm"] },
+   { from: "cười khổ", to: ["cười gượng", "cười cay đắng", "gượng cười"] },
+   { from: "đáng tiếc", to: ["tiếc là", "uổng công", "thật tiếc"] },
+   { from: "nhìn thấy", to: ["bắt gặp", "trông thấy", "nhận ra"] }
+];
 
-   // Võ hiệp / Tiên hiệp phổ thông
-   "võ lâm chí tôn",
-   "thiên hạ đệ nhất",
-   "anh hùng hào kiệt",
-   "chính tà báo ứng",
-   "chính tà bất lưỡng lập",
-   "hòa quang đồng trần",
-   "phản phác quy chân"
-] as const;
+// 3. STRUCTURAL BLACKLIST (Bắt cấu trúc câu - Regex Pro Max)
+export const STRUCTURAL_BLACKLIST = [
+   { pattern: /bất\s*quá/i, note: "Tránh: nói chung thì, xét cho cùng" },
+   { pattern: /bởi\s*vì[\s\S]*?cho\s*nên/i, note: "Cấu trúc nhân quả lai Tàu" },
+   { pattern: /sở\s*dĩ[\s\S]*?là\s*vì/i, note: "Cấu trúc giải thích rườm rà" },
+   { pattern: /không\s*[^.\n]*?\s*nào\s*không/i, note: "Phủ định của phủ định kiểu Hán Việt" },
+   { pattern: /có\s*thể\s*thấy\s*rằng/i, note: "Văn phong AI giải thích" }
+];
 
-/**
- * AI / CONVERT TRANSLATION PATTERN RULES
- * Các pattern CẤU TRÚC, không phải từ vựng.
- * Gặp là phải sửa câu, không được giữ nguyên.
- */
-export const AI_TRANSLATION_PATTERNS = [
-   // 1. MỞ CÂU KIỂU AI (nặng văn, vô chủ thể)
-   "có thể thấy rằng",
-   "có thể nói là",
-   "không thể không nói",
-   "điều này cho thấy",
-   "từ đó có thể thấy",
+// 4. WHITELIST WITH CONTEXT LOCK
+export const WHITELIST = [
+   { phrase: "thiên hạ vô song", contexts: ["historical", "martial", "xianxia"] },
+   { phrase: "nhân trung Lữ Bố", contexts: ["historical"] },
+   { phrase: "phản phác quy chân", contexts: ["xianxia", "martial"] }
+];
 
-   // 2. CÂU NHÂN QUẢ LAI TÀU
-   "bởi vì.*cho nên",
-   "do đó mà",
-   "vì thế mà",
-   "từ đó mà",
-   "chính vì vậy mà"
-] as const;
+// 5. MODERN SLANG WITH MULTI-DEST
+export const MODERN_SLANG_MAP = [
+   { src: "卧槽", dest: ["Vãi!", "Đậu xanh!", "Cái đệt!", "Đù!"], note: "Ngoại tào" },
+   { src: "靠", dest: ["Mịa nó!", "Vãi thật!", "Khốn khiếp!", "Xúi quẩy!"], note: "Kháo" },
+   { src: "草泥马", dest: ["Đệt mịa!", "Vãi đạn!", "Khốn kiếp!", "Khốn kiếp!"], note: "Thảo nê mã" },
+   { src: "腹黑", dest: ["mưu mô", "thâm sâu", "đen bụng", "cáo già"], note: "Phúc hắc" },
+   { src: "装逼", dest: ["làm màu", "gáy", "ra vẻ", "thích thể hiện"], note: "Trang bức" },
+   { src: "骚操作", dest: ["thao tác cực gắt", "xử lý ảo ma", "màn múa lửa"], note: "Tao thao tác" }
+];
 
 export const IDIOM_SYSTEM_RULE = `
-KIỂM SOÁT THÀNH NGỮ & PHONG CÁCH DỊCH:
+KIỂM SOÁT PHONG CÁCH DỊCH & CẢM QUAN (RULE V4.0):
 
-1. BLACKLIST:
-- Các cụm trong Blacklist BẮT BUỘC phải dịch sang tiếng Việt thuần, cấm giữ Hán Việt.
-- Chỉ cần thấy là rewrite câu.
+1. NGUYÊN TẮC CẢM QUAN TỐI THƯỢNG (QUAN TRỌNG NHẤT):
+- Người Việt mô tả CẢM GIÁC XÃ HỘI, không mô tả SINH LÝ CƠ THỂ.
+- Nếu gốc là phản xạ sinh lý (VD: 倒吸一口凉气 - hít một hơi lạnh) -> PHẢI dịch sang cảm giác (VD: xuýt xoa, giật mình, kinh ngạc).
+- Tuyệt đối không để lại các cụm từ mô tả cơ thể máy móc như: "mặt không đỏ tim không đập", "trong lòng không khỏi".
 
-[${IDIOM_BLACKLIST.join(", ")}]
+2. DỌN SẠCH HARD BLACKLIST:
+- Cấm tuyệt đối sử dụng các cụm: [${HARD_BLACKLIST.join(", ")}]. 
+- Thay thế chúng bằng cách diễn đạt thuần Việt, ngắn gọn.
 
-2. WHITELIST:
-- Các điển cố, danh xưng mang tính biểu tượng ĐƯỢC PHÉP giữ nguyên Hán Việt.
-- Không được Việt hóa làm mất chất.
+3. STYLE PRESSURE (SỨC ÉP PHONG CÁCH):
+- Ưu tiên sử dụng các cách diễn đạt mềm mại hơn:
+${STYLE_PRESSURE_MAP.map(m => `- ${m.from} -> ưu tiên [${m.to.join(", ")}]`).join("\n")}
 
-[${IDIOM_WHITELIST.join(", ")}]
+4. ANTI-CONVERT STRUCTURE:
+- Phá bỏ cấu trúc "Bởi vì... cho nên", "Sở dĩ... là vì". 
+- 1 dòng input = 1 dòng output. Giữ nhịp điệu nhanh, dùng nhiều động từ mạnh.
 
-3. AI / CONVERT PATTERN RULE:
-- Nếu câu khớp bất kỳ pattern nào sau -> PHẢI viết lại câu theo văn nói Việt.
-- Ưu tiên: ngắn, trực diện, có chủ thể rõ.
+5. CONTEXT-AWARE MAPPING:
+- "Ta - Ngươi" là xưng hô mặc định. 
+- Whitelist [${WHITELIST.map(w => w.phrase).join(", ")}] chỉ dùng cho Tiên hiệp/Võ hiệp. Hiện đại phải thoát ý.
 
-[${AI_TRANSLATION_PATTERNS.join(", ")}]
-
-4. ANTI-HYBRID RULE:
-- Cấm cấu trúc lai Trung: "do đó mà", "bởi vì... cho nên..."
-- Dùng tiếng Việt gọn: "nên", "vì vậy", "thế là".
-
-5. FALLBACK:
-- Không nằm trong Whitelist -> mặc định dịch thoát ý.
-- Ưu tiên người đọc, không ưu tiên chữ.
-
-6. NGUYÊN TẮC CUỐI:
-- Truyện đọc như người Việt viết.
-- Không giống AI.
-- Không giống convert.
+6. ĐỊNH HƯỚNG TÁC GIẢ:
+- Bạn là một người kể chuyện, không phải máy dịch. Khi rewrite, hãy giữ nguyên CẢM XÚC và HÀNH ĐỘNG nhưng dùng ngôn ngữ của người Việt thực thụ.
 `;

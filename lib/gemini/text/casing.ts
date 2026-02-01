@@ -1,7 +1,7 @@
 import { DictionaryEntry } from "../../db";
 import { normalizeVietnameseContent } from "./normalize";
 import { scrubAIChatter, cleanIdiomExplanations } from "./scrub";
-import { repairSentenceStructure } from "./correction";
+import { repairSentenceStructure, applyAllCorrections } from "./correction";
 
 /**
  * Casing & Final Sweep Module
@@ -30,13 +30,23 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
         loopCount++;
     }
 
+    // 2.5. Hard Glossary Enforcement (Force replace Hanzi or lazy AI leftovers)
+    if (glossary.length > 0) {
+        const glossaryRules = glossary.map(g => ({
+            original: g.original,
+            replacement: g.translated,
+            type: 'replace' as const
+        }));
+        cleaned = applyAllCorrections(cleaned, glossaryRules);
+    }
+
     // 3. Smart Capitalization Logic
     const hardcoded = [
         "Ta", "Ngươi", "Hắn", "Nàng", "Huynh", "Đệ", "Tỷ", "Muội", "Lão", "Gã", "Mụ",
         "Đại ca", "Nhị ca", "Tam ca", "Đại huynh", "Nhị huynh", "Tam huynh", "Đại tỷ", "Nhị tỷ", "Tam tỷ",
-        "Tỷ tỷ", "Muội muội", "Đệ đệ", "Sư phụ", "Sư huynh", "Sư đệ", "S sư tỷ", "Sư muội",
+        "Tỷ tỷ", "Muội muội", "Đệ đệ", "Sư phụ", "Sư huynh", "Sư đệ", "Sư tỷ", "Sư muội",
         "Tướng quân", "Minh chủ", "Tiểu thư", "Nương tử", "Mẫu thân", "Phụ thân", "Tiên sinh",
-        "Bản tôn", "Bản vương", "Bản tọa", "Bản cung", "Vị này", "Kẻ này", "Tiểu tử"
+        "Tiểu thúc", "Thúc thúc", "Thẩm thẩm", "Bản tôn", "Bản vương", "Bản tọa", "Bản cung", "Vị này", "Kẻ này", "Tiểu tử"
     ];
 
     const glossaryTerms = glossary

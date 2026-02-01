@@ -78,6 +78,9 @@ interface ReaderHeaderProps {
     onClearTranslation: () => void;
     onAIExtract?: () => void;
     isHeaderVisible?: boolean;
+
+    isEditing: boolean;
+    setIsEditing: (v: boolean) => void;
 }
 
 /* ===================== SMALL COMPONENTS ===================== */
@@ -530,7 +533,9 @@ export function ReaderHeader(props: ReaderHeaderProps) {
         onClearTranslation,
         onAIExtract,
         scrollProgress = 0,
-        isHeaderVisible = true
+        isHeaderVisible = true,
+        isEditing,
+        setIsEditing
     } = props;
 
     const [showTTSSettings, setShowTTSSettings] = useState(false);
@@ -596,12 +601,23 @@ export function ReaderHeader(props: ReaderHeaderProps) {
                     </HeaderIconButton>
 
                     {activeTab === "translated" && (
-                        <HeaderIconButton
-                            icon={<Eraser className="w-5 h-5" />}
-                            title="Xóa bản dịch (giữ bản gốc)"
-                            onClick={onClearTranslation}
-                            className="text-muted-foreground hover:text-amber-500 hover:bg-amber-500/5"
-                        />
+                        <>
+                            <HeaderIconButton
+                                icon={isEditing ? <BookOpen className="w-5 h-5 text-emerald-500" /> : <Edit3 className="w-5 h-5" />}
+                                title={isEditing ? "Xong (Về chế độ đọc)" : "Chỉnh sửa nhanh"}
+                                onClick={() => setIsEditing(!isEditing)}
+                                className={cn(
+                                    isEditing ? "bg-emerald-500/10 border-emerald-500/30" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                )}
+                            />
+
+                            <HeaderIconButton
+                                icon={<Eraser className="w-5 h-5" />}
+                                title="Xóa bản dịch (giữ bản gốc)"
+                                onClick={onClearTranslation}
+                                className="text-muted-foreground hover:text-amber-500 hover:bg-amber-500/5"
+                            />
+                        </>
                     )}
 
                     {/* TTS Section */}

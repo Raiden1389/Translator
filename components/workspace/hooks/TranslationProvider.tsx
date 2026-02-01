@@ -221,6 +221,14 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             const tasks = chaptersToTranslate.map(chapter => aiQueue.enqueue('MEDIUM', () => processChapter(chapter), `translate-chap-${chapter.id}`));
             await Promise.all(tasks);
 
+            // Auto-Mirror to TXT file - RUN ONCE AFTER ALL DONE
+            const currentWS = await db.workspaces.get(workspaceId);
+            const allChaps = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
+            if (currentWS && allChaps.length > 0) {
+                const { storage } = await import("@/lib/storageBridge");
+                await storage.syncFullStory(workspaceId, currentWS.title, allChaps);
+            }
+
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
             toast.success(`Dịch hoàn tất ${processedCount} chương trong ${totalBatchTime}s`, {
                 description: `Sử dụng ${totalUsedChars} ký tự.`,

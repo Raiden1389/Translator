@@ -1,6 +1,7 @@
 "use client";
 
 import { InspectionIssue } from "@/lib/types";
+import { type DictionaryEntry, type CorrectionEntry } from "@/lib/db";
 
 import { applyAllCorrections, finalSweep } from "@/lib/gemini/contentProcessor";
 
@@ -8,8 +9,8 @@ interface FormatParams {
     text: string;
     activeTTSIndex?: number | null;
     inspectionIssues?: InspectionIssue[];
-    corrections?: any[];
-    glossary?: any[]; // Added glossary support for dynamic capitalization
+    corrections?: CorrectionEntry[];
+    glossary?: DictionaryEntry[]; // Added glossary support for dynamic capitalization
 }
 
 export interface ParagraphData {
@@ -34,13 +35,19 @@ export function formatChapterToParagraphs({
     if (!normalizedText) return [];
 
     // Cleaning and split logic
+    // Handle various line break types and common mangled paragraph markers
     const cleaned = normalizedText
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n")
+        .replace(/\u2028/g, "\n") // Unicode Line Separator
+        .replace(/\u2029/g, "\n") // Unicode Paragraph Separator
+        .replace(/<br\s*\/?>/gi, "\n") // Convert any HTML breaks to newlines
         .replace(/:\s*\n+\s*\[/g, ": [") // Fix common novel dialogue breaks
         .trim();
 
-    const rawParagraphs = cleaned.split('\n').filter(p => p.trim().length > 0);
+    // Split by one or more newlines to handle both single and double line breaks as potential paragraph starts
+    // But since we want to preserve paragraphs that were split by single newlines as individual blocks:
+    const rawParagraphs = cleaned.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
 
     return rawParagraphs.map((rawPara, index) => {
         const isHighlighted = activeTTSIndex === index;
