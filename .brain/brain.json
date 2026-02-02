@@ -1,13 +1,13 @@
 {
     "meta": {
         "schema_version": "1.1.0",
-        "awf_version": "3.3.0",
-        "last_updated": "2026-01-31T22:15:00Z"
+        "awf_version": "4.0.0",
+        "last_updated": "2026-02-03T00:50:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Production Ready - v1.8.0 (Action Hub Restored)"
+        "status": "Major Release - v2.0.0 (Heuristic Engine 2.0)"
     },
     "tech_stack": {
         "frontend": {
@@ -29,13 +29,13 @@
     },
     "features": [
         "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
+        "Heuristic Engine 2.0 (The Context Purge): Hệ thống nhận diện thực thể siêu nhanh với triết lý 'Strict Opt-in', phân loại ngữ cảnh đa tầng (Title/Generic/Descriptive) giúp loại bỏ rác tuyệt đối.",
         "Action Hub 2.0: Hệ thống công cụ nhanh 2 hàng (Cache, JSON Import/Export, AI Scan, History)",
         "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
         "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-preserving) và Cải chính trực tiếp vào Reader",
         "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
         "Offline Storage: Lưu trữ dữ liệu local hoàn toàn",
         "TTS: Hỗ trợ đọc truyện bằng giọng nói máy với cơ chế xử lý lỗi timeout",
-        "Smart Capitalization: Engine tự động chuẩn hóa viết hoa viết thường",
         "JSON Import Gateway: Cổng nạp dữ liệu thông minh với cơ chế khử thẻ <br> lỗi"
     ],
     "database_schema": {
@@ -59,11 +59,15 @@
             },
             {
                 "name": "blacklist",
-                "desc": "Các từ không muốn dịch hoặc bỏ qua"
+                "desc": "Các từ không muốn dịch hoặc bỏ qua (Chặn rác Heuristic/Manual)"
+            },
+            {
+                "name": "heuristicTerms",
+                "desc": "Kho lưu trữ tạm thời cho các thực thể quét được bằng bộ máy Heuristic để người dùng duyệt"
             },
             {
                 "name": "settings",
-                "desc": "Cấu hình API, theme, font chữ"
+                "desc": "Cài Đặt cấu hình API, theme, font chữ"
             },
             {
                 "name": "translationCache",

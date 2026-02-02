@@ -35,6 +35,14 @@ export interface Chapter {
     translationModel?: string; // e.g. "gemini-1.5-pro"
     translationDurationMs?: number; // e.g. 5000
     sourceUrl?: string; // Added: URL for crawling content on-demand
+    stats?: {
+        tokens?: {
+            input: number;
+            output: number;
+            total: number;
+        };
+        characters?: number;
+    };
     updatedAt?: Date;
 }
 
@@ -106,7 +114,7 @@ export interface BlacklistEntry {
     workspaceId: string; // Added for isolation
     word: string;
     translated?: string;
-    source?: 'manual' | 'ai';
+    source?: 'manual' | 'ai' | 'heuristic';
     createdAt: Date;
 }
 
@@ -143,6 +151,31 @@ export interface PromptEntry {
 }
 
 
+export interface HeuristicTerm {
+    id?: number;
+    workspaceId: string;
+    original: string;
+    translated: string; // Auto-mapped Hán Việt
+    type: 'skill' | 'character' | 'location' | 'title' | 'unknown';
+    confidence: number; // 0-100
+    pinyin: string;
+    isApproved: boolean;
+    isGarbage?: boolean; // Added: Skip these terms in future scans
+    occurrences: number;
+    metadata?: Record<string, any>;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface ConsistencyLog {
+    id?: number;
+    workspaceId: string;
+    chapterId?: number;
+    issueType: 'drift' | 'missing' | 'inconsistent_translation';
+    details: string;
+    timestamp: Date;
+}
+
 const db = new Dexie('AITranslatorDB') as Dexie & {
     workspaces: EntityTable<Workspace, 'id'>;
     chapters: EntityTable<Chapter, 'id'>;
@@ -154,7 +187,9 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     ttsCache: EntityTable<TTSCacheEntry, 'id'>;
     apiUsage: EntityTable<APIUsageEntry, 'model'>;
     history: EntityTable<HistoryEntry, 'id'>;
-    translationCache: EntityTable<TranslationCacheEntry, 'key'>; // New Cache Table
+    translationCache: EntityTable<TranslationCacheEntry, 'key'>;
+    heuristicTerms: EntityTable<HeuristicTerm, 'id'>;
+    consistencyLogs: EntityTable<ConsistencyLog, 'id'>;
 };
 
 // ----------------------------------------------------------------------
@@ -172,33 +207,26 @@ db.version(100).stores({
     history: '++id, workspaceId, timestamp',
     translationCache: 'key, timestamp', // Thêm index timestamp để dọn dẹp thần tốc
     settings: 'key'
-}).upgrade(async (trans) => {
-    // Legacy Migration to V100: Consolidating history
-    const workspaces = await trans.table('workspaces').toArray();
-    if (workspaces.length > 0) {
-        // 1. From V11: Ensure isolation for Dictionary, Blacklist, and Corrections
-        const firstWsId = workspaces[0].id;
+});
 
-        await trans.table('dictionary').toCollection().modify((item: any) => {
-            if (!item.workspaceId) item.workspaceId = firstWsId;
-        });
-        await trans.table('blacklist').toCollection().modify((item: any) => {
-            if (!item.workspaceId) item.workspaceId = firstWsId;
-        });
-        await trans.table('corrections').toCollection().modify((item: any) => {
-            if (!item.workspaceId) item.workspaceId = firstWsId;
-        });
+// ----------------------------------------------------------------------
+// HEURISTIC ENGINE UPGRADE (v101-102)
+// ----------------------------------------------------------------------
+db.version(101).stores({
+    heuristicTerms: '++id, workspaceId, original, type, isApproved, [workspaceId+original]',
+    consistencyLogs: '++id, workspaceId, chapterId, issueType'
+});
 
-        // 2. From V20: Refactor Corrections to be Type-Aware
-        await trans.table('corrections').toCollection().modify((c: any) => {
-            if (!c.type) {
-                c.type = 'replace';
-                c.from = c.original;
-                c.to = c.replacement;
-            }
-        });
-    }
-    console.log("🚀 Database migrated to Stable V100 architecture with legacy support.");
+db.version(102).stores({
+    heuristicTerms: '++id, workspaceId, original, type, isApproved, [workspaceId+original], [workspaceId+isApproved], [workspaceId+type]'
+});
+
+db.version(103).stores({
+    heuristicTerms: '++id, workspaceId, original, type, isApproved, isGarbage, [workspaceId+original], [workspaceId+isApproved], [workspaceId+isGarbage]'
+});
+
+db.version(104).stores({
+    blacklist: '++id, workspaceId, word, source, [workspaceId+source]'
 });
 
 // ----------------------------------------------------------------------

@@ -52,7 +52,7 @@ export const translateChapter = async (
     });
 
     // 3. Build System Instruction (Dynamic Assembly v5.0)
-    const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction);
+    const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction, text);
 
     try {
         console.log(`📡 [PAYLOAD] Model: ${aiModel} | Content Size: ${text.length} chars | System Instruction Size: ${fullInstruction.length} chars`);
@@ -65,7 +65,7 @@ export const translateChapter = async (
                 generationConfig: {
                     temperature: 0.1,
                     topP: 0.95,
-                    maxOutputTokens: 8192,
+                    maxOutputTokens: 4096, // Patched: Reduced from 8192 to prevent token runaway (Audit v1.1)
                     responseMimeType: "text/plain",
                 }
             },
@@ -83,50 +83,60 @@ export const translateChapter = async (
             translatedText: rawText
         };
 
-        try {
-            // 1. Cleaner extraction: catch the first { and last }
-            const firstBrace = rawText.indexOf('{');
-            const lastBrace = rawText.lastIndexOf('}');
+        // 1. Try to detect and parse Plain Text format (Title\n\nContent)
+        const lines = rawText.split('\n').filter(l => l.trim() !== "");
+        if (lines.length >= 2 && !rawText.trim().startsWith('{')) {
+            let potentialTitle = lines[0].trim();
+            potentialTitle = potentialTitle.replace(/^(Tiêu đề|Title|Chapter|Chương)\s*[:\-]\s*/i, "");
 
-            if (firstBrace !== -1 && lastBrace !== -1) {
-                const jsonStr = rawText.substring(firstBrace, lastBrace + 1);
-
-                // 2. Try Standard Parse
-                try {
-                    const raw = JSON.parse(jsonStr);
-                    parsed = {
-                        translatedTitle: raw.title || raw.translatedTitle || raw.chapter_title || "",
-                        translatedText: raw.content || raw.translatedText || raw.text || raw.translated_content || ""
-                    };
-                } catch {
-                    // 3. Last ditch: JSON is malformed, try regex-based extraction
-                    const titleMatch = jsonStr.match(/"(?:title|translatedTitle|chapter_title)":\s*"([^"]*)"/);
-                    const contentMatch = jsonStr.match(/"(?:content|translatedText|text|translated_content)":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
-
-                    parsed = {
-                        translatedTitle: titleMatch ? titleMatch[1] : "",
-                        translatedText: contentMatch ? contentMatch[1] : rawText
-                    };
-                }
-
-                // 4. Critical Fix: Some AI models return literal "\n" strings instead of real newlines
-                if (parsed.translatedText && parsed.translatedText.includes('\\n')) {
-                    parsed.translatedText = parsed.translatedText
-                        .replace(/\\n/g, '\n')
-                        .replace(/\\r/g, '');
-                }
+            if (potentialTitle.length < 250) {
+                parsed = {
+                    translatedTitle: potentialTitle,
+                    translatedText: lines.slice(1).join('\n\n').trim()
+                };
             }
-        } catch (err) {
-            console.error("❌ JSON extraction failed. Falling back to raw text.", err);
-            parsed = {
-                translatedTitle: "",
-                translatedText: rawText
-            };
         }
 
-        // High-confidence filter: If we ended up with raw JSON as the content, it's a failure
-        if (parsed.translatedText.trim().startsWith('{') && parsed.translatedText.includes('"content"')) {
-            const lastMatch = parsed.translatedText.match(/"content":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
+        // 2. Fallback: Try JSON extraction if Plain Text didn't match or looks like JSON
+        if (!parsed.translatedTitle && (rawText.includes('{') || rawText.includes('"'))) {
+            try {
+                const firstBrace = rawText.indexOf('{');
+                const lastBrace = rawText.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    const jsonStr = rawText.substring(firstBrace, lastBrace + 1);
+                    try {
+                        const raw = JSON.parse(jsonStr);
+                        parsed = {
+                            translatedTitle: (raw.title || raw.translatedTitle || raw.chapter_title || "").replace(/^(Tiêu đề|Title|Chapter|Chương)\s*[:\-]\s*/i, ""),
+                            translatedText: raw.content || raw.translatedText || raw.text || raw.translated_content || ""
+                        };
+                    } catch {
+                        // Regex-based partial JSON extraction
+                        const titleMatch = jsonStr.match(/"(?:title|translatedTitle|chapter_title)":\s*"([^"]*)"/);
+                        const contentMatch = jsonStr.match(/"(?:content|translatedText|text|translated_content)":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
+                        if (titleMatch || contentMatch) {
+                            parsed = {
+                                translatedTitle: titleMatch ? titleMatch[1] : "",
+                                translatedText: contentMatch ? contentMatch[1] : rawText
+                            };
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("❌ JSON/Text extraction failed.", err);
+            }
+        }
+
+        // 3. Post-cleanup: Fix literal "\n" strings if they exist
+        if (parsed.translatedText && parsed.translatedText.includes('\\n')) {
+            parsed.translatedText = parsed.translatedText
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '');
+        }
+
+        // Final safety check: if we somehow have JSON in content, clean it
+        if (parsed.translatedText.trim().startsWith('{') && (parsed.translatedText.includes('"content"') || parsed.translatedText.includes('"translated"'))) {
+            const lastMatch = parsed.translatedText.match(/"(?:content|translatedText|text)":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
             if (lastMatch) parsed.translatedText = lastMatch[1].replace(/\\n/g, '\n');
         }
 
@@ -161,8 +171,21 @@ export const translateChapter = async (
             });
         }
 
-        result.stats = { terms: termUsage, characters: charUsage };
-        onLog({ timestamp: new Date(), message: "Dịch hoàn tất!", type: 'success' });
+        const usage = (rawResult as any).usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0 };
+        const tokens = {
+            input: usage.promptTokenCount || 0,
+            output: usage.candidatesTokenCount || 0,
+            total: (usage.promptTokenCount || 0) + (usage.candidatesTokenCount || 0)
+        };
+
+        result.stats = {
+            terms: termUsage,
+            characters: charUsage,
+            tokens
+        };
+
+        const tokenMsg = tokens.total > 0 ? ` [${tokens.input}i + ${tokens.output}o = ${tokens.total}t]` : "";
+        onLog({ timestamp: new Date(), message: `Dịch hoàn tất!${tokenMsg}`, type: 'success' });
         onSuccess(result);
 
     } catch (error: unknown) {

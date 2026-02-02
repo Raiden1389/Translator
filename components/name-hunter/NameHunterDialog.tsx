@@ -68,7 +68,7 @@ export function NameHunterDialog({
 
     // Config States
     const [rangeInput, setRangeInput] = useState("");
-    const [minFrequency, setMinFrequency] = useState(2);
+    const [minFrequency, setMinFrequency] = useState(20);
     const [minLength, setMinLength] = useState(2);
     const [maxLength, setMaxLength] = useState(4);
     const [filters, setFilters] = useState({

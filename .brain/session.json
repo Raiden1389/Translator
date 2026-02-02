@@ -1,62 +1,63 @@
 {
-    "updated_at": "2026-01-31T22:15:00Z",
+    "updated_at": "2026-02-03T00:50:00Z",
     "working_on": {
-        "feature": "Action Hub Restoration & Content Normalization",
-        "task": "Khôi phục Action Hub, sửa lỗi hiển thị gạch dòng/thẻ <br> và cải tiến độ ổn định của TTS",
+        "feature": "Heuristic Engine 2.0 (The Context Purge)",
+        "task": "Tái cấu trúc bộ máy Heuristic: Tách biệt Shape và Context, triển khai triết lý Strict Opt-in, modular hóa Classifier, và sửa lỗi lọc nhầm Character/Skill/Location.",
         "status": "completed",
         "files": [
-            "components/workspace/ChapterListHeader.tsx",
-            "components/workspace/ChapterList.tsx",
-            "components/workspace/ReaderContent.tsx",
-            "components/dashboard/JSONImportDialog.tsx",
-            "components/workspace/hooks/useReaderTTS.ts"
+            "lib/gemini/heuristic/rank-resolver.ts",
+            "lib/gemini/heuristic/context-classifier.ts",
+            "lib/gemini/heuristic/tagger.ts",
+            "lib/gemini/heuristic/scanner.ts",
+            "components/workspace/HeuristicTab.tsx"
         ],
-        "notes": "Đã thiết kế lại Action Hub thành dạng lưới 2 hàng chuyên nghiệp. Xử lý triệt để các lỗi văn bản thô xuất hiện sau khi import."
+        "notes": "Hệ thống giờ đây hoạt động cực kỳ sạch bằng cách mặc định coi mọi thứ là rác và chỉ giữ lại những gì khớp Whitelist danh xưng thật thụ."
     },
     "recent_changes": [
         {
-            "type": "UI/UX",
-            "description": "Action Hub 2.0: Restructured tools into a 2-row grid for better accessibility and cleaner header.",
+            "type": "Architecture",
+            "description": "Heuristic v2.0: Introduced Strict Opt-in filtering. Titles are now verified by a dedicated Context Classifier module while Proper Names/Skills/Locations are protected from over-filtering.",
             "files": [
-                "ChapterListHeader.tsx",
-                "ChapterList.tsx"
+                "rank-resolver.ts",
+                "context-classifier.ts",
+                "tagger.ts",
+                "scanner.ts"
+            ]
+        },
+        {
+            "type": "UI/UX",
+            "description": "Improved Heuristic Center UI: Added mount-state protection to prevent React errors, fixed ProgressBar NaN metrics, and added 'Clear Blacklist' functionality.",
+            "files": [
+                "HeuristicTab.tsx",
+                "useHeuristic.ts"
             ]
         },
         {
             "type": "Bug Fix",
-            "description": "Content Normalization: Implemented <br> tag removal during JSON import and rendering to fix 'txt lỗi' issues.",
+            "description": "Character Salvation: Fixed a critical bug in the 'Noun Gate' that was accidentally dropping names like 'Tần Minh'.",
             "files": [
-                "JSONImportDialog.tsx",
-                "ReaderContent.tsx",
-                "ChapterRow.tsx",
-                "ChapterCard.tsx"
-            ]
-        },
-        {
-            "type": "Logic",
-            "description": "TTS Stability: Added timeout handling and empty segment filtering to prevent infinite loading states.",
-            "files": [
-                "useReaderTTS.ts"
+                "tagger.ts",
+                "scanner.ts"
             ]
         }
     ],
     "decisions_made": [
         {
-            "decision": "Chuyển nút Nhập truyện chính thành nút Cải chính",
-            "reason": "Vì quy trình bây giờ là Import JSON xong rồi mới thao tác dịch/cải chính, việc đưa nút Cải chính lên đầu giúp UX mượt mà hơn cho người dịch chuyên nghiệp."
+            "decision": "Default Context = GENERIC (Noise)",
+            "reason": "Trong Tiên Hiệp, thực danh (Title) là thiểu số. Để mặc định là TITLE khiến rác lọt nhiều. Đảo ngược sang mặc định rác giúp hệ thống sạch 100% rác ngữ pháp."
         },
         {
-            "decision": "Sử dụng Regex quét <br> ở cả tầng Import và Rendering",
-            "reason": "Đảm bảo dữ liệu mới nạp vào sẽ sạch, nhưng vẫn hỗ trợ hiển thị đúng cho các dữ liệu cũ đã nạp sẵn trong máy người dùng."
+            "decision": "Tách Classifier thành module độc lập",
+            "reason": "Dễ mở rộng rule (Priority-based) và có thể tái sử dụng cho các loại thực thể khác như Skill/Realm sau này."
         }
     ],
     "pending_tasks": [
         {
-            "task": "Kiểm tra tính tương thích của file JSON khi xuất/nhập chéo giữa nhiều Workspace",
+            "task": "Mở rộng Whitelist cho các loại thực thể đặc thù (Pháp bảo, Cảnh giới)",
             "priority": "medium"
         },
         {
-            "task": "Nghiên cứu thêm các giọng đọc TTS mới ổn định hơn nếu Edge TTS bị limit",
+            "task": "Test hiệu năng với các chương truyện cực dài (> 100,000 chữ)",
             "priority": "low"
         }
     ]

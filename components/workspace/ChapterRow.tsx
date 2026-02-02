@@ -33,6 +33,14 @@ interface ChapterRowProps {
     onDelete: (id: number) => void;
     onInspect: (id: number) => void;
     onClearTranslation: (id: number) => void;
+    stats?: {
+        tokens?: {
+            input: number;
+            output: number;
+            total: number;
+        };
+        characters?: number;
+    };
     index: number;
 }
 
@@ -58,6 +66,7 @@ export const ChapterRow = React.memo(function ChapterRow({
     onDelete,
     onInspect,
     onClearTranslation,
+    stats,
     index
 }: ChapterRowProps) {
     const { isRaidenMode } = useRaiden();
@@ -71,7 +80,7 @@ export const ChapterRow = React.memo(function ChapterRow({
     return (
         <div
             className={cn(
-                "grid grid-cols-[50px_60px_1fr_1fr_140px_100px] items-center px-4 py-2 border-b transition-all group cursor-pointer h-fit min-h-[50px] relative overflow-hidden",
+                "grid grid-cols-[50px_60px_1fr_1fr_120px_140px_100px] items-center px-4 py-2 border-b transition-all group cursor-pointer h-fit min-h-[50px] relative overflow-hidden",
                 isRaidenMode ? "border-slate-800/40" : "border-border/50",
                 isSelected || isInDrag
                     ? (isRaidenMode ? "bg-primary/10 border-l-4 border-primary shadow-inner" : "bg-primary/10 border-l-4 border-primary shadow-inner")
@@ -128,6 +137,25 @@ export const ChapterRow = React.memo(function ChapterRow({
                 >
                     {(title_translated || "—").replace(/<br\s*\/?>/gi, " ")}
                 </button>
+            </div>
+
+            <div className="flex flex-col items-center justify-center">
+                {stats?.tokens && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className={cn(
+                                "text-[10px] font-mono px-2 py-0.5 rounded-md border",
+                                isRaidenMode ? "bg-slate-900/50 border-purple-500/20 text-purple-400" : "bg-blue-50/50 border-blue-100 text-blue-600"
+                            )}>
+                                {stats.tokens.total.toLocaleString()}t
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-[10px]">
+                            <div>Input: {stats.tokens.input.toLocaleString()}</div>
+                            <div>Output: {stats.tokens.output.toLocaleString()}</div>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
             </div>
 
             <div className="flex flex-col items-center justify-center gap-0.5">

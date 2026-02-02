@@ -72,11 +72,13 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         }
 
         setIsTranslating(true);
-        const chaptersToTranslate = chapters?.filter(c => selectedChapters.includes(c.id!)) || [];
+        // AUDIT FIX: Only translate chapters that are NOT already 'translated'
+        const chaptersToTranslate = (chapters?.filter(c => selectedChapters.includes(c.id!)) || [])
+            .filter(c => c.status !== 'translated');
 
         if (chaptersToTranslate.length === 0) {
             setIsTranslating(false);
-            toast.error("Không có chương nào được chọn để dịch.");
+            toast.info("Tất cả chương đã được dịch hoặc không có chương nào hợp lệ.");
             return;
         }
 
@@ -90,7 +92,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         });
 
         // 1. Shared Batch Context Optimization
-        // Scan ALL selected chapters for glossary terms once.
         const allOriginalText = chaptersToTranslate.map(c => c.content_original).join("\n\n");
         const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
         const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
@@ -99,10 +100,12 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         const sharedGlossary = dict
             .filter(d => !blockedWords.has(d.original.toLowerCase()) && allOriginalText.includes(d.original))
             .sort((a, b) => b.original.length - a.original.length)
-            .slice(0, 100); // 100 terms for Max Ping (shared across all chapters)
+            .slice(0, 100);
 
         // 2. Global Queue Integration
         let processedCount = 0;
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
 
         const processChapter = async (chapter: Chapter) => {
             const startTime = Date.now();
@@ -113,7 +116,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                 const type = typeof log === 'string' ? 'info' : (log.type || 'info');
 
                 setBatchProgress(prev => {
-                    // Update global title for the latest activity
                     const newLogs = [...prev.logs];
                     const existingIdx = newLogs.findIndex(l => l.id === logId);
 
@@ -123,13 +125,12 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                         newLogs.push({ id: logId, message: msg, type, order: chapter.order });
                     }
 
-                    // Sort logs by order to keep UI clean
                     newLogs.sort((a, b) => b.order - a.order);
 
                     return {
                         ...prev,
                         currentTitle: `[Chương ${chapter.order}] ${msg}`,
-                        logs: newLogs.slice(0, 50) // Keep last 50 for performance
+                        logs: newLogs.slice(0, 50)
                     };
                 });
             };
@@ -137,16 +138,14 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             try {
                 let finalPrompt = translateConfig.customPrompt || "";
                 if (translateConfig.fixPunctuation) {
-                    finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam. Chỗ nào ngắt ý hoàn chỉnh thì dùng dấu chấm, chỗ nào ý còn liên tục thì dùng dấu phẩy và KHÔNG viết hoa chữ cái tiếp theo (trừ tên riêng).";
+                    finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam.";
                 }
 
-                // 0. Ensure Content
                 const content_original = chapter.content_original || "";
                 if (!content_original || content_original.trim().length === 0) {
-                    throw new Error("Chương này chưa có nội dung gốc. Hãy kiểm tra lại file JSON nhập vào.");
+                    throw new Error("Chương trống.");
                 }
 
-                // Combine title and content if title exists and isn't already at the start of original content
                 let contentToTranslate = content_original;
                 if (chapter.title && !content_original.startsWith(chapter.title)) {
                     contentToTranslate = `${chapter.title}\n\n${content_original}`;
@@ -167,26 +166,17 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                 );
 
                 const duration = Date.now() - startTime;
-
                 let finalTitle = result.translatedTitle || "";
                 const originalTitle = chapter.title || "";
-
-                // extraction of chapter number from original (Chinese, English, or Vietnamese)
                 const chapterMatch = originalTitle.match(/(?:第|Chapter|Chương|Episode|Tiết|Quyển)\s*(\d+)/i);
 
                 if (chapterMatch) {
                     const chapterNum = chapterMatch[1];
                     const chapterPrefix = `Chương ${chapterNum}`;
-
-                    // If AI translated title is missing the chapter number, prepend it
                     if (finalTitle && !finalTitle.includes(chapterNum)) {
                         finalTitle = `${chapterPrefix}: ${finalTitle}`;
                     } else if (!finalTitle) {
-                        // Fallback if no translation at all
-                        finalTitle = originalTitle
-                            .replace(/Chapter\s+(\d+)/i, "Chương $1")
-                            .replace(/第\s*(\d+)\s*章/g, "Chương $1")
-                            .replace(/第\s*(\d+)\s*/g, "Chương $1 ");
+                        finalTitle = originalTitle.replace(/第\s*(\d+)\s*章/g, "Chương $1");
                     }
                 } else if (!finalTitle) {
                     finalTitle = originalTitle;
@@ -199,17 +189,21 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     status: 'translated',
                     lastTranslatedAt: new Date(),
                     translationModel: currentSettings.model,
-                    translationDurationMs: duration
+                    translationDurationMs: duration,
+                    stats: result.stats
                 });
 
                 if (result.stats) {
                     totalUsedChars += result.stats.characters;
+                    if (result.stats.tokens) {
+                        totalInputTokens += result.stats.tokens.input;
+                        totalOutputTokens += result.stats.tokens.output;
+                    }
                 }
 
                 onLog({ timestamp: new Date(), message: `Hoàn tất (${(duration / 1000).toFixed(1)}s)`, type: 'success' });
             } catch (error: unknown) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
-                console.error(`Failed to process chapter ${chapter.id}: `, error);
                 onLog({ timestamp: new Date(), message: `Lỗi: ${errorMsg}`, type: 'error' });
             } finally {
                 processedCount++;
@@ -221,7 +215,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             const tasks = chaptersToTranslate.map(chapter => aiQueue.enqueue('MEDIUM', () => processChapter(chapter), `translate-chap-${chapter.id}`));
             await Promise.all(tasks);
 
-            // Auto-Mirror to TXT file - RUN ONCE AFTER ALL DONE
             const currentWS = await db.workspaces.get(workspaceId);
             const allChaps = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
             if (currentWS && allChaps.length > 0) {
@@ -230,20 +223,19 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             }
 
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
-            toast.success(`Dịch hoàn tất ${processedCount} chương trong ${totalBatchTime}s`, {
-                description: `Sử dụng ${totalUsedChars} ký tự.`,
+            toast.success(`Dịch hoàn tất trong ${totalBatchTime}s`, {
+                description: `Sử dụng ${totalUsedChars} ký tự. (${totalInputTokens}i + ${totalOutputTokens}o tokens)`,
                 duration: 5000
             });
         } catch (fatalErr: unknown) {
             const errorMsg = fatalErr instanceof Error ? fatalErr.message : String(fatalErr);
-            console.error("Fatal error in batch translation:", fatalErr);
-            toast.error("Lỗi nghiêm trọng: " + errorMsg);
+            toast.error("Lỗi: " + errorMsg);
         } finally {
             setIsTranslating(false);
             setBatchProgress({ current: 0, total: 0, currentTitle: "", logs: [] });
             onComplete?.();
         }
-    }, [isTranslating]); // isTranslating dependency is correct here because we want to block new starts
+    }, [isTranslating]);
 
     return (
         <TranslationContext.Provider value={{ isTranslating, batchProgress, startBatchTranslate }}>

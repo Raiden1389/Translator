@@ -179,19 +179,36 @@ export async function translateWithChunking(
 
         let totalTerms = 0;
         let totalChars = 0;
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
+
         results.forEach(r => {
             if (r.stats) {
                 totalTerms += r.stats.terms;
                 totalChars += r.stats.characters;
+                if (r.stats.tokens) {
+                    totalInputTokens += r.stats.tokens.input;
+                    totalOutputTokens += r.stats.tokens.output;
+                }
             }
         });
 
-        onLog({ timestamp: new Date(), message: `Đã dịch song song xong ${chunks.length} chunks!`, type: 'success' });
+        const totalTokens = totalInputTokens + totalOutputTokens;
+        const tokenMsg = totalTokens > 0 ? ` [${totalInputTokens}i + ${totalOutputTokens}o = ${totalTokens}t]` : "";
+        onLog({ timestamp: new Date(), message: `Đã dịch song song xong ${chunks.length} chunks!${tokenMsg}`, type: 'success' });
 
         return {
             translatedText,
             translatedTitle,
-            stats: { terms: totalTerms, characters: totalChars }
+            stats: {
+                terms: totalTerms,
+                characters: totalChars,
+                tokens: {
+                    input: totalInputTokens,
+                    output: totalOutputTokens,
+                    total: totalTokens
+                }
+            }
         };
     } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : String(error);

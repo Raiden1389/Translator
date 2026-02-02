@@ -93,16 +93,26 @@ export async function withKeyRotation<T>(
     const payload = JSON.stringify(payloadObj);
     let lastError: any = null;
 
-    // Try primary first (undefined means the backend will use its .env GEMINI_API_KEY)
-    const keyQueue = [undefined, ...keys];
+    // Build Key Queue: Primary settings keys first, then undefined (backend env) as extreme fallback
+    const keyQueue = [...keys];
+    if (keyQueue.length === 0) keyQueue.push(undefined as any);
 
     // Environment Check: Are we in Tauri?
     // @ts-ignore
     const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 
-    for (const key of keyQueue) {
+    for (let i = 0; i < keyQueue.length; i++) {
+        const key = keyQueue[i];
         try {
-            if (onLog) onLog(`Trying ${key ? 'Pool Key' : 'Primary/Env Key'}...`);
+            if (onLog) {
+                if (!key) {
+                    onLog("Thử Key hệ thống (.env)...");
+                } else if (i === 0) {
+                    onLog("Đang dùng API Key chính...");
+                } else {
+                    onLog(`Đang thử API Key phụ (${i})...`);
+                }
+            }
 
             if (isTauri) {
                 // TAURI NATIVE REQUEST
@@ -115,7 +125,10 @@ export async function withKeyRotation<T>(
                 const parsed = JSON.parse(responseText);
                 if (parsed.error) {
                     const msg = parsed.error.message || "Gemini API Error (Native)";
-                    if (onLog) onLog(`Error: ${msg}`);
+                    // Don't log error here if we have more keys to try
+                    if (i === keyQueue.length - 1) {
+                        if (onLog) onLog(`Lỗi: ${msg}`);
+                    }
                     throw new Error(msg);
                 }
                 return parsed as T;
@@ -143,7 +156,12 @@ export async function withKeyRotation<T>(
 
         } catch (error: any) {
             lastError = error;
-            if (onLog) onLog(`Failed: ${error.message}`);
+            // Silent retry for intermediate keys, only log if it's the last attempt or critical
+            if (i < keyQueue.length - 1) {
+                console.warn(`Key rotation: Attempt ${i + 1} failed, trying next...`, error.message);
+            } else {
+                if (onLog) onLog(`Thất bại: ${error.message}`);
+            }
             continue;
         }
     }

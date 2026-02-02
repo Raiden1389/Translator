@@ -14,6 +14,19 @@ export class StorageBridge {
         return StorageBridge.instance;
     }
 
+    private isDev() {
+        if (typeof window === 'undefined') return false;
+        return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    }
+
+    private getWsRoot() {
+        return this.isDev() ? "workspaces_dev" : "workspaces";
+    }
+
+    private getExportRoot() {
+        return this.isDev() ? "TRUYEN_DEV" : "TRUYEN_DA_DICH";
+    }
+
     private async ensureDir(path: string) {
         try {
             if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) {
@@ -72,21 +85,21 @@ export class StorageBridge {
 
     async saveMetadata(workspaceId: string, metadata: Workspace) {
         const folderName = `${this.sanitizeFilename(metadata.title || 'Untitled')}_${workspaceId.slice(0, 4)}`;
-        const wsDir = `workspaces/${folderName}`;
+        const wsDir = `${this.getWsRoot()}/${folderName}`;
         await this.ensureDir(wsDir);
         await this.saveAtomic(`${wsDir}/metadata.json`, metadata);
     }
 
     async saveChapter(workspaceId: string, title: string, chapterId: number, data: Chapter) {
         const folderName = `${this.sanitizeFilename(title)}_${workspaceId.slice(0, 4)}`;
-        const chapDir = `workspaces/${folderName}/chapters`;
+        const chapDir = `${this.getWsRoot()}/${folderName}/chapters`;
         await this.ensureDir(chapDir);
         await this.saveAtomic(`${chapDir}/${chapterId}.json`, data);
     }
 
     async saveDictionary(workspaceId: string, title: string, data: DictionaryEntry[]) {
         const folderName = `${this.sanitizeFilename(title)}_${workspaceId.slice(0, 4)}`;
-        const wsDir = `workspaces/${folderName}`;
+        const wsDir = `${this.getWsRoot()}/${folderName}`;
         await this.ensureDir(wsDir);
         await this.saveAtomic(`${wsDir}/dictionary.json`, data);
     }
@@ -94,7 +107,7 @@ export class StorageBridge {
     async loadWorkspaceData(folderName: string) {
         if (!this.inTauri()) return null;
 
-        const wsDir = `workspaces/${folderName}`;
+        const wsDir = `${this.getWsRoot()}/${folderName}`;
         try {
             if (!(await exists(wsDir, { baseDir: BaseDirectory.AppData }))) return null;
 
@@ -129,7 +142,7 @@ export class StorageBridge {
     async listWorkspaces() {
         if (!this.inTauri()) return [];
         try {
-            const path = "workspaces";
+            const path = this.getWsRoot();
             if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) return [];
             const entries = await readDir(path, { baseDir: BaseDirectory.AppData });
             return entries.filter(e => e.isDirectory).map(e => e.name);
@@ -142,7 +155,7 @@ export class StorageBridge {
     async syncFullStory(workspaceId: string, title: string, chapters: Chapter[]) {
         try {
             const folderName = `${this.sanitizeFilename(title)}_${workspaceId.slice(0, 4)}`;
-            const wsDir = `workspaces/${folderName}`;
+            const wsDir = `${this.getWsRoot()}/${folderName}`;
             await this.ensureDir(wsDir);
 
             // Sắp xếp chương theo thứ tự
@@ -171,12 +184,12 @@ export class StorageBridge {
             await writeTextFile(internalPath, fullText, { baseDir: BaseDirectory.AppData });
 
             // 2. Save to global EXPORT folder for easy access
-            const exportDir = `TRUYEN_DA_DICH`;
+            const exportDir = this.getExportRoot();
             await this.ensureDir(exportDir);
             const exportPath = `${exportDir}/${cleanTitle}.txt`;
             await writeTextFile(exportPath, fullText, { baseDir: BaseDirectory.AppData });
 
-            console.log(`✅ [Storage] TXT Mirror: ${title} (${translatedCount} chaps)`);
+            console.log(`✅ [Storage] TXT Mirror: ${title} (${translatedCount} chaps) | ENV: ${this.isDev() ? 'DEV' : 'PROD'}`);
             console.log(`📍 [Internal]: ${internalPath}`);
             console.log(`🚀 [Export]: ${exportPath}`);
         } catch (e) {
@@ -203,7 +216,7 @@ export class StorageBridge {
 
             for (const ws of workspaces) {
                 const folderName = `${this.sanitizeFilename(ws.title)}_${ws.id.slice(0, 4)}`;
-                const wsDir = `workspaces/${folderName}`;
+                const wsDir = `${this.getWsRoot()}/${folderName}`;
 
                 // Kiểm tra xem folder đã tồn tại chưa để tránh ghi đè JSON mất thời gian
                 const folderExists = await exists(wsDir, { baseDir: BaseDirectory.AppData });
@@ -229,7 +242,7 @@ export class StorageBridge {
                 await this.syncFullStory(ws.id, ws.title, chapters);
             }
 
-            toast.success("Hệ thống đã đồng bộ toàn bộ dữ liệu!", { id: toastId });
+            toast.success(`Hệ thống đã đồng bộ toàn bộ dữ liệu ${this.isDev() ? '(DEV)' : '(PROD)'}!`, { id: toastId });
         } catch (e) {
             console.error("❌ [Storage] Force sync failed:", e);
             toast.error("Đồng bộ thất bại. Vui lòng kiểm tra Console.", { id: toastId });
@@ -239,13 +252,13 @@ export class StorageBridge {
     async deleteWorkspace(workspaceId: string) {
         try {
             // Cần tìm folder dựa trên ID vì folder name có chứa Title
-            const root = "workspaces";
+            const root = this.getWsRoot();
             if (!(await exists(root, { baseDir: BaseDirectory.AppData }))) return;
             const entries = await readDir(root, { baseDir: BaseDirectory.AppData });
             const target = entries.find(e => e.isDirectory && e.name.endsWith(`_${workspaceId.slice(0, 4)}`));
 
             if (target) {
-                await remove(`workspaces/${target.name}`, { baseDir: BaseDirectory.AppData, recursive: true });
+                await remove(`${this.getWsRoot()}/${target.name}`, { baseDir: BaseDirectory.AppData, recursive: true });
             }
         } catch (e) {
             console.error("StorageBridge: Failed to delete workspace directory:", e);
@@ -253,9 +266,8 @@ export class StorageBridge {
     }
 
     inTauri() {
-        if (typeof window !== 'undefined' && (window as unknown as { __TAURI__?: unknown }).__TAURI__) return true;
+        if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) return true;
         return false;
     }
 }
-
 export const storage = StorageBridge.getInstance();

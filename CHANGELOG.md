@@ -1,5 +1,28 @@
 Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
 
+## [2.0.0] - 2026-02-03
+
+### 💎 Bộ máy Heuristic v2.0 (The Context Purge) - "SIÊU SẠCH - SIÊU CHUẨN"
+- **Kiến trúc Strict Opt-in (Xác thực Sắt đá):** Thay đổi toàn bộ tư duy vận hành của Engine. Thay vì tìm rác để chặn, hệ thống giờ đây mặc định coi mọi thứ là rác và chỉ cấp thông hành (`KEEP`) cho những thực thể chứng minh được mình là Danh xưng thật thụ (`TITLE`).
+- **Module RankContextClassifier độc lập:**
+    - Tách logic phân loại ngữ cảnh thành module riêng biệt với hệ thống Quy tắc (Rules) phân cấp theo độ ưu tiên (`priority`).
+    - **Funnel Filtering:** Phễu lọc qua 4 tầng: `GENERIC` (Chung chung), `STATEMENT` (Mệnh đề), `OBJECT` (Hành động), `DESCRIPTIVE` (Mô tả).
+- **Phẫu thuật Tagger & Scanner:**
+    - **Character Salvation:** Sửa lỗi chí mạng khiến các nhân vật tên ngắn (2-3 chữ như Tần Minh) bị lọc nhầm.
+    - **Scope Separation:** Cách ly logic lọc Title khỏi Skill/Location/Character, giúp các thực thể này không bị "chết oan" vì chứa từ khóa gây nhiễu (Ví dụ: Vương Lâm, Đế Viêm Quyết sẽ không bị coi là rank rác).
+- **Regex Ngoại hình mở rộng:** Tự động phát hiện và loại bỏ các cụm mô tả quần áo/tóc tai phức tạp (Hắc y, Bạch bào, Ngân phát...) thường gây nhiễu danh từ riêng.
+- **Diệt rác 'Đích' (`的`):** Quét và loại bỏ triệt để các cụm từ mang tính sở hữu/mô tả rác (VD: Chức đích Thánh đồ) lọt vào danh sách.
+
+### 🎨 Cải tiến Giao diện Heuristic Center
+- **Mount-State Protection:** Tích hợp `isMounted` ref để ngăn chặn lỗi React update state trên component đã unmount, đảm bảo app không bị crash khi người dùng chuyển tab nhanh trong lúc đang quét.
+- **Metric Fixes:** Sửa lỗi hiển thị `NAN%` trên thanh tiến trình khi dữ liệu chưa tải xong.
+- **Blacklist Reset:** Thêm nút "Xóa Sạch" bộ nhớ Blacklist Heuristic để người dùng dễ dàng reset engine khi có cập nhật logic mới.
+- **Tối ưu hóa Phối màu:** Điều chỉnh màu sắc trạng thái (Character/Skill/Location) rực rỡ và dễ phân biệt hơn.
+
+### 🛠️ Kỹ thuật (Technical Maintenance)
+- **Lint Nuke:** Dọn dẹp sạch sẽ các lỗi JSDoc, tham số không sử dụng và lỗi ép kiểu `any` trong toàn bộ module Heuristic.
+- **Modularization:** Dễ dàng mở rộng Rule Set cho các loại thực thể mới (Pháp bảo, Cảnh giới) mà không cần can thiệp vào lõi Scanner.
+
 ## [1.9.0] - 2026-02-01
 
 ### 🧠 Động cơ Kể chuyện v5.1 (Storyteller Engine v5.1) - "SỐNG ĐỘNG HÓA AI"

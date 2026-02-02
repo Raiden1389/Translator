@@ -16,6 +16,7 @@ import { PromptLab } from "@/components/workspace/PromptLab";
 import { AISettingsTab } from "./AISettingsTab";
 import { ExportTab } from "./ExportTab";
 import { OverviewTab } from "./OverviewTab";
+import { HeuristicTab } from "./HeuristicTab";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "./hooks/TranslationProvider";
@@ -51,6 +52,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
     const tabs = [
         { id: "overview", label: "Tổng Quan", icon: LayoutDashboard },
         { id: "chapters", label: "Chương", icon: FileText },
+        { id: "heuristic", label: "Heuristic Center", icon: Zap },
         { id: "dictionary", label: "Dữ Liệu Dịch", icon: BookOpen },
         { id: "promptLab", label: "Prompt Lab", icon: Swords },
         { id: "settings", label: "Cài Đặt", icon: Settings },
@@ -175,6 +177,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         <ErrorBoundary name="WorkspaceTabContent">
                             {activeTab === "overview" && <OverviewTab workspace={workspace} />}
                             {activeTab === "chapters" && <ChapterList workspaceId={id} onTranslate={startBatchTranslate} />}
+                            {activeTab === "heuristic" && <HeuristicTab workspaceId={id} />}
                             {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
                             {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
 

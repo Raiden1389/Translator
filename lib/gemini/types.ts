@@ -7,6 +7,11 @@ export interface TranslationResult {
     stats?: {
         terms: number;
         characters: number;
+        tokens?: {
+            input: number;
+            output: number;
+            total: number;
+        };
     };
 }
 

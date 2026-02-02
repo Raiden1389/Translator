@@ -15,7 +15,13 @@ export {
 } from "./contentProcessor";
 
 // Re-export constants
-export { PRONOUN_RULE, STRUCTURE_RULE, CORE_RULES, buildSystemInstruction } from "./constants";
+export {
+    CAPITALIZATION_RULE,
+    VOICE_TONE_RULE,
+    STRUCTURE_RULE,
+    CORE_RULES,
+    buildSystemInstruction
+} from "./constants";
 
 // Re-export main translation
 export { translateChapter } from "./translate";

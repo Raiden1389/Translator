@@ -72,7 +72,7 @@ export function ChapterTable(props: ChapterTableProps) {
     return (
         <div className="border border-border bg-muted/40 overflow-hidden flex flex-col h-[75vh] shadow-sm rounded-xl transition-all duration-500">
             {/* Virtualized Header - Sticky Grid */}
-            <div className="grid grid-cols-[50px_60px_1fr_1fr_140px_100px] bg-muted border-b-2 border-border/80 py-3 px-4 shadow-sm font-semibold text-[10px] uppercase tracking-widest text-muted-foreground z-20 shrink-0 transition-all duration-500">
+            <div className="grid grid-cols-[50px_60px_1fr_1fr_120px_140px_100px] bg-muted border-b-2 border-border/80 py-3 px-4 shadow-sm font-semibold text-[10px] uppercase tracking-widest text-muted-foreground z-20 shrink-0 transition-all duration-500">
                 <div className="flex items-center gap-1">
                     <Checkbox
                         checked={isPageAllSelected || (isPageSomeSelected && "indeterminate")}
@@ -100,6 +100,7 @@ export function ChapterTable(props: ChapterTableProps) {
                 <div className="text-center">C.#</div>
                 <div>Tiêu đề</div>
                 <div>Tiêu đề dịch</div>
+                <div className="text-center">Token</div>
                 <div className="text-center">Trạng thái</div>
                 <div className="text-right pr-4">Hành động</div>
             </div>
@@ -153,6 +154,7 @@ export function ChapterTable(props: ChapterTableProps) {
                                     onDelete={(id) => setDeleteId(id)}
                                     onInspect={onInspect}
                                     onClearTranslation={onClearTranslation}
+                                    stats={chapter.stats}
                                 />
                             </div>
                         );

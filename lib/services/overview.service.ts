@@ -48,18 +48,29 @@ export async function processCoverImage(file: File): Promise<string> {
  * Thống kê tổng hợp dữ liệu Workspace
  */
 export async function getWorkspaceStats(workspaceId: string) {
-    const [total, translated, terms, chars, usage] = await Promise.all([
+    const chapters = await db.chapters.where("workspaceId").equals(workspaceId).toArray();
+    const [total, translated, terms, chars] = await Promise.all([
         db.chapters.where("workspaceId").equals(workspaceId).count(),
         db.chapters.where("workspaceId").equals(workspaceId).filter(c => c.status === 'translated').count(),
         db.dictionary.where("workspaceId").equals(workspaceId).filter(d => d.type !== 'name').count(),
         db.dictionary.where("workspaceId").equals(workspaceId).filter(d => d.type === 'name').count(),
-        db.apiUsage.toArray() // Ideally filter by workspace if possible, but schema seems global for usage? 
-        // Based on existing code, it shows global usage.
     ]);
 
-    const totalInputTokens = usage.reduce((acc, curr) => acc + (curr.inputTokens || 0), 0);
-    const totalOutputTokens = usage.reduce((acc, curr) => acc + (curr.outputTokens || 0), 0);
-    const totalCostUSD = usage.reduce((acc, curr) => acc + (curr.totalCost || 0), 0);
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+
+    chapters.forEach(c => {
+        if (c.stats?.tokens) {
+            totalInputTokens += c.stats.tokens.input || 0;
+            totalOutputTokens += c.stats.tokens.output || 0;
+        }
+    });
+
+    // Cost estimation for Gemini 2.0 Flash (approximate)
+    // Input: $0.1 / 1M tokens, Output: $0.4 / 1M tokens (as of Feb 2025)
+    const costInput = (totalInputTokens / 1_000_000) * 0.1;
+    const costOutput = (totalOutputTokens / 1_000_000) * 0.4;
+    const totalCostUSD = costInput + costOutput;
 
     return {
         totalChapters: total,
@@ -102,7 +113,7 @@ export async function generateAiSummary(workspace: Workspace): Promise<string> {
     }
 
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = (modelSetting?.value as string) || "gemini-2.0-flash";
+    const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash-preview-09-2025";
 
     return await generateBookSummary(contextText, aiModel);
 }
