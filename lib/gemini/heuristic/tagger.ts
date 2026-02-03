@@ -280,6 +280,20 @@ export function extractCandidates(text: string): EntityCandidate[] {
             return null; // DROP - King + context
         }
 
+        // 🔥 RULE 30: KILL ALL RANK/TITLE COMPOUNDS (AGGRESSIVE) - ~40% rác
+        // Rationale: "宗师秦铭" or "秦铭宗师" NOT needed - Gemini translates them
+        // Examples: 发大宗师, 类宗师鼻, 宗师穹辉, 圣族大鼻, 士老祖宗
+        const RANK_TITLE_MARKERS = ['宗师', '大宗师', '圣者', '圣贤', '圣徒', '外圣', '老祖', '师父', '师伯', '师叔', '祖宗', '圣劲', '圣山', '圣族', '圣女'];
+        if (RANK_TITLE_MARKERS.some(m => core.includes(m))) {
+            return null; // DROP - Title compound (Gemini can handle)
+        }
+
+        // 🧱 RULE 31: KILL "经" IN MIDDLE POSITION - ~20% rác
+        // Examples: 经迈开蹄, 是曾经让, 经有段目, 经此地时, 经丢了面, 经离开村
+        if (/^(是|已|曾|正).{0,2}经/.test(core) || /经(迈|有|此|丢|离|他|落|让)/.test(core)) {
+            return null; // DROP - 经 as adverb
+        }
+
         return core;
     };
 
