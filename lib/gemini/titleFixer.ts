@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { withKeyRotation } from "./client";
 import { DEFAULT_MODEL } from "../ai-models";
+import { SyllableRepository } from "../repositories/syllable-repo";
 
 /**
  * Translate ONLY the chapter title (ultra-cheap, ~$0.000005/title)
@@ -10,19 +11,19 @@ export async function translateTitleOnly(chineseTitle: string, retryCount = 0): 
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
 
-    const prompt = `Dịch tiêu đề chương này sang tiếng Việt hoàn toàn. 
+    const prompt = `BẠN LÀ MỘT CHUYÊN GIA DỊCH THUẬT CẤP CAO.
+NHIỆM VỤ: Dịch tiêu đề chương này sang Tiếng Việt.
+
 Tiêu đề gốc: "${chineseTitle}"
 
-QUY TẮC BẤT DI BẤT DỊCH:
-1. Trả về DUY NHẤT tiêu đề tiếng Việt. CẤM giải thích.
-2. KHÔNG ĐƯỢC giữ lại bất kỳ ký tự Trung Quốc (Hán tự) nào.
-3. Dịch thoát ý hoặc Hán Việt đều được, miễn là 100% chữ cái Latinh.
+QUY TẮC SỐNG CÒN:
+1. TRẢ VỀ DUY NHẤT TIÊU ĐỀ TIẾNG VIỆT. CẤM GIẢI THÍCH.
+2. TUYỆT ĐỐI KHÔNG ĐƯỢC GIỮ LẠI BẤT KỲ CHỮ HÁN NÀO ([\u4e00-\u9fff]).
+3. NẾU KHÔNG BIẾT DỊCH, HÃY PHIÊN ÂM HÁN VIỆT.
+4. ĐẢM BẢO 100% KÝ TỰ LATIN.
 
-VÍ DỤ:
-- "第104章 顺势" → "Chương 104: Thuận Thế"
-- "第34章 血竹林" → "Chương 34: Huyết Trúc Lâm"
-
-⛔ CẤM TUYỆT ĐỐI: "Chương 34 血竹林" (SAI VÌ CÒN CHỮ HÁN)`;
+VÍ DỤ SAI: "Chương 34 血竹林" (VÌ CÒN CHỮ HÁN)
+VÍ DỤ ĐÚNG: "Chương 34: Huyết Trúc Lâm"`;
 
     try {
         interface GeminiResponse {
@@ -48,26 +49,53 @@ VÍ DỤ:
         ));
 
         let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        text = text.trim().replace(/^"|"$/g, ''); // Remove quotes if AI adds them
+        text = text.trim().replace(/^"|"$/g, '');
 
-        // Self-Correction logic
-        if (hasChinese(text) && retryCount < 1) {
-            console.warn(`[Title Fixer] AI failed, retrying once for: ${chineseTitle}`);
-            return translateTitleOnly(chineseTitle, retryCount + 1);
+        // 🛡️ Logic tự sửa lỗi (Self-Correction)
+        if (hasChinese(text)) {
+            if (retryCount < 2) {
+                console.warn(`[Title Fixer] AI thất bại lần ${retryCount + 1}, đang thử lại cho: ${chineseTitle}`);
+                return translateTitleOnly(chineseTitle, retryCount + 1);
+            } else {
+                // 🆘 CỨU HỘ CUỐI CÙNG: Dùng Hán Việt cục bộ
+                console.warn(`[Title Fixer] AI bó tay, dùng cứu hiệu Hán Việt cho: ${text || chineseTitle}`);
+                return forceRescue(text || chineseTitle);
+            }
         }
 
         return text;
     } catch (error) {
         console.error(`[Title Translation Error]`, error);
+        // Nếu lỗi mạng/AI, cũng dùng cứu hộ nếu có thể
+        if (hasChinese(chineseTitle)) return forceRescue(chineseTitle);
         throw error;
     }
+}
+
+/**
+ * Buộc chuyển đổi Hán tự sang Hán Việt để đảm bảo sạch 100%
+ */
+function forceRescue(text: string): string {
+    const repo = SyllableRepository.getInstance();
+    // Comprehensive CJK range: Common, Ext A, Compatibility
+    const cjkRegex = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+/g;
+    return text.replace(cjkRegex, (match) => {
+        return Array.from(match)
+            .map(char => {
+                const hv = repo.get(char);
+                if (hv) return hv.charAt(0).toUpperCase() + hv.slice(1);
+                // Fallback: If not in dict, maybe it's punctuation or special symbol, keep if not CJK
+                return hasChinese(char) ? '' : char;
+            })
+            .join(' ');
+    }).replace(/\s+/g, ' ').trim();
 }
 
 /**
  * Detect if a title contains Chinese characters
  */
 export function hasChinese(text: string): boolean {
-    return /[\u4e00-\u9fff]/.test(text);
+    return /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/.test(text);
 }
 
 /**
@@ -78,6 +106,9 @@ export async function fixAllTitles(
     workspaceId: string,
     onProgress?: (current: number, total: number, title: string) => void
 ): Promise<{ fixed: number; skipped: number; errors: string[] }> {
+    // Đảm bảo dữ liệu Hán Việt đã tải
+    await SyllableRepository.getInstance().load("/dicts/ChinesePhienAmWords.txt");
+
     const chapters = await db.chapters
         .where('workspaceId')
         .equals(workspaceId)

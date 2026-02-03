@@ -1,5 +1,19 @@
 Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
 
+## [2.2.0] - 2026-02-03
+
+### 🧹 Siêu Phễu Heuristic v2.2 (The Double-Check Purge)
+- **Cơ chế Double-Check Blacklist:** Khắc phục lỗ hổng logic bằng cách kiểm tra Blacklist một lần nữa ngay sau khi tuốt vỏ rác. Điều này đảm bảo các từ như "Thiên Thần Các Tự" khi tuốt thành "Thiên Thần" sẽ bị chặn đứng ngay lập tức.
+- **Aggressive Noise Suppression (Mythology & Roles):**
+    - Chặn đứng các thực thể phổ thông: `Thiên Thần`, `Thiên Vương`, `Thiên vương liên liên`, `Lao ngục thiên vương`.
+    - Mở rộng bộ lọc cho các thuật ngữ tu luyện: `Nguyên Thần`, `Thần Thức`, `Thần Quan`.
+    - Bổ sung bộ lọc cho trạng từ và danh xưng phụ: `Đột nhiên`, `Thông thông`, `Các tự`, `Lão thái`, `Hương chủ`.
+- **Auto-Clean Scanner:** Tự động dọn dẹp (delete) các thuật ngữ chưa duyệt (Pending) của Workspace trước khi quét lại, đảm bảo kết quả luôn phản ánh bộ quy tắc lọc mới nhất.
+- **Syllable Stripping Perfection:** Cải tiến `stripNoise` để tuốt vỏ rác ngay cả với các từ ngắn, giúp loại bỏ các hạt từ rác (như `Liễu`, `Đích`) bám đuôi tên nhân vật.
+- **Hiệu năng thực chiến:** Giảm nhiễu từ hàng nghìn kết quả xuống còn ~60-90 thuật ngữ tinh hoa cho 700 chương truyện.
+- **Smart Delta Caching (Bộ nhớ Delta):** Tích hợp cơ chế `ignoreSet` để tự động bỏ qua các thuật ngữ đã được bố "chốt" hoặc "xóa" (blacklist) từ trước. Scanner giờ đây chỉ tập trung tìm kiếm cái mới, giúp tốc độ quét nhanh hơn và bảo vệ sự toàn vẹn của từ điển.
+- **Persistent Syllable Cache:** Tối ưu hóa việc nạp dữ liệu âm Hán Việt vào bộ nhớ CPU (Singleton Pattern), giảm độ trễ khi gợi ý dịch âm cho thực thể.
+
 ## [2.1.0] - 2026-02-03
 
 ### 💰 Tối ưu hóa Token & Kiểm soát Chi phí (Cost Efficiency Phase)

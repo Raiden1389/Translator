@@ -1,4 +1,4 @@
-import { EntityCandidate } from './tagger';
+import { Candidate } from './tagger';
 
 export enum GenericDecision {
     KEEP = 'KEEP',
@@ -15,7 +15,7 @@ export interface GenericGuardResult {
  * GENERIC ENTITY GUARD
  * Purpose: Kill generic titles / ranks / templates even if frequency is high.
  */
-export function genericEntityGuard(entity: EntityCandidate): GenericGuardResult {
+export function genericEntityGuard(entity: Candidate): GenericGuardResult {
     const text = entity.original;
     const len = text.length;
 

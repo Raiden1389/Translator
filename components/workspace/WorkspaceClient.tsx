@@ -52,7 +52,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
     const tabs = [
         { id: "overview", label: "Tổng Quan", icon: LayoutDashboard },
         { id: "chapters", label: "Chương", icon: FileText },
-        { id: "heuristic", label: "Heuristic Center", icon: Zap },
+        { id: "heuristic", label: "Trung tâm Thuật ngữ", icon: Zap },
         { id: "dictionary", label: "Dữ Liệu Dịch", icon: BookOpen },
         { id: "promptLab", label: "Prompt Lab", icon: Swords },
         { id: "settings", label: "Cài Đặt", icon: Settings },

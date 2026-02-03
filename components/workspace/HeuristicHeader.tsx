@@ -47,10 +47,10 @@ export function HeuristicHeader({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 px-1 pt-2">
             <div className="space-y-1">
                 <h2 className="text-2xl font-bold tracking-tight flex items-center gap-3 text-slate-900 border-0">
-                    Heuristic Center
+                    Trung tâm Thuật ngữ
                     <div className="flex items-center bg-slate-100 rounded-full px-3 py-1 gap-2 border border-slate-200/50">
-                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-tighter">Nhân vật</span>
-                        <span className="text-sm font-black text-indigo-600">{stats.character}</span>
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-tighter">Thuật ngữ</span>
+                        <span className="text-sm font-black text-indigo-600">{stats.total}</span>
                     </div>
                 </h2>
                 <p className="text-slate-500 text-sm font-medium">

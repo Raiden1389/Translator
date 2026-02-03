@@ -1,19 +1,10 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-    DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { User, MapPin, Zap, Users, Sparkles, Settings2 } from "lucide-react";
+import React, { useState } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { X, User, MapPin, Zap, Users, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { TermType } from "@/lib/services/name-hunter/types";
-import { cn } from "@/lib/utils";
 
 interface ScanConfigDialogProps {
     open: boolean;
@@ -21,17 +12,54 @@ interface ScanConfigDialogProps {
     onStart: (selectedTypes: TermType[]) => void;
 }
 
-const ENTITY_OPTIONS = [
-    { id: TermType.Person, label: "Nhân vật", icon: User, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { id: TermType.Location, label: "Địa danh", icon: MapPin, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-    { id: TermType.Skill, label: "Công pháp / Kỹ năng", icon: Zap, color: "text-amber-500", bg: "bg-amber-500/10" },
-    { id: TermType.Organization, label: "Tổ chức / Thế lực", icon: Users, color: "text-purple-500", bg: "bg-purple-500/10" },
-];
+const SELECTION_ITEMS = [
+    {
+        id: TermType.Person,
+        label: 'Nhân vật',
+        icon: User,
+        color: 'blue',
+        bg: 'bg-blue-50/50',
+        border: 'border-blue-200',
+        iconColor: 'text-blue-500',
+    },
+    {
+        id: TermType.Location,
+        label: 'Địa danh',
+        icon: MapPin,
+        color: 'emerald',
+        bg: 'bg-emerald-50/50',
+        border: 'border-emerald-200',
+        iconColor: 'text-emerald-500',
+    },
+    {
+        id: TermType.Skill,
+        label: 'Công pháp / Kỹ năng',
+        icon: Zap,
+        color: 'amber',
+        bg: 'bg-amber-50/50',
+        border: 'border-amber-200',
+        iconColor: 'text-amber-500',
+    },
+    {
+        id: TermType.Organization,
+        label: 'Tổ chức / Thế lực',
+        icon: Users,
+        color: 'purple',
+        bg: 'bg-purple-50/50',
+        border: 'border-purple-200',
+        iconColor: 'text-purple-500',
+    },
+] as const;
 
 export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDialogProps) {
-    const [selected, setSelected] = useState<TermType[]>([TermType.Person, TermType.Location, TermType.Skill, TermType.Organization]);
+    const [selected, setSelected] = useState<TermType[]>([
+        TermType.Person,
+        TermType.Location,
+        TermType.Skill,
+        TermType.Organization
+    ]);
 
-    const toggleType = (type: TermType) => {
+    const toggle = (type: TermType) => {
         setSelected(prev =>
             prev.includes(type)
                 ? prev.filter(t => t !== type)
@@ -39,64 +67,116 @@ export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDial
         );
     };
 
-    const handleStart = () => {
-        if (selected.length === 0) return;
-        onStart(selected);
-        onOpenChange(false);
-    };
+    const hasSelection = selected.length > 0;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md bg-card border-border shadow-2xl overflow-hidden p-0">
-                <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-purple-500 via-blue-500 to-emerald-500" />
+        <Dialog.Root open={open} onOpenChange={onOpenChange}>
+            <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-md z-50 animate-in fade-in duration-300" />
+                <Dialog.Content
+                    className={cn(
+                        "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[480px]",
+                        "bg-white rounded-3xl shadow-2xl p-8 z-50 outline-none",
+                        "animate-in zoom-in-95 fade-in duration-300"
+                    )}
+                >
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                                <Sparkles size={24} />
+                            </div>
+                            <Dialog.Title className="text-2xl font-bold text-slate-800">
+                                Cấu hình Quét AI
+                            </Dialog.Title>
+                        </div>
+                        <Dialog.Close className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-full hover:bg-slate-100">
+                            <X size={20} />
+                        </Dialog.Close>
+                    </div>
 
-                <DialogHeader className="p-6 pb-2">
-                    <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-                        <Settings2 className="w-5 h-5 text-primary" />
-                        Cấu hình Quét AI
-                    </DialogTitle>
-                    <DialogDescription>
+                    <Dialog.Description className="text-slate-500 mb-8 ml-11">
                         Chọn các loại thực thể mà ông muốn AI tìm kiếm trong văn bản.
-                    </DialogDescription>
-                </DialogHeader>
+                    </Dialog.Description>
 
-                <div className="p-6 pt-2 space-y-3">
-                    {ENTITY_OPTIONS.map((opt) => (
-                        <div
-                            key={opt.id}
-                            onClick={() => toggleType(opt.id)}
+                    <div className="space-y-4 mb-8">
+                        {SELECTION_ITEMS.map((item) => {
+                            const isActive = selected.includes(item.id);
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => toggle(item.id)}
+                                    className={cn(
+                                        "w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-200 text-left group",
+                                        isActive
+                                            ? `${item.bg} ${item.border} border-opacity-100 shadow-sm`
+                                            : "bg-white border-slate-100 hover:border-slate-200"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={cn(
+                                            "p-3 rounded-xl transition-colors",
+                                            isActive ? item.bg.replace('/50', '') : "bg-slate-50 text-slate-400"
+                                        )}>
+                                            <item.icon className={cn("transition-colors", isActive ? item.iconColor : "")} size={22} />
+                                        </div>
+                                        <span className={cn(
+                                            "font-semibold text-lg transition-colors",
+                                            isActive ? "text-slate-800" : "text-slate-400"
+                                        )}>
+                                            {item.label}
+                                        </span>
+                                    </div>
+                                    <div className={cn(
+                                        "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200",
+                                        isActive
+                                            ? "bg-blue-600 border-blue-600 text-white"
+                                            : "border-slate-300 group-hover:border-slate-400"
+                                    )}>
+                                        {isActive && (
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="3"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                className="w-4 h-4"
+                                            >
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-4 mt-4">
+                        <button
+                            onClick={() => onOpenChange(false)}
+                            className="px-6 py-2.5 text-slate-500 font-semibold hover:bg-slate-50 rounded-xl transition-colors"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            disabled={!hasSelection}
+                            onClick={() => {
+                                onStart(selected);
+                                onOpenChange(false);
+                            }}
                             className={cn(
-                                "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200",
-                                selected.includes(opt.id)
-                                    ? "bg-muted/50 border-primary/50 shadow-sm"
-                                    : "bg-transparent border-transparent hover:bg-muted/30 opacity-60"
+                                "flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-white transition-all shadow-lg active:scale-95",
+                                hasSelection
+                                    ? "bg-linear-to-r from-purple-600 to-indigo-600 hover:shadow-purple-200"
+                                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
                             )}
                         >
-                            <div className={cn("p-2 rounded-lg", opt.bg, opt.color)}>
-                                <opt.icon className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 font-medium text-sm">{opt.label}</div>
-                            <Checkbox
-                                checked={selected.includes(opt.id)}
-                                onCheckedChange={() => toggleType(opt.id)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="data-[state=checked]:bg-primary"
-                            />
-                        </div>
-                    ))}
-                </div>
-
-                <DialogFooter className="p-6 bg-muted/20 border-t border-border">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Hủy</Button>
-                    <Button
-                        disabled={selected.length === 0}
-                        onClick={handleStart}
-                        className="bg-purple-600 hover:bg-purple-700 text-white min-w-[120px]"
-                    >
-                        <Sparkles className="w-4 h-4 mr-2" /> Bắt đầu quét
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                            <Sparkles size={18} />
+                            Bắt đầu quét
+                        </button>
+                    </div>
+                </Dialog.Content>
+            </Dialog.Portal>
+        </Dialog.Root>
     );
 }

@@ -4,7 +4,6 @@ import { suggestHanViet } from './utils';
 import { SyllableRepository } from '../../repositories/syllable-repo';
 import { resolveEntity, EntityFinalDecision } from './conflict-resolver';
 import { genericEntityGuard, GenericDecision } from './generic-entity-guard';
-import { resolveRankV18, classifyRankContext } from './rank-resolver';
 import { toast } from 'sonner';
 import { ROLE_NOUNS, FUNCTION_WORDS, COMPOSITE_MARKERS } from './patterns';
 
@@ -211,8 +210,27 @@ export async function scanWorkspaceHeuristics(
             - Final candidates: ${uniqueCandidates.length + Array.from(rawMap.values()).filter(c => c.occurrences === 1).length}
         `);
 
-        const singles = Array.from(rawMap.values()).filter(c => c.occurrences === 1);
+        const singlesFull = Array.from(rawMap.values()).filter(c => c.occurrences === 1);
+
+        // 🧪 REDUCE NOISE: Only keep singles with High Signal
+        const singles = singlesFull.filter(c => {
+            // Keep if it has verb context (strong signal)
+            if (c.hasVerbContext) return true;
+            // Keep if it's a long specific term (4+ chars usually specific)
+            if (c.original.length >= 4) return true;
+            // Otherwise, singles are usually trash or noise
+            return false;
+        });
+
         const finalCandidates = [...uniqueCandidates, ...singles];
+
+        console.log(`[Scanner v3.2] Noise Suppression Report:
+            - Initial Raw: ${rawMap.size}
+            - Shadows killed: ${killedCount}
+            - Singles total: ${singlesFull.length}
+            - Singles preserved: ${singles.length} (Killed: ${singlesFull.length - singles.length})
+            - Final to process: ${finalCandidates.length}
+        `);
 
         // --- PHASE 2: SCORING & FILTERING ---
         if (onProgress) {
@@ -231,14 +249,10 @@ export async function scanWorkspaceHeuristics(
                 throw new DOMException('Scan aborted during scoring', 'AbortError');
             }
 
-            if (ignoreSet.has(raw.original)) continue;
+            // 🎯 STICKY FILTER: Only scan for Characters as requested
+            if (raw.type !== 'character') continue;
 
-            if (raw.type === 'title') {
-                const rankShape = resolveRankV18(raw.original);
-                if (rankShape === 'RANK') continue;
-                const rankCtx = classifyRankContext(raw.original);
-                if (rankCtx !== 'TITLE') continue;
-            }
+            if (ignoreSet.has(raw.original)) continue;
 
             const flags = {
                 isGenericHuman: ROLE_NOUNS.some((r: string) => raw.original === r),
@@ -262,7 +276,8 @@ export async function scanWorkspaceHeuristics(
                 type: raw.type as 'character' | 'skill' | 'location' | 'title' | 'unknown',
                 confidence: resolution.score,
                 reason: '',
-                occurrences: raw.occurrences
+                occurrences: raw.occurrences,
+                hasVerbContext: raw.hasVerbContext
             });
 
             if (guardResult.decision === GenericDecision.DROP) continue;
@@ -289,6 +304,15 @@ export async function scanWorkspaceHeuristics(
         if (abortSignal?.aborted) {
             throw new DOMException('Scan aborted before DB write', 'AbortError');
         }
+
+        // --- PHASE 2.5: AUTO-CLEAN OLD PENDING TERMS ---
+        // We delete all terms that are NOT approved for this workspace 
+        // to ensure the scan is fresh and reflects new rules.
+        onProgress?.(total, total, `🧹 Đang dọn dẹp dữ liệu cũ...`);
+        await db.heuristicTerms
+            .where('workspaceId').equals(workspaceId)
+            .filter(t => !t.isApproved)
+            .delete();
 
         // --- PHASE 3: CHUNKED DB WRITE (CRITICAL FIX) ---
         if (finalBatch.length > 0) {

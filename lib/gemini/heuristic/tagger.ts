@@ -172,6 +172,12 @@ export class HeuristicEngine {
             return null;
         }
 
+        // Re-check blacklist after strip
+        if (this.blacklist.has(core)) {
+            trace.push('❌ REJECT: blacklisted after strip');
+            return null;
+        }
+
         // 3. Logic Rejects
         if (this.isNoisePhrase(core, trace)) return null;
 
@@ -208,7 +214,7 @@ export class HeuristicEngine {
 
             // 💡 Fix #3: Prefix Pool is pre-sorted DESC (Longest match first)
             for (const p of this.prefixPool) {
-                if (cur.startsWith(p) && cur.length >= p.length + HeuristicEngine.MIN_CORE_LENGTH) {
+                if (cur.startsWith(p) && cur.length > p.length) {
                     if (this.protectedTerms.has(cur)) break;
                     cur = cur.slice(p.length);
                     trace.push(`✂️ STRIP (it:${iteration}): prefix "${p}" -> ${cur}`);
@@ -220,7 +226,7 @@ export class HeuristicEngine {
 
             // Suffix Pool
             for (const s of this.suffixPool) {
-                if (cur.endsWith(s) && cur.length >= s.length + HeuristicEngine.MIN_CORE_LENGTH) {
+                if (cur.endsWith(s) && cur.length > s.length) {
                     if (this.protectedTerms.has(cur)) break;
                     cur = cur.slice(0, -s.length);
                     trace.push(`✂️ STRIP (it:${iteration}): suffix "${s}" -> ${cur}`);
