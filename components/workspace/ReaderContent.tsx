@@ -96,7 +96,7 @@ const ParagraphItem = React.memo(({
         <p
             id={`tts-para-${index}`}
             className={cn(
-                "mb-(--reader-paragraph-spacing) transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
+                "mb-[var(--reader-paragraph-spacing)] transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
                 // Option: Only indent if narrative OR if user explicitly wants it
                 readerConfig.indentText && !isDialogue && "indent-8",
                 "hover:cursor-text",

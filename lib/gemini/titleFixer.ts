@@ -25,7 +25,15 @@ VÍ DỤ:
 ⛔ CẤM TUYỆT ĐỐI: "Chương 34 血竹林" (SAI VÌ CÒN CHỮ HÁN)`;
 
     try {
-        const result = (await withKeyRotation<any>(
+        interface GeminiResponse {
+            candidates: Array<{
+                content: {
+                    parts: Array<{ text: string }>
+                }
+            }>
+        }
+
+        const result = (await withKeyRotation<GeminiResponse>(
             {
                 model: (aiModel as string).trim(),
                 prompt,
@@ -37,7 +45,7 @@ VÍ DỤ:
                 }
             },
             (msg: string) => console.log(`[Title Fixer] ${msg}`)
-        )) as any;
+        ));
 
         let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         text = text.trim().replace(/^"|"$/g, ''); // Remove quotes if AI adds them

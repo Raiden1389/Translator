@@ -20,6 +20,7 @@ export function DisplaySettings({
 }: DisplaySettingsProps) {
     const bgInputRef = useRef<HTMLInputElement>(null);
     const textInputRef = useRef<HTMLInputElement>(null);
+    const [activePicker, setActivePicker] = React.useState<"bg" | "text" | null>(null);
 
     if (!showSettings) return null;
 
@@ -33,65 +34,63 @@ export function DisplaySettings({
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                     <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest block">Nền</label>
-                    <div className="relative group/picker">
+                    <div className="relative">
                         <div
                             className="h-8 w-full rounded border border-border cursor-pointer transition-colors hover:border-muted-foreground/30"
                             style={{ backgroundColor: readerConfig.backgroundColor || "#ffffff" }}
-                            onClick={(e) => {
-                                const el = e.currentTarget.nextElementSibling as HTMLElement;
-                                el.classList.toggle('hidden');
-                            }}
+                            onClick={() => setActivePicker(activePicker === "bg" ? null : "bg")}
                         />
-                        <div className="hidden absolute top-full left-0 mt-2 p-2 bg-background border border-border rounded shadow-none z-210 grid grid-cols-4 gap-1.5 w-40">
-                            {["#ffffff", "#f8fafc", "#f1f5f9", "#fdfcf0", "#f5f5f4", "#faf7ed", "#f3f4f6", "#ecfdf5"].map((color) => (
-                                <button
-                                    key={color}
-                                    className={cn(
-                                        "w-7 h-7 rounded-none border border-border transition-all",
-                                        readerConfig.backgroundColor === color && "ring-1 ring-primary ring-offset-1"
-                                    )}
-                                    style={{ backgroundColor: color }}
-                                    onClick={() => {
-                                        setReaderConfig({ ...readerConfig, backgroundColor: color });
-                                        document.querySelectorAll('.group\\/picker > div:last-child').forEach(el => el.classList.add('hidden'));
-                                    }}
-                                />
-                            ))}
-                            <button className="col-span-4 text-[9px] font-bold text-muted-foreground hover:text-foreground h-5 pt-1" onClick={() => bgInputRef.current?.click()}>Custom</button>
-                            <input type="color" ref={bgInputRef} className="invisible absolute w-0 h-0" value={readerConfig.backgroundColor || "#ffffff"} onChange={(e) => setReaderConfig({ ...readerConfig, backgroundColor: e.target.value })} />
-                        </div>
+                        {activePicker === "bg" && (
+                            <div className="absolute top-full left-0 mt-2 p-2 bg-background border border-border rounded shadow-none z-210 grid grid-cols-4 gap-1.5 w-40">
+                                {["#ffffff", "#f8fafc", "#f1f5f9", "#fdfcf0", "#f5f5f4", "#faf7ed", "#f3f4f6", "#ecfdf5"].map((color) => (
+                                    <button
+                                        key={color}
+                                        className={cn(
+                                            "w-7 h-7 rounded-none border border-border transition-all",
+                                            readerConfig.backgroundColor === color && "ring-1 ring-primary ring-offset-1"
+                                        )}
+                                        style={{ backgroundColor: color }}
+                                        onClick={() => {
+                                            setReaderConfig({ ...readerConfig, backgroundColor: color });
+                                            setActivePicker(null);
+                                        }}
+                                    />
+                                ))}
+                                <button className="col-span-4 text-[9px] font-bold text-muted-foreground hover:text-foreground h-5 pt-1" onClick={() => bgInputRef.current?.click()}>Custom</button>
+                                <input type="color" ref={bgInputRef} className="invisible absolute w-0 h-0" value={readerConfig.backgroundColor || "#ffffff"} onChange={(e) => setReaderConfig({ ...readerConfig, backgroundColor: e.target.value })} />
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 <div className="space-y-1">
                     <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest block">Chữ</label>
-                    <div className="relative group/picker">
+                    <div className="relative">
                         <div
                             className="h-8 w-full rounded border border-border cursor-pointer transition-colors hover:border-muted-foreground/30"
                             style={{ backgroundColor: readerConfig.textColor || "#262626" }}
-                            onClick={(e) => {
-                                const el = e.currentTarget.nextElementSibling as HTMLElement;
-                                el.classList.toggle('hidden');
-                            }}
+                            onClick={() => setActivePicker(activePicker === "text" ? null : "text")}
                         />
-                        <div className="hidden absolute top-full right-0 mt-2 p-2 bg-background border border-border rounded shadow-none z-210 grid grid-cols-4 gap-1.5 w-40">
-                            {["#171717", "#262626", "#404040", "#525252", "#7c2d12", "#1e3a8a", "#064e3b", "#701a75"].map((color) => (
-                                <button
-                                    key={color}
-                                    className={cn(
-                                        "w-7 h-7 rounded-none border border-border transition-all",
-                                        readerConfig.textColor === color && "ring-1 ring-primary ring-offset-1"
-                                    )}
-                                    style={{ backgroundColor: color }}
-                                    onClick={() => {
-                                        setReaderConfig({ ...readerConfig, textColor: color });
-                                        document.querySelectorAll('.group\\/picker > div:last-child').forEach(el => el.classList.add('hidden'));
-                                    }}
-                                />
-                            ))}
-                            <button className="col-span-4 text-[9px] font-bold text-muted-foreground hover:text-foreground h-5 pt-1" onClick={() => textInputRef.current?.click()}>Custom</button>
-                            <input type="color" ref={textInputRef} className="invisible absolute w-0 h-0" value={readerConfig.textColor || "#262626"} onChange={(e) => setReaderConfig({ ...readerConfig, textColor: e.target.value })} />
-                        </div>
+                        {activePicker === "text" && (
+                            <div className="absolute top-full right-0 mt-2 p-2 bg-background border border-border rounded shadow-none z-210 grid grid-cols-4 gap-1.5 w-40">
+                                {["#171717", "#262626", "#404040", "#525252", "#7c2d12", "#1e3a8a", "#064e3b", "#701a75"].map((color) => (
+                                    <button
+                                        key={color}
+                                        className={cn(
+                                            "w-7 h-7 rounded-none border border-border transition-all",
+                                            readerConfig.textColor === color && "ring-1 ring-primary ring-offset-1"
+                                        )}
+                                        style={{ backgroundColor: color }}
+                                        onClick={() => {
+                                            setReaderConfig({ ...readerConfig, textColor: color });
+                                            setActivePicker(null);
+                                        }}
+                                    />
+                                ))}
+                                <button className="col-span-4 text-[9px] font-bold text-muted-foreground hover:text-foreground h-5 pt-1" onClick={() => textInputRef.current?.click()}>Custom</button>
+                                <input type="color" ref={textInputRef} className="invisible absolute w-0 h-0" value={readerConfig.textColor || "#262626"} onChange={(e) => setReaderConfig({ ...readerConfig, textColor: e.target.value })} />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -153,7 +152,7 @@ export function DisplaySettings({
                         {[{ v: "left", i: AlignLeft }, { v: "center", i: AlignCenter }, { v: "justify", i: AlignJustify }].map((a) => (
                             <button
                                 key={a.v}
-                                onClick={() => setReaderConfig((prev) => ({ ...prev, textAlign: a.v as any }))}
+                                onClick={() => setReaderConfig((prev) => ({ ...prev, textAlign: a.v as "left" | "center" | "right" | "justify" }))}
                                 className={cn(
                                     "flex-1 flex items-center justify-center transition-all",
                                     readerConfig.textAlign === a.v ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
