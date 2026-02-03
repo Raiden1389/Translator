@@ -10,6 +10,7 @@ const DEFAULT_CONFIG: ReaderConfig = {
     backgroundColor: "#1e293b",
     maxWidth: 800,
     showDialogueLines: true,
+    indentText: true,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: "vi-VN-HoaiMyNeural", // Default Vietnamese voice
@@ -30,12 +31,17 @@ export function useReaderConfig() {
         if (savedConfig) {
             try {
                 const parsed = JSON.parse(savedConfig);
-                setReaderConfig({ ...DEFAULT_CONFIG, ...parsed });
+                setTimeout(() => {
+                    setReaderConfig(prev => ({ ...prev, ...parsed }));
+                    setConfigLoaded(true);
+                }, 0);
             } catch (e) {
                 console.error("Failed to parse reader config", e);
+                setTimeout(() => setConfigLoaded(true), 0);
             }
+        } else {
+            setTimeout(() => setConfigLoaded(true), 0);
         }
-        setConfigLoaded(true);
     }, []);
 
     // Save settings to localStorage whenever they change (but only after initial load)
