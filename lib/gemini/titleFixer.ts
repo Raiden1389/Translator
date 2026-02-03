@@ -6,21 +6,23 @@ import { DEFAULT_MODEL } from "../ai-models";
  * Translate ONLY the chapter title (ultra-cheap, ~$0.000005/title)
  * Used to fix chapters with Chinese characters remaining in titles
  */
-export async function translateTitleOnly(chineseTitle: string): Promise<string> {
+export async function translateTitleOnly(chineseTitle: string, retryCount = 0): Promise<string> {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
 
-    const prompt = `Dịch tiêu đề chương này sang tiếng Việt:
-"${chineseTitle}"
+    const prompt = `Dịch tiêu đề chương này sang tiếng Việt hoàn toàn. 
+Tiêu đề gốc: "${chineseTitle}"
 
-Quy tắc:
-- Chỉ trả về tiêu đề đã dịch, KHÔNG giải thích
-- Dịch HOÀN TOÀN sang tiếng Việt, KHÔNG giữ chữ Hán
-- Giữ format "Chương X: Tên"
+QUY TẮC BẤT DI BẤT DỊCH:
+1. Trả về DUY NHẤT tiêu đề tiếng Việt. CẤM giải thích.
+2. KHÔNG ĐƯỢC giữ lại bất kỳ ký tự Trung Quốc (Hán tự) nào.
+3. Dịch thoát ý hoặc Hán Việt đều được, miễn là 100% chữ cái Latinh.
 
-Ví dụ:
-"第104章 顺势" → "Chương 104: Thuận Thế"
-"第1章 开始" → "Chương 1: Khởi Đầu"`;
+VÍ DỤ:
+- "第104章 顺势" → "Chương 104: Thuận Thế"
+- "第34章 血竹林" → "Chương 34: Huyết Trúc Lâm"
+
+⛔ CẤM TUYỆT ĐỐI: "Chương 34 血竹林" (SAI VÌ CÒN CHỮ HÁN)`;
 
     try {
         const result = (await withKeyRotation<any>(
@@ -28,17 +30,25 @@ Ví dụ:
                 model: (aiModel as string).trim(),
                 prompt,
                 generationConfig: {
-                    temperature: 0.1,
+                    temperature: 0.1, // Low temperature for stability
                     topP: 0.95,
-                    maxOutputTokens: 50, // Tiny! Just a title
+                    maxOutputTokens: 100,
                     responseMimeType: "text/plain",
                 }
             },
-            (msg: string) => console.log(`[Title Translation] ${msg}`)
+            (msg: string) => console.log(`[Title Fixer] ${msg}`)
         )) as any;
 
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        return text.trim();
+        let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        text = text.trim().replace(/^"|"$/g, ''); // Remove quotes if AI adds them
+
+        // Self-Correction logic
+        if (hasChinese(text) && retryCount < 1) {
+            console.warn(`[Title Fixer] AI failed, retrying once for: ${chineseTitle}`);
+            return translateTitleOnly(chineseTitle, retryCount + 1);
+        }
+
+        return text;
     } catch (error) {
         console.error(`[Title Translation Error]`, error);
         throw error;
