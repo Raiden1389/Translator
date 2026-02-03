@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { fixAllTitles } from "@/lib/gemini/titleFixer";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -91,6 +92,39 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
     const [clearCacheConfirmOpen, setClearCacheConfirmOpen] = useState(false);
     const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
+    // Title Fixing State
+    const [isFixingTitles, setIsFixingTitles] = useState(false);
+
+    const handleFixTitles = async () => {
+        if (isFixingTitles) return;
+
+        setIsFixingTitles(true);
+        const toastId = "fix-titles-toast";
+        toast.loading("Đang quét và sửa tiêu đề Hán tự...", { id: toastId });
+
+        try {
+            const stats = await fixAllTitles(workspaceId, (current, total, title) => {
+                toast.loading(`Sửa tiêu đề (${current}/${total}): ${title}`, { id: toastId });
+            });
+
+            if (stats.fixed > 0) {
+                toast.success(`Đã sửa xong ${stats.fixed} tiêu đề!`, { id: toastId, duration: 5000 });
+            } else {
+                toast.info("Không tìm thấy tiêu đề nào cần sửa.", { id: toastId });
+            }
+
+            if (stats.errors.length > 0) {
+                console.error("Errors during title fixing:", stats.errors);
+                toast.error(`Có ${stats.errors.length} tiêu đề gặp lỗi khi dịch.`);
+            }
+        } catch (error) {
+            console.error("Title fixer crashed:", error);
+            toast.error("Lỗi hệ thống khi sửa tiêu đề.", { id: toastId });
+        } finally {
+            setIsFixingTitles(false);
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     const hasSelection = selectedChapters.length > 0;
@@ -122,6 +156,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
             />
 
             <ChapterListHeader
+                workspaceId={workspaceId}
                 totalChapters={chapters.length}
                 searchTerm={search}
                 setSearchTerm={setSearch}
@@ -167,7 +202,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                     setIsProcessing(false);
                     toast.success("Đã làm mới dữ liệu và bộ lọc.");
                 }}
-                processing={isProcessing}
+                processing={isProcessing || isFixingTitles}
                 onSelectRange={(start, end) => {
                     // Select chapters within the visual range (1-based index)
                     // If filtered is sorted by order, this selects Chapter X to Y.
@@ -178,6 +213,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                         toast.success(`Đã chọn ${ids.length} chương`);
                     }
                 }}
+                onFixTitles={handleFixTitles}
             />
 
             <ErrorBoundary name="ChapterListView">

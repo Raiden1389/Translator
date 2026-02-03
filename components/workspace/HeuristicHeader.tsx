@@ -8,11 +8,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import {
     RotateCw,
     Trash2,
-    Sparkles,
     CheckCircle2,
     Loader2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { HeuristicTerm, BlacklistEntry } from '@/lib/db';
 import type { ForensicReport } from '@/lib/gemini/heuristic/forensic-analyzer';
 import type { HeuristicStats } from './hooks/useHeuristicStats';
@@ -25,14 +23,10 @@ interface HeuristicHeaderProps {
     stats: HeuristicStats;
     pendingCount: number;
     isScanning: boolean;
-    isRefining: boolean;
-    isRaidenMode: boolean;
     rawTerms: HeuristicTerm[];
-    filteredTerms: HeuristicTerm[];
     forensicReport: ForensicReport | null;
     blacklist: BlacklistEntry[];
     onScan: () => void;
-    onRefine: () => void;
     onClearAll: () => void;
     onApproveAll: () => void;
 }
@@ -42,14 +36,10 @@ export function HeuristicHeader({
     stats,
     pendingCount,
     isScanning,
-    isRefining,
-    isRaidenMode,
     rawTerms,
-    filteredTerms,
     forensicReport,
     blacklist,
     onScan,
-    onRefine,
     onClearAll,
     onApproveAll
 }: HeuristicHeaderProps) {
@@ -59,10 +49,8 @@ export function HeuristicHeader({
                 <h2 className="text-2xl font-bold tracking-tight flex items-center gap-3 text-slate-900 border-0">
                     Heuristic Center
                     <div className="flex items-center bg-slate-100 rounded-full px-3 py-1 gap-2 border border-slate-200/50">
-                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-tighter">Đã duyệt</span>
-                        <span className="text-sm font-black text-indigo-600">{stats.approved}</span>
-                        <span className="text-[11px] font-black text-slate-300">/</span>
-                        <span className="text-sm font-black text-slate-400">{stats.total}</span>
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-tighter">Nhân vật</span>
+                        <span className="text-sm font-black text-indigo-600">{stats.character}</span>
                     </div>
                 </h2>
                 <p className="text-slate-500 text-sm font-medium">
@@ -79,7 +67,7 @@ export function HeuristicHeader({
                             variant="outline"
                             size="icon"
                             onClick={onScan}
-                            disabled={isScanning || isRefining}
+                            disabled={isScanning}
                             className="h-9 w-9 bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
                         >
                             {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
@@ -116,28 +104,7 @@ export function HeuristicHeader({
                     </TooltipContent>
                 </Tooltip>
 
-                {/* AI Refine */}
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span className="inline-block">
-                            <Button
-                                variant={isRaidenMode ? "raiden" : "default"}
-                                size="icon"
-                                onClick={onRefine}
-                                disabled={isScanning || isRefining || pendingCount === 0}
-                                className={cn(
-                                    "h-9 w-9 shadow-sm",
-                                    !isRaidenMode && "bg-indigo-600 hover:bg-indigo-700 text-white border-0"
-                                )}
-                            >
-                                {isRefining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>AI Lọc Rác ({pendingCount})</p>
-                    </TooltipContent>
-                </Tooltip>
+
 
                 {/* Approve All */}
                 <Tooltip>
@@ -146,7 +113,7 @@ export function HeuristicHeader({
                             <Button
                                 size="icon"
                                 onClick={onApproveAll}
-                                disabled={isScanning || isRefining || pendingCount === 0}
+                                disabled={isScanning || pendingCount === 0}
                                 className="h-9 w-9 bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-sm"
                             >
                                 <CheckCircle2 className="h-4 w-4" />

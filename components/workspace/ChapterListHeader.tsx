@@ -7,7 +7,7 @@ import {
     Search, ChevronLeft, ChevronRight,
     FileText, LayoutGrid, LayoutList, Zap,
     Clock, ShieldCheck, Eraser,
-    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw
+    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,7 +29,10 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { useWorkspaceTokens } from "./hooks/useWorkspaceTokens";
+
 interface ChapterListHeaderProps {
+    workspaceId: string; // Added for token tracking
     totalChapters: number;
     searchTerm: string;
     setSearchTerm: (value: string) => void;
@@ -56,9 +59,11 @@ interface ChapterListHeaderProps {
     onRefresh?: () => void;
     processing?: boolean;
     onSelectRange?: (start: number, end: number) => void;
+    onFixTitles?: () => void; // New: Fix Chinese characters in titles
 }
 
 export function ChapterListHeader({
+    workspaceId,
     totalChapters,
     searchTerm,
     setSearchTerm,
@@ -84,9 +89,11 @@ export function ChapterListHeader({
     onImportJSON,
     onRefresh,
     processing,
-    onSelectRange
+    onSelectRange,
+    onFixTitles
 }: ChapterListHeaderProps) {
     const [rangeValue, setRangeValue] = React.useState("");
+    const tokenStats = useWorkspaceTokens(workspaceId);
 
     // Suggestion #5: Real-time validation feedback
     const isRangeValid = React.useMemo(() => {
@@ -100,11 +107,31 @@ export function ChapterListHeader({
             <div className="flex items-center justify-between gap-4">
                 {/* Left: Info, Search & Quick Select */}
                 <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                    <div className="flex flex-col min-w-[100px] shrink-0">
+                    <div className="flex flex-col min-w-[140px] shrink-0">
                         <h2 className="text-xs font-black text-foreground flex items-center gap-2">
                             <FileText className="h-3.5 w-3.5 text-primary" />
                             <span className="truncate">{totalChapters} chương</span>
                         </h2>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="text-[10px] font-bold flex items-center gap-2 mt-0.5 cursor-help">
+                                    <span className="text-indigo-500">{tokenStats.total.toLocaleString()}t</span>
+                                    <span className="text-muted-foreground">•</span>
+                                    <span className="text-emerald-500">${tokenStats.cost.toFixed(4)}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px] font-bold font-mono">
+                                <div className="space-y-1">
+                                    <div className="font-bold text-xs mb-2">💰 Token Usage</div>
+                                    <div>Input: {tokenStats.input.toLocaleString()}t (${tokenStats.costBreakdown.input.toFixed(4)})</div>
+                                    <div>Output: {tokenStats.output.toLocaleString()}t (${tokenStats.costBreakdown.output.toFixed(4)})</div>
+                                    <div className="border-t border-border/40 pt-1 mt-1">
+                                        <div className="font-bold">Total: {tokenStats.total.toLocaleString()}t</div>
+                                        <div className="text-emerald-400">Cost: ${tokenStats.cost.toFixed(4)}</div>
+                                    </div>
+                                </div>
+                            </TooltipContent>
+                        </Tooltip>
                         {lastReadChapterId && onReadContinue && (
                             <button
                                 onClick={() => onReadContinue(lastReadChapterId)}
@@ -349,6 +376,21 @@ export function ChapterListHeader({
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-[10px] font-bold">Nạp thêm chương (Txt/Epub/Json)</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-sky-500 hover:text-sky-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    onClick={onFixTitles}
+                                    disabled={processing || importing}
+                                >
+                                    <Sparkles className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-[10px] font-bold">Sửa Title (Hán tự)</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>

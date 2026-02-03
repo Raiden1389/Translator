@@ -294,6 +294,54 @@ export function extractCandidates(text: string): EntityCandidate[] {
             return null; // DROP - 经 as adverb
         }
 
+        // 🧱 RULE 32: KILL SKILL NAMES (X经)
+        // Examples: 驻世经, 改命经, 乙木经, 真经
+        if (/经(就|还|只)?$/.test(core) && core.length <= 4) {
+            return null; // DROP - Skill name
+        }
+
+        // 🧱 RULE 33: KILL SECT/FACTION NAMES (X宗)
+        // Examples: 剑宗, 刀宗, 枪宗, 拳宗
+        if (/(剑|刀|枪|拳|掌|腿|剑|刀)宗/.test(core)) {
+            return null; // DROP - Sect name
+        }
+
+        // 🧱 RULE 34: KILL DEMONSTRATIVE PHRASES (这/那 + classifier)
+        // Examples: 这座府邸, 那个宗师, 这片地界
+        if (/^(这|那)(座|个|片|位|名|些)/.test(core)) {
+            return null; // DROP - Demonstrative phrase
+        }
+
+        // 🧱 RULE 35: KILL FORMATION PHRASES (verb + 阵图/阵法)
+        // Examples: 解除阵图, 布置阵法, 破解阵图
+        if (/(解除|布置|破解|启动|激活).*(阵图|阵法|阵营)/.test(core)) {
+            return null; // DROP - Formation phrase
+        }
+
+        // 🔥 RULE 37: KILL TITLE + GRAMMAR PARTICLE
+        // Examples: 银狼王就, 银狼王若, 大宗师也, 圣者便
+        if (/(王|宗师|圣者|老祖)(就|若|也|便|则|即|乃|皆)$/.test(core)) {
+            return null; // DROP - Title + grammar particle
+        }
+
+        // 🔥 RULE 38: KILL DIRECTION + 方/宫 (LOCATION MARKERS)
+        // Examples: 前方, 后方, 下方, 上方, 地宫, 天宫, 皇宫, 王宫
+        if (/(前|后|下|上|左|右|东|西|南|北)方$/.test(core) || /(地|天|皇|王|龙|凤)宫$/.test(core)) {
+            return null; // DROP - Direction/Palace
+        }
+
+        // 🔥 RULE 39: KILL FAMILY NAMES (X家) + 也 PARTICLE
+        // Examples: 王家, 皇家, 刘家, 曹家, 王家也
+        if (/家$/.test(core) || /也$/.test(core)) {
+            return null; // DROP - Family name or 也 particle
+        }
+
+        // 🔥 RULE 40: KILL GENERIC ELDER REFERENCES (老X)
+        // Examples: 老头, 老者, 老人, 老幼
+        if (/^老(头|者|人|幼|翁|妪|汉|妇)/.test(core)) {
+            return null; // DROP - Generic elder reference
+        }
+
         return core;
     };
 

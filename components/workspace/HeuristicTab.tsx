@@ -13,13 +13,9 @@ import {
     Trash2,
     Activity,
     User,
-    Sword,
-    MapPin,
-    Info,
     RotateCw
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { toast } from "sonner";
@@ -34,9 +30,7 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<HeuristicFilterType>('all');
     const [isScanning, setIsScanning] = useState(false);
-    const [isRefining, setIsRefining] = useState(false);
     const [progress, setProgress] = useState({ current: 0, total: 0, message: "" });
-    const [refineLogs, setRefineLogs] = useState<string[]>([]);
     const parentRef = useRef<HTMLDivElement>(null);
 
     const isMounted = useRef(true);
@@ -46,7 +40,7 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
         return () => { isMounted.current = false; };
     }, []);
 
-    const { startScan, runAiRefine, approveTerm, deleteTerm, approveAll } = useHeuristic(workspaceId);
+    const { startScan, approveTerm, deleteTerm, approveAll } = useHeuristic(workspaceId);
 
     const blacklist = useLiveQuery(
         async () => {
@@ -101,18 +95,7 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
         }
     };
 
-    const handleRefine = async () => {
-        setIsRefining(true);
-        setRefineLogs(["🚀 Khởi động AI..."]);
-        await runAiRefine((msg) => {
-            if (isMounted.current) {
-                setRefineLogs(prev => [...prev.slice(-4), msg]);
-            }
-        });
-        setTimeout(() => {
-            if (isMounted.current) setIsRefining(false);
-        }, 2000);
-    };
+
 
 
 
@@ -144,49 +127,33 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                     stats={stats}
                     pendingCount={pendingCount}
                     isScanning={isScanning}
-                    isRefining={isRefining}
-                    isRaidenMode={isRaidenMode}
                     rawTerms={rawTerms}
-                    filteredTerms={filteredTerms}
                     forensicReport={forensicReport}
                     blacklist={blacklist || []}
                     onScan={handleScan}
-                    onRefine={handleRefine}
                     onClearAll={handleClearAll}
                     onApproveAll={() => approveAll(filteredTerms.filter(t => !t.isApproved))}
                 />
 
                 {/* AI Console / Progress bar */}
                 {
-                    (isScanning || isRefining) && (
+                    isScanning && (
                         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm shrink-0 space-y-3">
-                            {isScanning && (
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                                        <span>{progress.message}</span>
-                                        <span className="text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100 flex items-center gap-1">
-                                            <RotateCw className="h-2.5 w-2.5 animate-spin" />
-                                            {Math.round((progress.current / (progress.total || 1)) * 100)}%
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                                        <div
-                                            className="h-full bg-blue-500 transition-all duration-300"
-                                            style={{ width: `${(progress.current / (progress.total || 1)) * 100}%` }}
-                                        />
-                                    </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                                    <span>{progress.message}</span>
+                                    <span className="text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100 flex items-center gap-1">
+                                        <RotateCw className="h-2.5 w-2.5 animate-spin" />
+                                        {Math.round((progress.current / (progress.total || 1)) * 100)}%
+                                    </span>
                                 </div>
-                            )}
-                            {isRefining && (
-                                <div className="space-y-1.5 font-mono text-[11px] text-slate-600">
-                                    {refineLogs.map((log, i) => (
-                                        <div key={i} className="flex items-center gap-2">
-                                            <span className="text-indigo-400 font-bold shrink-0">AI:</span>
-                                            <span className="truncate">{log}</span>
-                                        </div>
-                                    ))}
+                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                                    <div
+                                        className="h-full bg-blue-500 transition-all duration-300"
+                                        style={{ width: `${(progress.current / (progress.total || 1)) * 100}%` }}
+                                    />
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )
                 }
@@ -203,33 +170,16 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                         />
                     </div>
                     <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
-                        {[
-                            { id: 'all', label: 'Tất cả', count: stats.total },
-                            { id: 'character', label: 'Nhân vật', icon: User, count: stats.character },
-                            { id: 'skill', label: 'Chiêu thức', icon: Sword, count: stats.skill },
-                            { id: 'location', label: 'Địa danh', icon: MapPin, count: stats.location },
-                            { id: 'unknown', label: 'Khác', icon: Info, count: stats.unknown },
-                        ].map((btn) => (
-                            <button
-                                key={btn.id}
-                                onClick={() => setFilter(btn.id as typeof filter)}
-                                className={cn(
-                                    "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2",
-                                    filter === btn.id
-                                        ? "bg-white shadow-sm text-indigo-600"
-                                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
-                                )}
-                            >
-                                {btn.icon && <btn.icon className="h-3.5 w-3.5" />}
-                                {btn.label}
-                                <span className={cn(
-                                    "text-[10px] px-1.5 rounded-md",
-                                    filter === btn.id ? "bg-indigo-50 text-indigo-500" : "bg-slate-200/50 text-slate-400"
-                                )}>
-                                    {btn.count}
-                                </span>
-                            </button>
-                        ))}
+                        <button
+                            onClick={() => setFilter('character')}
+                            className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 bg-white shadow-sm text-indigo-600"
+                        >
+                            <User className="h-3.5 w-3.5" />
+                            Nhân vật
+                            <span className="text-[10px] px-1.5 rounded-md bg-indigo-50 text-indigo-500">
+                                {stats.character}
+                            </span>
+                        </button>
                     </div>
                 </div>
 
@@ -266,24 +216,14 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                                     )}>
                                         <div className="flex items-center gap-5 min-w-0">
                                             <div className={cn(
-                                                "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
-                                                term.type === 'character' && "bg-amber-100 text-amber-600",
-                                                term.type === 'skill' && "bg-blue-100 text-blue-600",
-                                                term.type === 'location' && "bg-emerald-100 text-emerald-600",
-                                                term.type === 'unknown' && "bg-slate-100 text-slate-500"
+                                                "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-100 text-amber-600"
                                             )}>
-                                                {term.type === 'character' && <User className="h-5 w-5" />}
-                                                {term.type === 'skill' && <Sword className="h-5 w-5" />}
-                                                {term.type === 'location' && <MapPin className="h-5 w-5" />}
-                                                {term.type === 'unknown' && <Info className="h-5 w-5" />}
+                                                <User className="h-5 w-5" />
                                             </div>
 
                                             <div className="flex flex-col gap-0.5 min-w-0">
                                                 <div className="flex items-center gap-3">
                                                     <span className="font-mono text-lg font-bold text-slate-900 tracking-tight shrink-0">{term.original}</span>
-                                                    <Badge variant="secondary" className="text-[9px] font-black uppercase px-2 h-4 scale-90 border-0 bg-slate-100 text-slate-500">
-                                                        {term.type}
-                                                    </Badge>
                                                 </div>
                                                 <div className="text-sm font-medium text-slate-500 truncate italic">
                                                     {term.translated || "Chưa có bản dịch..."}
