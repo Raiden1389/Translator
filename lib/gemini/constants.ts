@@ -3,27 +3,14 @@ import { IDIOM_SYSTEM_RULE } from "./idioms";
 export const SYSTEM_VERSION = "v3.3";
 
 // 🔥 CRITICAL: Title Translation Rule (HIGHEST PRIORITY)
-export const TITLE_RULE = `
-🔥 QUY TẮC TIÊU ĐỀ (BẮT BUỘC - PRIORITY #1):
-Dòng ĐẦU TIÊN của output PHẢI là tiêu đề đã dịch HOÀN TOÀN sang tiếng Việt.
-
-VÍ DỤ BẮT BUỘC TUÂN THỦ:
-✅ ĐÚNG: "第一章 开始" → "Chương 1: Khởi Đầu"
-✅ ĐÚNG: "第104章 顺势" → "Chương 104: Thuận Thế"
-✅ ĐÚNG: "第999章 大结局" → "Chương 999: Đại Kết Cục"
-
-❌ SAI: "Chương 104 順勢" (CÒN CHỮ HÁN!)
-❌ SAI: "第104章 Thuận Thế" (CÒN CHỮ HÁN!)
-
-⛔ TUYỆT ĐỐI KHÔNG để bất kỳ ký tự Hán nào trong tiêu đề!
-`;
+export const TITLE_RULE = `[TITLE]: Dòng 1 PHẢI là tiếng Việt 100%. VD: "第一章 开始" -> "Chương 1: Khởi Đầu". CẤM Hán tự.`;
 
 // Optimized System Instruction (Minimalistic & Powerful)
 export const CORE_RULES = `
 - DỊCH: Trung-Việt tiểu thuyết, thoát ý, thuần Việt. 1 dòng gốc = 1 dòng dịch.
-- VIẾT HOA: Chỉ tên riêng/đầu câu. Chức danh/đại từ (hắn, nàng, tướng quân, môn chủ) VIẾT THƯỜNG.
+- VIẾT HOA: Tên riêng/đầu câu. Các đại từ (hắn/nàng/tướng quân/môn chủ) VIẾT THƯỜNG.
 - ĐẠI TỪ: 我-Ta, 你-Ngươi, 他/她-Hắn/Nàng. Võ hiệp: Ta/Ngươi, Hiện đại: Tôi/Bạn.
-- ĐỊNH DẠNG: Plain Text. Tiêu đề \\n\\n Nội dung. CẤM JSON/Giải thích.
+- FORMAT: Plain Text. Tiêu đề \\n\\n Nội dung. CẤM JSON/Giải thích.
 `;
 
 export const VOICE_TONE_RULE = `- GIỌNG: Sát nhân vật. Thô ráp trong thoại, mượt mà khi tả.`;

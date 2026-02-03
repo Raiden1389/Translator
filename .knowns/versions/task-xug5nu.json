@@ -1,0 +1,116 @@
+{
+  "taskId": "xug5nu",
+  "currentVersion": 2,
+  "versions": [
+    {
+      "id": "v1",
+      "taskId": "xug5nu",
+      "version": 1,
+      "timestamp": "2026-02-03T11:51:06.487Z",
+      "changes": [
+        {
+          "field": "acceptanceCriteria",
+          "oldValue": [
+            {
+              "completed": false,
+              "text": "- [ ] Di chuyển dữ liệu từ .brain/ sang .knowns/"
+            },
+            {
+              "completed": false,
+              "text": "- [ ] Cấu hình MCP cho Antigravity"
+            }
+          ],
+          "newValue": [
+            {
+              "completed": true,
+              "text": "- [ ] Di chuyển dữ liệu từ .brain/ sang .knowns/"
+            },
+            {
+              "completed": false,
+              "text": "- [ ] Cấu hình MCP cho Antigravity"
+            }
+          ]
+        },
+        {
+          "field": "implementationNotes",
+          "newValue": "Done: Migrated project overview, guidelines, and session history to Knowns Docs."
+        }
+      ],
+      "snapshot": {
+        "title": "Nâng cấp dự án sang Knowns Protocol",
+        "status": "todo",
+        "priority": "high",
+        "labels": [],
+        "acceptanceCriteria": [
+          {
+            "completed": true,
+            "text": "- [ ] Di chuyển dữ liệu từ .brain/ sang .knowns/"
+          },
+          {
+            "completed": false,
+            "text": "- [ ] Cấu hình MCP cho Antigravity"
+          }
+        ],
+        "implementationNotes": "Done: Migrated project overview, guidelines, and session history to Knowns Docs."
+      }
+    },
+    {
+      "id": "v2",
+      "taskId": "xug5nu",
+      "version": 2,
+      "timestamp": "2026-02-03T11:55:06.068Z",
+      "changes": [
+        {
+          "field": "status",
+          "oldValue": "todo",
+          "newValue": "done"
+        },
+        {
+          "field": "acceptanceCriteria",
+          "oldValue": [
+            {
+              "completed": true,
+              "text": "- [ ] Di chuyển dữ liệu từ .brain/ sang .knowns/"
+            },
+            {
+              "completed": false,
+              "text": "- [ ] Cấu hình MCP cho Antigravity"
+            }
+          ],
+          "newValue": [
+            {
+              "completed": true,
+              "text": "- [ ] Di chuyển dữ liệu từ .brain/ sang .knowns/"
+            },
+            {
+              "completed": true,
+              "text": "- [ ] Cấu hình MCP cho Antigravity"
+            }
+          ]
+        },
+        {
+          "field": "implementationNotes",
+          "oldValue": "Done: Migrated project overview, guidelines, and session history to Knowns Docs.",
+          "newValue": "Done: Migrated project overview, guidelines, and session history to Knowns Docs.\n\nDone: Configured MCP and finalized Knowns migration. Ready for production use."
+        }
+      ],
+      "snapshot": {
+        "title": "Nâng cấp dự án sang Knowns Protocol",
+        "status": "done",
+        "priority": "high",
+        "labels": [],
+        "acceptanceCriteria": [
+          {
+            "completed": true,
+            "text": "- [ ] Di chuyển dữ liệu từ .brain/ sang .knowns/"
+          },
+          {
+            "completed": true,
+            "text": "- [ ] Cấu hình MCP cho Antigravity"
+          }
+        ],
+        "implementationNotes": "Done: Migrated project overview, guidelines, and session history to Knowns Docs.\n\nDone: Configured MCP and finalized Knowns migration. Ready for production use."
+      }
+    }
+  ]
+}

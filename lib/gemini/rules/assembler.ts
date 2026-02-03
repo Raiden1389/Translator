@@ -1,7 +1,7 @@
 /**
  * DYNAMIC PROMPT ASSEMBLER v2.1 (Smart Contextual Delivery)
  */
-import { CORE_RULES } from "../constants";
+import { CORE_RULES, TITLE_RULE } from "../constants";
 import { IDIOM_SYSTEM_RULE, STYLE_PRESSURE_MAP, BATTLE_FEEDBACK_MAP } from "../idioms";
 import { INTENSITY_RULE_COMPACT } from "./intensity";
 import { REGISTER_RULE_COMPACT } from "./register";
@@ -81,5 +81,6 @@ export function assembleSystemInstruction(
     // Smart Idioms injection
     const relevantIdioms = originalText ? getRelevantIdioms(originalText) : "";
 
-    return `${baseStyle}\n${CORE_RULES}\n${IDIOM_SYSTEM_RULE}${extra}${relevantIdioms}\n${glossaryContext}`;
+    // Priority: Title Rule (#1) -> Base Style -> Core Rules -> Contextual Rules -> Glossary
+    return `${TITLE_RULE}\n${baseStyle}\n${CORE_RULES}\n${IDIOM_SYSTEM_RULE}${extra}${relevantIdioms}\n${glossaryContext}`;
 }
