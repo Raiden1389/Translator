@@ -6,6 +6,7 @@ import {
     SOFT_CHARACTER_ANCHORS,
     SOCIAL_MODIFIERS,
     HEURISTIC_BLACKLIST,
+    COMMON_FUNCTION_WORDS,
     OCR_CONFUSION_MAP,
     ROLE_NOUNS,
     FUNCTION_WORDS,
@@ -17,8 +18,9 @@ import { resolveRankV18, classifyRankContext, VERB_PREFIX_STRIP } from './rank-r
 import { resolveEntity } from './conflict-resolver';
 
 /**
- * HEURISTIC TAGGER v5.3 - THE FINAL RESTORATION
- * FIX: Đảm bảo Tên người (Character), Chiêu thức (Skill), Địa danh (Location) không bị trảm nhầm.
+ * HEURISTIC TAGGER v5.4 - SOFT OPT-IN WITH CONSTRAINTS
+ * FIX: Expanded SKILL_SUFFIXES for modern web novels + Added SOFT_CHARACTER_PATTERN for context-aware name detection.
+ * Philosophy: Strict Opt-in with safe expansion - Precision > Recall, no noise flooding.
  */
 
 export interface EntityCandidate {
@@ -71,18 +73,174 @@ export function extractCandidates(text: string): EntityCandidate[] {
 
     const cleanup = (raw: string): string | null => {
         let core = normalizeOCR(raw.trim());
+
+        // ⚡ STRIP TRAILING VERBS FIRST (before any rules)
         for (const v of TRAILING_VERBS) {
             if (core.endsWith(v)) {
                 core = core.slice(0, -v.length);
                 break;
             }
         }
+
+        // ⚡ GRAMMAR STRIPPER (before rules)
         const grammarResult = GrammarStripper.process(core);
         if (grammarResult.decision === GrammarDecision.REJECT) return null;
         if (grammarResult.decision === GrammarDecision.STRIP_TAIL) {
             core = grammarResult.cleaned!;
         }
         if (core.length < 2) return null;
+
+        // 🧱 RULE 1: GIẾT CỤM SỞ HỮU CÓ "的" (60-70% rác)
+        // Examples: 神魔的孙, 行宫的弟, 教的宗师
+        if (core.includes('的')) {
+            return null; // Reject possessive phrases
+        }
+
+        // 🧱 RULE 2: GIẾT "神" CUỐI TỪ (Generic deity nouns)
+        // Examples: 河神, 夜神, 妖神, 巨灵神
+        if (
+            core.endsWith('神') &&
+            core.length <= 3 &&
+            !/[王帝皇尊祖]/.test(core) // Keep high-rank deities
+        ) {
+            return null;
+        }
+
+        // 🧱 RULE 3: GIẾT TITLE MÔ TẢ (Color/Material + Rank)
+        // Examples: 灰衣宗师, 黑衣宗师, 发大宗师
+        if (/[黑白灰青赤金银].*(宗师|尊者|圣徒|王|帝)$/.test(core)) {
+            return null;
+        }
+
+        // 🧱 RULE 4: GIẾT PLURAL / QUANTIFIER TITLE
+        // Examples: 几位宗师, 数名强者, 多位圣者
+        if (
+            /^(几|数|多|诸|所有|这些|那些)/.test(core) &&
+            /(宗师|尊者|圣者|强者|王|帝)$/.test(core)
+        ) {
+            return null;
+        }
+
+        // 🧱 RULE 5: GIẾT "圣 + danh từ chung"
+        // Examples: 圣旅者, 圣骑士, 圣使
+        // Keep: 圣王, 圣帝, 圣尊
+        if (
+            core.startsWith('圣') &&
+            core.length <= 3 &&
+            !/(王|帝|尊|祖|主)$/.test(core)
+        ) {
+            return null;
+        }
+
+        // 🧱 RULE 6: GIẾT COMMON FUNCTION WORDS
+        // Examples: 这是, 那里, 自己, 对方, 应该, 因为, 但是
+        if (COMMON_FUNCTION_WORDS.includes(core)) {
+            return null;
+        }
+
+        // 🧱 RULE 7: GIẾT "神" KHÔNG CÓ RANK (mở rộng Rule 2)
+        // Examples: 神游, 神灵, 神秘, 神士中, 神仙道场
+        // Keep: 神王, 神帝, 神皇, 神尊, 神祖, 神主
+        if (core.includes('神') && !/[王帝皇尊祖主]/.test(core)) {
+            return null;
+        }
+
+        // 🧱 RULE 8: GIẾT COMPOUND PHRASES
+        // Examples: 经过这样, 最为关键, 根本没, 一切都
+        if (/^(经过|最为|根本|一切|谁都|还真|所经|出产|宗师级|大殿中)/.test(core)) {
+            return null;
+        }
+
+        // 🧱 RULE 9: GIẾT "中" CUỐI (location markers)
+        // Examples: 院中, 神庙中, 殿中, 其中
+        if (core.endsWith('中') && core.length <= 4) {
+            return null;
+        }
+
+        // 🧱 RULE 10: GIẾT "没/都/不" CUỐI (negation/universal)
+        // Examples: 秦铭没, 心神都, 经不
+        if (/[没都不]$/.test(core) && core.length <= 4) {
+            return null;
+        }
+
+        // 🧱 RULE 11: GIẾT SHORT FORMS (< 3 chars without proper suffix)
+        // Examples: 陆自, 净一 (not real names)
+        // Keep: 老王, 师父, 公子 (have proper suffix)
+        if (core.length < 3 && !/(老|师|公|子|王|帝|尊|主|祖)/.test(core)) {
+            return null;
+        }
+
+        // 🧱 RULE 13: GIẾT "阵营" (camp/faction)
+        // Examples: 图腾阵营, 玉京阵营, 两个阵营, 三大阵营
+        if (core.includes('阵营')) {
+            return null;
+        }
+
+        // 🧱 RULE 14: GIẾT "那位/这位/某位" + TITLE
+        // Examples: 那位宗师, 这位圣者, 某位强者
+        if (/^(那|这|某|一|几|数|多)位/.test(core)) {
+            return null;
+        }
+
+        // 🧱 RULE 15: GIẾT "X大" + TITLE (quantifier)
+        // Examples: 三大阵营, 两大宗师, 四大家族
+        if (/^(三|两|一|二|四|五|六|七|八|九|十)大/.test(core)) {
+            return null;
+        }
+
+        // 🧱 RULE 16: GIẾT "本X地/本X经" (adverbial phrases)
+        // Examples: 本正经地, 本来就
+        if (/^本.*(地|经)$/.test(core)) {
+            return null;
+        }
+
+        // 🛡️ RULE 17: BẢO VỆ "弟子" (ATOMIC TOKEN - KHÔNG ĐƯỢC CẮT)
+        // "弟子" là suffix hợp lệ, KHÔNG PHẢI rác
+        // Examples: 五行宫弟子, 纯阳宫弟子, 剑宗弟子
+        if (core.endsWith('弟子')) {
+            return core; // GIỮ NGUYÊN
+        }
+
+        // 🧱 RULE 18: DROP NẾU BỊ CỤT (TRUNCATED ENTITIES)
+        // Nếu kết thúc bằng "弟" hoặc "子" đơn lẻ → Đã bị cắt mất phần sau
+        // Examples: 五行宫弟 (thiếu 子), 宗师向他 (rác)
+        if (core.endsWith('弟') || /[^弟]子$/.test(core)) {
+            return null; // DROP - Entity không hoàn chỉnh
+        }
+
+        // 🧱 RULE 19: DROP ĐẠI TỪ NHÂN XƯNG (PRONOUNS)
+        // Tên nhân vật KHÔNG BAO GIỜ kết thúc bằng đại từ
+        // Examples: 宗师向我 (tông sư hướng về ta), 宗师向他 (tông sư hướng về hắn)
+        const PRONOUNS = ['我', '他', '她', '你', '其'];
+        if (PRONOUNS.some(p => core.endsWith(p))) {
+            return null; // DROP - Sentence fragment
+        }
+
+        // 🧱 RULE 19B: DROP CỤM "向X" (DIRECTIONAL PHRASES)
+        // Examples: 向我, 向他, 向她, 向你
+        if (/向[我他她你]/.test(core)) {
+            return null; // DROP - Action phrase
+        }
+
+        // 🧱 RULE 20: KILL NGỮ PHÁP (GRAMMAR PARTICLES) - 60-65% rác
+        // Examples: 不经意间, 经离开村, 都已经算, 这篇经文
+        const GRAMMAR_PARTICLES = ['已经', '正在', '只是', '就是', '依旧', '甚至', '但是', '可是', '不经', '经常', '经历', '路经'];
+        if (GRAMMAR_PARTICLES.some(p => core.includes(p))) {
+            return null; // DROP - Grammar phrase
+        }
+
+        // 🧱 RULE 21: KILL RANK + ACTION (GENERIC NOUN + VERB) - 15-20% rác
+        // Examples: 宗师摇了 (tông sư lắc đầu), 圣贤沉声 (thánh hiền trầm giọng)
+        if (/(宗师|圣贤|圣者|圣徒)/.test(core) && /(了|也|在|每|这样|那样|一起|摇|沉)/.test(core)) {
+            return null; // DROP - Generic rank + action
+        }
+
+        // 🧱 RULE 22: KILL LOCATION + ACTION - 10% rác
+        // Examples: 院中了, 宫内也, 殿中在
+        if (/(院|宫|殿)/.test(core) && /(了|也|在|每|中|内)/.test(core)) {
+            return null; // DROP - Location + action
+        }
+
         return core;
     };
 
@@ -190,6 +348,16 @@ export function extractCandidates(text: string): EntityCandidate[] {
     const anchorPattern = new RegExp(`([\\u4e00-\\u9fa5]{2,4})(${allAnchors.join('|')})`, 'g');
     while ((match = anchorPattern.exec(text)) !== null) {
         addOrUpdate(match[1], 'character', 'Anchor', { hasVerb: true });
+    }
+
+    // SOFT CHARACTER PATTERN (v5.4 - Soft Opt-in with constraints)
+    // Detects character names in safe contexts:
+    // - After punctuation (，。！？：；)
+    // - Before possessive/descriptive markers (的是在有)
+    // This catches names like "。秦明的剑" while rejecting noise like "这个", "已经"
+    const softCharPattern = /([，。！？：；])\s*([\u4e00-\u9fa5]{2,4})(?=[的是在有])/g;
+    while ((match = softCharPattern.exec(text)) !== null) {
+        addOrUpdate(match[2], 'character', 'SoftContext', { hasVerb: false });
     }
 
     return Array.from(candidates.values());

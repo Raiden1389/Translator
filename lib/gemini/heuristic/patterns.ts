@@ -1,10 +1,17 @@
 /**
- * HEURISTIC PATTERNS v4.2 - PROFESSIONAL NOISE FILTER
+ * HEURISTIC PATTERNS v4.3 - PROFESSIONAL NOISE FILTER + WEB NOVEL SUPPORT
  * Purpose: Aggressive noise suppression for high-quality glossary extraction.
+ * v4.3: Expanded SKILL_SUFFIXES to include modern web novel skill endings.
  */
 
 // 1. Core Suffixes
-export const SKILL_SUFFIXES = ['功', '诀', '法', '步', '术', '拳', '掌', '剑', '阵', '经', '典', '指', '印'];
+// v4.3: Expanded to include modern web novel skill endings
+export const SKILL_SUFFIXES = [
+    // Classical martial arts (võ học cổ điển)
+    '功', '诀', '法', '步', '术', '拳', '掌', '剑', '阵', '经', '典', '指', '印',
+    // Modern web novel skills (văn mạng hiện đại)
+    '击', '斩', '破', '杀', '爆', '轰', '裂', '灭', '封', '镇', '禁'
+];
 export const LOCATION_SUFFIXES = ['城', '府', '山', '谷', '洞', '宫', '殿', '宗', '门', '阁', '院', '寺', '岛', '界', '域', '海', '墟', '江', '湖', '岭', '峰'];
 export const TITLE_SUFFIXES = ['主', '长', '座', '王', '皇', '帝', '祖', '师', '尊'];
 
@@ -28,7 +35,10 @@ export const FUNCTION_WORDS = [
 // 5. Grammar: Trailing Noise (To be stripped)
 export const TRAILING_VERBS = [
     '笑着', '笑道', '说罢', '暗中', '缓缓', '慢慢', '正在', '平静地', '已经在', '露出', '微微',
-    '一般', '一样', '的话', '之类', '似的', '而言', '之中', '之外', '之内'
+    '一般', '一样', '的话', '之类', '似的', '而言', '之中', '之外', '之内',
+    // Common action verbs that attach to names
+    '站', '坐', '走', '跑', '看', '听', '说', '想', '做', '来', '去', '等', '问', '答', '笑', '哭',
+    '打', '杀', '斩', '击', '挡', '躲', '闪', '退', '进', '出', '入', '上', '下', '飞', '跳'
 ];
 
 // 6. NPC & Roles
@@ -53,6 +63,20 @@ export const HEURISTIC_BLACKLIST = [
     '还是', '或者', '不仅', '不但', '甚至', '尽管', '原本', '本来', '当初', '以前', '之后', '之前',
     '周围', '附近', '四周', '中间', '其中', '左右', '上下', '前后', '第一', '第二', '最后',
     '这种', '个世界', '这位', '那位', '那类', '片地界', '片区域', '各条路'
+];
+
+// 10. Common Function Words (REJECT - High frequency garbage)
+export const COMMON_FUNCTION_WORDS = [
+    '这是', '那里', '自己', '对方', '应该', '因为', '但是', '而且', '即便', '哪怕',
+    '还没', '实在', '还真', '真正', '自然', '并不', '依旧', '不止', '都没', '也算',
+    '更是', '那就', '这次', '里面', '那可', '根本没', '一切都', '谁都没', '如果',
+    '经过这样', '最为关键', '但还', '而且', '相当', '大量', '宛若', '若是', '两人',
+    '处都', '不止', '天下', '根本', '如果', '那座', '可是灰', '但灰', '那神秘',
+    '是神慧', '出产神粮', '神目狂没', '神士中', '神仙道场', '眼神像', '神秘',
+    '当世圣贤', '所经历', '妖魔阵营', '经过', '最为', '一切', '谁都', '还真',
+    // Rule 12: Additional garbage from user feedback
+    '这样', '无论', '院中', '殿中', '神庙中', '两大', '黑白', '心神都',
+    '这天经文', '这以经不', '净一', '陆自', '秦铭没', '两大阵营', '黑白神思'
 ];
 
 export const SENTENCE_STARTERS = ['但', '而', '在', '对', '到', '他', '她', '它', '你', '我', '那', '这', '某', '其', '各', '每'];
