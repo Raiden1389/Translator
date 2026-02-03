@@ -12,11 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Ban, Plus, X, DownloadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
-import { db, type HeuristicBlacklist } from '@/lib/db';
+import { db, type BlacklistEntry } from '@/lib/db';
 
 interface HeuristicBlacklistDialogProps {
     workspaceId: string;
-    blacklist: HeuristicBlacklist[];
+    blacklist: BlacklistEntry[];
 }
 
 export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBlacklistDialogProps) {
@@ -36,10 +36,11 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
         }
 
         try {
-            await db.heuristicBlacklist.add({
+            await db.blacklist.add({
                 workspaceId,
                 word: newWord.trim(),
-                createdAt: Date.now()
+                source: 'heuristic',
+                createdAt: new Date()
             });
             toast.success(`✅ Đã thêm "${newWord.trim()}" vào blacklist`);
             setNewWord('');
@@ -51,7 +52,7 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
 
     const handleRemoveBlacklist = async (id: number) => {
         try {
-            await db.heuristicBlacklist.delete(id);
+            await db.blacklist.delete(id);
             toast.success("✅ Đã xóa khỏi blacklist");
         } catch (err) {
             console.error('Remove blacklist error:', err);
@@ -99,15 +100,36 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
                             <Ban className="h-5 w-5 text-red-500" />
                             Blacklist ({blacklist.length} từ)
                         </span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleExportBlacklist}
-                            className="gap-2"
-                        >
-                            <DownloadCloud className="h-4 w-4" />
-                            Xuất TXT
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                    if (!confirm(`⚠️ Xóa TOÀN BỘ ${blacklist.length} từ trong Blacklist?\n\nHành động này KHÔNG THỂ hoàn tác!`)) {
+                                        return;
+                                    }
+                                    try {
+                                        await db.blacklist.where('workspaceId').equals(workspaceId).delete();
+                                        toast.success(`✅ Đã xóa sạch ${blacklist.length} từ`);
+                                    } catch (err) {
+                                        toast.error("❌ Lỗi xóa: " + String(err));
+                                    }
+                                }}
+                                className="gap-2 text-red-600 hover:text-red-700"
+                            >
+                                <X className="h-4 w-4" />
+                                Xóa tất cả
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleExportBlacklist}
+                                className="gap-2"
+                            >
+                                <DownloadCloud className="h-4 w-4" />
+                                Xuất TXT
+                            </Button>
+                        </div>
                     </DialogTitle>
                 </DialogHeader>
                 <div className="flex-1 overflow-auto space-y-4">

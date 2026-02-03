@@ -76,7 +76,9 @@ export const COMMON_FUNCTION_WORDS = [
     '当世圣贤', '所经历', '妖魔阵营', '经过', '最为', '一切', '谁都', '还真',
     // Rule 12: Additional garbage from user feedback
     '这样', '无论', '院中', '殿中', '神庙中', '两大', '黑白', '心神都',
-    '这天经文', '这以经不', '净一', '陆自', '秦铭没', '两大阵营', '黑白神思'
+    '这天经文', '这以经不', '净一', '陆自', '秦铭没', '两大阵营', '黑白神思',
+    // Rule 29: Additional function words from blacklist analysis
+    '主要', '比如', '沿着', '依照', '包括', '若借', '似有', '其实'
 ];
 
 export const SENTENCE_STARTERS = ['但', '而', '在', '对', '到', '他', '她', '它', '你', '我', '那', '这', '某', '其', '各', '每'];

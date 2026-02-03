@@ -241,6 +241,45 @@ export function extractCandidates(text: string): EntityCandidate[] {
             return null; // DROP - Location + action
         }
 
+        // 🧱 RULE 23: KILL ĐỊA ĐIỂM (LOCATION SUFFIXES) - 25-30% rác
+        // Examples: 没不少院, 自家院, 地宫出口, 主殿尽头, 学府内
+        if (/(院|宫|殿|府|学府|地宫)(内|外|出口|尽头)?$/.test(core)) {
+            return null; // DROP - Location
+        }
+
+        // 🧱 RULE 24: KILL KINH VĂN (SCRIPTURE) - 20-25% rác
+        // Examples: 这篇经文, 判断经文, 改命经算, 这部经义
+        if (/(经文|经义|经算|经篇|真经)/.test(core)) {
+            return null; // DROP - Scripture
+        }
+
+        // 🧱 RULE 25: KILL THI THỂ (CORPSE) - 8-10% rác
+        // Examples: 尸体倒, 死尸栽倒, 那收尸人
+        if (/(尸体|死尸|收尸)/.test(core)) {
+            return null; // DROP - Corpse
+        }
+
+        // 🧱 RULE 26: KILL TÔNG SƯ NGỮ CẢNH (GENERIC MASTER) - 15-18% rác
+        // Examples: 宗师 (alone), 大宗师们, 宗师无奈, 宗师立即
+        if (/^(宗师|大宗师)(们)?$/.test(core)) {
+            return null; // DROP - Generic master title
+        }
+        if (/(宗师|大宗师)(无奈|立即|先后|暗自|层面|颤声|这样|便|这|级)/.test(core)) {
+            return null; // DROP - Master + context
+        }
+
+        // 🧱 RULE 27: KILL THÁNH NGỮ CẢNH (SAINT CONTEXT) - 8-10% rác
+        // Examples: 一名外圣, 身为外圣, 外圣中期, 圣者淡然
+        if (/(一名|身为|中期|淡然).*(外圣|圣者|圣贤|圣徒)/.test(core)) {
+            return null; // DROP - Saint + context
+        }
+
+        // 🧱 RULE 28: KILL VƯƠNG NGỮ CẢNH (KING CONTEXT) - 8-10% rác
+        // Examples: 银狼王就, 银狼王若, 这是霸王, 若借霸王
+        if (/(就|若|是|借).*(王|霸王|银狼王)$/.test(core)) {
+            return null; // DROP - King + context
+        }
+
         return core;
     };
 
