@@ -64,6 +64,7 @@ export async function withKeyRotation<T>(
     params: {
         model: string,
         systemInstruction?: string,
+        cachedContent?: string, // New: "cachedContents/id"
         prompt: string,
         generationConfig?: any
     },
@@ -75,7 +76,9 @@ export async function withKeyRotation<T>(
         contents: [{ parts: [{ text: params.prompt }] }],
     };
 
-    if (params.systemInstruction) {
+    if (params.cachedContent) {
+        payloadObj.cachedContent = params.cachedContent;
+    } else if (params.systemInstruction) {
         payloadObj.systemInstruction = { parts: [{ text: params.systemInstruction }] };
     }
 
@@ -166,4 +169,60 @@ export async function withKeyRotation<T>(
         }
     }
     throw lastError;
+}
+
+/**
+ * CACHE: Create a Gemini Context Cache using the NATIVE bridge
+ */
+export async function createContextCache(params: {
+    model: string,
+    systemInstruction: string,
+    displayName?: string,
+    ttlSeconds?: number
+}): Promise<string> {
+    const keys = await getAvailableKeys();
+    const key = keys[0] || (undefined as any);
+
+    const payload = JSON.stringify({
+        model: `models/${params.model.trim()}`,
+        displayName: params.displayName || "Raiden-Translate-Cache",
+        systemInstruction: { parts: [{ text: params.systemInstruction }] },
+        ttl: `${params.ttlSeconds || 3600}s`
+    });
+
+    // @ts-ignore
+    const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+    if (!isTauri) throw new Error("Context Caching requires Tauri Native Bridge");
+
+    const responseText = await invoke<string>("native_gemini_create_cache", {
+        payload,
+        apiKey: key
+    });
+
+    const parsed = JSON.parse(responseText);
+    if (parsed.error) throw new Error(parsed.error.message || "Cache Creation Failed");
+
+    return parsed.name; // returns "cachedContents/id"
+}
+
+/**
+ * CACHE: Delete a Gemini Context Cache using the NATIVE bridge
+ */
+export async function deleteContextCache(cacheName: string): Promise<void> {
+    const keys = await getAvailableKeys();
+    const key = keys[0] || (undefined as any);
+
+    // @ts-ignore
+    const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+    if (!isTauri) throw new Error("Context Caching requires Tauri Native Bridge");
+
+    const responseText = await invoke<string>("native_gemini_delete_cache", {
+        cacheName,
+        apiKey: key
+    });
+
+    if (responseText.includes("error")) {
+        const parsed = JSON.parse(responseText);
+        if (parsed.error) console.error("Cache Deletion Failed:", parsed.error.message);
+    }
 }

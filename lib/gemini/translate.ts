@@ -14,7 +14,8 @@ export const translateChapter = async (
     onLog: (log: TranslationLog) => void,
     onSuccess: (result: TranslationResult) => void,
     customInstruction?: string,
-    sharedGlossary?: DictionaryEntry[]
+    sharedGlossary?: DictionaryEntry[],
+    cacheId?: string // 🚀 NEW: Context Cache ID
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
@@ -92,16 +93,20 @@ export const translateChapter = async (
         const rawResult = await withKeyRotation<Record<string, unknown>>(
             {
                 model: (aiModel as string).trim(),
-                systemInstruction: fullInstruction,
+                systemInstruction: cacheId ? undefined : fullInstruction, // Use cache if available
+                cachedContent: cacheId,
                 prompt: text,
                 generationConfig: {
                     temperature: 0.1,
                     topP: 0.95,
-                    maxOutputTokens: dynamicMaxTokens, // 🚀 OPTIMIZED: Dynamic based on input (was: 4096 fixed)
+                    maxOutputTokens: dynamicMaxTokens,
                     responseMimeType: "text/plain",
                 }
             },
-            (msg: string) => onLog({ timestamp: new Date(), message: msg, type: 'info' })
+            (msg: string) => {
+                const prefixedMsg = cacheId ? `[TURBO] ${msg}` : msg;
+                onLog({ timestamp: new Date(), message: prefixedMsg, type: 'info' });
+            }
         );
 
         // Track usage (if available in bridge response)
@@ -217,7 +222,8 @@ export const translateChapter = async (
         };
 
         const tokenMsg = tokens.total > 0 ? ` [${tokens.input}i + ${tokens.output}o = ${tokens.total}t]` : "";
-        onLog({ timestamp: new Date(), message: `Dịch hoàn tất!${tokenMsg}`, type: 'success' });
+        const cacheSuffix = cacheId ? " (Turbo Cache ✅)" : "";
+        onLog({ timestamp: new Date(), message: `Dịch hoàn tất!${tokenMsg}${cacheSuffix}`, type: 'success' });
         onSuccess(result);
 
     } catch (error: unknown) {

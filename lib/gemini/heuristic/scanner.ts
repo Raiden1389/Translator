@@ -1,26 +1,46 @@
 import { db, HeuristicTerm } from '../../db';
-import { extractCandidates } from './tagger';
+import { extractCandidates, HeuristicEngine } from './tagger';
 import { suggestHanViet } from './utils';
 import { SyllableRepository } from '../../repositories/syllable-repo';
 import { resolveEntity, EntityFinalDecision } from './conflict-resolver';
 import { genericEntityGuard, GenericDecision } from './generic-entity-guard';
 import { resolveRankV18, classifyRankContext } from './rank-resolver';
 import { toast } from 'sonner';
+import { ROLE_NOUNS, FUNCTION_WORDS, COMPOSITE_MARKERS } from './patterns';
 
 /**
- * GLOBAL SCANNER v1.9 - BULLETPROOF
- * Purpose: Fast scan with robust error handling and index-safe queries.
+ * GLOBAL SCANNER v2.2 - WITH ABORT SIGNAL SUPPORT
+ * Purpose: 
+ * 1. Chunked DB writes (prevents IndexedDB lock)
+ * 2. AbortSignal support (timeout/user cancel)
+ * 3. Bulletproof state management
  */
+
 export async function scanWorkspaceHeuristics(
     workspaceId: string,
-    onProgress?: (current: number, total: number, message: string) => void
+    onProgress?: (current: number, total: number, message: string) => void,
+    abortSignal?: AbortSignal
 ) {
     if (!workspaceId) return;
 
-    console.log(`[HeuristicScanner] 🚀 Starting Scan for: ${workspaceId}`);
-    if (onProgress) onProgress(0, 100, "🔋 Đang chuẩn bị...");
+    // ✅ Early abort check
+    if (abortSignal?.aborted) {
+        throw new DOMException('Scan aborted before start', 'AbortError');
+    }
+
+    let total = 0;
+
+    console.log(`[HeuristicScanner] 🚀 Starting Scan (v2.2) for: ${workspaceId}`);
 
     try {
+        if (onProgress) {
+            try {
+                onProgress(0, 100, "🔋 Đang khởi động engine...");
+            } catch (e) {
+                console.warn("[HeuristicScanner] Progress callback error:", e);
+            }
+        }
+
         // --- PREPARE ---
         try {
             await SyllableRepository.getInstance().load("/dicts/ChinesePhienAmWords.txt");
@@ -28,54 +48,65 @@ export async function scanWorkspaceHeuristics(
             console.error("[HeuristicScanner] Syllable load failed:", err);
         }
 
+        // ✅ Check abort after blocking operation
+        if (abortSignal?.aborted) {
+            throw new DOMException('Scan aborted during syllable load', 'AbortError');
+        }
+
         // --- PHASE 0: LOAD BLACKLIST & PRESERVE APPROVED ---
-        if (onProgress) onProgress(5, 100, "🧠 Đang tải bộ nhớ (Blacklist)...");
+        if (onProgress) {
+            try {
+                onProgress(5, 100, "🧠 Đang tải bộ nhớ...");
+            } catch (e) {
+                console.warn("[HeuristicScanner] Progress callback error:", e);
+            }
+        }
 
         const ignoreSet = new Set<string>();
-
         try {
-            // SAFE QUERY: Using where('workspaceId') instead of compound index [workspaceId+source]
-            // as migration to version 104 might still be in progress or failing on some systems.
-            const blacklist = await db.blacklist
-                .where('workspaceId')
-                .equals(workspaceId)
-                .toArray();
-
-            // Only ignore heuristic-sourced blacklist entries
+            const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
             blacklist.forEach(b => {
                 if (b.source === 'heuristic') ignoreSet.add(b.word);
             });
         } catch (e) {
-            console.warn("[HeuristicScanner] Blacklist load failed, skipping ignore list:", e);
+            console.warn("[HeuristicScanner] Blacklist load failed:", e);
         }
 
-        // Preserve Approved and Garbage terms (Smart Scan)
-        const preservedTerms = await db.heuristicTerms
-            .where('workspaceId')
-            .equals(workspaceId)
-            .toArray();
+        const preservedTerms = await db.heuristicTerms.where('workspaceId').equals(workspaceId).toArray();
+        const approvedList: string[] = [];
+        const alreadyApprovedSet = new Set<string>();
 
         preservedTerms.forEach(t => {
             if (t.isApproved || t.isGarbage) {
                 ignoreSet.add(t.original);
+                if (t.isApproved) {
+                    approvedList.push(t.original);
+                    alreadyApprovedSet.add(t.original);
+                }
             }
         });
 
-        console.log(`[HeuristicScanner] 🧠 Learned ${ignoreSet.size} words to skip.`);
+        // 🛡️ Sync Protected Terms to Engine
+        HeuristicEngine.getInstance().setProtectedTerms(approvedList);
 
-        if (onProgress) onProgress(10, 100, "🧹 Dọn dẹp dữ liệu cũ...");
+        if (onProgress) onProgress(10, 100, `🧹 Dọn rác cũ (Đã chốt: ${alreadyApprovedSet.size})...`);
 
-        // CLEANUP: Only delete terms that are NOT approved and NOT garbage
         await db.heuristicTerms
             .where('workspaceId')
             .equals(workspaceId)
             .and(t => !t.isApproved && !t.isGarbage)
             .delete();
 
+        // ✅ Check abort
+        if (abortSignal?.aborted) {
+            throw new DOMException('Scan aborted during cleanup', 'AbortError');
+        }
+
         // --- PHASE 1: COLLECTION ---
-        const total = await db.chapters.where('workspaceId').equals(workspaceId).count();
+        total = await db.chapters.where('workspaceId').equals(workspaceId).count();
+
         if (total === 0) {
-            if (onProgress) onProgress(100, 100, "⚠️ Không tìm thấy chương.");
+            onProgress?.(100, 100, "⚠️ Không tìm thấy chương.");
             return;
         }
 
@@ -83,9 +114,8 @@ export async function scanWorkspaceHeuristics(
             original: string;
             type: string;
             occurrences: number;
-            flags: Record<string, boolean>;
             reason: string;
-            metadata?: any;
+            hasVerbContext: boolean;
         }> = new Map();
 
         let processed = 0;
@@ -95,71 +125,147 @@ export async function scanWorkspaceHeuristics(
             .where('workspaceId')
             .equals(workspaceId)
             .each((chapter) => {
+                if (abortSignal?.aborted) {
+                    throw new DOMException('Scan aborted during collection', 'AbortError');
+                }
+
                 processed++;
                 if (processed % CHUNK_SIZE === 0 || processed === total) {
-                    if (onProgress) onProgress(processed, total, `⚡ Đang quét (${processed}/${total})...`);
+                    onProgress?.(processed, total, `⚡ Đang quét (${processed}/${total})...`);
                 }
 
                 const candidates = extractCandidates(chapter.content_original);
                 candidates.forEach(c => {
-                    // SKIP if ignored (Blacklist / Approved / Garbage)
-                    if (ignoreSet.has(c.original)) return;
-
                     const existing = rawMap.get(c.original);
                     if (existing) {
                         existing.occurrences += c.occurrences;
+                        if (c.metadata?.flags?.hasVerbContext) existing.hasVerbContext = true;
                     } else {
                         rawMap.set(c.original, {
                             original: c.original,
-                            type: c.type,
+                            type: c.type as string,
                             occurrences: c.occurrences,
-                            flags: c.metadata?.flags || {},
                             reason: c.reason,
-                            metadata: c.metadata
+                            hasVerbContext: c.metadata?.flags?.hasVerbContext || false
                         });
                     }
                 });
             });
 
-        // --- PHASE 2: SCORING & FILTERING ---
-        if (onProgress) onProgress(total, total, `⚖️ Đang chấm điểm ${rawMap.size} ứng viên...`);
+        if (abortSignal?.aborted) throw new DOMException('Scan aborted after collection', 'AbortError');
 
-        const allCandidates = Array.from(rawMap.values());
+        // --- PHASE 1.5: OPTIMIZED SUBSUMPTION FILTER (FIX #5) ---
+        onProgress?.(total, total, `⚖️ Đang lọc "bóng ma"...`);
+
+        const sortedCandidates = Array.from(rawMap.values())
+            .filter(c => c.occurrences > 1)
+            .sort((a, b) => b.original.length - a.original.length);
+
+        const uniqueCandidates: typeof sortedCandidates = [];
+        let killedCount = 0;
+        let preservedIndependent = 0;
+
+        for (let i = 0; i < sortedCandidates.length; i++) {
+            const candidate = sortedCandidates[i];
+
+            if (i % 500 === 0) {
+                if (abortSignal?.aborted) throw new DOMException('Scan aborted during filtering', 'AbortError');
+                onProgress?.(total, total, `⚖️ Đang lọc (${i}/${sortedCandidates.length})...`);
+                await new Promise(r => setTimeout(r, 0));
+            }
+
+            let isShadow = false;
+            const candidateLength = candidate.original.length;
+
+            for (const parent of uniqueCandidates) {
+                if (parent.original.includes(candidate.original)) {
+                    // FIX #5: Independent Entity Concept
+                    const frequencyRatio = candidate.occurrences / parent.occurrences;
+
+                    // ✅ Protect well-known names (2-3 chars)
+                    if (candidateLength >= 2 && candidateLength <= 3) {
+                        // Only kill if frequency ratio is weak (< 0.6)
+                        // If it appears > 60% of the time compared to parent, it's an "Independent Entity"
+                        if (frequencyRatio > 0.6) {
+                            preservedIndependent++;
+                            continue;
+                        }
+                    }
+
+                    // Standard Shadow: if it's a substring and frequency is nearly identical (within 10%)
+                    if (frequencyRatio <= 1.1) {
+                        isShadow = true;
+                        killedCount++;
+                        break;
+                    }
+                }
+            }
+
+            if (!isShadow) uniqueCandidates.push(candidate);
+        }
+
+        console.log(`[Scanner v3.1] Subsumption Report:
+            - Total candidates: ${rawMap.size}
+            - Shadows killed: ${killedCount}
+            - Independent preserved: ${preservedIndependent}
+            - Final candidates: ${uniqueCandidates.length + Array.from(rawMap.values()).filter(c => c.occurrences === 1).length}
+        `);
+
+        const singles = Array.from(rawMap.values()).filter(c => c.occurrences === 1);
+        const finalCandidates = [...uniqueCandidates, ...singles];
+
+        // --- PHASE 2: SCORING & FILTERING ---
+        if (onProgress) {
+            try {
+                onProgress(total, total, `⚖️ Đang tinh lọc thực thể (phase 2/2)...`);
+            } catch (e) {
+                console.warn("[HeuristicScanner] Progress callback error:", e);
+            }
+        }
+
         const finalBatch: HeuristicTerm[] = [];
 
-        for (const raw of allCandidates) {
-            // ======= RANK RESOLVER - CHỈ DÀNH CHO TITLE =======
+        for (const raw of finalCandidates) {
+            // ✅ Check abort (though less frequent than collection phase)
+            if (abortSignal?.aborted) {
+                throw new DOMException('Scan aborted during scoring', 'AbortError');
+            }
+
+            if (ignoreSet.has(raw.original)) continue;
+
             if (raw.type === 'title') {
                 const rankShape = resolveRankV18(raw.original);
                 if (rankShape === 'RANK') continue;
-
                 const rankCtx = classifyRankContext(raw.original);
-                if (rankCtx !== 'TITLE') {
-                    // Skip generic, statement, object, descriptive
-                    continue;
-                }
+                if (rankCtx !== 'TITLE') continue;
             }
+
+            const flags = {
+                isGenericHuman: ROLE_NOUNS.some((r: string) => raw.original === r),
+                isFunctionWord: FUNCTION_WORDS.includes(raw.original),
+                hasVerbContext: raw.hasVerbContext,
+                isComposite: COMPOSITE_MARKERS.some((m: string) => raw.original.includes(m)),
+                isBlacklisted: false
+            };
 
             const resolution = resolveEntity({
                 text: raw.original,
                 frequency: raw.occurrences,
                 patternMatched: true,
-                semanticFlags: raw.flags
+                semanticFlags: flags
             });
 
             if (resolution.decision === EntityFinalDecision.REJECT) continue;
 
-            // ======= GENERIC ENTITY GUARD =======
             const guardResult = genericEntityGuard({
                 original: raw.original,
-                type: raw.type as any,
+                type: raw.type as 'character' | 'skill' | 'location' | 'title' | 'unknown',
                 confidence: resolution.score,
                 reason: '',
                 occurrences: raw.occurrences
             });
 
             if (guardResult.decision === GenericDecision.DROP) continue;
-
             if (guardResult.decision === GenericDecision.DOWNGRADE) {
                 resolution.score = Math.max(0, resolution.score - 20);
             }
@@ -168,7 +274,7 @@ export async function scanWorkspaceHeuristics(
                 workspaceId,
                 original: raw.original,
                 translated: suggestHanViet(raw.original),
-                type: raw.type as any,
+                type: raw.type as 'character' | 'skill' | 'location' | 'title' | 'unknown',
                 confidence: resolution.score,
                 pinyin: '',
                 isApproved: false,
@@ -179,16 +285,75 @@ export async function scanWorkspaceHeuristics(
             });
         }
 
-        if (finalBatch.length > 0) {
-            finalBatch.sort((a, b) => b.confidence - a.confidence || (b.occurrences || 0) - (a.occurrences || 0));
-            await db.heuristicTerms.bulkPut(finalBatch);
+        // ✅ Check abort before DB write
+        if (abortSignal?.aborted) {
+            throw new DOMException('Scan aborted before DB write', 'AbortError');
         }
 
-        if (onProgress) onProgress(total, total, `✨ Hoàn tất! Phát hiện ${finalBatch.length} thực thể.`);
+        // --- PHASE 3: CHUNKED DB WRITE (CRITICAL FIX) ---
+        if (finalBatch.length > 0) {
+            finalBatch.sort((a, b) => b.confidence - a.confidence || (b.occurrences || 0) - (a.occurrences || 0));
+
+            const WRITE_CHUNK_SIZE = 1000;
+            for (let i = 0; i < finalBatch.length; i += WRITE_CHUNK_SIZE) {
+                // ✅ Check abort in write loop
+                if (abortSignal?.aborted) {
+                    throw new DOMException('Scan aborted during DB write', 'AbortError');
+                }
+
+                const chunk = finalBatch.slice(i, i + WRITE_CHUNK_SIZE);
+                try {
+                    await db.heuristicTerms.bulkPut(chunk);
+
+                    if (onProgress) {
+                        try {
+                            onProgress(
+                                total,
+                                total,
+                                `💾 Lưu kết quả (${Math.min(i + WRITE_CHUNK_SIZE, finalBatch.length)}/${finalBatch.length})...`
+                            );
+                        } catch (e) {
+                            console.warn("[HeuristicScanner] Progress callback error:", e);
+                        }
+                    }
+
+                    // Small yield between chunks to prevent lock
+                    if (i + WRITE_CHUNK_SIZE < finalBatch.length) {
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+                } catch (err) {
+                    console.error(`[HeuristicScanner] Chunk write failed at index ${i}:`, err);
+                    throw err;
+                }
+            }
+        }
+
+        if (onProgress) {
+            try {
+                onProgress(total, total, `✨ Hoàn tất! Phát hiện ${finalBatch.length} thực thể.`);
+            } catch (e) {
+                console.warn("[HeuristicScanner] Progress callback error:", e);
+            }
+        }
 
     } catch (error) {
-        console.error("[HeuristicScanner] FATAL ERROR:", error);
-        toast.error("Quá trình quét gặp lỗi nghiêm trọng. Kiểm tra Console.");
-        if (onProgress) onProgress(0, 0, "❌ Lỗi hệ thống.");
+        // ✅ Distinguish abort from errors
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            console.warn("[HeuristicScanner] ABORTED:", error.message);
+            // Don't show toast for abort, let the hook handle it
+            throw error;
+        }
+
+        console.error("[HeuristicScanner] ERROR:", error);
+        toast.error("Quét thất bại. Kiểm tra Console.");
+        throw error;
+    } finally {
+        if (onProgress) {
+            try {
+                onProgress(total, total, "✨ Xong!");
+            } catch (e) {
+                console.warn("[HeuristicScanner] Final progress callback error:", e);
+            }
+        }
     }
 }

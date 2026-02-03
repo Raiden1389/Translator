@@ -11,7 +11,10 @@ import { classifyRankContext, RankContext } from './context-classifier';
 export type RankResolveResult = 'KEEP' | 'RANK';
 
 // Danh sách các hậu tố Rank phổ biến
-const RANK_CORE = ['宗师', '大宗师', '王', '霸王', '圣者', '尊者', '帝', '皇', '主', '祖', '会长', '长老', '教主'];
+const RANK_CORE = [
+    '宗师', '大宗师', '王', '霸王', '圣者', '尊者', '帝', '皇', '主', '祖', '会长', '长老', '教主', '宗主',
+    '太上长老', '客卿', '供奉', '门主', '殿主', '府主', '阁主', '岛主', '传人', '夫人', '小妾', '公子', '小姐', '少主', '少宗主'
+];
 
 const IMMUNE_SET = new Set(['妖魔王', '牛魔王', '精灵女王', '黄金妖王', '白衣圣徒', '秦王', '冥王', '龙王', '夜神', '帝尊']);
 
@@ -30,7 +33,7 @@ export function resolveRankShape(core: string): RankResolveResult {
     // King rule: Chữ Vương đứng linh tinh (1 chữ hoặc prefix rác)
     if (foundRank === '王') {
         if (core.length < 2) return 'RANK';
-        const junkKings = ['是', '位', '个', '有', '那', '便', '才', '为', '到', '叫'];
+        const junkKings = ['是', '位', '个', '有', '那', '便', '才', '为', '到', '叫', '以', '任', '所', '称', '成', '监', '返', '听', '在', '要', '通'];
         if (junkKings.some(p => core.startsWith(p))) return 'RANK';
     }
 
@@ -73,7 +76,8 @@ export function resolveRankV18(core: string): RankResolveResult {
  */
 export const VERB_PREFIX_STRIP = [
     '到', '用', '过', '去', '来', '骑', '乘', '走', '让', '给', '被', '为', '使', '令',
-    '持', '握', '拿', '带', '背', '负', '驭', '御', '催', '驱', '引', '动', '夺', '抢'
+    '持', '握', '拿', '带', '背', '负', '驭', '御', '催', '驱', '引', '动', '夺', '抢',
+    '监', '返', '听', '在', '要', '通', '向', '还'
 ];
 
 export function resolveRankLite(core: string): RankResolveResult {

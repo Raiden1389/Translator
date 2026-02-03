@@ -46,6 +46,7 @@ interface BatchTranslateHandlerProps {
         fixPunctuation?: boolean;
         maxConcurrency?: number;
         enableChunking: boolean;
+        enableTurbo: boolean; // 🚀 New
         maxConcurrentChunks: number;
         chunkSize?: number;
     };
@@ -137,7 +138,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 open={translateDialogOpen}
                 onOpenChange={setTranslateDialogOpen}
                 selectedCount={selectedChapters.length}
-                onStart={(config: { customPrompt: string; autoExtract: boolean; fixPunctuation?: boolean; enableChunking: boolean; maxConcurrentChunks: number; chunkSize?: number }, settings: TranslationSettings) => {
+                onStart={(config: { customPrompt: string; autoExtract: boolean; fixPunctuation?: boolean; enableChunking: boolean; enableTurbo: boolean; maxConcurrentChunks: number; chunkSize?: number }, settings: TranslationSettings) => {
                     setTranslateDialogOpen(false);
                     onTranslate({
                         workspaceId,
@@ -148,6 +149,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                             ...config,
                             fixPunctuation: config.fixPunctuation,
                             enableChunking: config.enableChunking,
+                            enableTurbo: config.enableTurbo,
                             maxConcurrentChunks: config.maxConcurrentChunks || 3,
                             chunkSize: config.chunkSize || 800
                         }

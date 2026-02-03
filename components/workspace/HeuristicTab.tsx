@@ -13,7 +13,8 @@ import {
     Trash2,
     Activity,
     User,
-    RotateCw
+    RotateCw,
+    AlertTriangle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -31,21 +32,39 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
     const [filter, setFilter] = useState<HeuristicFilterType>('all');
     const [isScanning, setIsScanning] = useState(false);
     const [progress, setProgress] = useState({ current: 0, total: 0, message: "" });
+    const [scanTimeout, setScanTimeout] = useState<NodeJS.Timeout | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
 
-    const isMounted = useRef(true);
+    // ✅ FIX #1: Keep track of scan state outside component lifecycle
+    const scanStateRef = useRef<{
+        isActive: boolean;
+        abortController: AbortController | null;
+    }>({
+        isActive: false,
+        abortController: null,
+    });
+
+    // ✅ FIX #2: Reset scanning state on workspaceId change
     useEffect(() => {
-        // Force reset scanning state on mount
+        // When workspace changes, abort previous scan if still running
+        if (scanStateRef.current.abortController) {
+            scanStateRef.current.abortController.abort();
+        }
         setIsScanning(false);
-        return () => { isMounted.current = false; };
-    }, []);
+        setScanTimeout(null);
+        scanStateRef.current.isActive = false;
+        return () => {
+            // Cleanup on unmount
+            if (scanStateRef.current.abortController) {
+                scanStateRef.current.abortController.abort();
+            }
+        };
+    }, [workspaceId]);
 
     const { startScan, approveTerm, deleteTerm, approveAll } = useHeuristic(workspaceId);
 
     const blacklist = useLiveQuery(
         async () => {
-            // CHỈ lấy blacklist của Heuristic (source === 'heuristic')
-            // KHÔNG lấy blacklist từ Dictionary (source === 'manual' hoặc null)
             const allItems = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
             const heuristicOnly = allItems.filter(b => b.source === 'heuristic');
 
@@ -62,11 +81,9 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
 
     const rawTerms = useLiveQuery(() => db.heuristicTerms.where('workspaceId').equals(workspaceId).toArray(), [workspaceId]) || [];
 
-    // Use custom hooks for stats and filtering
     const stats = useHeuristicStats(rawTerms);
     const filteredTerms = useHeuristicFilter(rawTerms, search, filter);
 
-    // Generate forensic report
     const forensicReport = useMemo<ForensicReport | null>(() => {
         if (rawTerms.length === 0) return null;
         const approved = rawTerms.filter(t => t.isApproved);
@@ -82,22 +99,57 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
         overscan: 10,
     });
 
+    // ✅ FIX #3: Bulletproof scan handler with timeout protection
     const handleScan = async () => {
+        // Prevent double-scan
+        if (scanStateRef.current.isActive) {
+            toast.warning("Quét đang chạy, vui lòng chờ...");
+            return;
+        }
+
+        // Clear any previous timeout
+        if (scanTimeout) clearTimeout(scanTimeout);
+
         setIsScanning(true);
+        scanStateRef.current.isActive = true;
+        scanStateRef.current.abortController = new AbortController();
+
+        // ⚠️ Hard timeout: 5 minutes
+        const timeoutId = setTimeout(() => {
+            console.error("[HeuristicTab] Scan timeout exceeded 5 minutes");
+            scanStateRef.current.abortController?.abort();
+            // Reset state regardless
+            scanStateRef.current.isActive = false;
+            setIsScanning(false);
+            toast.error("⏱️ Quét vượt quá thời gian giới hạn (5 phút). Đã dừng.");
+        }, 5 * 60 * 1000);
+
+        setScanTimeout(timeoutId);
+
         try {
-            await startScan((current, total, message) => {
-                if (isMounted.current) {
+            // Pass abort signal to scan (requires scanner.ts to accept it)
+            await startScan(
+                (current, total, message) => {
                     setProgress({ current, total, message });
-                }
-            });
+                },
+                scanStateRef.current.abortController.signal
+            );
+
+            // Only show success if scan wasn't aborted
+            if (!scanStateRef.current.abortController.signal.aborted) {
+                toast.success("✨ Quét hoàn tất!");
+            }
+        } catch (error) {
+            // Error already handled in useHeuristic, just log here
+            console.error("[HeuristicTab] Scan error:", error);
         } finally {
-            if (isMounted.current) setIsScanning(false);
+            // ✅ GUARANTEE: Always cleanup
+            clearTimeout(timeoutId);
+            setScanTimeout(null);
+            scanStateRef.current.isActive = false;
+            setIsScanning(false);
         }
     };
-
-
-
-
 
     const handleClearAll = async () => {
         if (!confirm(`⚠️ Xóa TOÀN BỘ ${stats.total} thực thể?\n\nHành động này KHÔNG THỂ hoàn tác!`)) {
@@ -136,27 +188,29 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                 />
 
                 {/* AI Console / Progress bar */}
-                {
-                    isScanning && (
-                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm shrink-0 space-y-3">
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                                    <span>{progress.message}</span>
-                                    <span className="text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100 flex items-center gap-1">
-                                        <RotateCw className="h-2.5 w-2.5 animate-spin" />
-                                        {Math.round((progress.current / (progress.total || 1)) * 100)}%
-                                    </span>
-                                </div>
-                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                                    <div
-                                        className="h-full bg-blue-500 transition-all duration-300"
-                                        style={{ width: `${(progress.current / (progress.total || 1)) * 100}%` }}
-                                    />
-                                </div>
+                {isScanning && (
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm shrink-0 space-y-3">
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                                <span>{progress.message}</span>
+                                <span className="text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100 flex items-center gap-1">
+                                    <RotateCw className="h-2.5 w-2.5 animate-spin" />
+                                    {Math.round((progress.current / (progress.total || 1)) * 100)}%
+                                </span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                                <div
+                                    className="h-full bg-blue-500 transition-all duration-300"
+                                    style={{ width: `${(progress.current / (progress.total || 1)) * 100}%` }}
+                                />
+                            </div>
+                            <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                Nếu quét bị kẹt quá lâu, trang sẽ tự dừng sau 5 phút.
                             </div>
                         </div>
-                    )
-                }
+                    </div>
+                )}
 
                 {/* Toolbar section */}
                 <div className="flex flex-col md:flex-row gap-2 shrink-0">
@@ -166,13 +220,15 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                             placeholder="Tìm theo chữ gốc hoặc Hán Việt..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            disabled={isScanning}
                             className="pl-10 h-10 rounded-xl bg-white border-slate-200 focus:ring-indigo-500 transition-all shadow-sm"
                         />
                     </div>
                     <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
                         <button
                             onClick={() => setFilter('character')}
-                            className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 bg-white shadow-sm text-indigo-600"
+                            disabled={isScanning}
+                            className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 bg-white shadow-sm text-indigo-600 disabled:opacity-50"
                         >
                             <User className="h-3.5 w-3.5" />
                             Nhân vật
@@ -233,7 +289,7 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
 
                                         <div className="flex items-center gap-8 shrink-0">
                                             <div className="hidden lg:flex flex-col items-end gap-0.5 text-[11px] font-bold uppercase tracking-tight opacity-70">
-                                                <span className="text-slate-400">{term.occurrences} lần xuât hiện</span>
+                                                <span className="text-slate-400">{term.occurrences} lần xuất hiện</span>
                                                 <span className={cn(term.confidence > 80 ? "text-emerald-500" : "text-amber-500")}>
                                                     Độ tin cậy: {term.confidence}%
                                                 </span>
@@ -243,7 +299,8 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-9 w-9 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                                                    disabled={isScanning}
+                                                    className="h-9 w-9 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors disabled:opacity-50"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         deleteTerm(term.id!);
@@ -256,7 +313,8 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                                                     <Button
                                                         variant="default"
                                                         size="sm"
-                                                        className="h-9 px-5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-sm transition-transform active:scale-95"
+                                                        disabled={isScanning}
+                                                        className="h-9 px-5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-sm transition-transform active:scale-95 disabled:opacity-50"
                                                         onClick={() => approveTerm(term.id!)}
                                                     >
                                                         Chốt
@@ -283,7 +341,7 @@ export function HeuristicTab({ workspaceId }: { workspaceId: string }) {
                         </div>
                     )}
                 </div>
-            </div >
-        </TooltipProvider >
+            </div>
+        </TooltipProvider>
     );
 }

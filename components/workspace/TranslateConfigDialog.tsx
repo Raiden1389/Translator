@@ -24,6 +24,7 @@ interface TranslationConfig {
     maxConcurrency: number;
     fixPunctuation: boolean;
     enableChunking: boolean;
+    enableTurbo: boolean; // 🚀 New
     maxConcurrentChunks: number;
     chunkSize: number;
 }
@@ -42,6 +43,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         maxConcurrency: 5,
         fixPunctuation: false,
         enableChunking: false,
+        enableTurbo: true, // Auto-on by default
         maxConcurrentChunks: 3,
         chunkSize: 800
     });
@@ -60,6 +62,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
             const lastConcurrency = await db.settings.get("lastMaxConcurrency");
             const lastFixPunctuation = await db.settings.get("lastFixPunctuation");
             const lastEnableChunking = await db.settings.get("enableChunking");
+            const lastEnableTurbo = await db.settings.get("enableTurbo");
             const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
             const lastChunkSize = await db.settings.get("chunkSize");
             const prompts = await db.prompts.toArray();
@@ -76,6 +79,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                 maxConcurrency: (lastConcurrency?.value as number) || 5,
                 fixPunctuation: (lastFixPunctuation?.value as boolean) || false,
                 enableChunking: (lastEnableChunking?.value as boolean) || false,
+                enableTurbo: lastEnableTurbo ? (lastEnableTurbo.value as boolean) : true,
                 maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
                 chunkSize: (lastChunkSize?.value as number) || 800
             }));
@@ -108,6 +112,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         await db.settings.put({ key: "lastMaxConcurrency", value: translateConfig.maxConcurrency });
         await db.settings.put({ key: "lastFixPunctuation", value: translateConfig.fixPunctuation });
         await db.settings.put({ key: "enableChunking", value: translateConfig.enableChunking });
+        await db.settings.put({ key: "enableTurbo", value: translateConfig.enableTurbo });
         await db.settings.put({ key: "maxConcurrentChunks", value: translateConfig.maxConcurrentChunks || 3 });
         await db.settings.put({ key: "chunkSize", value: translateConfig.chunkSize || 800 });
         onStart(translateConfig, currentSettings);
@@ -243,6 +248,22 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                         <Switch
                             checked={translateConfig.fixPunctuation}
                             onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, fixPunctuation: val })}
+                        />
+                    </div>
+
+                    {/* Turbo Mode Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-[#bc13fe10] border-[#bc13fe30] rounded-xl border shadow-[0_0_15px_rgba(188,19,254,0.05)]">
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                                <Label className="text-sm font-bold text-[#bc13fe]">Turbo Cache Mode 🚀</Label>
+                                <span className="text-[9px] bg-[#bc13fe20] text-[#bc13fe] px-1.5 py-0.5 rounded font-black uppercase">Gemini Only</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground font-medium">Giảm 80% Input Token bằng Context Caching (Auto dọn dẹp)</p>
+                        </div>
+                        <Switch
+                            checked={translateConfig.enableTurbo}
+                            onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, enableTurbo: val })}
+                            className="data-[state=checked]:bg-[#bc13fe]"
                         />
                     </div>
 

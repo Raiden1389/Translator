@@ -7,8 +7,11 @@ import { TranslationSettings } from "@/lib/types";
 import {
     translateChapter,
     translateWithChunking,
-    TranslationLog
+    TranslationLog,
+    createContextCache,
+    deleteContextCache
 } from "@/lib/gemini";
+import { analyzeTextHeuristics, assembleSystemInstruction } from "@/lib/gemini/rules/assembler";
 import { aiQueue } from "@/lib/services/ai-queue";
 import type { Chapter } from "@/lib/db";
 
@@ -23,6 +26,7 @@ interface BatchTranslateProps {
         fixPunctuation?: boolean;
         maxConcurrency?: number;
         enableChunking: boolean;
+        enableTurbo: boolean; // 🚀 New
         maxConcurrentChunks: number;
         chunkSize?: number;
     };
@@ -91,6 +95,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             logs: []
         });
 
+        const batchToastId = "batch-translate-status";
+        toast.loading("🚀 Đang khởi tạo hệ thống...", { id: batchToastId });
+
         // 1. Shared Batch Context Optimization
         const allOriginalText = chaptersToTranslate.map(c => c.content_original).join("\n\n");
         const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
@@ -102,8 +109,51 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             .sort((a, b) => b.original.length - a.original.length)
             .slice(0, 100);
 
-        // 2. Global Queue Integration
+        // 2. GLOBAL CONTEXT CACHE (Turbo Mode 🚀)
+        // Enable if user wants it AND > 1 chapter and using a modern model
+        let activeCacheName: string | undefined = undefined;
+        const isModernModel = currentSettings.model.includes("2.5") || currentSettings.model.includes("2.0") || currentSettings.model.includes("1.5");
+        const shouldEnableCache = translateConfig.enableTurbo && isModernModel;
+
+        if (shouldEnableCache) {
+            try {
+                setBatchProgress(prev => ({ ...prev, currentTitle: "⚡ Đang khởi tạo Turbo Cache..." }));
+
+                // Assemble static instruction for cache
+                const initialAnalysis = analyzeTextHeuristics(allOriginalText.slice(0, 10000));
+                const staticGlossaryContext = sharedGlossary.length > 0
+                    ? `\nGlossary (Static): ${sharedGlossary.map(d => `${d.original}=${d.translated}`).join(', ')}`
+                    : '';
+
+                const baseSystemInstruction = assembleSystemInstruction(
+                    initialAnalysis,
+                    staticGlossaryContext,
+                    translateConfig.customPrompt
+                );
+
+                activeCacheName = await createContextCache({
+                    model: currentSettings.model,
+                    systemInstruction: baseSystemInstruction,
+                    displayName: `Batch-${workspaceId.slice(0, 4)}-${Date.now()}`,
+                    ttlSeconds: 3600 // 1 hour safety
+                });
+
+                const parallelCount = await db.settings.get("maxTotalParallel");
+                const currentParallel = parallelCount?.value || 10;
+
+                toast.loading(`⚡ Turbo Mode: Đã kích hoạt [Parallel: ${currentParallel} luồng]`, {
+                    id: batchToastId,
+                    description: `Đang nạp Rules & Glossary vào bộ nhớ đệm...`
+                });
+            } catch (err) {
+                console.error("Failed to create cache:", err);
+                // Fallback to non-cached translation
+            }
+        }
+
+        // 3. Global Queue Integration
         let processedCount = 0;
+        let chunkedCount = 0;
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
 
@@ -162,8 +212,13 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                         enabled: translateConfig.enableChunking
                     },
                     finalPrompt,
-                    sharedGlossary
+                    sharedGlossary,
+                    activeCacheName // 🚀 Pass cache down
                 );
+
+                if (result.wasChunked) {
+                    chunkedCount++;
+                }
 
                 const duration = Date.now() - startTime;
                 let finalTitle = result.translatedTitle || "";
@@ -207,6 +262,39 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                 onLog({ timestamp: new Date(), message: `Lỗi: ${errorMsg}`, type: 'error' });
             } finally {
                 processedCount++;
+
+                // 📊 GOD-TIER DASHBOARD (GPT-5.2 Style)
+                const elapsedTotal = (Date.now() - batchStartTime) / 1000;
+                const speed = (processedCount / elapsedTotal) * 60;
+                const remaining = chaptersToTranslate.length - processedCount;
+                const etaSeconds = speed > 0 ? (remaining / (speed / 60)) : 0;
+
+                const currentPercent = Math.round((processedCount / chaptersToTranslate.length) * 100);
+                const turboTag = activeCacheName ? "⚡ TURBO" : "🛡️ STD";
+
+                const savedTokens = activeCacheName ? (processedCount * 1200) : 0;
+                const savingTag = savedTokens > 0 ? ` [💎 Save: ${(savedTokens / 1000).toFixed(1)}k]` : "";
+
+                const etaText = remaining > 0
+                    ? `ETA: ${Math.floor(etaSeconds / 60)}m ${Math.round(etaSeconds % 60)}s`
+                    : "Finalizing...";
+
+                toast.loading(`${turboTag} Progress: ${currentPercent}%${savingTag}`, {
+                    id: batchToastId,
+                    description: (
+                        <div className="flex flex-col gap-1 mt-1 font-mono text-[10px] leading-tight opacity-90">
+                            <div className="flex justify-between border-b border-white/10 pb-1 gap-4">
+                                <span>🚀 Velocity: <span className="text-blue-400">{speed.toFixed(1)} ch/min</span></span>
+                                <span className="text-amber-400 lowercase">{etaText}</span>
+                            </div>
+                            <div className="flex justify-between pt-0.5">
+                                <span>📂 Done: {processedCount}/{chaptersToTranslate.length}</span>
+                                <span className="text-emerald-400">Chars: {totalUsedChars.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    )
+                });
+
                 setBatchProgress(prev => ({ ...prev, current: processedCount }));
             }
         };
@@ -223,14 +311,23 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             }
 
             const totalBatchTime = ((Date.now() - batchStartTime) / 1000).toFixed(1);
-            toast.success(`Dịch hoàn tất trong ${totalBatchTime}s`, {
+            const cacheStatus = activeCacheName ? "⚡ Turbo" : "Standard";
+            const chunkingInfo = chunkedCount > 0 ? ` | 📦 Chunked: ${chunkedCount}` : "";
+
+            toast.success(`Hạ cánh an toàn: ${totalBatchTime}s [${cacheStatus}${chunkingInfo}]`, {
+                id: batchToastId, // 🚀 Replace loading toast
                 description: `Sử dụng ${totalUsedChars} ký tự. (${totalInputTokens}i + ${totalOutputTokens}o tokens)`,
-                duration: 5000
+                duration: 7000
             });
         } catch (fatalErr: unknown) {
             const errorMsg = fatalErr instanceof Error ? fatalErr.message : String(fatalErr);
-            toast.error("Lỗi: " + errorMsg);
+            toast.error("Lỗi: " + errorMsg, { id: batchToastId });
         } finally {
+            // 🗑️ Cleanup Turbo Cache
+            if (activeCacheName) {
+                deleteContextCache(activeCacheName).catch(console.error);
+            }
+
             setIsTranslating(false);
             setBatchProgress({ current: 0, total: 0, currentTitle: "", logs: [] });
             onComplete?.();

@@ -72,6 +72,67 @@ async fn native_list_models(api_key: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+async fn native_gemini_create_cache(
+    payload: String,
+    api_key: Option<String>,
+) -> Result<String, String> {
+    let actual_key = match api_key {
+        Some(k) if !k.is_empty() => k,
+        _ => {
+            dotenvy::dotenv().ok();
+            std::env::var("GEMINI_API_KEY").map_err(|_| "Missing API Key".to_string())?
+        }
+    };
+
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/cachedContents?key={}",
+        actual_key
+    );
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    Ok(text)
+}
+
+#[tauri::command]
+async fn native_gemini_delete_cache(
+    cache_name: String,
+    api_key: Option<String>,
+) -> Result<String, String> {
+    let actual_key = match api_key {
+        Some(k) if !k.is_empty() => k,
+        _ => {
+            dotenvy::dotenv().ok();
+            std::env::var("GEMINI_API_KEY").map_err(|_| "Missing API Key".to_string())?
+        }
+    };
+
+    // cache_name is expected to be "cachedContents/id"
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/{}?key={}",
+        cache_name, actual_key
+    );
+
+    let client = reqwest::Client::new();
+    let res = client
+        .delete(url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    Ok(text)
+}
+
+#[tauri::command]
 fn get_gemini_key() -> Result<String, String> {
     dotenvy::dotenv().ok();
     env::var("GEMINI_API_KEY").map_err(|_| "Không tìm thấy GEMINI_API_KEY trong .env".to_string())
@@ -119,6 +180,8 @@ pub fn run() {
             tts::edge_tts_speak,
             auth::start_auth_server,
             native_gemini_request,
+            native_gemini_create_cache,
+            native_gemini_delete_cache,
             native_list_models,
             segment_chinese,
             get_gemini_key,

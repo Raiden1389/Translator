@@ -71,9 +71,10 @@ export async function shouldUseChunking(text: string): Promise<ChunkOptions> {
 export async function translateSingleChunk(
     workspaceId: string,
     chunk: string,
-    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[]) => Promise<void>,
+    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[], cacheId?: string) => Promise<void>,
     customInstruction?: string,
-    sharedGlossary?: DictionaryEntry[]
+    sharedGlossary?: DictionaryEntry[],
+    cacheId?: string
 ): Promise<TranslationResult> {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = (modelSetting?.value as string) || DEFAULT_MODEL;
@@ -106,7 +107,8 @@ export async function translateSingleChunk(
                 resolve(result);
             },
             customInstruction,
-            sharedGlossary
+            sharedGlossary,
+            cacheId
         ).catch(reject);
     });
 }
@@ -117,11 +119,12 @@ export async function translateSingleChunk(
 export async function translateWithChunking(
     workspaceId: string,
     text: string,
-    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[]) => Promise<void>,
+    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[], cacheId?: string) => Promise<void>,
     onLog: (log: TranslationLog) => void,
     options?: Partial<ChunkOptions> & { onProgress?: (current: number, total: number) => void },
     customInstruction?: string,
-    sharedGlossary?: DictionaryEntry[]
+    sharedGlossary?: DictionaryEntry[],
+    cacheId?: string
 ): Promise<TranslationResult> {
     const dbOptions = await shouldUseChunking(text);
     const finalOptions = { ...dbOptions, ...options };
@@ -133,8 +136,9 @@ export async function translateWithChunking(
                 // ABSOLUTE FINAL SWEEP: Quét cửa lúc đi ra
                 res.translatedText = finalSweep(res.translatedText);
                 if (res.translatedTitle) res.translatedTitle = finalSweep(res.translatedTitle);
+                res.wasChunked = false; // No chunking happened
                 resolve(res);
-            }, customInstruction, sharedGlossary).catch(reject);
+            }, customInstruction, sharedGlossary, cacheId).catch(reject);
         });
     }
 
@@ -158,7 +162,7 @@ export async function translateWithChunking(
                 finalOptions.onProgress?.(index + 1, chunks.length);
 
                 try {
-                    const res = await translateSingleChunk(workspaceId, chunk, translateFn, customInstruction, sharedGlossary);
+                    const res = await translateSingleChunk(workspaceId, chunk, translateFn, customInstruction, sharedGlossary, cacheId);
                     console.log(`✅ [${batchId}] Chunk ${index + 1}/${chunks.length} xong sau ${Date.now() - chunkStart}ms`);
                     return res;
                 } catch (err) {
@@ -200,6 +204,7 @@ export async function translateWithChunking(
         return {
             translatedText,
             translatedTitle,
+            wasChunked: true, // Yes, it was chunked
             stats: {
                 terms: totalTerms,
                 characters: totalChars,

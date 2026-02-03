@@ -4,6 +4,7 @@ import { GlossaryCharacter, GlossaryTerm } from "../types";
 export interface TranslationResult {
     translatedText: string;
     translatedTitle?: string;
+    wasChunked?: boolean; // 🚀 New: Flag if chapter was split
     stats?: {
         terms: number;
         characters: number;

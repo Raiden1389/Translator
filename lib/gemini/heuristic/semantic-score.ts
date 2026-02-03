@@ -34,19 +34,16 @@ const FUNCTION_WORDS = ['已经', '曾经', '有人', '没有', '一位', '位',
 export function semanticScoreEntity(input: {
     text: string;
     frequency: number;
-    flags: any;
+    flags: Record<string, boolean>;
 }): SemanticScoreResult {
 
     let score = BASE_SCORE;
     const reasons: string[] = [];
 
     // 1. INSTANT KILL for junk starters
-    for (const junk of FUNCTION_WORDS) {
-        if (input.text.startsWith(junk)) {
-            score += PENALTY.startsWithJunk;
-            reasons.push('starts_with_junk');
-            break;
-        }
+    if (input.flags.isFunctionWord || input.flags.isBlacklisted) {
+        score += PENALTY.startsWithJunk;
+        reasons.push('starts_with_junk');
     }
 
     // 2. Length
