@@ -65,29 +65,30 @@ export async function fixAllTitles(
         .equals(workspaceId)
         .toArray();
 
-    const needFix = chapters.filter(ch => hasChinese(ch.title));
+    const needFix = chapters.filter(ch => hasChinese(ch.title_translated || ""));
     const stats = { fixed: 0, skipped: 0, errors: [] as string[] };
 
-    console.log(`[Fix Titles] Found ${needFix.length} chapters with Chinese in titles`);
+    console.log(`[Fix Titles] Found ${needFix.length} chapters with Chinese in TRANSLATED titles`);
 
     for (let i = 0; i < needFix.length; i++) {
         const chapter = needFix[i];
         try {
-            onProgress?.(i + 1, needFix.length, chapter.title);
+            const currentTitleToFix = chapter.title_translated || chapter.title;
+            onProgress?.(i + 1, needFix.length, currentTitleToFix);
 
-            const newTitle = await translateTitleOnly(chapter.title);
+            const newTitle = await translateTitleOnly(currentTitleToFix);
 
             // Verify translation is valid
             if (!newTitle || hasChinese(newTitle)) {
-                console.warn(`[Fix Titles] Translation still has Chinese: ${chapter.title} → ${newTitle}`);
-                stats.errors.push(`Chapter ${chapter.order}: Translation failed`);
+                console.warn(`[Fix Titles] Translation still has Chinese: ${currentTitleToFix} → ${newTitle}`);
+                stats.errors.push(`Chương ${chapter.order}: Dịch vẫn còn chữ Hán`);
                 stats.skipped++;
                 continue;
             }
 
-            // Update database
-            await db.chapters.update(chapter.id!, { title: newTitle });
-            console.log(`[Fix Titles] ✅ ${chapter.title} → ${newTitle}`);
+            // Update database - Update THE CORRECT FIELD (title_translated)
+            await db.chapters.update(chapter.id!, { title_translated: newTitle });
+            console.log(`[Fix Titles] ✅ ${currentTitleToFix} → ${newTitle}`);
             stats.fixed++;
 
             // Small delay to avoid rate limiting
@@ -96,7 +97,7 @@ export async function fixAllTitles(
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.error(`[Fix Titles] Error for chapter ${chapter.order}:`, error);
-            stats.errors.push(`Chapter ${chapter.order}: ${errorMessage}`);
+            stats.errors.push(`Chương ${chapter.order}: ${errorMessage}`);
             stats.skipped++;
         }
     }
