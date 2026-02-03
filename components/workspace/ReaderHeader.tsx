@@ -39,6 +39,7 @@ export interface ReaderConfig {
     backgroundColor: string;
     maxWidth: number;
     showDialogueLines: boolean;
+    indentText: boolean; // New: Toggle first-line indent
     ttsPitch: number;
     ttsRate: number;
     ttsVoice: string;
@@ -436,6 +437,25 @@ function ReaderSettingsPanel({
                         </button>
                     </div>
                 </div>
+
+                <div className="flex items-center justify-between pb-2 border-b border-border/30">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-muted-foreground/40 uppercase font-black tracking-widest">Thụt lề (VN Style)</span>
+                        <button
+                            onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, indentText: !prev.indentText }))}
+                            className={cn(
+                                "w-8 h-4 rounded-full transition-all relative",
+                                readerConfig.indentText ? "bg-primary" : "bg-muted"
+                            )}
+                        >
+                            <div className={cn(
+                                "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm",
+                                readerConfig.indentText ? "left-[18px]" : "left-0.5"
+                            )} />
+                        </button>
+                    </div>
+                </div>
+
                 <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-xl border border-border/50">
                     <button onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, maxWidth: Math.max(500, prev.maxWidth - 50) }))} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-background text-muted-foreground transition-colors">-</button>
                     <input type="range" min="500" max="1400" step="10" value={readerConfig.maxWidth} onChange={(e) => {

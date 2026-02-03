@@ -1,63 +1,60 @@
 {
-    "updated_at": "2026-02-03T00:50:00Z",
+    "updated_at": "2026-02-03T07:30:00Z",
     "working_on": {
-        "feature": "Heuristic Engine 2.0 (The Context Purge)",
-        "task": "Tái cấu trúc bộ máy Heuristic: Tách biệt Shape và Context, triển khai triết lý Strict Opt-in, modular hóa Classifier, và sửa lỗi lọc nhầm Character/Skill/Location.",
+        "feature": "Token Tracking & Title Fixer",
+        "task": "Hoàn thành audit hệ thống dịch thuật, triển khai theo dõi token/cost realtime và nút sửa lỗi Hán tự trong tiêu đề.",
         "status": "completed",
         "files": [
-            "lib/gemini/heuristic/rank-resolver.ts",
-            "lib/gemini/heuristic/context-classifier.ts",
-            "lib/gemini/heuristic/tagger.ts",
-            "lib/gemini/heuristic/scanner.ts",
-            "components/workspace/HeuristicTab.tsx"
+            "lib/gemini/constants.ts",
+            "lib/gemini/titleFixer.ts",
+            "components/workspace/ChapterList.tsx",
+            "components/workspace/hooks/useWorkspaceTokens.ts"
         ],
-        "notes": "Hệ thống giờ đây hoạt động cực kỳ sạch bằng cách mặc định coi mọi thứ là rác và chỉ giữ lại những gì khớp Whitelist danh xưng thật thụ."
+        "notes": "Hệ thống đã ổn định về mặt chi phí và khả năng sửa lỗi tiêu đề lẻ."
     },
     "recent_changes": [
         {
-            "type": "Architecture",
-            "description": "Heuristic v2.0: Introduced Strict Opt-in filtering. Titles are now verified by a dedicated Context Classifier module while Proper Names/Skills/Locations are protected from over-filtering.",
+            "type": "Optimization",
+            "description": "Dynamic maxOutputTokens allocation based on source text length to reduce waste. Implemented compact glossary format for prompt efficiency.",
             "files": [
-                "rank-resolver.ts",
-                "context-classifier.ts",
-                "tagger.ts",
-                "scanner.ts"
+                "lib/gemini/translate.ts",
+                "lib/gemini/constants.ts"
             ]
         },
         {
-            "type": "UI/UX",
-            "description": "Improved Heuristic Center UI: Added mount-state protection to prevent React errors, fixed ProgressBar NaN metrics, and added 'Clear Blacklist' functionality.",
+            "type": "Feature",
+            "description": "Realtime Token & Cost Tracking for workspaces. Users can now see exact spending per book in the header.",
             "files": [
-                "HeuristicTab.tsx",
-                "useHeuristic.ts"
+                "ChapterListHeader.tsx",
+                "useWorkspaceTokens.ts"
             ]
         },
         {
-            "type": "Bug Fix",
-            "description": "Character Salvation: Fixed a critical bug in the 'Noun Gate' that was accidentally dropping names like 'Tần Minh'.",
+            "type": "Feature",
+            "description": "Automated Title Fixer for Chinese titles. Uses ultra-cheap API calls to repair titles with remaining Chinese characters with self-correction retry.",
             "files": [
-                "tagger.ts",
-                "scanner.ts"
+                "titleFixer.ts",
+                "ChapterList.tsx"
             ]
         }
     ],
     "decisions_made": [
         {
-            "decision": "Default Context = GENERIC (Noise)",
-            "reason": "Trong Tiên Hiệp, thực danh (Title) là thiểu số. Để mặc định là TITLE khiến rác lọt nhiều. Đảo ngược sang mặc định rác giúp hệ thống sạch 100% rác ngữ pháp."
+            "decision": "TITLE_RULE placement at the top of System Instruction",
+            "reason": "AI often ignores rules buried in the middle. Putting title requirements first ensures they are treated with highest priority."
         },
         {
-            "decision": "Tách Classifier thành module độc lập",
-            "reason": "Dễ mở rộng rule (Priority-based) và có thể tái sử dụng cho các loại thực thể khác như Skill/Realm sau này."
+            "decision": "Ultra-cheap model calls for Title Fixing",
+            "reason": "Fixing just a title doesn't require a large context. Using minimal maxOutputTokens and specific prompts saves significantly compared to re-translating whole chapters."
         }
     ],
     "pending_tasks": [
         {
-            "task": "Mở rộng Whitelist cho các loại thực thể đặc thù (Pháp bảo, Cảnh giới)",
+            "task": "Kiểm tra giới hạn token cho các chương cực dài (>15,000 characters)",
             "priority": "medium"
         },
         {
-            "task": "Test hiệu năng với các chương truyện cực dài (> 100,000 chữ)",
+            "task": "Nghiên cứu cơ chế tự động fix title ngay sau khi dịch xong chapter",
             "priority": "low"
         }
     ]

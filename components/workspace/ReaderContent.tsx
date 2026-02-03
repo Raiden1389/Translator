@@ -72,6 +72,16 @@ const ParagraphItem = React.memo(({
         text = text.replace(/&lt;b&gt;(.*?)&lt;\/b&gt;/gi, "<b>$1</b>");
         text = text.replace(/&lt;i&gt;(.*?)&lt;\/i&gt;/gi, "<i>$1</i>");
 
+        // ✨ Intelligent Dialogue Highlighting: Only italicize the part INSIDE the quotes if it's a mix
+        if (isDialogue && !isRaidenMode) {
+            // Regex to match text inside curly quotes: “...”
+            text = text.replace(/(“.*?”)/g, '<i class="not-italic text-[hsl(var(--dialogue-text))] opacity-100">$1</i>');
+            // If it starts with - or — (traditional style), we might still want to italicize the whole line if it's short
+            if (para.text.startsWith("-") || para.text.startsWith("—")) {
+                text = `<i class="text-[hsl(var(--dialogue-text))]">${text}</i>`;
+            }
+        }
+
         para.issues.forEach(issue => {
             if (!issue.original) return;
             const regex = new RegExp(issue.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
@@ -87,8 +97,9 @@ const ParagraphItem = React.memo(({
             id={`tts-para-${index}`}
             className={cn(
                 "mb-(--reader-paragraph-spacing) transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
-                "indent-8 hover:cursor-text",
-                isDialogue && !isRaidenMode && (para.text.startsWith("“") || para.text.startsWith("\"") || para.text.startsWith("-")) && "text-[hsl(var(--dialogue-text))] italic opacity-95",
+                // Option: Only indent if narrative OR if user explicitly wants it
+                readerConfig.indentText && !isDialogue && "indent-8",
+                "hover:cursor-text",
                 isDialogue && !isRaidenMode && showDialogueLines && "border-l-2 border-l-[hsl(var(--dialogue-quote-border))]",
                 isHighlighted
                     ? (isRaidenMode ? "bg-purple-500/10 border-purple-500/20" : "bg-blue-50/60 border-blue-200/50 shadow-xs")

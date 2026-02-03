@@ -13,6 +13,7 @@ const DEFAULT_CONFIG: ReaderConfig = {
     backgroundColor: "#FFFCF7", /* Warm Cream */
     maxWidth: 720,
     showDialogueLines: true,
+    indentText: true,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: VIETNAMESE_VOICES[0].value,

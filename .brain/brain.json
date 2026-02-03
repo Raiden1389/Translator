@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "4.0.0",
-        "last_updated": "2026-02-03T00:50:00Z"
+        "last_updated": "2026-02-03T07:30:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Major Release - v2.0.0 (Heuristic Engine 2.0)"
+        "status": "Optimization Release - v2.1.0 (Token & Cost Efficiency)"
     },
     "tech_stack": {
         "frontend": {
@@ -29,14 +29,15 @@
     },
     "features": [
         "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
-        "Heuristic Engine 2.0 (The Context Purge): Hệ thống nhận diện thực thể siêu nhanh với triết lý 'Strict Opt-in', phân loại ngữ cảnh đa tầng (Title/Generic/Descriptive) giúp loại bỏ rác tuyệt đối.",
+        "Token Optimization: Dynamic maxOutputTokens (giảm ~25% chi phí) và Compact Glossary format.",
+        "Realtime Workspace Tokens: Theo dõi số lượng token và chi phí USD thời gian thực cho từng bộ truyện.",
+        "Smart Title Fixer: Nút ✨ tự động sửa lỗi Hán tự trong tiêu đề dịch với chi phí cực thấp và cơ chế retry.",
+        "Heuristic Engine 2.0 (The Context Purge): Hệ thống nhận diện thực thể siêu nhanh với triết lý 'Strict Opt-in'.",
         "Action Hub 2.0: Hệ thống công cụ nhanh 2 hàng (Cache, JSON Import/Export, AI Scan, History)",
         "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
         "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-preserving) và Cải chính trực tiếp vào Reader",
         "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
-        "Offline Storage: Lưu trữ dữ liệu local hoàn toàn",
-        "TTS: Hỗ trợ đọc truyện bằng giọng nói máy với cơ chế xử lý lỗi timeout",
-        "JSON Import Gateway: Cổng nạp dữ liệu thông minh với cơ chế khử thẻ <br> lỗi"
+        "TTS: Hỗ trợ đọc truyện với cơ chế xử lý lỗi timeout"
     ],
     "database_schema": {
         "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",
@@ -47,37 +48,28 @@
             },
             {
                 "name": "chapters",
-                "desc": "Nội dung chương (gốc, dịch) và trạng thái dịch"
+                "desc": "Nội dung chương (gốc, dịch) và thống kê token/cost"
+            },
+            {
+                "name": "apiUsage",
+                "desc": "Lưu lịch sử sử dụng API và chi phí theo model"
             },
             {
                 "name": "dictionary",
-                "desc": "Từ điển thuật ngữ/nhân vật cho từng bộ truyện"
+                "desc": "Từ điển thuật ngữ/nhân vật"
             },
             {
                 "name": "corrections",
-                "desc": "Quy tắc sửa lỗi văn bản (thay thế, bọc, regex)"
+                "desc": "Quy tắc sửa lỗi văn bản"
             },
             {
                 "name": "blacklist",
-                "desc": "Các từ không muốn dịch hoặc bỏ qua (Chặn rác Heuristic/Manual)"
-            },
-            {
-                "name": "heuristicTerms",
-                "desc": "Kho lưu trữ tạm thời cho các thực thể quét được bằng bộ máy Heuristic để người dùng duyệt"
+                "desc": "Các từ không muốn dịch hoặc bỏ qua"
             },
             {
                 "name": "settings",
-                "desc": "Cài Đặt cấu hình API, theme, font chữ"
-            },
-            {
-                "name": "translationCache",
-                "desc": "Bộ nhớ đệm kết quả dịch từ AI để tiết kiệm token và tăng tốc"
+                "desc": "Cài đặt API, model, theme"
             }
         ]
-    },
-    "conventions": {
-        "coding": "Sử dụng Clean Code, React Functional Components, Tailwind v4",
-        "naming": "PascalCase cho Components, camelCase cho variables/functions",
-        "i18n": "Hỗ trợ đa ngôn ngữ cục bộ, nội dung gốc Trung/Anh/Hàn/Nhật"
     }
 }

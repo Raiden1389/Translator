@@ -3,7 +3,7 @@
   "version": "1.9.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev -p 3001 --webpack",
     "d": "npm run tauri dev",
     "bxf": "node scripts/build-ultra-fast.mjs",
     "f9": "node scripts/build-ultra-fast.mjs",

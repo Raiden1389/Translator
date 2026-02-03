@@ -1,5 +1,23 @@
 Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
 
+## [2.1.0] - 2026-02-03
+
+### 💰 Tối ưu hóa Token & Kiểm soát Chi phí (Cost Efficiency Phase)
+- **Dynamic Token Allocation:** Tự động tính toán `maxOutputTokens` dựa trên độ dài văn bản gốc (giảm ~20-25% token dư thừa mỗi chương).
+- **Realtime Token Tracker:** Hiển thị tổng số token (Input/Output) và chi phí USD ước tính ngay trên Header của Workspace.
+- **Cost Breakdown Tooltip:** Di chuột vào số tiền để xem chi tiết tiền Input vs Output.
+- **Model-Aware Pricing:** Tự động điều chỉnh giá tiền dựa trên model đang chọn (Gemini 2.0 Flash, 1.5 Flash, v.v.).
+
+### ✨ Hệ thống Sửa Tiêu đề Thông minh (Smart Title Fixer)
+- **Nút Sparkles ✨ (Action Hub):** Tính năng tự động quét và sửa các tiêu đề chương bị "sót" chữ Hán ở cột Tiêu đề dịch. 
+- **Ultra-Cheap Title Repair:** Cơ chế dịch chỉ-tiêu-đề cực kỳ tiết kiệm (~$0.000005/chap), rẻ gấp 120 lần so với dịch lại cả chương.
+- **Self-Correction Logic:** AI tự động thử lại (retry) nếu kết quả dịch title vẫn còn dính chữ Hán.
+- **Emphatic Title Rules:** Gia cố bộ quy tắc `TITLE_RULE` vào đầu System Instruction để đảm bảo AI luôn dịch sạch bóng chữ Hán ngay từ đầu.
+
+### 🛡️ Kiểm tra & Gia cố Hệ thống (System Audit)
+- **Translation System Audit:** Hoàn thành bản báo cáo audit chi tiết (`TRANSLATION_SYSTEM_AUDIT.md`) về cấu trúc prompt và cách xử lý chương dài.
+- **Prompt Restructuring:** Sắp xếp lại thứ tự System Instruction: Base -> Title Rule (Ưu tiên số 1) -> Glossary -> Core Rules -> Voice -> Idioms.
+
 ## [2.0.0] - 2026-02-03
 
 ### 💎 Bộ máy Heuristic v2.0 (The Context Purge) - "SIÊU SẠCH - SIÊU CHUẨN"
