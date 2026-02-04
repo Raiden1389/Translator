@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslation } from "@/components/workspace/hooks/TranslationProvider";
+import { useTranslation } from "@/components/workspace/hooks/TranslationProvider.v2";
 import { TranslationProgressOverlay } from "@/components/workspace/TranslationProgressOverlay";
 
 export function GlobalTranslationProgress() {

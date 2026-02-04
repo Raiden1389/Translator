@@ -38,7 +38,7 @@ import { TitleBar } from "@/components/layout/TitleBar";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RaidenProvider } from "@/components/theme/RaidenProvider";
-import { TranslationProvider } from "@/components/workspace/hooks/TranslationProvider";
+import { TranslationProvider } from "@/components/workspace/hooks/TranslationProvider.v2";
 import { GlobalTranslationProgress } from "@/components/layout/GlobalTranslationProgress";
 import { TooltipProvider } from "@/components/ui/tooltip";
 

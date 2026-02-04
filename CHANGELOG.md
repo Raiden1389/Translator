@@ -1,4 +1,68 @@
-Tất cả các thay đổi quan trọng đối với dự án **Raiden AI Translator** sẽ được ghi lại trong file này.
+## [2.4.1] - 2026-02-04
+
+### 🛠️ Core Engine & UI Fixes (V2)
+- **Fix Runtime Error**: Sửa lỗi `TypeError: waitForCompletion is not a function` trong V2 Provider.
+- **Save DB Engine**: Đã tích hợp logic lưu dữ liệu dịch vào Database cho bản V2.
+- **Smart Title Normalization**:
+    - Tự động xóa rác AI như `[TIÊU ĐỀ]`, `Tiêu đề:`.
+    - Quy chuẩn format `Chương X: Tên Chương`.
+    - Tự động viết hoa chữ cái đầu tiên của tiêu đề dịch.
+- **Overlay Persistence**: 
+    - Bảng thông số dịch sẽ đứng lại **15 giây** sau khi hoàn thành để Sếp đọc Stats.
+    - Thêm nút **Đóng (X)** thủ công.
+- **Technical Polish**: Fix các lỗi linter về React Purity và Type safety (`Date.now()` cascading renders).
+
+## [2.4.0] - 2026-02-04
+
+### 🎯 Enhanced Translation Quality Rules
+
+#### **Translation Instruction v2.2 - Quality Improvements**
+
+**New Rules Added (~220 tokens):**
+
+1. **IDIOM_RULE** - Smart 4-character idiom handling
+   - Keep popular idioms (Tam Quốc, võ học) in Sino-Vietnamese
+   - Example: "Nhân trung Lữ Bố mã trung Xích Thố", "Thiên hạ vô song"
+   - Translate obscure/rare idioms freely
+   - Default: translate when in doubt (safer)
+
+2. **TOP_BLACKLIST** - Top 5 convert smell phrases
+   - Banned: "hít hơi lạnh", "mặt không đỏ tim không đập", "vấn đề không lớn"
+   - Banned: "trong lòng không khỏi", "thanh âm vang lên"
+   - Prevents machine translation artifacts
+
+3. **BATTLE_RULE** - Combat scene enhancement
+   - Short, rapid sentences
+   - "Ngã xuống đất" → "Đập mạnh xuống đất"
+   - Create visceral pain, avoid clichés
+
+4. **EMOTION_RULE** - Natural emotion expression
+   - Show through eyes, breath, actions
+   - DON'T name emotions directly (angry, scared, happy)
+   - "Show, don't tell" principle
+
+5. **DIALOGUE_RULE** - Natural dialogue flow
+   - Sound like SPEAKING, not NARRATING
+   - Don't start with "nói rằng", "lên tiếng"
+   - Fast dialogue → omit subjects when clear
+
+**Impact:**
+- Instruction size: 600 → 820 tokens (+220)
+- Cost increase: +$0.05 per 768 chapters (~1.5k VND)
+- Quality improvement: Significant reduction in AI smell
+
+**Cache Decision:**
+- ❌ NO CACHE - Keep it simple
+- Reason: Savings ($0.08) not worth complexity
+- Current quality already sufficient for personal use
+
+**Files Modified:**
+- `lib/gemini/constants.ts` - Added 5 new rule constants
+- `lib/gemini/rules/assembler.ts` - v2.2, integrated new rules
+- `lib/gemini/rules/HYBRID_INSTRUCTION_v4.1.txt` - Reference documentation
+- `lib/gemini/rules/IDIOM_RULES.txt` - Idiom handling guide
+
+---
 
 ## [2.3.0] - 2026-02-04
 

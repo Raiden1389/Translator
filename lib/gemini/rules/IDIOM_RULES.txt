@@ -1,0 +1,106 @@
+## THÀNH NGỮ BỐN CHỮ (四字成语)
+
+### Nguyên tắc xử lý:
+
+**🎯 MỤC TIÊU:** Giữ thành ngữ PHỔ BIẾN, dịch thành ngữ BÚA RÌU.
+
+### ✅ GIỮ NGUYÊN (Âm Hán Việt) khi:
+
+**Điều kiện:** Thành ngữ thuộc 1 trong các nhóm sau:
+
+**1. Tam Quốc / Lịch sử nổi tiếng:**
+- Nhân trung Lữ Bố, mã trung Xích Thố (人中吕布，马中赤兔)
+- Tam cố mao lư (三顾茅庐)
+- Đào viên kết nghĩa (桃园结义)
+- Thảo thuyền tá tiễn (草船借箭)
+- Không thành kế (空城计)
+- Ngọa tân thường đảm (卧薪尝胆)
+- Phá phủ trầm chu (破釜沉舟)
+- Tứ diện sở ca (四面楚歌)
+
+**2. Võ học / Tu tiên (thuật ngữ):**
+- Thiên hạ vô song (天下无双)
+- Độc bộ thiên hạ (独步天下)
+- Phản phác quy chân (返璞归真)
+- Thoát thai hoán cốt (脱胎换骨)
+- Vũ hóa phi thăng (羽化飞升)
+- Kim đan đại đạo (金丹大道)
+- Thiên nhân hợp nhất (天人合一)
+
+**3. Thành ngữ cực phổ biến (người Việt đọc tiểu thuyết đều biết):**
+- Thế như phá trúc (势如破竹)
+- Lôi đình vạn quân (雷霆万钧)
+- Thiên quân nhất phát (千钧一发)
+- Cửu tử nhất sinh (九死一生)
+- Tuyệt xứ phùng sinh (绝处逢生)
+
+**Lý do giữ:** Có sức mạnh văn hóa, người đọc hiểu, dịch ra sẽ mất vị.
+
+---
+
+### ⚠️ DỊCH THOÁT Ý khi:
+
+**Điều kiện:** Thành ngữ KHÔNG thuộc list trên HOẶC quá hiếm/búa rìu.
+
+**Cách dịch:**
+1. Hiểu ý nghĩa thực sự
+2. Dịch bằng tiếng Việt tự nhiên
+3. Ưu tiên câu ngắn, súc tích
+
+**Ví dụ:**
+
+❌ **Búa rìu (giữ nguyên sẽ khó hiểu):**
+```
+目无全牛 (Mục vô toàn ngưu)
+→ ❌ KHÔNG giữ (quá hiếm)
+→ ✅ DỊCH: "Kỹ năng thuần thục đến mức không cần nhìn"
+```
+
+❌ **Thành ngữ ít người biết:**
+```
+鹤立鸡群 (Hạc lập kê quần)
+→ ❌ KHÔNG giữ (ít người biết)
+→ ✅ DỊCH: "Nổi bật giữa đám đông"
+```
+
+✅ **Thành ngữ phổ biến:**
+```
+千钧一发 (Thiên quân nhất phát)
+→ ✅ GIỮ: "Thiên quân nhất phát"
+→ Lý do: Người Việt đọc tiểu thuyết đều biết
+```
+
+---
+
+### 📋 SELF-CHECK (Tự hỏi trước khi quyết định):
+
+**Khi gặp thành ngữ 4 chữ:**
+
+1. ❓ **Có trong list phổ biến không?**
+   - Có → GIỮ NGUYÊN
+   - Không → Tiếp câu 2
+
+2. ❓ **Người Việt đọc tiểu thuyết có biết không?**
+   - Có (VD: Tam cố mao lư) → GIỮ NGUYÊN
+   - Không chắc → Tiếp câu 3
+
+3. ❓ **Là thuật ngữ tu tiên/võ học không?**
+   - Có (VD: Phản phác quy chân) → GIỮ NGUYÊN
+   - Không → DỊCH THOÁT Ý
+
+4. ❓ **Dịch ra có mất sức mạnh văn hóa không?**
+   - Có (VD: Nhân trung Lữ Bố) → GIỮ NGUYÊN
+   - Không → DỊCH THOÁT Ý
+
+---
+
+### 🎯 NGUYÊN TẮC VÀNG:
+
+**"Phổ biến → Giữ, Búa rìu → Dịch"**
+
+- ✅ Nhân trung Lữ Bố → GIỮ (ai cũng biết)
+- ✅ Thiên hạ vô song → GIỮ (võ hiệp kinh điển)
+- ❌ 目无全牛 → DỊCH "Kỹ năng thuần thục" (quá hiếm)
+- ❌ 鹤立鸡群 → DỊCH "Nổi bật" (ít người biết)
+
+**Khi nghi ngờ → DỊCH THOÁT Ý (an toàn hơn)**

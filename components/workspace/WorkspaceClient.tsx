@@ -19,7 +19,7 @@ import { OverviewTab } from "./OverviewTab";
 import { HeuristicTab } from "./HeuristicTab";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
-import { useTranslation } from "./hooks/TranslationProvider";
+import { useTranslation } from "./hooks/TranslationProvider.v2";
 import {
     AlertDialog,
     AlertDialogAction,

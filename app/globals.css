@@ -171,6 +171,16 @@
   }
 }
 
+/* Notification auto-dismiss animation */
+@keyframes shrink-width {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
 ::selection {
   background-color: hsla(217, 91%, 60%, 0.2);
   color: inherit;

@@ -1,7 +1,7 @@
 /**
- * DYNAMIC PROMPT ASSEMBLER v2.1 (Smart Contextual Delivery)
+ * DYNAMIC PROMPT ASSEMBLER v2.2 (Enhanced Quality Rules)
  */
-import { CORE_RULES, TITLE_RULE } from "../constants";
+import { CORE_RULES, TITLE_RULE, IDIOM_RULE, TOP_BLACKLIST, BATTLE_RULE, EMOTION_RULE, DIALOGUE_RULE } from "../constants";
 import { IDIOM_SYSTEM_RULE, STYLE_PRESSURE_MAP, BATTLE_FEEDBACK_MAP } from "../idioms";
 
 export interface HeuristicAnalysis {
@@ -76,7 +76,7 @@ export function assembleSystemInstruction(
     // Smart Idioms injection
     const relevantIdioms = originalText ? getRelevantIdioms(originalText) : "";
 
-    // Priority: Title Rule (#1) -> Glossary -> Base Style -> Core Rules -> Idioms
-    // Removed: INTENSITY_RULE, REGISTER_RULE (AI can infer from context)
-    return `${TITLE_RULE}\n${glossaryContext}\n${baseStyle}\n${CORE_RULES}\n${IDIOM_SYSTEM_RULE}${relevantIdioms}`;
+    // Priority: Title Rule (#1) -> Glossary -> Base Style -> Core Rules -> Quality Rules -> Idioms
+    // Quality Rules: Blacklist, Battle, Emotion, Dialogue, Idiom handling
+    return `${TITLE_RULE}\n${glossaryContext}\n${baseStyle}\n${CORE_RULES}\n${TOP_BLACKLIST}\n${BATTLE_RULE}\n${EMOTION_RULE}\n${DIALOGUE_RULE}\n${IDIOM_RULE}\n${IDIOM_SYSTEM_RULE}${relevantIdioms}`;
 }

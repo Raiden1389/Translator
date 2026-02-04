@@ -15,6 +15,11 @@ export const CORE_RULES = `
 
 export const VOICE_TONE_RULE = `- GIỌNG: Sát nhân vật. Thô ráp trong thoại, mượt mà khi tả.`;
 export const STRUCTURE_RULE = `- CẤU TRÚC: Phá câu Tàu. Dịch câu ngắn, dồn dập khi chiến đấu.`;
+export const IDIOM_RULE = `- THÀNH NGỮ 4 CHỮ: Phổ biến (Tam Quốc, võ học) → GIỮ Âm Hán Việt (VD: Nhân trung Lữ Bố mã trung Xích Thố, Thiên hạ vô song). Hiếm/ít người biết → DỊCH thoát ý. Khi nghi ngờ → DỊCH.`;
+export const TOP_BLACKLIST = `- CẤM: hít hơi lạnh, mặt không đỏ tim không đập, vấn đề không lớn, trong lòng không khỏi, thanh âm vang lên.`;
+export const BATTLE_RULE = `- CHIẾN ĐẤU: Câu ngắn, dồn dập. "Ngã xuống đất" → "Đập mạnh xuống đất". Tạo cảm giác đau, không ước lệ.`;
+export const EMOTION_RULE = `- CẢM XÚC: Thể hiện qua ánh mắt, hơi thở, động tác. KHÔNG gọi tên trực tiếp (tức giận, sợ hãi, vui mừng).`;
+export const DIALOGUE_RULE = `- HỘI THOẠI: Giống người NÓI, không giống người KỂ. Không mở đầu "nói rằng", "lên tiếng". Đối thoại nhanh → bỏ chủ ngữ.`;
 export const CAPITALIZATION_RULE = "";
 
 export function buildSystemInstruction(

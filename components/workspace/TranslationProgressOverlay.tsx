@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─────────────────────────────────────────────────────────────
@@ -26,6 +26,14 @@ interface LogEntry {
     chunks?: number;
 }
 
+
+interface SystemNotification {
+    id: string;
+    message: string;
+    type: 'init' | 'turbo' | 'success' | 'error';
+    timestamp: number;
+}
+
 interface TranslationProgressOverlayProps {
     isTranslating: boolean;
     progress: {
@@ -39,6 +47,7 @@ interface TranslationProgressOverlayProps {
         chunksProcessed?: number;
         cacheHits?: number;
         startTime?: number;
+        notifications?: SystemNotification[];
     };
 }
 
@@ -59,7 +68,7 @@ const LogItem = React.memo(({ log }: { log: LogEntry }) => (
 LogItem.displayName = "LogItem";
 
 export function TranslationProgressOverlay({ isTranslating, progress }: TranslationProgressOverlayProps) {
-    const { current, total, currentTitle, logs = [], totalTokens = 0, totalCost = 0, turboActive = false, chunksProcessed = 0, cacheHits = 0, startTime } = progress;
+    const { current, total, currentTitle, logs = [], totalTokens = 0, totalCost = 0, turboActive = false, chunksProcessed = 0, cacheHits = 0, startTime, notifications = [] } = progress;
     const logContainerRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true); // Track if user is at bottom
 
@@ -68,6 +77,21 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [eta, setEta] = useState("Calculating...");
     const [showStats, setShowStats] = useState(false);
+    const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(new Set());
+
+    // Get latest non-dismissed notification
+    const latestNotification = notifications
+        .filter(n => !dismissedNotifications.has(n.id))
+        .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+    // Auto-dismiss notification after 5 seconds
+    useEffect(() => {
+        if (!latestNotification) return;
+        const timer = setTimeout(() => {
+            setDismissedNotifications(prev => new Set(prev).add(latestNotification.id));
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [latestNotification]);
 
     // EMA memory for smooth ETA
     const avgTimeRef = useRef<number | null>(null);
@@ -179,18 +203,90 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
             `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     };
 
-    if (!isTranslating) return null;
+    // 6. Persistence Logic (Keep visible after finished)
+    const [isVisible, setIsVisible] = useState(false);
+    const lastTranslatingRef = useRef(false);
+
+    useEffect(() => {
+        if (isTranslating) {
+            setTimeout(() => setIsVisible(true), 0);
+            lastTranslatingRef.current = true;
+        } else if (lastTranslatingRef.current) {
+            // Wait 10 seconds before auto-closing if it was translating
+            const timer = setTimeout(() => {
+                setIsVisible(false);
+                lastTranslatingRef.current = false;
+            }, 10000);
+            return () => clearTimeout(timer);
+        }
+    }, [isTranslating]);
+
+    const handleClose = () => {
+        setIsVisible(false);
+        lastTranslatingRef.current = false;
+    };
+
+    if (!isVisible) return null;
+
+    // Notification styling
+    const notificationIcon = {
+        init: '🚀',
+        turbo: '⚡',
+        success: '🎉',
+        error: '❌'
+    };
+
+    const notificationColor = {
+        init: 'bg-primary/10 border-primary/20 text-primary',
+        turbo: 'bg-primary/10 border-primary/20 text-primary',
+        success: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600',
+        error: 'bg-red-500/10 border-red-500/20 text-red-600'
+    };
+
+    const isFinished = !isTranslating && current >= total && total > 0;
 
     return (
-        <div className="fixed bottom-6 right-6 z-200 animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-auto">
+        <div className="fixed bottom-6 right-6 z-200 animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-auto group">
+            {/* Notification Badge */}
+            {latestNotification && (
+                <div className="mb-3 animate-in slide-in-from-top-2 fade-in duration-300">
+                    <div className={cn(
+                        "px-4 py-2.5 rounded-full border backdrop-blur-xl shadow-lg flex items-center gap-2 relative overflow-hidden",
+                        notificationColor[latestNotification.type]
+                    )}>
+                        <span className="text-sm">{notificationIcon[latestNotification.type]}</span>
+                        <span className="text-sm font-medium">{latestNotification.message}</span>
+                        {/* Auto-dismiss progress bar */}
+                        <div
+                            className="absolute bottom-0 left-0 h-0.5 bg-current/30"
+                            style={{
+                                width: '100%',
+                                animation: 'shrink-width 5s linear forwards'
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
             <div className="bg-card border border-border p-6 rounded-3xl w-[420px] shadow-2xl space-y-6 relative overflow-hidden ring-1 ring-white/10 glass">
-                <div className="absolute -top-24 -left-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl" />
-                <div className="absolute -bottom-24 -right-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl" />
+                {/* Close Button - Visible when finished or on hover */}
+                <button
+                    onClick={handleClose}
+                    className={cn(
+                        "absolute top-4 right-4 p-1.5 rounded-full bg-muted/20 hover:bg-muted/40 text-muted-foreground transition-all z-10",
+                        isFinished ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    )}
+                >
+                    <X className="h-4 w-4" />
+                </button>
 
                 <div className="flex items-center justify-between relative">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-                            <RefreshCw className="h-5 w-5 animate-spin" />
+                            {isTranslating ? (
+                                <RefreshCw className="h-5 w-5 animate-spin" />
+                            ) : (
+                                <div className="h-5 w-5 flex items-center justify-center font-bold text-emerald-500">✓</div>
+                            )}
                         </div>
                         <div>
                             <h3 className="text-base font-bold text-foreground leading-none">Max Ping Processing</h3>
