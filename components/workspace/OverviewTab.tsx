@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AutoResizeTextarea } from "@/components/ui/AutoResizeTextarea";
 import {
     Upload, BookOpen, Zap, Users,
@@ -12,7 +13,6 @@ import {
 } from "lucide-react";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { useOverview } from "./hooks/useOverview";
-import { UsageChart } from "./UsageChart";
 import { Workspace } from "@/lib/db";
 
 export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
@@ -20,7 +20,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { state, actions } = useOverview(workspace);
 
-    const { stats, usageHistory, isDragging, isGeneratingSummary } = state;
+    const { stats, isDragging, isGeneratingSummary } = state;
     const { setIsDragging, handleProcessFile, handleAutoSummary, handleUpdateField } = actions;
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -75,27 +75,33 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                                     <div className="text-foreground font-bold">{stats.charCount.toLocaleString()}</div>
                                 </div>
                             </div>
-                            <div className="pt-2 border-t border-border mt-2 space-y-3">
-                                <div className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Chi Phí API (Tạm tính)</div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg border border-border/50">
-                                        <div className="text-xs text-muted-foreground font-medium">Tổng Token</div>
-                                        <div className="text-foreground font-bold font-mono text-sm">{((stats.totalInputTokens + stats.totalOutputTokens + (stats.totalThinkingTokens || 0)) / 1000).toFixed(1)}K</div>
-                                    </div>
-                                    <div className={cn("flex justify-between items-center p-3 rounded-xl", isRaidenMode ? "bg-purple-500/10 border border-purple-500/20" : "bg-indigo-50/50 border border-indigo-100")}>
-                                        <div className={cn("text-xs font-bold uppercase tracking-tight", isRaidenMode ? "text-purple-400" : "text-indigo-600")}>Chi phí dự kiến</div>
-                                        <div className="text-right">
-                                            <div className={cn("font-black font-mono text-2xl leading-tight", isRaidenMode ? "text-purple-300" : "text-indigo-700")}>${stats.totalCostUSD.toFixed(3)}</div>
-                                            <div className="text-[10px] font-bold text-slate-500">~{Math.round(stats.totalCostVND).toLocaleString()} VNĐ</div>
+                            <div className="pt-2 border-t border-border mt-2">
+                                <Tooltip>
+                                    <TooltipTrigger className="w-full">
+                                        <div className={cn("flex justify-between items-center p-3 rounded-xl cursor-help transition-all hover:scale-[1.02]", isRaidenMode ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-emerald-50/50 border border-emerald-100")}>
+                                            <div className={cn("text-xs font-bold uppercase tracking-tight", isRaidenMode ? "text-emerald-400" : "text-emerald-600")}>Translation Cost</div>
+                                            <div className="text-right">
+                                                <div className={cn("font-black font-mono text-xl leading-tight", isRaidenMode ? "text-emerald-300" : "text-emerald-700")}>${stats.totalCostUSD.toFixed(2)}</div>
+                                                <div className="text-[9px] font-medium text-muted-foreground">{stats.translatedChapters} chapters</div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="text-xs">
+                                        <div className="space-y-1">
+                                            <div className="font-bold">Cost Breakdown</div>
+                                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                                                <div className="text-muted-foreground">Chapters:</div>
+                                                <div className="font-mono">{stats.translatedChapters}</div>
 
-                                    {/* 📈 Sparkline Chart */}
-                                    <div className="pt-2">
-                                        <div className="text-[8px] text-muted-foreground uppercase font-black tracking-[0.2em] mb-1 opacity-50">Lịch sử 7 ngày (Tokens)</div>
-                                        <UsageChart data={usageHistory} isRaidenMode={isRaidenMode} />
-                                    </div>
-                                </div>
+                                                <div className="text-muted-foreground">Total tokens:</div>
+                                                <div className="font-mono">{((stats.totalInputTokens + stats.totalOutputTokens) / 1000).toFixed(1)}K</div>
+
+                                                <div className="text-muted-foreground">Avg/chapter:</div>
+                                                <div className="font-mono">${(stats.totalCostUSD / Math.max(stats.translatedChapters, 1)).toFixed(4)}</div>
+                                            </div>
+                                        </div>
+                                    </TooltipContent>
+                                </Tooltip>
                             </div>
                         </CardContent>
                     </Card>
