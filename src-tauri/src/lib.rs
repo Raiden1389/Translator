@@ -184,7 +184,7 @@ async fn create_storage_symlink(
         .app_data_dir()
         .map_err(|e: tauri::Error| e.to_string())?;
     
-    let current_path = app_data_dir.to_str().ok_or("Invalid path")?.to_string();
+    let _current_path = app_data_dir.to_str().ok_or("Invalid path")?.to_string();
     let new_target = PathBuf::from(&new_path);
 
     // 2. Validate new path
