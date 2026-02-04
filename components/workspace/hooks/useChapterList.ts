@@ -141,11 +141,18 @@ export function useChapterList(workspaceId: string, chapters: Chapter[] | undefi
     };
 
     const handleClearTranslationAction = async (id: number) => {
-        if (!confirm("Xóa bản dịch của chương này?")) return;
+        console.log('🔥 handleClearTranslationAction called for chapter:', id);
+        if (!confirm("Xóa bản dịch của chương này?")) {
+            console.log('❌ User cancelled');
+            return;
+        }
         try {
+            console.log('⏳ Calling clearChapterTranslation...');
             await clearChapterTranslation(id);
+            console.log('✅ clearChapterTranslation completed');
             toast.success("Đã xóa bản dịch.");
-        } catch {
+        } catch (err) {
+            console.error('❌ Error in clearChapterTranslation:', err);
             toast.error("Lỗi khi xóa bản dịch.");
         }
     };

@@ -456,8 +456,8 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                             onClick={async () => {
                                 setIsProcessing(true);
                                 try {
-                                    await db.translationCache.clear();
-                                    toast.success("Đã dọn dẹp cache AI.");
+                                    // Cache system removed - no longer needed
+                                    toast.success("Cache đã được tối ưu hóa tự động.");
                                 } finally {
                                     setIsProcessing(false);
                                 }

@@ -1,9 +1,7 @@
 import { db, DictionaryEntry } from "../db";
 import { ChunkOptions, TranslationResult, TranslationLog } from "./types";
-import { finalSweep, generateCacheKey } from "./contentProcessor";
-import { SYSTEM_VERSION } from "./constants";
+import { finalSweep } from "./contentProcessor";
 import pLimit from "p-limit";
-import { DEFAULT_MODEL } from "../ai-models";
 
 /**
  * Split text into BALANCED chunks by paragraph boundaries
@@ -76,36 +74,13 @@ export async function translateSingleChunk(
     sharedGlossary?: DictionaryEntry[],
     cacheId?: string
 ): Promise<TranslationResult> {
-    const modelSetting = await db.settings.get("aiModel");
-    const aiModel = (modelSetting?.value as string) || DEFAULT_MODEL;
-
-    // 1. Generate Cache Key
-    const cacheKey = await generateCacheKey(chunk, aiModel, (customInstruction || "") + SYSTEM_VERSION + (sharedGlossary ? JSON.stringify(sharedGlossary) : ""));
-
-    // 2. Check Cache
-    const cached = await db.translationCache.get(cacheKey);
-    if (cached) {
-        console.log(`⚡ [CACHE HIT] Skip translation for chunk (${chunk.length} chars)`);
-        return cached.result;
-    }
-
-    // 3. Translate & Cache
+    // Direct translation without cache
     return new Promise((resolve, reject) => {
         translateFn(
             workspaceId,
             chunk,
             () => { },  // Ignore logs for individual chunks
-            (result) => {
-                // Save to Cache
-                db.translationCache.put({
-                    key: cacheKey,
-                    result: result,
-                    model: aiModel,
-                    timestamp: new Date()
-                }).catch(console.error);
-
-                resolve(result);
-            },
+            (result) => resolve(result),
             customInstruction,
             sharedGlossary,
             cacheId
@@ -144,12 +119,10 @@ export async function translateWithChunking(
 
     // Split into chunks
     const chunks = splitByParagraph(text, finalOptions.maxCharsPerChunk!);
-    const chunkSizes = chunks.map(c => c.length);
     const batchId = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const msg = `[${batchId}] Đã chia đều thành ${chunks.length} chunks song song: [${chunkSizes.join(", ")} chars]`;
-    console.log(`🚀 ${msg}`);
-    onLog({ timestamp: new Date(), message: msg, type: 'info' });
+    // Don't toast chunk split - use onProgress for UI updates
+    finalOptions.onProgress?.(0, chunks.length);
 
     try {
         // Use local limit for chunks to avoid Global Queue Deadlock
@@ -157,13 +130,11 @@ export async function translateWithChunking(
 
         const promises = chunks.map((chunk, index) => {
             return chunkLimit(async () => {
-                const chunkStart = Date.now();
-                console.log(`📦 [${batchId}] Chunk ${index + 1}/${chunks.length} Bắt đầu (${chunk.length} ký tự)`);
+                // Update progress
                 finalOptions.onProgress?.(index + 1, chunks.length);
 
                 try {
                     const res = await translateSingleChunk(workspaceId, chunk, translateFn, customInstruction, sharedGlossary, cacheId);
-                    console.log(`✅ [${batchId}] Chunk ${index + 1}/${chunks.length} xong sau ${Date.now() - chunkStart}ms`);
                     return res;
                 } catch (err) {
                     console.error(`❌ [${batchId}] Chunk ${index + 1} thất bại:`, err);
@@ -199,7 +170,13 @@ export async function translateWithChunking(
 
         const totalTokens = totalInputTokens + totalOutputTokens;
         const tokenMsg = totalTokens > 0 ? ` [${totalInputTokens}i + ${totalOutputTokens}o = ${totalTokens}t]` : "";
-        onLog({ timestamp: new Date(), message: `Đã dịch song song xong ${chunks.length} chunks!${tokenMsg}`, type: 'success' });
+        const cacheSuffix = cacheId ? " 🚀Turbo" : "";
+        const chunkSuffix = ` (${chunks.length} chunks)`;
+        onLog({
+            timestamp: new Date(),
+            message: `✅ Dịch xong!${tokenMsg}${cacheSuffix}${chunkSuffix}`,
+            type: 'success'
+        });
 
         return {
             translatedText,

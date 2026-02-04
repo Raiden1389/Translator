@@ -10,16 +10,19 @@ export async function recordUsage(modelId: string, usage: any) {
         const modelInfo = AI_MODELS.find(m => m.value === modelId.trim()) || AI_MODELS[0];
         const inputTokens = usage.promptTokenCount || 0;
         const outputTokens = usage.candidatesTokenCount || 0;
+        const thinkingTokens = usage.thoughtsTokenCount || 0;  // Gemini 2.5 Flash thinking tokens
 
         // Simple cost calculation (per 1M tokens)
+        // Note: Thinking tokens are billed as output tokens
         const cost = ((inputTokens * (modelInfo.inputPrice || 0)) / 1_000_000) +
-            ((outputTokens * (modelInfo.outputPrice || 0)) / 1_000_000);
+            (((outputTokens + thinkingTokens) * (modelInfo.outputPrice || 0)) / 1_000_000);
 
         const existing = await db.apiUsage.get(modelInfo.value);
         if (existing) {
             await db.apiUsage.update(modelInfo.value, {
                 inputTokens: (existing.inputTokens || 0) + inputTokens,
                 outputTokens: (existing.outputTokens || 0) + outputTokens,
+                thinkingTokens: (existing.thinkingTokens || 0) + thinkingTokens,
                 totalCost: (existing.totalCost || 0) + cost,
                 updatedAt: new Date()
             });
@@ -28,6 +31,7 @@ export async function recordUsage(modelId: string, usage: any) {
                 model: modelInfo.value,
                 inputTokens,
                 outputTokens,
+                thinkingTokens,
                 totalCost: cost,
                 updatedAt: new Date()
             });

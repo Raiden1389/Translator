@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, clearChapterTranslation, type Chapter } from "@/lib/db";
+import { db, type Chapter } from "@/lib/db";
 import { toast } from "sonner";
 
 // Components
@@ -162,7 +162,11 @@ export function ReaderModal({
 
     const handleClearTranslation = async () => {
         if (!confirm("Xóa bản dịch của chương này để dịch lại?")) return;
-        await clearChapterTranslation(chapterId);
+        await db.chapters.update(chapterId, {
+            content_translated: "",
+            status: "draft"
+        });
+        setEditContent(""); // Clear state to prevent auto-save restore
         toast.success("Đã xóa bản dịch.");
     };
 

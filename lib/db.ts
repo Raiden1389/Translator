@@ -1,7 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { storage } from './storageBridge';
 import { InspectionIssue } from './types';
-import { TranslationResult } from './gemini/types';
 
 export interface Workspace {
     id: string; // UUID
@@ -40,6 +39,9 @@ export interface Chapter {
             input: number;
             output: number;
             total: number;
+            thinking?: number; // Gemini 2.5 Flash thinking tokens
+            system?: number;  // System instruction overhead
+            content?: number; // Actual story content
         };
         characters?: number;
     };
@@ -84,15 +86,9 @@ export interface APIUsageEntry {
     model: string; // The model ID
     inputTokens: number;
     outputTokens: number;
+    thinkingTokens?: number; // Gemini 2.5 Flash thinking tokens (billed as output)
     totalCost: number; // Accumulated cost in USD
     updatedAt: Date;
-}
-
-export interface TranslationCacheEntry {
-    key: string; // Hash(chunk + model + instruction + glossary)
-    result: TranslationResult;
-    timestamp: Date;
-    model: string;
 }
 
 export interface HistoryEntry {
@@ -187,7 +183,6 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     ttsCache: EntityTable<TTSCacheEntry, 'id'>;
     apiUsage: EntityTable<APIUsageEntry, 'model'>;
     history: EntityTable<HistoryEntry, 'id'>;
-    translationCache: EntityTable<TranslationCacheEntry, 'key'>;
     heuristicTerms: EntityTable<HeuristicTerm, 'id'>;
     consistencyLogs: EntityTable<ConsistencyLog, 'id'>;
 };
@@ -205,7 +200,6 @@ db.version(100).stores({
     ttsCache: '++id, chapterId, voice, textHash, pitch, rate, [chapterId+voice+textHash+pitch+rate]',
     apiUsage: 'model',
     history: '++id, workspaceId, timestamp',
-    translationCache: 'key, timestamp', // Thêm index timestamp để dọn dẹp thần tốc
     settings: 'key'
 });
 
@@ -239,7 +233,7 @@ const dirtyDictionaries = new Set<string>();
 // Content cache to avoid redundant IO (Dictionary can be large)
 const lastSavedDictContent = new Map<string, string>();
 
-let isRehydrated = false;
+
 
 export const markWorkspaceDirty = (workspaceId: string) => {
     if (!workspaceId) return;
@@ -256,59 +250,86 @@ export const markDictionaryDirty = (workspaceId: string) => {
     dirtyDictionaries.add(workspaceId);
 };
 
-// Sync Worker: Process granular dirty flags every 5 seconds
-if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-    setInterval(async () => {
-        // RACE CONDITION GUARD: Don't start syncing until rehydration is complete
-        if (!isRehydrated) return;
+// ⚠️ AUTO-SYNC WORKER REMOVED
+// Manual save will be triggered by user action (footer button)
+// Dirty flags are kept for tracking unsaved changes
 
-        // 1. Process Metadata
+// Manual Save Function (called by UI)
+export const manualSaveAllWorkspaces = async (): Promise<{ saved: number; errors: string[] }> => {
+    const errors: string[] = [];
+    let saved = 0;
+
+    try {
+        // 1. Save all dirty workspaces metadata
         if (dirtyWorkspaces.size > 0) {
             const ids = Array.from(dirtyWorkspaces);
             for (const id of ids) {
-                dirtyWorkspaces.delete(id);
-                const ws = await db.workspaces.get(id);
-                if (ws) await storage.saveMetadata(id, ws);
-            }
-        }
-
-        // 2. Process Dictionary
-        if (dirtyDictionaries.size > 0) {
-            const ids = Array.from(dirtyDictionaries);
-            for (const id of ids) {
-                dirtyDictionaries.delete(id);
-                const ws = await db.workspaces.get(id);
-                if (!ws) continue;
-
-                const dict = await db.dictionary.where('workspaceId').equals(id).toArray();
-                const contentStr = JSON.stringify(dict);
-
-                if (lastSavedDictContent.get(id) !== contentStr) {
-                    await storage.saveDictionary(id, ws.title, dict);
-                    lastSavedDictContent.set(id, contentStr);
-                    console.log(`💾 [Sync Worker] Dictionary for ${ws.title} saved.`);
+                try {
+                    const ws = await db.workspaces.get(id);
+                    if (ws) {
+                        await storage.saveMetadata(id, ws);
+                        dirtyWorkspaces.delete(id);
+                        saved++;
+                    }
+                } catch (e) {
+                    errors.push(`Workspace ${id}: ${e}`);
                 }
             }
         }
 
-        // 3. Process Chapters
+        // 2. Save all dirty dictionaries
+        if (dirtyDictionaries.size > 0) {
+            const ids = Array.from(dirtyDictionaries);
+            for (const id of ids) {
+                try {
+                    const ws = await db.workspaces.get(id);
+                    if (!ws) continue;
+
+                    const dict = await db.dictionary.where('workspaceId').equals(id).toArray();
+                    const contentStr = JSON.stringify(dict);
+
+                    if (lastSavedDictContent.get(id) !== contentStr) {
+                        await storage.saveDictionary(id, ws.title, dict);
+                        lastSavedDictContent.set(id, contentStr);
+                        dirtyDictionaries.delete(id);
+                        saved++;
+                    }
+                } catch (e) {
+                    errors.push(`Dictionary ${id}: ${e}`);
+                }
+            }
+        }
+
+        // 3. Save all dirty chapters
         if (dirtyChapters.size > 0) {
             const compoundIds = Array.from(dirtyChapters);
             for (const cid of compoundIds) {
-                dirtyChapters.delete(cid);
-                const [wsId, chapIdStr] = cid.split(':');
-                const ws = await db.workspaces.get(wsId);
-                if (!ws) continue;
+                try {
+                    const [wsId, chapIdStr] = cid.split(':');
+                    const ws = await db.workspaces.get(wsId);
+                    if (!ws) continue;
 
-                const chapId = parseInt(chapIdStr);
-                const chap = await db.chapters.get(chapId);
-                if (chap) await storage.saveChapter(wsId, ws.title, chapId, chap);
+                    const chapId = parseInt(chapIdStr);
+                    const chap = await db.chapters.get(chapId);
+                    if (chap) {
+                        await storage.saveChapter(wsId, ws.title, chapId, chap);
+                        dirtyChapters.delete(cid);
+                        saved++;
+                    }
+                } catch (e) {
+                    errors.push(`Chapter ${cid}: ${e}`);
+                }
             }
         }
-    }, 5000);
-}
 
-// Hooks: Targeting specific components
+        return { saved, errors };
+    } catch (e) {
+        errors.push(`Global error: ${e}`);
+        return { saved, errors };
+    }
+};
+
+// Hooks: Track dirty state (no auto-save)
 db.workspaces.hook('creating', (_prim, obj) => markWorkspaceDirty(obj.id));
 db.workspaces.hook('updating', (_mods, _prim, obj) => markWorkspaceDirty(obj.id));
 db.workspaces.hook('deleting', (_prim, obj) => markWorkspaceDirty(obj.id));
@@ -323,7 +344,6 @@ db.dictionary.hook('deleting', (_prim, obj) => markDictionaryDirty(obj.workspace
 
 export const rehydrateFromStorage = async () => {
     if (typeof window === 'undefined' || !(window as any).__TAURI__) {
-        isRehydrated = true;
         return;
     }
 
@@ -337,13 +357,11 @@ export const rehydrateFromStorage = async () => {
 
         const count = await db.workspaces.count();
         if (count > 0) {
-            isRehydrated = true;
             return;
         }
 
         const workspaceIds = await storage.listWorkspaces();
         if (workspaceIds.length === 0) {
-            isRehydrated = true;
             return;
         }
 
@@ -362,70 +380,8 @@ export const rehydrateFromStorage = async () => {
     } catch (e) {
         console.error("Rehydration failed:", e);
     } finally {
-        isRehydrated = true;
-        console.log("🏁 Rehydration complete. Sync worker active.");
+        console.log("🏁 Rehydration complete.");
     }
 };
-
-/**
- * Clear the entire translation cache (Manual Trigger)
- */
-export const clearTranslationCache = async () => {
-    await db.translationCache.clear();
-};
-
-/**
- * Clear translation for a specific chapter
- */
-export const clearChapterTranslation = async (chapterId: number) => {
-    await db.chapters.update(chapterId, {
-        content_translated: undefined,
-        title_translated: undefined,
-        status: 'draft',
-        lastTranslatedAt: undefined,
-        translationDurationMs: undefined,
-        translationModel: undefined,
-        inspectionResults: undefined,
-        updatedAt: new Date()
-    });
-};
-
-/**
- * Cleanup old/large cache (Auto Trigger)
- * - Removes items older than 30 days
- * - Keeps max 5000 items
- */
-export const cleanupCache = async () => {
-    try {
-        const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-        const MAX_ITEMS = 5000;
-        const now = Date.now();
-        const cutoff = new Date(now - MAX_AGE_MS);
-
-        // 1. Fast delete older than 30 days using index
-        const expiredCount = await db.translationCache
-            .where('timestamp')
-            .below(cutoff)
-            .delete();
-
-        if (expiredCount > 0) {
-            console.log(`🧹 [Cache Cleanup] Deleted ${expiredCount} expired items via index.`);
-        }
-
-        // 2. Size limit enforcement (only if still over limit)
-        const totalCount = await db.translationCache.count();
-        if (totalCount > MAX_ITEMS) {
-            const excessKeys = await db.translationCache
-                .orderBy('timestamp')
-                .limit(totalCount - MAX_ITEMS)
-                .primaryKeys();
-
-            await db.translationCache.bulkDelete(excessKeys);
-            console.log(`🧹 [Cache Cleanup] Trimmed ${excessKeys.length} excess items.`);
-        }
-    } catch (error) {
-        console.error("Cache cleanup failed:", error);
-    }
-}
 
 export { db };

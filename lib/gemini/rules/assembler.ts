@@ -3,8 +3,6 @@
  */
 import { CORE_RULES, TITLE_RULE } from "../constants";
 import { IDIOM_SYSTEM_RULE, STYLE_PRESSURE_MAP, BATTLE_FEEDBACK_MAP } from "../idioms";
-import { INTENSITY_RULE_COMPACT } from "./intensity";
-import { REGISTER_RULE_COMPACT } from "./register";
 
 export interface HeuristicAnalysis {
     isCombat: boolean;
@@ -72,15 +70,13 @@ export function assembleSystemInstruction(
     customInstruction?: string,
     originalText?: string // New optional param for smart filtering
 ): string {
+    // Use custom instruction if provided, otherwise use default base style
     const baseStyle = customInstruction || "Dịch giả tiểu thuyết Trung-Việt. Thoát ý, mượt mà.";
-
-    let extra = "";
-    if (analysis.isCombat) extra += `\n${INTENSITY_RULE_COMPACT}`;
-    if (analysis.detectedRegister !== 'Neutral') extra += `\n${REGISTER_RULE_COMPACT}`;
 
     // Smart Idioms injection
     const relevantIdioms = originalText ? getRelevantIdioms(originalText) : "";
 
-    // Priority: Title Rule (#1) -> Base Style -> Core Rules -> Contextual Rules -> Glossary
-    return `${TITLE_RULE}\n${baseStyle}\n${CORE_RULES}\n${IDIOM_SYSTEM_RULE}${extra}${relevantIdioms}\n${glossaryContext}`;
+    // Priority: Title Rule (#1) -> Glossary -> Base Style -> Core Rules -> Idioms
+    // Removed: INTENSITY_RULE, REGISTER_RULE (AI can infer from context)
+    return `${TITLE_RULE}\n${glossaryContext}\n${baseStyle}\n${CORE_RULES}\n${IDIOM_SYSTEM_RULE}${relevantIdioms}`;
 }

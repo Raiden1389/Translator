@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { useOverview } from "./hooks/useOverview";
+import { UsageChart } from "./UsageChart";
 import { Workspace } from "@/lib/db";
 
 export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
@@ -19,7 +20,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { state, actions } = useOverview(workspace);
 
-    const { stats, isDragging, isGeneratingSummary } = state;
+    const { stats, usageHistory, isDragging, isGeneratingSummary } = state;
     const { setIsDragging, handleProcessFile, handleAutoSummary, handleUpdateField } = actions;
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -79,7 +80,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg border border-border/50">
                                         <div className="text-xs text-muted-foreground font-medium">Tổng Token</div>
-                                        <div className="text-foreground font-bold font-mono text-sm">{((stats.totalInputTokens + stats.totalOutputTokens) / 1000).toFixed(1)}K</div>
+                                        <div className="text-foreground font-bold font-mono text-sm">{((stats.totalInputTokens + stats.totalOutputTokens + (stats.totalThinkingTokens || 0)) / 1000).toFixed(1)}K</div>
                                     </div>
                                     <div className={cn("flex justify-between items-center p-3 rounded-xl", isRaidenMode ? "bg-purple-500/10 border border-purple-500/20" : "bg-indigo-50/50 border border-indigo-100")}>
                                         <div className={cn("text-xs font-bold uppercase tracking-tight", isRaidenMode ? "text-purple-400" : "text-indigo-600")}>Chi phí dự kiến</div>
@@ -87,6 +88,12 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                                             <div className={cn("font-black font-mono text-2xl leading-tight", isRaidenMode ? "text-purple-300" : "text-indigo-700")}>${stats.totalCostUSD.toFixed(3)}</div>
                                             <div className="text-[10px] font-bold text-slate-500">~{Math.round(stats.totalCostVND).toLocaleString()} VNĐ</div>
                                         </div>
+                                    </div>
+
+                                    {/* 📈 Sparkline Chart */}
+                                    <div className="pt-2">
+                                        <div className="text-[8px] text-muted-foreground uppercase font-black tracking-[0.2em] mb-1 opacity-50">Lịch sử 7 ngày (Tokens)</div>
+                                        <UsageChart data={usageHistory} isRaidenMode={isRaidenMode} />
                                     </div>
                                 </div>
                             </div>

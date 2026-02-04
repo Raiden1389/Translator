@@ -21,6 +21,9 @@ interface LogEntry {
     message: string;
     type: 'info' | 'success' | 'error';
     order: number;
+    tokens?: { input: number; output: number; total: number };
+    turbo?: boolean;
+    chunks?: number;
 }
 
 interface TranslationProgressOverlayProps {
@@ -30,6 +33,12 @@ interface TranslationProgressOverlayProps {
         total: number;
         currentTitle: string;
         logs?: LogEntry[];
+        totalTokens?: number;
+        totalCost?: number;
+        turboActive?: boolean;
+        chunksProcessed?: number;
+        cacheHits?: number;
+        startTime?: number;
     };
 }
 
@@ -50,7 +59,7 @@ const LogItem = React.memo(({ log }: { log: LogEntry }) => (
 LogItem.displayName = "LogItem";
 
 export function TranslationProgressOverlay({ isTranslating, progress }: TranslationProgressOverlayProps) {
-    const { current, total, currentTitle, logs = [] } = progress;
+    const { current, total, currentTitle, logs = [], totalTokens = 0, totalCost = 0, turboActive = false, chunksProcessed = 0, cacheHits = 0, startTime } = progress;
     const logContainerRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true); // Track if user is at bottom
 
@@ -58,6 +67,7 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const [displayPercent, setDisplayPercent] = useState(0);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [eta, setEta] = useState("Calculating...");
+    const [showStats, setShowStats] = useState(false);
 
     // EMA memory for smooth ETA
     const avgTimeRef = useRef<number | null>(null);
@@ -65,6 +75,11 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
 
     const basePercent = total > 0 ? Math.round((current / total) * 100) : 0;
     const nextStepLimit = total > 0 ? Math.round(((current + 1) / total) * 100) : 100;
+
+    // Calculate speed (chapters/min)
+    const speed = startTime && elapsedSeconds > 0
+        ? (current / (elapsedSeconds / 60))
+        : 0;
 
     // 1. Progress Synced & Reset Logic (Stable)
     useEffect(() => {
@@ -179,12 +194,19 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                         </div>
                         <div>
                             <h3 className="text-base font-bold text-foreground leading-none">Max Ping Processing</h3>
-                            <div className="flex items-center gap-2 mt-1.5">
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                 <span className="text-primary font-mono text-[11px] font-bold">{formatTime(elapsedSeconds)}</span>
                                 <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30" />
                                 <span className="text-muted-foreground/60 text-[10px] font-medium tracking-tight whitespace-nowrap">
                                     {eta}
                                 </span>
+                                {/* NEW: Status badges */}
+                                {turboActive && (
+                                    <span className="text-[9px] bg-primary/20 px-1.5 py-0.5 rounded font-bold">🚀 Turbo</span>
+                                )}
+                                {chunksProcessed > 0 && (
+                                    <span className="text-[9px] bg-blue-500/20 px-1.5 py-0.5 rounded font-bold">📦 {chunksProcessed}</span>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -213,16 +235,77 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                             <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent animate-shimmer-fast w-full" />
                         </div>
                     </div>
+
+                    {/* NEW: Stats row */}
+                    <div className="flex justify-between text-[9px] text-muted-foreground/60 px-1 font-mono">
+                        <span>💰 ${totalCost.toFixed(4)}</span>
+                        <span>🔥 {totalTokens.toLocaleString()}t</span>
+                        <span>⚡ {speed.toFixed(1)} ch/min</span>
+                        <button
+                            onClick={() => setShowStats(!showStats)}
+                            className="text-[9px] text-muted-foreground hover:text-foreground transition-colors underline"
+                        >
+                            {showStats ? "Hide" : "Stats"}
+                        </button>
+                    </div>
                 </div>
 
+                {/* NEW: Expandable Stats Panel */}
+                {showStats && (
+                    <div className="grid grid-cols-2 gap-2 p-3 bg-muted/20 rounded-lg animate-in fade-in slide-in-from-top-2">
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-muted-foreground">Total Cost</div>
+                            <div className="text-sm font-bold">${totalCost.toFixed(4)}</div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-muted-foreground">Tokens Used</div>
+                            <div className="text-sm font-bold">{totalTokens.toLocaleString()}</div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-muted-foreground">Avg Speed</div>
+                            <div className="text-sm font-bold">{speed.toFixed(1)} ch/min</div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="text-[9px] text-muted-foreground">Cache Hits</div>
+                            <div className="text-sm font-bold">{cacheHits}/{current}</div>
+                        </div>
+                    </div>
+                )}
+
+                {/* NEW: Integrated Toast-style Logs */}
                 {logs.length > 0 && (
                     <div
                         ref={logContainerRef}
                         onScroll={handleScroll}
-                        className="pt-3 border-t border-border/40 max-h-[140px] overflow-y-auto custom-scrollbar space-y-1.5 font-mono text-[10px] leading-relaxed"
+                        className="pt-3 border-t border-border/40 max-h-[180px] overflow-y-auto custom-scrollbar space-y-1.5"
                     >
-                        {[...logs].sort((a, b) => a.order - b.order).map((log) => (
-                            <LogItem key={log.id} log={log} />
+                        {[...logs].sort((a, b) => a.order - b.order).slice(-5).map((log) => (
+                            <div
+                                key={log.id}
+                                className={cn(
+                                    "flex items-start gap-2 p-2 rounded-lg transition-all animate-in fade-in slide-in-from-left-1",
+                                    log.type === 'success' && "bg-emerald-500/10 border-l-2 border-emerald-500",
+                                    log.type === 'error' && "bg-red-500/10 border-l-2 border-red-500",
+                                    log.type === 'info' && "bg-muted/20"
+                                )}
+                            >
+                                <span className="bg-muted px-1 rounded text-muted-foreground shrink-0 tabular-nums text-[10px] font-mono">
+                                    CH {log.order}
+                                </span>
+                                <span className={cn(
+                                    "break-all text-[10px] flex-1",
+                                    log.type === 'error' ? 'text-red-400' :
+                                        log.type === 'success' ? 'text-emerald-400' :
+                                            'text-white/60'
+                                )}>
+                                    {log.message}
+                                </span>
+                                {log.tokens && (
+                                    <span className="text-[9px] text-muted-foreground tabular-nums font-mono shrink-0">
+                                        {log.tokens.total.toLocaleString()}t
+                                    </span>
+                                )}
+                            </div>
                         ))}
                     </div>
                 )}

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { db, cleanupCache } from "@/lib/db";
+import React, { createContext, useContext, useState, useCallback } from "react";
+import { db } from "@/lib/db";
 import { toast } from "sonner";
 import { TranslationSettings } from "@/lib/types";
 import {
@@ -37,7 +37,22 @@ interface TranslationProgress {
     current: number;
     total: number;
     currentTitle: string;
-    logs: { id: string, message: string, type: 'info' | 'success' | 'error', order: number }[];
+    logs: {
+        id: string;
+        message: string;
+        type: 'info' | 'success' | 'error';
+        order: number;
+        tokens?: { input: number; output: number; total: number };
+        turbo?: boolean;
+        chunks?: number;
+    }[];
+    // Aggregate stats
+    totalTokens?: number;
+    totalCost?: number;
+    turboActive?: boolean;
+    chunksProcessed?: number;
+    cacheHits?: number;
+    startTime?: number;
 }
 
 interface TranslationContextType {
@@ -57,10 +72,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         logs: []
     });
 
-    // Auto cleanup cache on mount
-    useEffect(() => {
-        cleanupCache();
-    }, []);
+
 
     const startBatchTranslate = useCallback(async ({
         workspaceId,
@@ -92,7 +104,12 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             current: 0,
             total: chaptersToTranslate.length,
             currentTitle: "Khởi tạo Max Ping...",
-            logs: []
+            logs: [],
+            startTime: batchStartTime,
+            totalTokens: 0,
+            totalCost: 0,
+            cacheHits: 0,
+            chunksProcessed: 0
         });
 
         const batchToastId = "batch-translate-status";
@@ -161,26 +178,67 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             const startTime = Date.now();
             const logId = `chap-${chapter.id}`;
 
+
+            // Helper to parse tokens from message like "[1120i + 906o = 2026t]"
+            const parseTokens = (msg: string) => {
+                const match = msg.match(/\[(\d+)i \+ (\d+)o = (\d+)t\]/);
+                if (match) {
+                    return {
+                        input: parseInt(match[1]),
+                        output: parseInt(match[2]),
+                        total: parseInt(match[3])
+                    };
+                }
+                return undefined;
+            };
+
             const onLog = (log: TranslationLog | string) => {
                 const msg = typeof log === 'string' ? log : log.message;
                 const type = typeof log === 'string' ? 'info' : (log.type || 'info');
+
+                // Parse metadata from message
+                const tokens = parseTokens(msg);
+                const turbo = msg.includes('🚀Turbo') || msg.includes('🚀');
+                const chunksMatch = msg.match(/\((\d+) chunks\)/);
+                const chunks = chunksMatch ? parseInt(chunksMatch[1]) : undefined;
 
                 setBatchProgress(prev => {
                     const newLogs = [...prev.logs];
                     const existingIdx = newLogs.findIndex(l => l.id === logId);
 
+                    const logEntry = {
+                        id: logId,
+                        message: msg,
+                        type,
+                        order: chapter.order,
+                        tokens,
+                        turbo,
+                        chunks
+                    };
+
                     if (existingIdx !== -1) {
-                        newLogs[existingIdx] = { ...newLogs[existingIdx], message: msg, type };
+                        newLogs[existingIdx] = logEntry;
                     } else {
-                        newLogs.push({ id: logId, message: msg, type, order: chapter.order });
+                        newLogs.push(logEntry);
                     }
 
                     newLogs.sort((a, b) => b.order - a.order);
 
+                    // Calculate aggregate stats
+                    const totalTokens = newLogs.reduce((sum, l) => sum + (l.tokens?.total || 0), 0);
+                    const totalCost = totalTokens * 0.30 / 1_000_000; // Simplified: assuming all output tokens
+                    const cacheHits = newLogs.filter(l => l.turbo).length;
+                    const chunksProcessed = newLogs.reduce((sum, l) => sum + (l.chunks || 0), 0);
+
                     return {
                         ...prev,
                         currentTitle: `[Chương ${chapter.order}] ${msg}`,
-                        logs: newLogs.slice(0, 50)
+                        logs: newLogs.slice(0, 50),
+                        totalTokens,
+                        totalCost,
+                        turboActive: turbo,
+                        chunksProcessed,
+                        cacheHits
                     };
                 });
             };

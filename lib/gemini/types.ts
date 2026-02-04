@@ -12,6 +12,8 @@ export interface TranslationResult {
             input: number;
             output: number;
             total: number;
+            system?: number;  // System instruction overhead
+            content?: number; // Actual story content
         };
     };
 }

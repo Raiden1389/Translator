@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Edit, X, Save, ChevronDown, Zap, Trash2 } from "lucide-react";
-import { db, clearTranslationCache } from "@/lib/db";
+import { Edit, X, Save, ChevronDown, Zap } from "lucide-react";
+import { db } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
 import { toast } from "sonner";
 
@@ -27,6 +27,7 @@ interface TranslationConfig {
     enableTurbo: boolean; // 🚀 New
     maxConcurrentChunks: number;
     chunkSize: number;
+    temperature: number; // 🎨 NEW: AI creativity (0.0-1.0)
 }
 
 interface TranslationSettingsManual {
@@ -45,11 +46,11 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         enableChunking: false,
         enableTurbo: true, // Auto-on by default
         maxConcurrentChunks: 3,
-        chunkSize: 800
+        chunkSize: 800,
+        temperature: 0.1 // Default: Low creativity for consistency
     });
     const [savedPrompts, setSavedPrompts] = useState<{ id?: number, title: string, content: string }[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [cacheSize, setCacheSize] = useState(0);
 
 
     useEffect(() => {
@@ -65,8 +66,8 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
             const lastEnableTurbo = await db.settings.get("enableTurbo");
             const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
             const lastChunkSize = await db.settings.get("chunkSize");
+            const lastTemperature = await db.settings.get("temperature");
             const prompts = await db.prompts.toArray();
-            const cacheCount = await db.translationCache.count();
 
             setCurrentSettings({
                 apiKey: (key?.value as string) || "",
@@ -81,10 +82,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                 enableChunking: (lastEnableChunking?.value as boolean) || false,
                 enableTurbo: lastEnableTurbo ? (lastEnableTurbo.value as boolean) : true,
                 maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
-                chunkSize: (lastChunkSize?.value as number) || 800
+                chunkSize: (lastChunkSize?.value as number) || 800,
+                temperature: (lastTemperature?.value as number) ?? 0.1
             }));
             setSavedPrompts(prompts);
-            setCacheSize(cacheCount);
         };
 
         load();
@@ -115,15 +116,8 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         await db.settings.put({ key: "enableTurbo", value: translateConfig.enableTurbo });
         await db.settings.put({ key: "maxConcurrentChunks", value: translateConfig.maxConcurrentChunks || 3 });
         await db.settings.put({ key: "chunkSize", value: translateConfig.chunkSize || 800 });
+        await db.settings.put({ key: "temperature", value: translateConfig.temperature ?? 0.1 });
         onStart(translateConfig, currentSettings);
-    };
-
-    const handleClearCache = async () => {
-        if (confirm(`Bạn có chắc muốn xóa toàn bộ ${cacheSize} bản ghi cache? Việc này không thể hoàn tác.`)) {
-            await clearTranslationCache();
-            setCacheSize(0);
-            toast.success("Đã xóa cache thành công");
-        }
     };
 
     return (
@@ -169,16 +163,6 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                     </select>
                                 </div>
                                 <Button className="w-full font-bold" onClick={saveSettings}>Lưu cấu hình</Button>
-                                <div className="pt-4 border-t border-border mt-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <Label className="text-xs font-semibold text-muted-foreground uppercase">Translation Cache</Label>
-                                        <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{cacheSize} items</span>
-                                    </div>
-                                    <Button variant="destructive" size="sm" className="w-full text-xs font-bold" onClick={handleClearCache} disabled={cacheSize === 0}>
-                                        <Trash2 className="h-3 w-3 mr-2" /> Xóa Cache Dịch
-                                    </Button>
-                                    <p className="text-[10px] text-muted-foreground mt-2 italic text-center">Xóa cache sẽ khiến việc dịch lại tốn tiền API hơn.</p>
-                                </div>
                             </div>
                         </div>
                     )}
@@ -201,6 +185,29 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                             className="py-1"
                         />
                         <p className="text-[10px] text-muted-foreground italic font-medium">Chỉnh quá cao có thể bị AI từ chối do quá tải (Rate Limit).</p>
+                    </div>
+
+                    {/* Temperature Slider */}
+                    <div className="space-y-4 p-4 bg-muted/20 rounded-xl border border-border">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm font-bold flex items-center gap-2">
+                                🎨 Creativity (Temperature)
+                            </Label>
+                            <span className="text-primary font-black text-sm bg-primary/10 px-2 py-0.5 rounded-md">{translateConfig.temperature.toFixed(1)}</span>
+                        </div>
+                        <Slider
+                            value={[translateConfig.temperature]}
+                            min={0}
+                            max={1}
+                            step={0.1}
+                            onValueChange={(val: number[]) => setTranslateConfig({ ...translateConfig, temperature: val[0] })}
+                            className="py-1"
+                        />
+                        <p className="text-[10px] text-muted-foreground italic font-medium">
+                            <span className="font-bold">0.0-0.2:</span> Nhất quán, ít sáng tạo.
+                            <span className="font-bold ml-2">0.3-0.5:</span> Cân bằng.
+                            <span className="font-bold ml-2">0.6-1.0:</span> Sáng tạo, đa dạng.
+                        </p>
                     </div>
 
                     {/* Custom Prompt */}
@@ -337,11 +344,19 @@ function EstimateInfo({ modelId, count }: { modelId: string, count: number }) {
     const model = AI_MODELS.find(m => m.value === modelId);
     if (!model) return null;
 
+    // More realistic estimation based on actual usage
     const AVG_CHARS_PER_CHAPTER = 4000;
     const TOKENS_PER_CHAR = 0.25;
-    const TOTAL_CHARS = AVG_CHARS_PER_CHAPTER * count;
-    const INPUT_TOKENS = TOTAL_CHARS * TOKENS_PER_CHAR;
-    const OUTPUT_TOKENS = INPUT_TOKENS * 1.2;
+
+    // Content tokens
+    const CONTENT_TOKENS = AVG_CHARS_PER_CHAPTER * TOKENS_PER_CHAR * count;
+
+    // System Instruction overhead (TITLE_RULE + CORE_RULES + Glossary + Custom Prompt)
+    // Estimated ~800-1200 tokens per request
+    const SYSTEM_OVERHEAD_PER_CHAPTER = 1000;
+
+    const INPUT_TOKENS = CONTENT_TOKENS + (SYSTEM_OVERHEAD_PER_CHAPTER * count);
+    const OUTPUT_TOKENS = CONTENT_TOKENS * 1.2; // Output is usually 20% more than content
 
     const inputCost = (INPUT_TOKENS / 1_000_000) * (model.inputPrice || 0);
     const outputCost = (OUTPUT_TOKENS / 1_000_000) * (model.outputPrice || 0);

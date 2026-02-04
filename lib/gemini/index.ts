@@ -16,12 +16,22 @@ export {
 
 // Re-export constants
 export {
-    CAPITALIZATION_RULE,
     VOICE_TONE_RULE,
     STRUCTURE_RULE,
-    CORE_RULES,
-    buildSystemInstruction
+    CORE_RULES
 } from "./constants";
+
+// Re-export adaptive token management
+export { withAdaptiveTokens, calculateDynamicTokens } from "./adaptive-tokens";
+export type { TokenConfig, AdaptiveResult } from "./adaptive-tokens";
+
+// Re-export translation modules
+export { buildGlossary } from "./translation/glossary-builder";
+export { parsePlainTextChapter } from "./translation/parser";
+export { applyPostProcessing } from "./translation/post-processor";
+export { calculateStats } from "./translation/stats-calculator";
+export type { GlossaryResult } from "./translation/glossary-builder";
+export type { TranslationStats } from "./translation/stats-calculator";
 
 // Re-export main translation
 export { translateChapter } from "./translate";

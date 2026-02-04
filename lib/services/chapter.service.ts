@@ -25,13 +25,19 @@ export async function updateChapterStatus(id: number, status: 'draft' | 'transla
  * Xóa bản dịch của chương
  */
 export async function clearChapterTranslation(id: number) {
-    return await db.chapters.update(id, {
+    console.log('🗑️ clearChapterTranslation: Starting for chapter', id);
+
+    const result = await db.chapters.update(id, {
         content_translated: "",
         title_translated: "",
         status: 'draft',
         lastTranslatedAt: undefined,
-        translationModel: undefined
+        translationModel: undefined,
+        stats: undefined // Clear token stats
     });
+
+    console.log('🗑️ clearChapterTranslation: DB update result:', result);
+    return result;
 }
 
 /**
@@ -45,7 +51,8 @@ export async function bulkClearChapterTranslations(ids: number[]) {
                 title_translated: "",
                 status: 'draft',
                 lastTranslatedAt: undefined,
-                translationModel: undefined
+                translationModel: undefined,
+                stats: undefined // Clear token stats
             });
         }
     });

@@ -67,6 +67,6 @@ export const MODERN_SLANG_MAP = [
 ];
 
 export const IDIOM_SYSTEM_RULE = `
-- TƯ DUY: Tả CẢM GIÁC (rùng mình), không tả SINH LÝ (hít hơi lạnh).
-- CẤM CONVERT: [${HARD_BLACKLIST.slice(0, 5).join(", ")}...]. 1 dòng gốc = 1 dòng dịch thoát ý.
+- TƯ DUY: Tả cảm giác, không tả sinh lý.
+- CẤM: hít hơi lạnh, không đỏ mặt, vấn đề không lớn.
 `;

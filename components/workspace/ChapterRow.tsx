@@ -144,15 +144,24 @@ export const ChapterRow = React.memo(function ChapterRow({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className={cn(
-                                "text-[10px] font-mono px-2 py-0.5 rounded-md border",
+                                "text-[10px] font-mono px-2 py-0.5 rounded-md border cursor-help",
                                 isRaidenMode ? "bg-slate-900/50 border-purple-500/20 text-purple-400" : "bg-blue-50/50 border-blue-100 text-blue-600"
                             )}>
                                 {stats.tokens.total.toLocaleString()}t
                             </div>
                         </TooltipTrigger>
-                        <TooltipContent className="text-[10px]">
-                            <div>Input: {stats.tokens.input.toLocaleString()}</div>
-                            <div>Output: {stats.tokens.output.toLocaleString()}</div>
+                        <TooltipContent className="text-[10px] font-mono">
+                            <div className="font-bold mb-1">📊 Token Breakdown:</div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                                <div className="text-muted-foreground">Input:</div>
+                                <div className="text-right font-bold">{stats.tokens.input.toLocaleString()}</div>
+
+                                <div className="text-muted-foreground">Output:</div>
+                                <div className="text-right font-bold">{stats.tokens.output.toLocaleString()}</div>
+
+                                <div className="text-muted-foreground border-t pt-0.5">Total:</div>
+                                <div className="text-right font-bold border-t pt-0.5">{stats.tokens.total.toLocaleString()}</div>
+                            </div>
                         </TooltipContent>
                     </Tooltip>
                 )}

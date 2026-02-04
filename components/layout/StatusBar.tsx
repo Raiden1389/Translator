@@ -80,26 +80,31 @@ export function StatusBar() {
 
                 <button
                     onClick={async () => {
-                        const toastId = "open-folder";
-                        toast.loading("Đang chuẩn bị hệ thống...", { id: toastId });
+                        const toastId = "manual-save";
+                        toast.loading("Đang lưu vào ổ đĩa...", { id: toastId });
                         try {
+                            const { manualSaveAllWorkspaces } = await import("@/lib/db");
+                            const result = await manualSaveAllWorkspaces();
+
+                            if (result.errors.length > 0) {
+                                console.error("Save errors:", result.errors);
+                                toast.error(`Lưu một phần: ${result.saved} items. Có ${result.errors.length} lỗi.`, { id: toastId });
+                            } else if (result.saved === 0) {
+                                toast.success("Không có gì cần lưu!", { id: toastId });
+                            } else {
+                                toast.success(`Đã lưu ${result.saved} items vào ổ đĩa!`, { id: toastId });
+                            }
+
+                            // Open folder after save
+                            toast.loading("Đang mở thư mục dữ liệu...", { id: toastId });
                             const { appDataDir } = await import("@tauri-apps/api/path");
                             const { invoke } = await import("@tauri-apps/api/core");
-                            const { storage } = await import("@/lib/storageBridge");
-
-                            // 1. Force Sync first (to ensure existing data is on disk)
-                            const { db } = await import("@/lib/db");
-                            await storage.syncAllWorkspaces(db, toastId);
-
                             const baseDir = await appDataDir();
-                            const path = baseDir; // Mở root để thấy cả 'workspaces' và 'TRUYEN_DA_DICH'
-
-                            toast.loading("Đang mở thư mục dữ liệu...", { id: toastId });
-                            await invoke("open_folder", { path });
-                            toast.success("Đã mở!", { id: toastId });
+                            await invoke("open_folder", { path: baseDir });
+                            toast.success("Đã mở thư mục!", { id: toastId });
                         } catch (err: unknown) {
                             const msg = err instanceof Error ? err.message : String(err);
-                            console.error("Open data dir failed:", err);
+                            console.error("Manual save failed:", err);
                             toast.error(`Lỗi: ${msg || "Không thể truy cập"}`, { id: toastId });
                         }
                     }}

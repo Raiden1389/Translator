@@ -44,6 +44,9 @@ export async function processCoverImage(file: File): Promise<string> {
     });
 }
 
+import { AI_MODELS } from "@/lib/ai-models";
+import { format, subDays, eachDayOfInterval } from "date-fns";
+
 /**
  * Thống kê tổng hợp dữ liệu Workspace
  */
@@ -58,19 +61,25 @@ export async function getWorkspaceStats(workspaceId: string) {
 
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
+    let totalThinkingTokens = 0;
+    let totalCostUSD = 0;
 
     chapters.forEach(c => {
         if (c.stats?.tokens) {
             totalInputTokens += c.stats.tokens.input || 0;
             totalOutputTokens += c.stats.tokens.output || 0;
+            totalThinkingTokens += c.stats.tokens.thinking || 0;
+
+            // Calculate cost based on the model used for this chapter
+            const modelId = c.translationModel || "gemini-2.1-flash-preview-09-2025";
+            const modelInfo = AI_MODELS.find(m => m.value === modelId) || AI_MODELS[0];
+
+            const costInput = ((c.stats.tokens.input || 0) / 1_000_000) * (modelInfo.inputPrice || 0);
+            // Thinking tokens are billed as output tokens
+            const costOutput = (((c.stats.tokens.output || 0) + (c.stats.tokens.thinking || 0)) / 1_000_000) * (modelInfo.outputPrice || 0);
+            totalCostUSD += (costInput + costOutput);
         }
     });
-
-    // Cost estimation for Gemini 2.0 Flash (approximate)
-    // Input: $0.1 / 1M tokens, Output: $0.4 / 1M tokens (as of Feb 2025)
-    const costInput = (totalInputTokens / 1_000_000) * 0.1;
-    const costOutput = (totalOutputTokens / 1_000_000) * 0.4;
-    const totalCostUSD = costInput + costOutput;
 
     return {
         totalChapters: total,
@@ -79,10 +88,60 @@ export async function getWorkspaceStats(workspaceId: string) {
         charCount: chars,
         totalInputTokens,
         totalOutputTokens,
+        totalThinkingTokens,
         totalCostUSD,
         totalCostVND: totalCostUSD * 25400
     };
 }
+
+/**
+ * Lịch sử sử dụng Token theo ngày (7 ngày gần nhất)
+ */
+export async function getUsageHistory(workspaceId: string) {
+    const chapters = await db.chapters
+        .where("workspaceId")
+        .equals(workspaceId)
+        .filter(c => !!c.lastTranslatedAt && !!c.stats?.tokens)
+        .toArray();
+
+    const last7Days = eachDayOfInterval({
+        start: subDays(new Date(), 6),
+        end: new Date()
+    });
+
+    const historyMap = new Map<string, { tokens: number; cost: number }>();
+    last7Days.forEach(date => {
+        historyMap.set(format(date, 'yyyy-MM-dd'), { tokens: 0, cost: 0 });
+    });
+
+    chapters.forEach(c => {
+        if (c.lastTranslatedAt && c.stats?.tokens) {
+            const dateStr = format(c.lastTranslatedAt, 'yyyy-MM-dd');
+            if (historyMap.has(dateStr)) {
+                const current = historyMap.get(dateStr)!;
+                // Include thinking tokens in total
+                const totalTokens = (c.stats.tokens.input || 0) + (c.stats.tokens.output || 0) + (c.stats.tokens.thinking || 0);
+
+                const modelId = c.translationModel || "gemini-2.5-flash-preview";
+                const modelInfo = AI_MODELS.find(m => m.value === modelId) || AI_MODELS[0];
+                // Thinking tokens are billed as output tokens
+                const cost = ((c.stats.tokens.input || 0) / 1_000_000) * (modelInfo.inputPrice || 0) +
+                    (((c.stats.tokens.output || 0) + (c.stats.tokens.thinking || 0)) / 1_000_000) * (modelInfo.outputPrice || 0);
+
+                historyMap.set(dateStr, {
+                    tokens: current.tokens + totalTokens,
+                    cost: current.cost + cost
+                });
+            }
+        }
+    });
+
+    return Array.from(historyMap.entries()).map(([date, data]) => ({
+        date,
+        ...data
+    }));
+}
+
 
 /**
  * Tạo tóm tắt truyện bằng AI

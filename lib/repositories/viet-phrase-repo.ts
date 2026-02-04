@@ -102,38 +102,9 @@ export class VietPhraseRepository {
                 result += " " + this.capitalize(lastMatchValue) + " ";
                 i = lastMatchEnd + 1;
             } else {
-                // No match, try Syllable Fallback
-                const char = text[i];
-                // Requires importing SyllableRepo but avoiding circular dependency might be tricky if not careful.
-                // Dynamic import or passed dependency? 
-                // Since this is a method, we can assume SyllableRepo is available in the module scope or require it?
-                // Or better: We assume SyllableRepo is loaded and we can access it via global/singleton if possible.
-                // But circular dependency VietPhraseRepo <-> SyllableRepo?
-                // SyllableRepo doesn't import VietPhraseRepo. So VietPhraseRepo importing SyllableRepo is fine (DAG).
-
-                // We need to import it at top of file or use dynamic import inside?
-                // Let's use dynamic for safety or assumption that it's just a value.
-                // Actually, let's keep it simple: If we can't import, we skip?
-                // No, we MUST import.
-
-                // Let's use a dirty quick fix: dynamic require or assume we can import at top.
-                // But replace_file_content replaces a block.
-                // I will add import at top in a separate call or assume I can modify this file's imports.
-                // Wait, useNameHunter orchestrates loading both.
-
-                // Let's try to get SyllableRepo via a lazy getter or just valid import?
-                // We will add import to the file first.
-
-                // FALLBACK LOGIC:
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const syllable = (this as any).syllableRepo?.get(char);
-                // We need to inject syllableRepo.
-
-                if (syllable) {
-                    result += " " + this.capitalize(syllable) + " ";
-                } else {
-                    result += text[i];
-                }
+                // If no match in VietPhrase, keep the character as is.
+                // Callers (like titleFixer) will handle Hán Việt fallback if there are Han chars.
+                result += text[i];
                 i++;
             }
         }

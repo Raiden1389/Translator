@@ -6,7 +6,8 @@ import { db, Workspace } from "@/lib/db";
 import {
     processCoverImage,
     getWorkspaceStats,
-    generateAiSummary
+    generateAiSummary,
+    getUsageHistory
 } from "@/lib/services/overview.service";
 import { toast } from "sonner";
 
@@ -25,22 +26,28 @@ export function useOverview(workspace: Workspace) {
         charCount: 0,
         totalInputTokens: 0,
         totalOutputTokens: 0,
+        totalThinkingTokens: 0,
         totalCostUSD: 0,
         totalCostVND: 0
     };
 
-    const handleUpdateField = useCallback(async (field: keyof Workspace, value: any) => {
+    const usageHistory = useLiveQuery(
+        () => getUsageHistory(workspace.id!),
+        [workspace.id]
+    ) || [];
+
+    const handleUpdateField = useCallback(async <K extends keyof Workspace>(field: K, value: Workspace[K]) => {
         try {
             await db.workspaces.update(workspace.id!, {
                 [field]: value,
                 updatedAt: new Date()
             });
-        } catch (err) {
+        } catch {
             toast.error("Lỗi khi cập nhật dữ liệu.");
         }
     }, [workspace.id]);
 
-    const handleProcessFile = async (file: File) => {
+    const handleProcessFile = useCallback(async (file: File) => {
         if (file.size > 10 * 1024 * 1024) {
             toast.warning("Ảnh quá lớn (< 10MB)");
             return;
@@ -50,10 +57,10 @@ export function useOverview(workspace: Workspace) {
             const optimizedBase64 = await processCoverImage(file);
             await handleUpdateField('cover', optimizedBase64);
             toast.success("Đã cập nhật ảnh bìa.");
-        } catch (err) {
+        } catch {
             toast.error("Lỗi xử lý ảnh bìa.");
         }
-    };
+    }, [handleUpdateField]);
 
     const handleAutoSummary = async () => {
         setIsGeneratingSummary(true);
@@ -65,8 +72,9 @@ export function useOverview(workspace: Workspace) {
                 updatedAt: new Date()
             });
             toast.success("Đã tạo tóm tắt mới!");
-        } catch (err: any) {
-            toast.error(err.message || "Lỗi khi tạo tóm tắt.");
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Lỗi khi tạo tóm tắt.";
+            toast.error(msg);
         } finally {
             setIsGeneratingSummary(false);
         }
@@ -92,11 +100,12 @@ export function useOverview(workspace: Workspace) {
 
         window.addEventListener("paste", handlePaste);
         return () => window.removeEventListener("paste", handlePaste);
-    }, [workspace.id]);
+    }, [handleProcessFile]);
 
     return {
         state: {
             stats,
+            usageHistory,
             isDragging,
             isGeneratingSummary
         },
@@ -108,3 +117,4 @@ export function useOverview(workspace: Workspace) {
         }
     };
 }
+
