@@ -1,5 +1,15 @@
 ## [2.4.2] - 2026-02-05
 
+### 🧠 Raiden Intelligence Hub (New Feature)
+- **Centralized Command Center**: Introduced a unified sidebar-based interface to manage all AI data assets.
+- **Discovery Module**: Integrated the high-speed Heuristic Engine with real-time scanning and filtering (O(N) optimized).
+- **Integrated Asset Management**:
+    - **Glossary**: Manage terms and definitions.
+    - **Persona**: Dedicated character profile management.
+    - **Tuning**: Centralized UI for text corrections and style rules.
+    - **Sanitizer**: Improved blacklist management with strict context rules.
+- **Premium UX**: Implemented glassmorphism aesthetics, smooth slide-in transitions, and radial gradient backgrounds for a modern AI-centric feel.
+
 ### 🏗️ Chapter List Hook Architecture Refactor (Phase 1-3)
 - **Monolithic Hook Decomposition**: Split the giant `useChapterList` hook into three focused sub-hooks:
     - `useChapterListUI`: Manages search, filtering, pagination, and view modes.

@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "4.0.0",
-        "last_updated": "2026-02-03T07:30:00Z"
+        "last_updated": "2026-02-05T13:10:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Optimization Release - v2.1.0 (Token & Cost Efficiency)"
+        "status": "Optimization & Architecture Release - v2.4.2 (Chapter List Refactor)"
     },
     "tech_stack": {
         "frontend": {
@@ -19,7 +19,7 @@
         },
         "backend": {
             "runtime": "Tauri (Rust) for system access",
-            "api": "Gemini Pro / Flash via @google/genai"
+            "api": "Gemini 2.5 Flash / Pro via @google/genai"
         },
         "database": {
             "engine": "IndexedDB",
@@ -28,7 +28,9 @@
         }
     },
     "features": [
+        "Raiden Intelligence Hub: Trung tâm điều khiển tập trung cho Discovery, Glossary, Persona, Tuning và Sanitizer với giao diện sidebar hiện đại.",
         "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
+        "Architecture Refactor: Phân rã hook 'ChapterList' khổng lồ thành các sub-hooks chuyên biệt (UI, Dialogs) và presenter component tinh gọn.",
         "Token Optimization: Dynamic maxOutputTokens (giảm ~25% chi phí) và Compact Glossary format.",
         "Realtime Workspace Tokens: Theo dõi số lượng token và chi phí USD thời gian thực cho từng bộ truyện.",
         "Smart Title Fixer: Nút ✨ tự động sửa lỗi Hán tự trong tiêu đề dịch với chi phí cực thấp và cơ chế retry.",
@@ -36,8 +38,7 @@
         "Action Hub 2.0: Hệ thống công cụ nhanh 2 hàng (Cache, JSON Import/Export, AI Scan, History)",
         "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
         "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-preserving) và Cải chính trực tiếp vào Reader",
-        "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
-        "TTS: Hỗ trợ đọc truyện với cơ chế xử lý lỗi timeout"
+        "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch"
     ],
     "database_schema": {
         "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",

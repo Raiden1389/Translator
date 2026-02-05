@@ -1,60 +1,81 @@
 {
-    "updated_at": "2026-02-03T07:30:00Z",
+    "updated_at": "2026-02-05T13:10:00Z",
     "working_on": {
-        "feature": "Token Tracking & Title Fixer",
-        "task": "Hoàn thành audit hệ thống dịch thuật, triển khai theo dõi token/cost realtime và nút sửa lỗi Hán tự trong tiêu đề.",
+        "feature": "Chapter List Architecture Refactor",
+        "task": "Hoàn thành Phase 1, 2, 3 của việc phân rã hook useChapterList thành các sub-hooks (UI, Dialogs) và presenter component lean.",
         "status": "completed",
         "files": [
-            "lib/gemini/constants.ts",
-            "lib/gemini/titleFixer.ts",
             "components/workspace/ChapterList.tsx",
-            "components/workspace/hooks/useWorkspaceTokens.ts"
+            "components/workspace/hooks/useChapterList.ts",
+            "components/workspace/hooks/useChapterListUI.ts",
+            "components/workspace/hooks/useChapterListDialogs.ts",
+            "components/workspace/hooks/useChapterList.types.ts",
+            "components/workspace/ChapterListDialogs.tsx",
+            "components/workspace/ChapterSelectionDock.tsx",
+            "lib/services/backup.service.ts"
         ],
-        "notes": "Hệ thống đã ổn định về mặt chi phí và khả năng sửa lỗi tiêu đề lẻ."
+        "notes": "Codebase đã sạch hơn rất nhiều, tách biệt hoàn toàn logic UI và business. Type safety được đảm bảo 100% trong module này."
     },
     "recent_changes": [
         {
-            "type": "Optimization",
-            "description": "Dynamic maxOutputTokens allocation based on source text length to reduce waste. Implemented compact glossary format for prompt efficiency.",
+            "type": "Feature",
+            "description": "Raiden Intelligence Hub - A centralized command center for all AI discovery and dictionary management.",
             "files": [
-                "lib/gemini/translate.ts",
-                "lib/gemini/constants.ts"
+                "IntelligenceHub.tsx",
+                "DiscoveryModule.tsx",
+                "HeuristicScanner.tsx"
             ]
         },
         {
-            "type": "Feature",
-            "description": "Realtime Token & Cost Tracking for workspaces. Users can now see exact spending per book in the header.",
+            "type": "Refactor",
+            "description": "Monolithic ChapterList hook decomposition into useChapterListUI and useChapterListDialogs.",
             "files": [
-                "ChapterListHeader.tsx",
-                "useWorkspaceTokens.ts"
+                "useChapterList.ts",
+                "useChapterListUI.ts",
+                "useChapterListDialogs.ts"
             ]
         },
         {
-            "type": "Feature",
-            "description": "Automated Title Fixer for Chinese titles. Uses ultra-cheap API calls to repair titles with remaining Chinese characters with self-correction retry.",
+            "type": "Refactor",
+            "description": "Presenter Component Cleanup - Extracted dialogs and selection dock to standalone components.",
             "files": [
-                "titleFixer.ts",
-                "ChapterList.tsx"
+                "ChapterList.tsx",
+                "ChapterListDialogs.tsx",
+                "ChapterSelectionDock.tsx"
+            ]
+        },
+        {
+            "type": "Refactor",
+            "description": "Strict Typing - Implementation of ChapterListState and ChapterListActions interfaces to replace 'any'.",
+            "files": [
+                "useChapterList.types.ts"
+            ]
+        },
+        {
+            "type": "Architecture",
+            "description": "Backup Service - Extracted JSON export logic to a dedicated service layer supporting Tauri and Browser.",
+            "files": [
+                "backup.service.ts"
             ]
         }
     ],
     "decisions_made": [
         {
-            "decision": "TITLE_RULE placement at the top of System Instruction",
-            "reason": "AI often ignores rules buried in the middle. Putting title requirements first ensures they are treated with highest priority."
+            "decision": "Split useChapterList into domain-specific sub-hooks",
+            "reason": "Maintaining state for UI (search, filters) and overlays in one file was becoming unmanageable and prone to dependency errors."
         },
         {
-            "decision": "Ultra-cheap model calls for Title Fixing",
-            "reason": "Fixing just a title doesn't require a large context. Using minimal maxOutputTokens and specific prompts saves significantly compared to re-translating whole chapters."
+            "decision": "Use of explicit Return Types for orchestration hooks",
+            "reason": "Ensures that when we combine states and actions from multiple sub-hooks, the parent hook contract remains stable and well-documented."
         }
     ],
     "pending_tasks": [
         {
-            "task": "Kiểm tra giới hạn token cho các chương cực dài (>15,000 characters)",
+            "task": "Refactor useBlacklist.ts tương tự để loại bỏ logic cồng kềnh và xử lý triệt để lỗi useEffect dependency.",
             "priority": "medium"
         },
         {
-            "task": "Nghiên cứu cơ chế tự động fix title ngay sau khi dịch xong chapter",
+            "task": "Nghiên cứu cơ chế tự động fix title ngay sau khi dịch xong chapter (Auto-trigger Sparkles)",
             "priority": "low"
         }
     ]
