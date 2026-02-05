@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { type ReaderConfig } from "../ReaderHeader";
+import { type ReaderConfig } from "../shared/ReaderHeader";
 
 const DEFAULT_CONFIG: ReaderConfig = {
     fontFamily: "'Bookerly', serif",

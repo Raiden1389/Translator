@@ -8,7 +8,7 @@ import { type Chapter } from "@/lib/db";
 import { ChapterRow } from "./ChapterRow";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useChapterTable } from "./hooks/useChapterTable";
+import { useChapterTable } from "../hooks/useChapterTable";
 import {
     AlertDialog,
     AlertDialogAction,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useCorrections } from "../hooks/useCorrections";
 import { Search, Save, Trash2, History } from "lucide-react";
-import { HistoryDialog } from "../../HistoryDialog";
+import { HistoryDialog } from "../../shared/HistoryDialog";
 import { CorrectionForm } from "../../corrections/CorrectionForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

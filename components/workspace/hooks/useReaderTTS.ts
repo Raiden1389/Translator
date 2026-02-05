@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { speak, prefetchTTS } from "@/lib/tts";
-import { ReaderConfig } from "../ReaderHeader";
+import { ReaderConfig } from "../shared/ReaderHeader";
 import { splitIntoParagraphs } from "../utils/readerFormatting";
 
 export function useReaderTTS(chapterId: number, content: string, readerConfig: ReaderConfig) {

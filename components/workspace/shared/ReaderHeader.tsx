@@ -20,10 +20,10 @@ import { cn } from "@/lib/utils";
 import { InspectionIssue } from "@/lib/types";
 
 // Extracted Components
-import { HeaderIconButton } from "./reader/components/HeaderIconButton";
-import { TabSwitch } from "./reader/components/TabSwitch";
-import { TTSControls } from "./reader/components/TTSControls";
-import { DisplaySettings } from "./reader/components/DisplaySettings";
+import { HeaderIconButton } from "../reader/components/HeaderIconButton";
+import { TabSwitch } from "../reader/components/TabSwitch";
+import { TTSControls } from "../reader/components/TTSControls";
+import { DisplaySettings } from "../reader/components/DisplaySettings";
 
 /* ===================== TYPES ===================== */
 
@@ -75,6 +75,7 @@ interface ReaderHeaderProps {
 
     onClearTranslation: () => void;
     onAIExtract?: () => void;
+
     isHeaderVisible?: boolean;
 
     isEditing: boolean;
@@ -153,11 +154,7 @@ export function ReaderHeader(props: ReaderHeaderProps) {
 
                     {/* AI Tools */}
                     <div className="flex items-center gap-1">
-                        <HeaderIconButton
-                            icon={<Sparkles className="w-4 h-4 text-purple-500" />}
-                            title="Quét AI"
-                            onClick={onAIExtract}
-                        />
+
 
                         <HeaderIconButton
                             icon={isInspecting ? <Sparkles className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
@@ -172,6 +169,14 @@ export function ReaderHeader(props: ReaderHeaderProps) {
                                 </span>
                             )}
                         </HeaderIconButton>
+
+                        {onAIExtract && (
+                            <HeaderIconButton
+                                icon={<Sparkles className="w-4 h-4 text-purple-500" />}
+                                title="Quét AI"
+                                onClick={onAIExtract}
+                            />
+                        )}
                     </div>
 
                     {activeTab === "translated" && (

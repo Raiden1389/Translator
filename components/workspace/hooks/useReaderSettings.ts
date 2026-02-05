@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ReaderConfig } from "../ReaderHeader";
+import { ReaderConfig } from "../shared/ReaderHeader";
 import { VIETNAMESE_VOICES } from "@/lib/tts";
 
 const DEFAULT_CONFIG: ReaderConfig = {

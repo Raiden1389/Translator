@@ -4,17 +4,21 @@ import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, User, MapPin, Zap, Users, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TermType } from "@/lib/services/name-hunter/types";
+import { EntityType } from '@/lib/services/ai-ner.service';
+
+// Re-export for backward compatibility
+export { EntityType };
+export type TermType = EntityType;
 
 interface ScanConfigDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onStart: (selectedTypes: TermType[]) => void;
+    onStart: (selectedTypes: EntityType[]) => void;
 }
 
 const SELECTION_ITEMS = [
     {
-        id: TermType.Person,
+        id: EntityType.Person,
         label: 'Nhân vật',
         icon: User,
         color: 'blue',
@@ -23,7 +27,7 @@ const SELECTION_ITEMS = [
         iconColor: 'text-blue-500',
     },
     {
-        id: TermType.Location,
+        id: EntityType.Location,
         label: 'Địa danh',
         icon: MapPin,
         color: 'emerald',
@@ -32,7 +36,7 @@ const SELECTION_ITEMS = [
         iconColor: 'text-emerald-500',
     },
     {
-        id: TermType.Skill,
+        id: EntityType.Skill,
         label: 'Công pháp / Kỹ năng',
         icon: Zap,
         color: 'amber',
@@ -41,7 +45,7 @@ const SELECTION_ITEMS = [
         iconColor: 'text-amber-500',
     },
     {
-        id: TermType.Organization,
+        id: EntityType.Organization,
         label: 'Tổ chức / Thế lực',
         icon: Users,
         color: 'purple',
@@ -52,14 +56,14 @@ const SELECTION_ITEMS = [
 ] as const;
 
 export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDialogProps) {
-    const [selected, setSelected] = useState<TermType[]>([
-        TermType.Person,
-        TermType.Location,
-        TermType.Skill,
-        TermType.Organization
+    const [selected, setSelected] = useState<EntityType[]>([
+        EntityType.Person,
+        EntityType.Location,
+        EntityType.Skill,
+        EntityType.Organization
     ]);
 
-    const toggle = (type: TermType) => {
+    const toggle = (type: EntityType) => {
         setSelected(prev =>
             prev.includes(type)
                 ? prev.filter(t => t !== type)

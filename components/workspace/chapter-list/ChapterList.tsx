@@ -3,31 +3,50 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Dexie from "dexie";
-import { db, clearChapterTranslation } from "@/lib/db";
+import { db, type Chapter } from "@/lib/db";
+import { clearChapterTranslation } from "@/lib/services/chapter.service";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { ChapterListHeader } from "./ChapterListHeader";
+import { ChapterListHeader } from "../shared/ChapterListHeader";
 import { ChapterTable } from "./ChapterTable";
 import { ChapterCardGrid } from "./ChapterCardGrid";
 import { ReaderModal } from "./ReaderModal";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
-import { TranslationProgressOverlay } from "./TranslationProgressOverlay";
+
 import { TranslateConfigDialog } from "./TranslateConfigDialog";
 import { InspectionDialog } from "./InspectionDialog";
-import { HistoryDialog } from "./HistoryDialog";
+import { HistoryDialog } from "../shared/HistoryDialog";
+import { ScanConfigDialog, EntityType } from "../ScanConfigDialog";
+import { ReviewDialog } from "../shared/ReviewDialog";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { useChapterSelection } from "./hooks/useChapterSelection";
-import { useChapterImport } from "./hooks/useChapterImport";
+import { useChapterSelection } from "../hooks/useChapterSelection";
+import { useChapterImport } from "../hooks/useChapterImport";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
+import { useAIExtraction } from "../editor/hooks/useAIExtraction";
 
-import { extractGlossary, inspectChapter, InspectionIssue } from "@/lib/gemini";
-import { applyCorrectionRule } from "@/lib/gemini/helpers";
-import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types"; // Kept ReviewData for prop type
+import { inspectChapter } from "@/lib/gemini";
+import { applyCorrectionRule } from "@/lib/gemini/text/correction";
+import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings, InspectionIssue } from "@/lib/types"; // Kept ReviewData for prop type
 
 interface ChapterListProps {
     workspaceId: string;
     onShowScanResults: (data: ReviewData) => void;
-    onTranslate: (props: any) => void; // Using any for brevity, or partial BatchTranslateProps
+    onTranslate: (props: {
+        workspaceId: string;
+        chapters: Chapter[];
+        selectedChapters: number[];
+        currentSettings: TranslationSettings;
+        translateConfig: {
+            customPrompt: string;
+            autoExtract: boolean;
+            fixPunctuation?: boolean;
+            maxConcurrency?: number;
+            enableChunking: boolean;
+            maxConcurrentChunks: number;
+            chunkSize?: number;
+        };
+        onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => void;
+    }) => void;
 }
 
 export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: ChapterListProps) {
@@ -50,6 +69,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const [inspectingChapter, setInspectingChapter] = useState<{ id: number, title: string, issues: InspectionIssue[] } | null>(null);
     const [isInspectOpen, setIsInspectOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [scanConfigOpen, setScanConfigOpen] = useState(false);
 
     // Filtered Content
     const filtered = useMemo(() => {
@@ -65,8 +85,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const {
         selectedChapters,
         setSelectedChapters,
-        toggleSelectAll,
-        toggleSingleSelection
+        handleSelect
     } = useChapterSelection(filtered.map(c => c.id!));
 
     const {
@@ -74,10 +93,33 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         progress: importProgress,
         importStatus,
         fileInputRef,
-        importInputRef,
         handleFileUpload,
         handleImportJSON
     } = useChapterImport(workspaceId, chapters?.length || 0);
+
+    // AI Extraction
+    const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(workspaceId).toArray(), [workspaceId]);
+    const {
+        pendingCharacters,
+        pendingTerms,
+        isReviewOpen,
+        setIsReviewOpen,
+        handleAIExtractChapter,
+        handleConfirmSaveAI
+    } = useAIExtraction(workspaceId, dictEntries || []);
+
+    const handleScan = () => setScanConfigOpen(true);
+    const handleStartScan = async (selectedTypes: EntityType[]) => {
+        setScanConfigOpen(false);
+        // Get all selected chapters' content
+        if (selectedChapters.length === 0) {
+            toast.error("Vui lòng chọn ít nhất 1 chương để quét!");
+            return;
+        }
+        const selectedChapterData = chapters?.filter(c => selectedChapters.includes(c.id!)) || [];
+        const combinedText = selectedChapterData.map(c => c.content_original).join("\n\n");
+        await handleAIExtractChapter(combinedText, selectedTypes as string[]);
+    };
 
     // Removed local useBatchTranslate
 
@@ -103,100 +145,6 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         a.click();
     };
 
-    const handleSelectRange = (rangeStr: string) => {
-        if (!rangeStr.trim()) return;
-
-        const parts = rangeStr.split(',').map(p => p.trim());
-        const selectedOrders = new Set<number>();
-
-        parts.forEach(part => {
-            if (part.includes('-')) {
-                const [start, end] = part.split('-').map(num => parseInt(num.trim()));
-                if (!isNaN(start) && !isNaN(end)) {
-                    const min = Math.min(start, end);
-                    const max = Math.max(start, end);
-                    for (let i = min; i <= max; i++) {
-                        selectedOrders.add(i);
-                    }
-                }
-            } else {
-                const num = parseInt(part);
-                if (!isNaN(num)) {
-                    selectedOrders.add(num);
-                }
-            }
-        });
-
-        const newSelectedIds = filtered
-            .filter(c => selectedOrders.has(c.order))
-            .map(c => c.id!);
-
-        if (newSelectedIds.length > 0) {
-            setSelectedChapters(newSelectedIds);
-            toast.success(`Đã chọn ${newSelectedIds.length} chương`);
-        } else {
-            toast.error(`Không tìm thấy chương nào trong khoảng "${rangeStr}"`);
-        }
-    };
-
-    const handleScan = async () => {
-        if (selectedChapters.length === 0) return;
-        toast.info(`Đang quét ${selectedChapters.length} chương...`);
-
-        try {
-            const selectedChaps = await db.chapters.where("id").anyOf(selectedChapters).toArray();
-            let allChars: GlossaryCharacter[] = [];
-            let allTerms: GlossaryTerm[] = [];
-
-            // Process sequentially to avoid rate limits
-            for (const chapter of selectedChaps) {
-                toast.loading(`Đang quét chương: ${chapter.title}...`, {
-                    id: "scanning-toast",
-                    icon: <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                });
-                if (!chapter.content_original) continue;
-
-                const result = await extractGlossary(chapter.content_original);
-                if (result) {
-                    allChars = [...allChars, ...result.characters];
-                    allTerms = [...allTerms, ...result.terms];
-
-                    // Update Chapter Status
-                    await db.chapters.update(chapter.id!, { glossaryExtractedAt: new Date() });
-                }
-            }
-            toast.dismiss("scanning-toast");
-
-            if (allChars.length > 0 || allTerms.length > 0) {
-                // Deduplicate by original text
-                const uniqueChars = Array.from(new Map(allChars.map(item => [item.original, item])).values());
-                const uniqueTerms = Array.from(new Map(allTerms.map(item => [item.original, item])).values());
-
-                // Get existing dictionary to exclude existing items
-                const dictionary = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
-                const existingOriginals = new Set(dictionary.map(d => d.original.toLowerCase().trim()));
-
-                const finalChars = uniqueChars.filter((c: any) => !existingOriginals.has(c.original.toLowerCase().trim()));
-                const finalTerms = uniqueTerms.filter((t: any) => !existingOriginals.has(t.original.toLowerCase().trim()));
-
-                if (finalChars.length === 0 && finalTerms.length === 0) {
-                    toast.info("Không tìm thấy thuật ngữ mới nào.");
-                    return;
-                }
-
-                // Call parent to show results (persists even if unmounted?)
-                // Actually if unmounted this might be ignored, but WorkspaceClient is parent so it should be fine if we are just switching tabs.
-                onShowScanResults({ chars: finalChars, terms: finalTerms });
-                toast.success(`Tìm thấy ${finalChars.length + finalTerms.length} thuật ngữ mới!`);
-            } else {
-                toast.info("Không tìm thấy thuật ngữ nào.");
-            }
-        } catch (error) {
-            console.error("Scan error:", error);
-            toast.error("Lỗi khi quét thuật ngữ.");
-            toast.dismiss("scanning-toast");
-        }
-    };
 
     const handleInspect = async (id: number) => {
         const chapter = await db.chapters.get(id);
@@ -344,13 +292,18 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         chapters: filtered,
                         selectedChapters,
                         currentSettings: settings,
-                        translateConfig: config,
+                        translateConfig: {
+                            ...config,
+                            enableChunking: false,
+                            maxConcurrentChunks: 3
+                        },
                         onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
                     });
                 }}
             />
 
             <ChapterListHeader
+                workspaceId={workspaceId}
                 totalChapters={chapters.length}
                 searchTerm={search}
                 setSearchTerm={setSearch}
@@ -361,23 +314,20 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 totalPages={totalPages}
                 itemsPerPage={itemsPerPage}
                 setItemsPerPage={setItemsPerPage}
-                selectedChapters={selectedChapters}
-                setSelectedChapters={setSelectedChapters}
                 onExport={handleExport}
-                onImport={() => importInputRef.current?.click()}
-                onTranslate={() => setTranslateDialogOpen(true)}
-                importInputRef={importInputRef}
                 fileInputRef={fileInputRef}
                 onFileUpload={handleFileUpload}
                 onImportJSON={handleImportJSON}
                 importing={importing}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
-                onSelectRange={handleSelectRange}
                 onScan={handleScan}
-                workspaceId={workspaceId}
                 lastReadChapterId={workspace?.lastReadChapterId}
                 onReadContinue={(id) => setReadingChapterId(id)}
+                onHistoryOpen={() => setHistoryOpen(true)}
+                onApplyCorrections={() => toast.info("Tính năng đang phát triển")}
+                onClearCache={() => toast.info("Cache được tối ưu tự động")}
+                onFixTitles={() => toast.info("Tính năng đang phát triển")}
             />
 
             <ErrorBoundary name="ChapterListView">
@@ -385,7 +335,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     <ChapterCardGrid
                         chapters={currentChapters}
                         selectedChapters={selectedChapters}
-                        toggleSelect={toggleSingleSelection}
+                        onSelect={handleSelect}
                         onRead={(id) => {
                             setReadingChapterId(id);
                             db.workspaces.update(workspaceId, { lastReadChapterId: id });
@@ -399,7 +349,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         chapters={currentChapters}
                         selectedChapters={selectedChapters}
                         setSelectedChapters={setSelectedChapters}
-                        toggleSelect={toggleSingleSelection}
+                        onSelect={handleSelect}
 
                         onSelectPage={() => {
                             // Union current page IDs with existing selection
@@ -439,7 +389,6 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     chapterId={readingChapterId}
                     isOpen={!!readingChapterId}
                     onClose={() => setReadingChapterId(null)}
-                    workspaceChapters={filtered}
                     hasPrev={filtered.findIndex(c => c.id === readingChapterId) > 0}
                     hasNext={filtered.findIndex(c => c.id === readingChapterId) < filtered.length - 1}
                     onPrev={() => {
@@ -465,6 +414,20 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 workspaceId={workspaceId}
                 open={historyOpen}
                 onOpenChange={setHistoryOpen}
+            />
+
+            <ScanConfigDialog
+                open={scanConfigOpen}
+                onOpenChange={setScanConfigOpen}
+                onStart={handleStartScan}
+            />
+
+            <ReviewDialog
+                open={isReviewOpen}
+                onOpenChange={setIsReviewOpen}
+                characters={pendingCharacters as GlossaryCharacter[]}
+                terms={pendingTerms as GlossaryTerm[]}
+                onSave={handleConfirmSaveAI}
             />
         </div>
     );

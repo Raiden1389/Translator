@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Trash2, Book, Zap, Clock, CheckCircle2, Loader2, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAiQueueStatus } from "./hooks/useAiQueueStatus";
+import { useAiQueueStatus } from "../hooks/useAiQueueStatus";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 

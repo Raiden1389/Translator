@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { HeuristicForensicDialog } from "../HeuristicForensicDialog";
 import { HeuristicExportDialog } from "../HeuristicExportDialog";
-import { HeuristicBlacklistDialog } from "../HeuristicBlacklistDialog";
+import { HeuristicBlacklistDialog } from "./HeuristicBlacklistDialog";
 import type { HeuristicTerm, BlacklistEntry } from "@/lib/db";
 import type { ForensicReport } from "@/lib/gemini/heuristic/forensic-analyzer";
 import { Button } from "@/components/ui/button";

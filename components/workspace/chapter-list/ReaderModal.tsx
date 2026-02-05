@@ -6,28 +6,25 @@ import { db, type Chapter } from "@/lib/db";
 import { toast } from "sonner";
 
 // Components
-import { ReaderHeader } from "./ReaderHeader";
+import { ReaderHeader, type ReaderConfig } from "../shared/ReaderHeader";
 import { ReaderContent } from "./ReaderContent";
 import { ReaderDialogs } from "./ReaderDialogs";
-import { ReviewDialog } from "./ReviewDialog";
 import { TextSelectionMenu } from "./TextSelectionMenu";
 import { ReaderContextMenu } from "./ReaderContextMenu";
 import { FloatingProgressPill } from "./FloatingProgressPill";
 import { BackToTop } from "./BackToTop";
 
 // Hooks
-import { useReaderSettings } from "./hooks/useReaderSettings";
-import { useReaderTTS } from "./hooks/useReaderTTS";
-import { useReaderKeybinds } from "./hooks/useReaderKeybinds";
-import { useReaderNavigation } from "./hooks/useReaderNavigation";
-import { useReaderSelection } from "./hooks/useReaderSelection";
-import { useCorrections } from "./hooks/useCorrections";
-import { useReaderInspection } from "./hooks/useReaderInspection";
-import { useAIExtraction } from "./editor/hooks/useAIExtraction";
-import { type ExtractedCharacter, type ExtractedTerm } from "@/lib/gemini/types";
+import { useReaderSettings } from "../hooks/useReaderSettings";
+import { useReaderTTS } from "../hooks/useReaderTTS";
+import { useReaderKeybinds } from "../hooks/useReaderKeybinds";
+import { useReaderNavigation } from "../hooks/useReaderNavigation";
+import { useReaderSelection } from "../hooks/useReaderSelection";
+import { useCorrections } from "../hooks/useCorrections";
+import { useReaderInspection } from "../hooks/useReaderInspection";
 
 // Utils
-import { formatChapterToParagraphs } from "./utils/formatChapter";
+import { formatChapterToParagraphs } from "../utils/formatChapter";
 
 const ReaderSkeleton = () => (
     <div className="animate-pulse space-y-8 p-12 max-w-[720px] mx-auto w-full">
@@ -118,9 +115,7 @@ export function ReaderModal({
         isInspecting, inspectionIssues, activeIssue, setActiveIssue, handleInspect, handleApplyFix
     } = useReaderInspection(chapterId, chapter);
 
-    const {
-        pendingCharacters, pendingTerms, isReviewOpen, setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI
-    } = useAIExtraction(chapter?.workspaceId || "", dictEntries || []);
+
 
     const {
         correctionOpen, setCorrectionOpen, correctionType, setCorrectionType,
@@ -242,13 +237,13 @@ export function ReaderModal({
                         handleTTSPlay={toggleTTS}
                         handleTTSStop={stopTTS}
                         selectedVoice={readerConfig.ttsVoice}
-                        setSelectedVoice={(voice) => setReaderConfig(prev => ({ ...prev, ttsVoice: voice }))}
+                        setSelectedVoice={(voice) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsVoice: voice }))}
                         ttsPitch={readerConfig.ttsPitch}
-                        setTtsPitch={(pitch) => setReaderConfig(prev => ({ ...prev, ttsPitch: pitch }))}
+                        setTtsPitch={(pitch) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsPitch: pitch }))}
                         ttsRate={readerConfig.ttsRate}
-                        setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
+                        setTtsRate={(rate) => setReaderConfig((prev: ReaderConfig) => ({ ...prev, ttsRate: rate }))}
                         onClearTranslation={handleClearTranslation}
-                        onAIExtract={() => handleAIExtractChapter(chapter?.content_original || "")}
+
                         onJumpToHub={handleJumpToHub}
                         scrollProgress={scrollProgress}
                     />
@@ -321,7 +316,7 @@ export function ReaderModal({
                 dictTranslated={dictTranslated} setDictTranslated={setDictTranslated} handleSaveDictionary={handleSaveDictionary}
                 activeIssue={activeIssue} setActiveIssue={setActiveIssue} handleApplyFix={(issue, save) => handleApplyFix(issue, editContent, save, setEditContent)}
             />
-            <ReviewDialog open={isReviewOpen} onOpenChange={setIsReviewOpen} characters={pendingCharacters as ExtractedCharacter[]} terms={pendingTerms as ExtractedTerm[]} onSave={handleConfirmSaveAI} />
+
         </div>
     );
 }

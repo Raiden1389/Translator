@@ -73,7 +73,6 @@ export function useChapterList(workspaceId: string): { state: ChapterListState; 
         handleAIExtractChapter,
         handleConfirmSaveAI
     } = useAIExtraction(workspaceId, dictEntries || []);
-
     // 5. EFFECTS
     useEffect(() => {
         const openReader = searchParams.get("openReader");
@@ -247,6 +246,7 @@ export function useChapterList(workspaceId: string): { state: ChapterListState; 
             setClearCacheConfirmOpen: dialogs.setClearCacheConfirmOpen,
             setBulkDeleteConfirmOpen: dialogs.setBulkDeleteConfirmOpen,
             setIsReviewOpen,
+
             setSelectedChapters, handleSelect, handleSelectRange, handleRead,
             handleInspect: handleInspectAction,
             handleApplyCorrections: handleApplyCorrectionsAction,
@@ -255,7 +255,8 @@ export function useChapterList(workspaceId: string): { state: ChapterListState; 
             handleExport: handleExportAction,
             handleFileUpload, handleImportJSON,
             handleAIExtractChapter,
-            handleConfirmSaveAI: handleConfirmSaveAI as any,
+            handleConfirmSaveAI,
+
             handleFixTitles,
             handleBulkDelete: handleBulkDeleteAction
         }

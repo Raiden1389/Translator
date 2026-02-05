@@ -11,12 +11,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChapterList } from "@/components/workspace/ChapterList";
+import { ChapterList } from "@/components/workspace/chapter-list/ChapterList";
 import { PromptLab } from "@/components/workspace/PromptLab";
 import { AISettingsTab } from "./AISettingsTab";
 import { ExportTab } from "./ExportTab";
 import { OverviewTab } from "./OverviewTab";
-import { IntelligenceHub } from "./IntelligenceHub";
+import { IntelligenceHub } from "./intelligence/IntelligenceHub";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "./hooks/TranslationProvider.v2";
@@ -32,7 +32,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useWorkspace } from "./hooks/useWorkspace";
-import { ReviewDialog } from "./ReviewDialog";
+import { ReviewDialog } from "./shared/ReviewDialog";
 
 export default function WorkspaceClient({ id }: { id: string }) {
     const { state, actions } = useWorkspace(id);
@@ -180,7 +180,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                     <div className={cn("mx-auto h-full flex flex-col", activeTab === "intelligence" ? "max-w-none" : "max-w-6xl")}>
                         <ErrorBoundary name="WorkspaceTabContent">
                             {activeTab === "overview" && <OverviewTab workspace={workspace} />}
-                            {activeTab === "chapters" && <ChapterList workspaceId={id} onTranslate={startBatchTranslate} onTabChange={changeTab} />}
+                            {activeTab === "chapters" && <ChapterList workspaceId={id} onTranslate={startBatchTranslate} onShowScanResults={(data) => setReviewData(data)} />}
                             {activeTab === "intelligence" && (
                                 <IntelligenceHub
                                     workspaceId={id}

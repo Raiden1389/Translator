@@ -2,7 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { ReaderConfig } from "./ReaderHeader";
+import { ReaderConfig } from "../shared/ReaderHeader";
 import { InspectionIssue } from "@/lib/types";
 import { Chapter } from "@/lib/db";
 
@@ -96,7 +96,7 @@ const ParagraphItem = React.memo(({
         <p
             id={`tts-para-${index}`}
             className={cn(
-                "mb-[var(--reader-paragraph-spacing)] transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
+                "mb-(--reader-paragraph-spacing) transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
                 // Option: Only indent if narrative OR if user explicitly wants it
                 readerConfig.indentText && !isDialogue && "indent-8",
                 "hover:cursor-text",
@@ -167,7 +167,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     opacity: isParallel ? 0.4 : 0.8
                                 }}>
                                 {chapter.content_original?.replace(/<br\s*\/?>/gi, '\n').split(/\n+/).map(p => p.trim()).filter(p => p.length > 0).map((p, i) => (
-                                    <p key={i} className="mb-(--reader-paragraph-spacing)">
+                                    <p key={i} className="mb-[var(--reader-paragraph-spacing)]">
                                         {p}
                                     </p>
                                 ))}

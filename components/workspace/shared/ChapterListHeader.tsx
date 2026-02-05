@@ -29,7 +29,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { useWorkspaceTokens } from "./hooks/useWorkspaceTokens";
+import { useWorkspaceTokens } from "../hooks/useWorkspaceTokens";
 
 interface ChapterListHeaderProps {
     workspaceId: string; // Added for token tracking

@@ -1,4 +1,53 @@
+## [2.4.3] - 2026-02-05
+
+### 🧠 AI NER Service Refactoring
+- **Complete Name Hunter Removal**: Deleted legacy `lib/services/name-hunter/` engine and all dependencies.
+- **New AI NER Service** (`lib/services/ai-ner.service.ts`):
+  - Independent service using `gemini-2.0-flash` (stable, cost-efficient).
+  - Optimized prompt with clear Vietnamese translation requirements and examples.
+  - Temperature: 0.1 (high accuracy), Max tokens: 2048 (50% reduction).
+  - Integrated with existing `withKeyRotation` and usage tracking.
+- **UI Flow Correction**:
+  - ❌ Removed AI Scan from ReaderModal (reading view).
+  - ✅ AI Scan now only in ChapterList with `ScanConfigDialog` for entity type selection.
+  - ✅ `ReviewDialog` for result review before saving to dictionary.
+- **Code Cleanup**:
+  - Removed unused functions: `extractGlossary`, `handleSelectRange`, `isAIExtracting`.
+  - Fixed all TypeScript lint errors in ChapterList.tsx.
+  - Build verified: 100% pass.
+
+### 🗂️ Workspace Module Folder Restructure
+- **Chapter List Module** (`components/workspace/chapter-list/`):
+  - Moved all chapter-related components: `ChapterList.tsx`, `ChapterCard.tsx`, `ChapterTable.tsx`, `ReaderModal.tsx`, etc.
+  - Organized dialogs: `InspectionDialog.tsx`, `TranslateConfigDialog.tsx`, `TranslationProgressOverlay.tsx`.
+  - Centralized reader components: `ReaderContent.tsx`, `ReaderContextMenu.tsx`, `ReaderDialogs.tsx`.
+- **Shared Components** (`components/workspace/shared/`):
+  - Extracted reusable components: `ChapterListHeader.tsx`, `ReaderHeader.tsx`, `ReviewDialog.tsx`, `HistoryDialog.tsx`.
+- **Intelligence Module** (`components/workspace/intelligence/`):
+  - Moved AI-related components: `IntelligenceHub.tsx`, `HeuristicBlacklistDialog.tsx`.
+- **Dictionary Module** (`components/workspace/dictionary/components/`):
+  - Created dedicated Blacklist UI components: `BlacklistHeader.tsx`, `BlacklistGrid.tsx`, `BlacklistGridRow.tsx`, `BlacklistFooter.tsx`.
+- **Documentation Cleanup**:
+  - Moved docs to `docs/` folder: `AGENTS.md`, `ARCH_DECISIONS.md`, `CLAUDE.md`, `SYSTEM_REPORT.md`.
+  - Archived old findings to `docs/archive/`.
+  - Deleted obsolete audit reports (TOKEN_AUDIT, TRANSLATION_SYSTEM_AUDIT).
+
+### 🛡️ Blacklist Module Refactoring
+- **Component Decomposition**:
+  - Split monolithic Blacklist UI into 4 focused components for better maintainability.
+  - `BlacklistHeader`: Search, filter, and action buttons.
+  - `BlacklistGrid`: Virtualized grid container with infinite scroll.
+  - `BlacklistGridRow`: Individual row rendering with edit/delete actions.
+  - `BlacklistFooter`: Pagination and stats display.
+- **Repository Removal**:
+  - ❌ Deleted `lib/repositories/blacklist-repo.ts` (legacy localStorage-based).
+  - ✅ All Blacklist operations now use Dexie IndexedDB directly (workspace-scoped).
+- **Type Safety**:
+  - Strict typing for all Blacklist operations.
+  - Removed `any` types, replaced with proper interfaces.
+
 ## [2.4.2] - 2026-02-05
+
 
 ### 🧠 Raiden Intelligence Hub (New Feature)
 - **Centralized Command Center**: Introduced a unified sidebar-based interface to manage all AI data assets.

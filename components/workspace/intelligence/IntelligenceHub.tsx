@@ -15,11 +15,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 // Real Components
-import { DiscoveryModule } from "./intelligence/DiscoveryModule";
-import { DictionaryView } from "./dictionary/tabs/DictionaryView";
-import { CharacterTab } from "./CharacterTab";
-import { CorrectionsView } from "./dictionary/tabs/CorrectionsView";
-import { BlacklistView } from "./dictionary/tabs/BlacklistView";
+import { DiscoveryModule } from "./DiscoveryModule";
+import { DictionaryView } from "../dictionary/tabs/DictionaryView";
+import { CharacterTab } from "../CharacterTab";
+import { CorrectionsView } from "../dictionary/tabs/CorrectionsView";
+import { BlacklistView } from "../dictionary/tabs/BlacklistView";
 
 interface IntelligenceHubProps {
     workspaceId: string;

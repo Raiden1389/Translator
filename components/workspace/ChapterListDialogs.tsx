@@ -3,12 +3,12 @@
 import React from "react";
 import { Chapter } from "@/lib/db";
 import { TranslationSettings } from "@/lib/types";
-import { InspectionDialog } from "./InspectionDialog";
-import { ReaderModal } from "./ReaderModal";
-import { HistoryDialog } from "./HistoryDialog";
+import { InspectionDialog } from "./chapter-list/InspectionDialog";
+import { ReaderModal } from "./chapter-list/ReaderModal";
+import { HistoryDialog } from "./shared/HistoryDialog";
 import { ScanConfigDialog } from "./ScanConfigDialog";
-import { ReviewDialog } from "./ReviewDialog";
-import { TranslateConfigDialog } from "./TranslateConfigDialog";
+import { ReviewDialog } from "./shared/ReviewDialog";
+import { TranslateConfigDialog } from "./chapter-list/TranslateConfigDialog";
 import {
     AlertDialog,
     AlertDialogAction,

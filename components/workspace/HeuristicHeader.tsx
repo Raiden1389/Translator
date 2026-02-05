@@ -16,7 +16,7 @@ import type { ForensicReport } from '@/lib/gemini/heuristic/forensic-analyzer';
 import type { HeuristicStats } from './hooks/useHeuristicStats';
 import { HeuristicForensicDialog } from './HeuristicForensicDialog';
 import { HeuristicExportDialog } from './HeuristicExportDialog';
-import { HeuristicBlacklistDialog } from './HeuristicBlacklistDialog';
+import { HeuristicBlacklistDialog } from './intelligence/HeuristicBlacklistDialog';
 
 interface HeuristicHeaderProps {
     workspaceId: string;

@@ -3,7 +3,7 @@
 import React, { useRef } from "react";
 import { cn } from "@/lib/utils";
 import { X, AlignLeft, AlignCenter, AlignJustify } from "lucide-react";
-import { ReaderConfig } from "../../ReaderHeader";
+import { ReaderConfig } from "../../shared/ReaderHeader";
 
 interface DisplaySettingsProps {
     showSettings: boolean;

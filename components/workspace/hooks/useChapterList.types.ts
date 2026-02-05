@@ -59,7 +59,6 @@ export interface ChapterListActions {
     setClearCacheConfirmOpen: (open: boolean) => void;
     setBulkDeleteConfirmOpen: (open: boolean) => void;
     setIsReviewOpen: (open: boolean) => void;
-
     // Feature Actions
     setSelectedChapters: (ids: number[]) => void;
     handleSelect: (id: number) => void;
@@ -73,7 +72,7 @@ export interface ChapterListActions {
     handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleImportJSON: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleAIExtractChapter: (text: string, types: string[]) => Promise<void>;
-    handleConfirmSaveAI: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => Promise<void>;
+    handleConfirmSaveAI: (chars: GlossaryCharacter[], terms: GlossaryTerm[], blacklistChars?: GlossaryCharacter[], blacklistTerms?: GlossaryTerm[]) => Promise<void>;
     handleFixTitles: () => Promise<void>;
     handleBulkDelete: () => Promise<void>;
 }

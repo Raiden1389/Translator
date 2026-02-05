@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 
 // Components
 import { DictionaryEditDialog } from "@/components/editor/DictionaryEditDialog";
-import { ReviewDialog } from "@/components/workspace/ReviewDialog";
+import { ReviewDialog } from "@/components/workspace/shared/ReviewDialog";
 import { CharacterSidebar } from "@/components/workspace/CharacterSidebar";
 import { EditorHeader } from "./editor/components/EditorHeader";
 import { OriginalPane } from "./editor/components/OriginalPane";
@@ -18,7 +18,7 @@ import { TranslationLogDialog } from "./editor/components/TranslationLogDialog";
 // Hooks
 import { useChapterEditorData } from "./editor/hooks/useChapterEditorData";
 import { useAITranslation } from "./editor/hooks/useAITranslation";
-import { useAIExtraction } from "./editor/hooks/useAIExtraction";
+
 import { useDictionaryEngine } from "./editor/hooks/useDictionaryEngine";
 import { useEditorState } from "./editor/hooks/useEditorState";
 
@@ -65,16 +65,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
         handleTranslate: runTranslate
     } = useAITranslation(id, chapterId);
 
-    // 4. AI Extraction Layer
-    const {
-        isAIExtracting,
-        pendingCharacters,
-        pendingTerms,
-        isReviewOpen,
-        setIsReviewOpen,
-        handleAIExtractChapter: runExtract,
-        handleConfirmSaveAI
-    } = useAIExtraction(id, dictEntries || []);
+
 
     // 5. Dictionary Engine Layer
     const { dictManager, tokenize } = useDictionaryEngine(dictEntries);
@@ -228,7 +219,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
 
 
     const handleTranslate = () => runTranslate(chapter.content_original || "", setTranslatedContent);
-    const handleAIExtractChapter = () => runExtract(chapter.content_original || "");
+
 
     return (
         <main className="fixed inset-0 flex flex-col bg-[#1a0b2e] overflow-hidden selection:bg-primary/30">
@@ -247,8 +238,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
                 isSaving={isSaving}
                 onSave={handleSave}
                 translationLength={translatedContent.length}
-                isAIExtracting={isAIExtracting}
-                handleAIExtractChapter={handleAIExtractChapter}
+
                 isTranslating={isTranslating}
                 handleTranslate={handleTranslate}
                 prevChapterId={prevChapterId ?? null}
@@ -322,13 +312,7 @@ export default function ChapterEditorClient({ id, chapterId }: ChapterEditorClie
                 logs={logs}
             />
 
-            <ReviewDialog
-                open={isReviewOpen}
-                onOpenChange={setIsReviewOpen}
-                characters={pendingCharacters}
-                terms={pendingTerms}
-                onSave={handleConfirmSaveAI}
-            />
+
         </main>
     );
 }
