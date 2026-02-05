@@ -45,6 +45,10 @@ interface TranslationProgressOverlayProps {
         chunksProcessed?: number;
         startTime?: number;
         notifications?: SystemNotification[];
+        totalTermsUsed?: number;        // Total glossary terms used across all chapters
+        totalCharactersUsed?: number;   // Total characters used across all chapters
+        currentTermsUsed?: number;      // Terms used in current chapter
+        currentCharactersUsed?: number; // Characters used in current chapter
     };
 }
 
@@ -65,7 +69,21 @@ const LogItem = React.memo(({ log }: { log: LogEntry }) => (
 LogItem.displayName = "LogItem";
 
 export function TranslationProgressOverlay({ isTranslating, progress }: TranslationProgressOverlayProps) {
-    const { current, total, currentTitle, logs = [], totalTokens = 0, totalCost = 0, chunksProcessed = 0, startTime, notifications = [] } = progress;
+    const {
+        current,
+        total,
+        currentTitle,
+        logs = [],
+        totalTokens = 0,
+        totalCost = 0,
+        chunksProcessed = 0,
+        startTime,
+        notifications = [],
+        totalTermsUsed = 0,
+        totalCharactersUsed = 0,
+        currentTermsUsed = 0,
+        currentCharactersUsed = 0,
+    } = progress;
     const logContainerRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true); // Track if user is at bottom
 
@@ -200,23 +218,36 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
             `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     };
 
-    // 6. Persistence Logic (Keep visible after finished)
+    // 6. Persistence Logic (Keep visible after finished) with Adaptive Timing
     const [isVisible, setIsVisible] = useState(false);
+    const [isPinned, setIsPinned] = useState(false);
     const lastTranslatingRef = useRef(false);
+
+    // Calculate adaptive read time
+    const calculateReadTime = useCallback(() => {
+        const baseTime = 10000; // 10s base
+        const perChapter = 1000; // +1s per chapter
+        const hasStats = totalTermsUsed > 0 || totalCharactersUsed > 0;
+        const statsBonus = hasStats ? 5000 : 0; // +5s if has dictionary stats
+
+        const calculated = baseTime + (total * perChapter) + statsBonus;
+        return Math.min(calculated, 25000); // Cap at 25s
+    }, [total, totalTermsUsed, totalCharactersUsed]);
 
     useEffect(() => {
         if (isTranslating) {
             setTimeout(() => setIsVisible(true), 0);
             lastTranslatingRef.current = true;
-        } else if (lastTranslatingRef.current) {
-            // Wait 10 seconds before auto-closing if it was translating
+        } else if (lastTranslatingRef.current && !isPinned) {
+            // Adaptive auto-close timing
+            const readTime = calculateReadTime();
             const timer = setTimeout(() => {
                 setIsVisible(false);
                 lastTranslatingRef.current = false;
-            }, 10000);
+            }, readTime);
             return () => clearTimeout(timer);
         }
-    }, [isTranslating]);
+    }, [isTranslating, isPinned, calculateReadTime]);
 
     const handleClose = () => {
         setIsVisible(false);
@@ -265,6 +296,21 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                 </div>
             )}
             <div className="bg-card border border-border p-6 rounded-3xl w-[420px] shadow-2xl space-y-6 relative overflow-hidden ring-1 ring-white/10 glass">
+                {/* Pin Button - Keep overlay visible */}
+                <button
+                    onClick={() => setIsPinned(!isPinned)}
+                    className={cn(
+                        "absolute top-4 right-14 p-1.5 rounded-full transition-all z-10",
+                        isPinned
+                            ? "bg-primary/20 text-primary hover:bg-primary/30"
+                            : "bg-muted/20 hover:bg-muted/40 text-muted-foreground",
+                        isFinished ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    )}
+                    title={isPinned ? "Unpin (auto-close enabled)" : "Pin (keep visible)"}
+                >
+                    <span className="text-sm">{isPinned ? "📌" : "📍"}</span>
+                </button>
+
                 {/* Close Button - Visible when finished or on hover */}
                 <button
                     onClick={handleClose}
@@ -355,6 +401,58 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                             <div className="text-[9px] text-muted-foreground">Avg Speed</div>
                             <div className="text-sm font-bold">{speed.toFixed(1)} ch/min</div>
                         </div>
+
+                        {/* Dictionary Usage Section */}
+                        {(totalTermsUsed > 0 || totalCharactersUsed > 0) && (
+                            <>
+                                <div className="col-span-2 border-t border-border/40 pt-2 mt-1">
+                                    <div className="text-[9px] text-muted-foreground/80 uppercase tracking-wider mb-1.5 font-bold">
+                                        📖 Dictionary Usage
+                                    </div>
+
+                                    {/* Current Chapter Stats */}
+                                    {(currentTermsUsed > 0 || currentCharactersUsed > 0) && (
+                                        <div className="mb-2 p-2 bg-primary/5 rounded border border-primary/10">
+                                            <div className="text-[8px] text-muted-foreground/60 mb-1">Current Chapter</div>
+                                            <div className="flex gap-3 text-xs">
+                                                {currentTermsUsed > 0 && (
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="text-blue-500">📚</span>
+                                                        <span className="font-bold tabular-nums">{currentTermsUsed}</span>
+                                                        <span className="text-muted-foreground/60">terms</span>
+                                                    </span>
+                                                )}
+                                                {currentCharactersUsed > 0 && (
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="text-purple-500">👤</span>
+                                                        <span className="font-bold tabular-nums">{currentCharactersUsed}</span>
+                                                        <span className="text-muted-foreground/60">chars</span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Total Batch Stats */}
+                                    <div className="flex gap-3 text-xs text-muted-foreground/80">
+                                        {totalTermsUsed > 0 && (
+                                            <span className="flex items-center gap-1">
+                                                <span>📚</span>
+                                                <span className="font-bold tabular-nums">{totalTermsUsed}</span>
+                                                <span>total</span>
+                                            </span>
+                                        )}
+                                        {totalCharactersUsed > 0 && (
+                                            <span className="flex items-center gap-1">
+                                                <span>👤</span>
+                                                <span className="font-bold tabular-nums">{totalCharactersUsed}</span>
+                                                <span>total</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 

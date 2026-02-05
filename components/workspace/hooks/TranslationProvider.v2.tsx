@@ -55,6 +55,10 @@ interface TranslationContextType {
         cacheHits?: number;
         startTime?: number;
         notifications?: import("./useTranslationProgress").SystemNotification[];
+        totalTermsUsed?: number;
+        totalCharactersUsed?: number;
+        currentTermsUsed?: number;
+        currentCharactersUsed?: number;
     };
 
     // Actions
@@ -253,6 +257,15 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     stats: result.stats
                 });
 
+                // Calculate dictionary usage for this chapter
+                const chapterContent = chapter.content_original || "";
+                const termsUsed = sharedGlossary.filter(term =>
+                    term.type !== 'character' && chapterContent.includes(term.original)
+                ).length;
+                const charactersUsed = sharedGlossary.filter(term =>
+                    term.type === 'character' && chapterContent.includes(term.original)
+                ).length;
+
                 // Success notification in logs
                 onLog({
                     message: `✅ Lưu thành công! (${((Date.now() - startTime) / 1000).toFixed(1)}s)`,
@@ -260,10 +273,12 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     timestamp: new Date()
                 } as TranslationLog);
 
-                // Update UI state
+                // Update UI state with dictionary usage
                 queue.updateStatus(chapter.id!, 'done');
                 progress.updateChapterProgress(chapter.id!, {
                     status: 'done',
+                    termsUsed,
+                    charactersUsed,
                 });
 
             } catch (error: unknown) {
@@ -318,6 +333,10 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             chunksProcessed: progress.aggregateStats.totalChunks,
             startTime: progress.aggregateStats.startTime,
             notifications: progress.notifications,
+            totalTermsUsed: progress.aggregateStats.totalTermsUsed,
+            totalCharactersUsed: progress.aggregateStats.totalCharactersUsed,
+            currentTermsUsed: progress.currentChapter?.termsUsed || 0,
+            currentCharactersUsed: progress.currentChapter?.charactersUsed || 0,
         },
         startBatchTranslate,
     };

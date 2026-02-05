@@ -46,6 +46,7 @@ interface GeminiResponse {
  */
 export async function extractEntities(
     chineseText: string,
+    workspaceId: string,
     options: ExtractionOptions = {}
 ): Promise<ExtractedEntity[]> {
     const { allowedTypes = [EntityType.Person, EntityType.Location, EntityType.Organization, EntityType.Skill], onProgress } = options;
@@ -58,13 +59,29 @@ export async function extractEntities(
 
     const typesList = allowedTypes.join(', ');
 
-    const prompt = `Bạn là chuyên gia dịch truyện Trung-Việt. Trích xuất các thực thể sau từ văn bản tiếng Trung và DỊCH SANG TIẾNG VIỆT:
+    // Chunk text if too long (8000 chars per chunk for optimal performance)
+    const CHUNK_SIZE = 8000;
+    const chunks: string[] = [];
+
+    for (let i = 0; i < chineseText.length; i += CHUNK_SIZE) {
+        chunks.push(chineseText.slice(i, i + CHUNK_SIZE));
+    }
+
+    const allResults: ExtractedEntity[] = [];
+
+    // Process each chunk
+    for (let i = 0; i < chunks.length; i++) {
+        if (chunks.length > 1) {
+            onProgress?.(`Đang quét chunk ${i + 1}/${chunks.length}...`);
+        }
+
+        const prompt = `Bạn là chuyên gia dịch truyện Trung-Việt. Trích xuất các thực thể sau từ văn bản tiếng Trung và DỊCH SANG TIẾNG VIỆT:
 
 Loại cần trích: ${typesList}
 
 Văn bản tiếng Trung:
 """
-${chineseText.slice(0, 8000)}
+${chunks[i]}
 """
 
 YÊU CẦU QUAN TRỌNG:
@@ -80,46 +97,86 @@ VÍ DỤ ĐÚNG:
 
 Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text khác.`;
 
-    try {
-        const response = await withKeyRotation<GeminiResponse>({
-            model: 'gemini-2.0-flash',
-            prompt,
-            generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 2048,
+        try {
+            const response = await withKeyRotation<GeminiResponse>({
+                model: 'gemini-2.0-flash',
+                prompt,
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 2048,
+                }
+            }, onProgress);
+
+            // Record usage
+            if (response.usageMetadata) {
+                await recordUsage('gemini-2.0-flash', response.usageMetadata);
             }
-        }, onProgress);
 
-        // Record usage
-        if (response.usageMetadata) {
-            await recordUsage('gemini-2.0-flash', response.usageMetadata);
+            const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+            // Parse JSON response
+            const jsonMatch = text.match(/\[[\s\S]*\]/);
+            if (!jsonMatch) {
+                console.warn(`Chunk ${i + 1}: No JSON array found in response`);
+                continue; // Skip this chunk, continue with next
+            }
+
+            const entities: ExtractedEntity[] = JSON.parse(jsonMatch[0]);
+
+            // Filter by allowed types
+            const filtered = entities.filter(e =>
+                allowedTypes.includes(e.type as EntityType)
+            );
+
+            allResults.push(...filtered);
+
+        } catch (error) {
+            console.error(`Chunk ${i + 1} extraction failed:`, error);
+            // Continue with other chunks
         }
-
-        onProgress?.('Đang xử lý kết quả...');
-
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-        // Parse JSON response
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) {
-            console.warn('No JSON array found in response:', text);
-            return [];
-        }
-
-        const entities: ExtractedEntity[] = JSON.parse(jsonMatch[0]);
-
-        // Filter by allowed types
-        const filtered = entities.filter(e =>
-            allowedTypes.includes(e.type as EntityType)
-        );
-
-        onProgress?.(`Đã tìm thấy ${filtered.length} thực thể!`);
-
-        return filtered;
-    } catch (error) {
-        console.error('AI NER extraction failed:', error);
-        throw new Error(`Lỗi khi trích xuất thực thể: ${error instanceof Error ? error.message : String(error)}`);
     }
+
+    // Deduplicate by chinese name (across chunks)
+    const uniqueMap = new Map<string, ExtractedEntity>();
+    allResults.forEach(entity => {
+        if (!uniqueMap.has(entity.chinese)) {
+            uniqueMap.set(entity.chinese, entity);
+        }
+    });
+
+    const deduplicated = Array.from(uniqueMap.values());
+
+    // Filter out entities already in dictionary
+    const { db } = await import('../db');
+
+    const [existingTerms, blacklistTerms, heuristicTerms] = await Promise.all([
+        db.dictionary.where("workspaceId").equals(workspaceId).toArray(),
+        db.blacklist.where("workspaceId").equals(workspaceId).toArray(),
+        db.heuristicTerms.where("workspaceId").equals(workspaceId).toArray()
+    ]);
+
+    const existingChinese = new Set(existingTerms.map(t => t.original));
+    const existingVietnamese = new Set(existingTerms.map(t => t.translated));
+    const blacklistedChinese = new Set(blacklistTerms.map(b => b.word));
+    const approvedHeuristic = new Set(
+        heuristicTerms.filter(h => h.isApproved).map(h => h.original)
+    );
+
+    const newEntities = deduplicated.filter(e =>
+        !existingChinese.has(e.chinese) && // Check Dictionary Chinese
+        !existingVietnamese.has(e.original) && // Check Dictionary Vietnamese
+        !blacklistedChinese.has(e.chinese) && // Check Blacklist
+        !approvedHeuristic.has(e.chinese) // Check Heuristic Approved
+    );
+
+    const filteredCount = deduplicated.length - newEntities.length;
+    if (filteredCount > 0) {
+        onProgress?.(`Đã tìm thấy ${newEntities.length} thực thể mới (loại bỏ ${filteredCount} trùng lặp với từ điển)`);
+    } else {
+        onProgress?.(`Đã tìm thấy ${newEntities.length} thực thể mới!`);
+    }
+
+    return newEntities;
 }
 
 /**
@@ -127,6 +184,7 @@ Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text kh�
  */
 export async function extractEntitiesBatch(
     chapters: Array<{ id: number; content: string }>,
+    workspaceId: string,
     options: ExtractionOptions = {}
 ): Promise<Map<number, ExtractedEntity[]>> {
     const results = new Map<number, ExtractedEntity[]>();
@@ -134,16 +192,8 @@ export async function extractEntitiesBatch(
     for (const chapter of chapters) {
         options.onProgress?.(`Đang quét chapter ${chapter.id}...`);
 
-        try {
-            const entities = await extractEntities(chapter.content, {
-                ...options,
-                onProgress: undefined // Disable per-chapter progress
-            });
-            results.set(chapter.id, entities);
-        } catch (error) {
-            console.error(`Failed to extract from chapter ${chapter.id}:`, error);
-            results.set(chapter.id, []);
-        }
+        const entities = await extractEntities(chapter.content, workspaceId, options);
+        results.set(chapter.id, entities);
     }
 
     return results;

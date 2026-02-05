@@ -27,7 +27,7 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
                 ? allowedTypes.map(t => t as EntityType)
                 : [EntityType.Person, EntityType.Location, EntityType.Organization, EntityType.Skill];
 
-            const rawResults = await extractEntities(content_original, {
+            const rawResults = await extractEntities(content_original, workspaceId, {
                 allowedTypes: typesToScan,
                 onProgress: (msg: string) => toast.loading(msg, { id: toastId })
             });

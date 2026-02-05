@@ -1,4 +1,46 @@
-## [2.4.3] - 2026-02-05
+## [2.5.0] - 2026-02-06
+
+### 📊 Dictionary Usage Statistics in Translation Overlay
+
+- **New Feature: Real-time Dictionary Tracking**
+  - Translation overlay now displays how many glossary terms and characters were used during translation
+  - Shows both current chapter stats and total batch statistics
+  - Helps users understand dictionary effectiveness and coverage
+
+- **UI Enhancements:**
+  - **Dictionary Usage Section** in expandable Stats Panel:
+    - Current Chapter: Highlighted box showing terms/characters used (📚 terms, 👤 characters)
+    - Total Batch: Cumulative statistics across all translated chapters
+    - Clean visual hierarchy with color-coded badges (blue for terms, purple for characters)
+  - **Adaptive Auto-Close Timing**:
+    - Base duration: 10 seconds
+    - +1 second per chapter translated
+    - +5 seconds bonus if dictionary stats are present
+    - Maximum cap: 25 seconds
+  - **Manual Pin Button** (📌/📍):
+    - Allows users to keep overlay visible indefinitely
+    - Visual feedback with primary color when pinned
+    - Prevents auto-close when activated
+
+- **Technical Implementation:**
+  - Added `termsUsed` and `charactersUsed` tracking to `ChapterProgress` interface
+  - Updated `useTranslationProgress` hook to aggregate dictionary usage statistics
+  - Modified `TranslationProvider.v2` to count dictionary items during translation
+  - Enhanced `TranslationProgressOverlay` with hybrid expandable design
+
+- **Bug Fixes:**
+  - Fixed parsing error in `ai-ner.service.ts` - completed `extractEntitiesBatch` function body
+  - Added missing return statement and closing brace
+
+### 📦 Files Modified
+- `lib/services/ai-ner.service.ts` - Fixed incomplete function
+- `components/workspace/hooks/useTranslationProgress.ts` - Added dictionary usage tracking
+- `components/workspace/hooks/TranslationProvider.v2.tsx` - Track & pass dictionary data
+- `components/workspace/chapter-list/TranslationProgressOverlay.tsx` - UI implementation with adaptive timing
+
+---
+
+
 
 ### 🧠 AI NER Service Refactoring
 - **Complete Name Hunter Removal**: Deleted legacy `lib/services/name-hunter/` engine and all dependencies.

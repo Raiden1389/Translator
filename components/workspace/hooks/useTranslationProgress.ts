@@ -37,6 +37,8 @@ export interface ChapterProgress {
     cost?: number;
     chunks?: number;
     error?: string;
+    termsUsed?: number;        // Number of glossary terms used
+    charactersUsed?: number;   // Number of persona/characters used
 }
 
 /**
@@ -56,6 +58,8 @@ export interface AggregateStats {
     elapsedTime: number;
     estimatedTimeRemaining: number;
     startTime: number;
+    totalTermsUsed: number;        // Total glossary terms used
+    totalCharactersUsed: number;   // Total characters used
 }
 
 /**
@@ -258,6 +262,10 @@ export function useTranslationProgress(): UseTranslationProgressReturn {
 
         const totalChunks = chapters.reduce((sum, c) => sum + (c.chunks || 0), 0);
 
+        // Dictionary usage totals
+        const totalTermsUsed = chapters.reduce((sum, c) => sum + (c.termsUsed || 0), 0);
+        const totalCharactersUsed = chapters.reduce((sum, c) => sum + (c.charactersUsed || 0), 0);
+
         const averageTokensPerChapter = completed.length > 0
             ? totalTokens / completed.length
             : 0;
@@ -288,6 +296,8 @@ export function useTranslationProgress(): UseTranslationProgressReturn {
             elapsedTime,
             estimatedTimeRemaining,
             startTime,
+            totalTermsUsed,
+            totalCharactersUsed,
         };
     };
 
