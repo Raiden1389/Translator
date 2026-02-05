@@ -1,5 +1,20 @@
 ## [2.4.2] - 2026-02-05
 
+### 🏗️ Chapter List Hook Architecture Refactor (Phase 1-3)
+- **Monolithic Hook Decomposition**: Split the giant `useChapterList` hook into three focused sub-hooks:
+    - `useChapterListUI`: Manages search, filtering, pagination, and view modes.
+    - `useChapterListDialogs`: Centralizes all modal and overlay states.
+    - `useChapterList`: Orchestrates data fetching and feature-specific hooks (`useChapterSelection`, `useChapterImport`, `useAIExtraction`).
+- **Component Reorganization**:
+    - Extracted all dialog components into `ChapterListDialogs.tsx`.
+    - Moved the selection toolbar to `ChapterSelectionDock.tsx`.
+    - Result: `ChapterList.tsx` is now a lean presenter (reduced by ~400 lines).
+- **Service Layer Abstraction**:
+    - Created `backup.service.ts` to handle complex multi-environment (Tauri/Browser) JSON export logic.
+- **Strict Typing**:
+    - Created `useChapterList.types.ts` to replace all `any` usages with formal interfaces.
+    - Implemented `BatchTranslateHandlerProps` for safer cross-component communication.
+
 ### 🧹 Final Engine Cleanup & Technical Debt Removal
 - **Complete Cache System Removal**:
     - Deleted `createContextCache` and `deleteContextCache` from core API client.
