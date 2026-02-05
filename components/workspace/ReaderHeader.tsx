@@ -11,7 +11,8 @@ import {
     ShieldCheck,
     Sparkles,
     X,
-    Eraser
+    Eraser,
+    BrainCircuit
 } from "lucide-react";
 import { Chapter } from "@/lib/db";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ interface ReaderHeaderProps {
 
     isEditing: boolean;
     setIsEditing: (v: boolean) => void;
+    onJumpToHub?: () => void;
 }
 
 /* ===================== MAIN ===================== */
@@ -94,7 +96,7 @@ export function ReaderHeader(props: ReaderHeaderProps) {
         selectedVoice, setSelectedVoice, ttsPitch, setTtsPitch, ttsRate, setTtsRate,
         onClearTranslation, onAIExtract,
         scrollProgress = 0, isHeaderVisible = true,
-        isEditing, setIsEditing
+        isEditing, setIsEditing, onJumpToHub
     } = props;
 
     const [showTTSSettings, setShowTTSSettings] = useState(false);
@@ -140,6 +142,12 @@ export function ReaderHeader(props: ReaderHeaderProps) {
                             active={isParallel}
                         />
                     )}
+
+                    <HeaderIconButton
+                        icon={<BrainCircuit className="w-4 h-4 text-primary animate-pulse" />}
+                        title="Vào Intelligence Hub"
+                        onClick={onJumpToHub}
+                    />
 
                     <div className="h-6 w-px bg-border/20 mx-1" />
 

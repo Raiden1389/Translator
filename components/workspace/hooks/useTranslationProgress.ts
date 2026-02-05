@@ -14,7 +14,6 @@ export interface TranslationLogEntry {
         thinking?: number;
         total: number;
     };
-    turbo?: boolean;
     chunks?: number;
     timestamp: number;
 }
@@ -36,7 +35,6 @@ export interface ChapterProgress {
         total: number;
     };
     cost?: number;
-    turbo?: boolean;
     chunks?: number;
     error?: string;
 }
@@ -52,7 +50,6 @@ export interface AggregateStats {
     totalOutputTokens: number;
     totalThinkingTokens: number;
     totalCost: number;
-    turboChapters: number;
     totalChunks: number;
     averageTokensPerChapter: number;
     averageCostPerChapter: number;
@@ -259,7 +256,6 @@ export function useTranslationProgress(): UseTranslationProgressReturn {
         const thinkingCost = (totalThinkingTokens / 1_000_000) * 0.30;
         const totalCost = inputCost + outputCost + thinkingCost;
 
-        const turboChapters = chapters.filter(c => c.turbo).length;
         const totalChunks = chapters.reduce((sum, c) => sum + (c.chunks || 0), 0);
 
         const averageTokensPerChapter = completed.length > 0
@@ -286,7 +282,6 @@ export function useTranslationProgress(): UseTranslationProgressReturn {
             totalOutputTokens,
             totalThinkingTokens,
             totalCost,
-            turboChapters,
             totalChunks,
             averageTokensPerChapter,
             averageCostPerChapter,

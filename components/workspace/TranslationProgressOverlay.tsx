@@ -22,7 +22,6 @@ interface LogEntry {
     type: 'info' | 'success' | 'error';
     order: number;
     tokens?: { input: number; output: number; total: number };
-    turbo?: boolean;
     chunks?: number;
 }
 
@@ -43,9 +42,7 @@ interface TranslationProgressOverlayProps {
         logs?: LogEntry[];
         totalTokens?: number;
         totalCost?: number;
-        turboActive?: boolean;
         chunksProcessed?: number;
-        cacheHits?: number;
         startTime?: number;
         notifications?: SystemNotification[];
     };
@@ -68,7 +65,7 @@ const LogItem = React.memo(({ log }: { log: LogEntry }) => (
 LogItem.displayName = "LogItem";
 
 export function TranslationProgressOverlay({ isTranslating, progress }: TranslationProgressOverlayProps) {
-    const { current, total, currentTitle, logs = [], totalTokens = 0, totalCost = 0, turboActive = false, chunksProcessed = 0, cacheHits = 0, startTime, notifications = [] } = progress;
+    const { current, total, currentTitle, logs = [], totalTokens = 0, totalCost = 0, chunksProcessed = 0, startTime, notifications = [] } = progress;
     const logContainerRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true); // Track if user is at bottom
 
@@ -297,9 +294,6 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                                     {eta}
                                 </span>
                                 {/* NEW: Status badges */}
-                                {turboActive && (
-                                    <span className="text-[9px] bg-primary/20 px-1.5 py-0.5 rounded font-bold">🚀 Turbo</span>
-                                )}
                                 {chunksProcessed > 0 && (
                                     <span className="text-[9px] bg-blue-500/20 px-1.5 py-0.5 rounded font-bold">📦 {chunksProcessed}</span>
                                 )}
@@ -360,10 +354,6 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                         <div className="space-y-1">
                             <div className="text-[9px] text-muted-foreground">Avg Speed</div>
                             <div className="text-sm font-bold">{speed.toFixed(1)} ch/min</div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="text-[9px] text-muted-foreground">Cache Hits</div>
-                            <div className="text-sm font-bold">{cacheHits}/{current}</div>
                         </div>
                     </div>
                 )}

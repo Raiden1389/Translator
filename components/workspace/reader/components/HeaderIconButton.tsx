@@ -36,8 +36,8 @@ export function HeaderIconButton({
             disabled={disabled}
             className={cn(
                 "w-8 h-8 rounded-none border border-transparent transition-all",
-                active && "bg-muted border-border/50 text-foreground",
-                "hover:bg-muted/50 hover:border-border/30",
+                active ? "bg-muted border-border/50 text-foreground" : "text-foreground/70",
+                "hover:bg-muted/50 hover:border-border/30 hover:text-foreground",
                 className
             )}
         >
@@ -53,7 +53,7 @@ export function HeaderIconButton({
             <TooltipTrigger asChild>
                 {button}
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[9px] font-bold uppercase tracking-widest bg-background border border-border rounded-none shadow-none">
+            <TooltipContent side="bottom" className="text-[9px] font-bold uppercase tracking-widest bg-background text-foreground border border-border rounded-none shadow-none">
                 {title}
             </TooltipContent>
         </Tooltip>

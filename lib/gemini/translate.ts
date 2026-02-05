@@ -32,8 +32,7 @@ export const translateChapter = async (
     onLog: (log: TranslationLog) => void,
     onSuccess: (result: TranslationResult) => void,
     customInstruction?: string,
-    sharedGlossary?: DictionaryEntry[],
-    cacheId?: string
+    sharedGlossary?: DictionaryEntry[]
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
@@ -68,8 +67,7 @@ export const translateChapter = async (
                 return await withKeyRotation<Record<string, unknown>>(
                     {
                         model: (aiModel as string).trim(),
-                        systemInstruction: cacheId ? undefined : fullInstruction,
-                        cachedContent: cacheId,
+                        systemInstruction: fullInstruction,
                         prompt: text,
                         generationConfig: {
                             temperature: 0.1,
@@ -79,8 +77,7 @@ export const translateChapter = async (
                         }
                     },
                     (msg: string) => {
-                        const prefixedMsg = cacheId ? `[TURBO] ${msg}` : msg;
-                        onLog({ timestamp: new Date(), message: prefixedMsg, type: 'info' });
+                        onLog({ timestamp: new Date(), message: msg, type: 'info' });
                     }
                 );
             },
@@ -137,11 +134,10 @@ export const translateChapter = async (
         const tokenMsg = stats.tokens
             ? ` [${stats.tokens.input}i + ${stats.tokens.output}o = ${stats.tokens.total}t]`
             : "";
-        const cacheSuffix = cacheId ? " 🚀Turbo" : "";
         const retrySuffix = wasRetried ? " (retry)" : "";
         onLog({
             timestamp: new Date(),
-            message: `✅ Dịch xong!${tokenMsg}${cacheSuffix}${retrySuffix}`,
+            message: `✅ Dịch xong!${tokenMsg}${retrySuffix}`,
             type: 'success'
         });
         onSuccess(result);

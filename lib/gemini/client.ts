@@ -1,10 +1,10 @@
 import { db } from "../db";
-import { AI_MODELS, DEFAULT_MODEL } from "../ai-models";
+import { AI_MODELS } from "../ai-models";
 
 /**
  * Record API usage metadata to IndexedDB
  */
-export async function recordUsage(modelId: string, usage: any) {
+export async function recordUsage(modelId: string, usage: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number }) {
     try {
         if (!usage) return;
         const modelInfo = AI_MODELS.find(m => m.value === modelId.trim()) || AI_MODELS[0];
@@ -12,7 +12,7 @@ export async function recordUsage(modelId: string, usage: any) {
         const outputTokens = usage.candidatesTokenCount || 0;
         const thinkingTokens = usage.thoughtsTokenCount || 0;  // Gemini 2.5 Flash thinking tokens
 
-        // Simple cost calculation (per 1M tokens)
+        // Cost calculation (per 1M tokens)
         // Note: Thinking tokens are billed as output tokens
         const cost = ((inputTokens * (modelInfo.inputPrice || 0)) / 1_000_000) +
             (((outputTokens + thinkingTokens) * (modelInfo.outputPrice || 0)) / 1_000_000);
@@ -36,7 +36,7 @@ export async function recordUsage(modelId: string, usage: any) {
                 updatedAt: new Date()
             });
         }
-    } catch (err) {
+    } catch {
         // Silently fail usage recording
     }
 }
@@ -59,30 +59,29 @@ export const getAvailableKeys = async (): Promise<string[]> => {
 import { invoke } from "@tauri-apps/api/core";
 
 /**
- * Execute a function with key rotation fallback using the NATIVE bridge
- */
-/**
  * Execute a Gemini request using the NATIVE bridge (Key stays in Rust)
  */
 export async function withKeyRotation<T>(
     params: {
         model: string,
         systemInstruction?: string,
-        cachedContent?: string, // New: "cachedContents/id"
         prompt: string,
-        generationConfig?: any
+        generationConfig?: {
+            temperature?: number;
+            topP?: number;
+            maxOutputTokens?: number;
+            responseMimeType?: string;
+        }
     },
     onLog?: (message: string) => void
 ): Promise<T> {
     const keys = await getAvailableKeys();
 
-    const payloadObj: any = {
+    const payloadObj: Record<string, unknown> = {
         contents: [{ parts: [{ text: params.prompt }] }],
     };
 
-    if (params.cachedContent) {
-        payloadObj.cachedContent = params.cachedContent;
-    } else if (params.systemInstruction) {
+    if (params.systemInstruction) {
         payloadObj.systemInstruction = { parts: [{ text: params.systemInstruction }] };
     }
 
@@ -98,14 +97,14 @@ export async function withKeyRotation<T>(
     }
 
     const payload = JSON.stringify(payloadObj);
-    let lastError: any = null;
+    let lastError: Error | null = null;
 
     // Build Key Queue: Primary settings keys first, then undefined (backend env) as extreme fallback
     const keyQueue = [...keys];
-    if (keyQueue.length === 0) keyQueue.push(undefined as any);
+    if (keyQueue.length === 0) keyQueue.push(undefined as unknown as string);
 
     // Environment Check: Are we in Tauri?
-    // @ts-ignore
+    // @ts-expect-error - window internals check
     const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 
     for (let i = 0; i < keyQueue.length; i++) {
@@ -161,72 +160,17 @@ export async function withKeyRotation<T>(
                 return data as T;
             }
 
-        } catch (error: any) {
-            lastError = error;
+        } catch (error: unknown) {
+            const errMatch = error as Error;
+            lastError = errMatch;
             // Silent retry for intermediate keys, only log if it's the last attempt or critical
             if (i < keyQueue.length - 1) {
-                console.warn(`Key rotation: Attempt ${i + 1} failed, trying next...`, error.message);
+                console.warn(`Key rotation: Attempt ${i + 1} failed, trying next...`, errMatch.message);
             } else {
-                if (onLog) onLog(`Thất bại: ${error.message}`);
+                if (onLog) onLog(`Thất bại: ${errMatch.message}`);
             }
             continue;
         }
     }
     throw lastError;
-}
-
-/**
- * CACHE: Create a Gemini Context Cache using the NATIVE bridge
- */
-export async function createContextCache(params: {
-    model: string,
-    systemInstruction: string,
-    displayName?: string,
-    ttlSeconds?: number
-}): Promise<string> {
-    const keys = await getAvailableKeys();
-    const key = keys[0] || (undefined as any);
-
-    const payload = JSON.stringify({
-        model: `models/${params.model.trim()}`,
-        displayName: params.displayName || "Raiden-Translate-Cache",
-        systemInstruction: { parts: [{ text: params.systemInstruction }] },
-        ttl: `${params.ttlSeconds || 3600}s`
-    });
-
-    // @ts-ignore
-    const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-    if (!isTauri) throw new Error("Context Caching requires Tauri Native Bridge");
-
-    const responseText = await invoke<string>("native_gemini_create_cache", {
-        payload,
-        apiKey: key
-    });
-
-    const parsed = JSON.parse(responseText);
-    if (parsed.error) throw new Error(parsed.error.message || "Cache Creation Failed");
-
-    return parsed.name; // returns "cachedContents/id"
-}
-
-/**
- * CACHE: Delete a Gemini Context Cache using the NATIVE bridge
- */
-export async function deleteContextCache(cacheName: string): Promise<void> {
-    const keys = await getAvailableKeys();
-    const key = keys[0] || (undefined as any);
-
-    // @ts-ignore
-    const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
-    if (!isTauri) throw new Error("Context Caching requires Tauri Native Bridge");
-
-    const responseText = await invoke<string>("native_gemini_delete_cache", {
-        cacheName,
-        apiKey: key
-    });
-
-    if (responseText.includes("error")) {
-        const parsed = JSON.parse(responseText);
-        if (parsed.error) console.error("Cache Deletion Failed:", parsed.error.message);
-    }
 }

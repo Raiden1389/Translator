@@ -1,161 +1,53 @@
 "use client";
 
-import React, { useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import Dexie from "dexie";
-import { db, type Chapter } from "@/lib/db";
+import React from "react";
 import { ChapterListHeader } from "./ChapterListHeader";
 import { ChapterTable } from "./ChapterTable";
 import { ChapterCardGrid } from "./ChapterCardGrid";
-import { ReaderModal } from "./ReaderModal";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
-import { TranslateConfigDialog } from "./TranslateConfigDialog";
-import { InspectionDialog } from "./InspectionDialog";
-import { HistoryDialog } from "./HistoryDialog";
-import { ReviewDialog } from "./ReviewDialog";
-import { ScanConfigDialog } from "./ScanConfigDialog";
+import { ChapterListDialogs } from "./ChapterListDialogs";
+import { ChapterSelectionDock } from "./ChapterSelectionDock";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { type TranslationSettings } from "@/lib/types";
+import { type Chapter } from "@/lib/db";
 import { useChapterList } from "./hooks/useChapterList";
-import { Button } from "@/components/ui/button";
-import { Trash2, Eraser, Sparkles, X, Loader2, FileText, AlertTriangle } from "lucide-react";
+import { BatchTranslateHandlerProps } from "./hooks/useChapterList.types";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { useRaiden } from "@/components/theme/RaidenProvider";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { fixAllTitles } from "@/lib/gemini/titleFixer";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
-interface BatchTranslateHandlerProps {
-    workspaceId: string;
-    chapters: Chapter[];
-    selectedChapters: number[];
-    currentSettings: TranslationSettings;
-    translateConfig: {
-        customPrompt: string;
-        autoExtract: boolean;
-        fixPunctuation?: boolean;
-        maxConcurrency?: number;
-        enableChunking: boolean;
-        enableTurbo: boolean; // 🚀 New
-        maxConcurrentChunks: number;
-        chunkSize?: number;
-    };
-}
 
 interface ChapterListProps {
     workspaceId: string;
     onTranslate: (props: BatchTranslateHandlerProps) => void;
+    onTabChange?: (tab: string) => void;
 }
 
-export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
+export function ChapterList({ workspaceId, onTranslate, onTabChange }: ChapterListProps) {
     const { isRaidenMode } = useRaiden();
-    const workspace = useLiveQuery(() => db.workspaces.get(workspaceId), [workspaceId]);
-    const chapters = useLiveQuery(
-        () => db.chapters.where("[workspaceId+order]").between([workspaceId, Dexie.minKey], [workspaceId, Dexie.maxKey]).toArray(),
-        [workspaceId]
-    );
-
-    const { state, actions } = useChapterList(workspaceId, chapters);
+    const { state, actions } = useChapterList(workspaceId);
 
     const {
+        workspace, chapters,
         search, filterStatus, currentPage, itemsPerPage, viewMode,
-        readingChapterId, translateDialogOpen, inspectingChapter, isInspectOpen,
-        historyOpen, filtered, currentChapters, totalPages,
+        filtered, currentChapters, totalPages,
         selectedChapters, importing, importProgress, importStatus,
-        fileInputRef
+        fileInputRef, isProcessing, isFixingTitles,
+        isAIExtracting
     } = state;
 
     const {
         setSearch, setFilterStatus, setCurrentPage, setItemsPerPage, setViewMode,
-        setReadingChapterId, setTranslateDialogOpen, setIsInspectOpen, setHistoryOpen,
+        setTranslateDialogOpen, setHistoryOpen,
         setSelectedChapters, handleSelect, handleInspect,
         handleApplyCorrections, handleClearTranslationAction, handleBulkClearTranslation, handleExport,
         handleFileUpload,
-        setIsReviewOpen, handleAIExtractChapter, handleConfirmSaveAI,
-        isAIExtracting, pendingCharacters, pendingTerms, isReviewOpen
+        setScanConfigOpen, setTempScanText, setClearCacheConfirmOpen, setBulkDeleteConfirmOpen,
+        handleFixTitles, handleRead
     } = actions;
 
-    const [scanConfigOpen, setScanConfigOpen] = useState(false);
-    const [tempScanText, setTempScanText] = useState("");
-    const [isProcessing, setIsProcessing] = useState(false);
-
-    // Custom states for premium AlertDialogs
-    const [clearCacheConfirmOpen, setClearCacheConfirmOpen] = useState(false);
-    const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-
-    // Title Fixing State
-    const [isFixingTitles, setIsFixingTitles] = useState(false);
-
-    const handleFixTitles = async () => {
-        if (isFixingTitles) return;
-
-        setIsFixingTitles(true);
-        const toastId = "fix-titles-toast";
-        toast.loading("Đang quét và sửa tiêu đề Hán tự...", { id: toastId });
-
-        try {
-            const stats = await fixAllTitles(workspaceId, (current, total, title) => {
-                toast.loading(`Sửa tiêu đề (${current}/${total}): ${title}`, { id: toastId });
-            });
-
-            if (stats.fixed > 0) {
-                toast.success(`Đã sửa xong ${stats.fixed} tiêu đề!`, { id: toastId, duration: 5000 });
-            } else {
-                toast.info("Không tìm thấy tiêu đề nào cần sửa.", { id: toastId });
-            }
-
-            if (stats.errors.length > 0) {
-                console.error("Errors during title fixing:", stats.errors);
-                toast.error(`Có ${stats.errors.length} tiêu đề gặp lỗi khi dịch.`);
-            }
-        } catch (error) {
-            console.error("Title fixer crashed:", error);
-            toast.error("Lỗi hệ thống khi sửa tiêu đề.", { id: toastId });
-        } finally {
-            setIsFixingTitles(false);
-        }
-    };
-
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
-
-    const hasSelection = selectedChapters.length > 0;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 relative pb-20">
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
-
-            <TranslateConfigDialog
-                open={translateDialogOpen}
-                onOpenChange={setTranslateDialogOpen}
-                selectedCount={selectedChapters.length}
-                onStart={(config: { customPrompt: string; autoExtract: boolean; fixPunctuation?: boolean; enableChunking: boolean; enableTurbo: boolean; maxConcurrentChunks: number; chunkSize?: number }, settings: TranslationSettings) => {
-                    setTranslateDialogOpen(false);
-                    onTranslate({
-                        workspaceId,
-                        chapters: filtered,
-                        selectedChapters,
-                        currentSettings: settings,
-                        translateConfig: {
-                            ...config,
-                            fixPunctuation: config.fixPunctuation,
-                            enableChunking: config.enableChunking,
-                            enableTurbo: config.enableTurbo,
-                            maxConcurrentChunks: config.maxConcurrentChunks || 3,
-                            chunkSize: config.chunkSize || 800
-                        }
-                    });
-                }}
-            />
 
             <ChapterListHeader
                 workspaceId={workspaceId}
@@ -167,14 +59,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
                 totalPages={totalPages}
-                onExport={async () => {
-                    setIsProcessing(true);
-                    try {
-                        await handleExport();
-                    } finally {
-                        setIsProcessing(false);
-                    }
-                }}
+                onExport={handleExport}
                 fileInputRef={fileInputRef}
                 onFileUpload={handleFileUpload}
                 importing={importing}
@@ -183,7 +68,7 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 itemsPerPage={itemsPerPage}
                 setItemsPerPage={setItemsPerPage}
                 lastReadChapterId={workspace?.lastReadChapterId}
-                onReadContinue={(id: number) => setReadingChapterId(id)}
+                onReadContinue={handleRead}
                 onHistoryOpen={() => setHistoryOpen(true)}
                 onScan={() => setScanConfigOpen(true)}
                 onApplyCorrections={handleApplyCorrections}
@@ -196,24 +81,16 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                     input.click();
                 }}
                 onRefresh={async () => {
-                    setIsProcessing(true);
                     setSearch("");
                     setFilterStatus("all");
-                    // Simulate a small delay for better UX feedback as requested in Suggestion #5
-                    await new Promise(resolve => setTimeout(resolve, 600));
-                    setIsProcessing(false);
                     toast.success("Đã làm mới dữ liệu và bộ lọc.");
                 }}
                 processing={isProcessing || isFixingTitles}
                 onSelectRange={(start, end) => {
-                    // Select chapters within the visual range (1-based index)
-                    // If filtered is sorted by order, this selects Chapter X to Y.
                     const targetChapters = filtered.slice(start - 1, end);
                     const ids = targetChapters.map((c: Chapter) => c.id!).filter(Boolean);
                     setSelectedChapters(ids);
-                    if (ids.length > 0) {
-                        toast.success(`Đã chọn ${ids.length} chương`);
-                    }
+                    if (ids.length > 0) toast.success(`Đã chọn ${ids.length} chương`);
                 }}
                 onFixTitles={handleFixTitles}
             />
@@ -221,13 +98,10 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
             <ErrorBoundary name="ChapterListView">
                 {viewMode === "grid" ? (
                     <ChapterCardGrid
-                        chapters={currentChapters}
+                        chapters={currentChapters as Chapter[]}
                         selectedChapters={selectedChapters}
                         onSelect={handleSelect}
-                        onRead={(id: number) => {
-                            setReadingChapterId(id);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: id });
-                        }}
+                        onRead={handleRead}
                         onInspect={handleInspect}
                         onClearTranslation={handleClearTranslationAction}
                         onImport={() => fileInputRef.current?.click()}
@@ -235,21 +109,18 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                     />
                 ) : (
                     <ChapterTable
-                        chapters={currentChapters}
+                        chapters={currentChapters as Chapter[]}
                         selectedChapters={selectedChapters}
                         setSelectedChapters={setSelectedChapters}
                         onSelect={handleSelect}
                         onSelectPage={() => {
-                            const pageIds = currentChapters.map(c => c.id!);
+                            const pageIds = currentChapters.map((c: Chapter) => c.id!);
                             const newSet = new Set([...selectedChapters, ...pageIds]);
                             setSelectedChapters(Array.from(newSet));
                         }}
-                        onSelectGlobal={() => setSelectedChapters(filtered.map(c => c.id!))}
+                        onSelectGlobal={() => setSelectedChapters(filtered.map((c: Chapter) => c.id!))}
                         onDeselectAll={() => setSelectedChapters([])}
-                        onRead={(id: number) => {
-                            setReadingChapterId(id);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: id });
-                        }}
+                        onRead={handleRead}
                         onInspect={handleInspect}
                         onClearTranslation={handleClearTranslationAction}
                         onApplyCorrections={handleApplyCorrections}
@@ -258,244 +129,26 @@ export function ChapterList({ workspaceId, onTranslate }: ChapterListProps) {
                 )}
             </ErrorBoundary>
 
-            {/* Sticky Selection Dock */}
-            {hasSelection && (
-                <div className="sticky bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom-5 duration-300 -mx-8">
-                    {/* Background Blur Overlay for the base */}
-                    <div className="absolute inset-0 bg-background/60 backdrop-blur-xl border-t border-border shadow-[0_-20px_40px_rgba(0,0,0,0.1)]" />
-
-                    <div className="relative px-8 py-3 flex items-center justify-between gap-4 max-w-7xl mx-auto">
-                        <div className="flex items-center gap-6">
-                            <div className="flex items-center gap-3">
-                                <div className={cn(
-                                    "flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all",
-                                    isRaidenMode ? "bg-purple-950/30 border-purple-500/20 text-purple-400" : "bg-blue-50 border-blue-100 text-blue-600"
-                                )}>
-                                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Đã chọn</span>
-                                    <span className="text-sm font-black">{selectedChapters.length}</span>
-                                    <span className="text-[10px] opacity-60">chương</span>
-                                </div>
-                            </div>
-
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedChapters([])}
-                                className="text-muted-foreground hover:text-foreground text-xs font-bold transition-colors"
-                            >
-                                <X className="mr-1.5 h-3.5 w-3.5" />
-                                Hủy chọn
-                            </Button>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border/40 gap-1">
-                                <Button
-                                    size="sm"
-                                    onClick={() => setTranslateDialogOpen(true)}
-                                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 px-6 rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 gap-2"
-                                >
-                                    <FileText className="h-4 w-4" />
-                                    <span>{selectedChapters.length > 1 ? "Dịch hàng loạt" : "Dịch chương"}</span>
-                                </Button>
-
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                        const targetChapters = filtered.filter((c: Chapter) => selectedChapters.includes(c.id!));
-                                        const combinedText = targetChapters.map((c: Chapter) => c.content_original).join("\n\n---\n\n");
-                                        setTempScanText(combinedText);
-                                        setScanConfigOpen(true);
-                                    }}
-                                    disabled={isAIExtracting}
-                                    className={cn(
-                                        "font-bold h-9 px-4 rounded-lg gap-2 transition-colors",
-                                        isRaidenMode ? "text-purple-400 hover:bg-purple-500/10" : "text-slate-600 hover:bg-slate-100"
-                                    )}
-                                >
-                                    {isAIExtracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                                    <span className="hidden sm:inline">Quét Thuật Ngữ</span>
-                                </Button>
-                            </div>
-
-                            <div className="w-px h-6 bg-border/50 mx-1" />
-
-                            <div className="flex items-center gap-1">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            onClick={handleBulkClearTranslation}
-                                            className="h-9 w-9 text-amber-500 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
-                                        >
-                                            <Eraser className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Reset bản dịch ({selectedChapters.length} chương)</TooltipContent>
-                                </Tooltip>
-
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            onClick={() => setBulkDeleteConfirmOpen(true)}
-                                            className="h-9 w-9 text-rose-500 hover:text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Xóa vĩnh viễn (Không thể hoàn tác)</TooltipContent>
-                                </Tooltip>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Dialogs */}
-            {inspectingChapter && (
-                <InspectionDialog
-                    open={isInspectOpen}
-                    onOpenChange={setIsInspectOpen}
-                    chapterTitle={inspectingChapter.title}
-                    issues={inspectingChapter.issues}
-                    onNavigateToIssue={() => { }}
-                />
-            )}
-
-            {readingChapterId && (
-                <ReaderModal
-                    chapterId={readingChapterId}
-                    isOpen={!!readingChapterId}
-                    onClose={() => setReadingChapterId(null)}
-                    hasPrev={(() => {
-                        const idx = filtered.findIndex((c: Chapter) => c.id === readingChapterId);
-                        if (idx !== -1) return idx > 0;
-                        const globalIdx = (chapters || []).findIndex((c: Chapter) => c.id === readingChapterId);
-                        return globalIdx > 0;
-                    })()}
-                    hasNext={(() => {
-                        const idx = filtered.findIndex((c: Chapter) => c.id === readingChapterId);
-                        if (idx !== -1) return idx < filtered.length - 1;
-                        const globalIdx = (chapters || []).findIndex((c: Chapter) => c.id === readingChapterId);
-                        return globalIdx !== -1 && globalIdx < (chapters?.length || 0) - 1;
-                    })()}
-                    onPrev={() => {
-                        let list = filtered;
-                        let idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
-                        if (idx === -1) {
-                            list = chapters || [];
-                            idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
-                        }
-
-                        if (idx > 0) {
-                            const newId = list[idx - 1].id!;
-                            setReadingChapterId(newId);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: newId });
-                        } else {
-                            toast.info("Đã ở chương đầu tiên");
-                        }
-                    }}
-                    onNext={() => {
-                        let list = filtered;
-                        let idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
-                        if (idx === -1) {
-                            list = chapters || [];
-                            idx = list.findIndex((c: Chapter) => c.id === readingChapterId);
-                        }
-
-                        if (idx < list.length - 1 && idx !== -1) {
-                            const newId = list[idx + 1].id!;
-                            setReadingChapterId(newId);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: newId });
-                        } else {
-                            toast.info("Đã ở chương cuối cùng");
-                        }
-                    }}
-                />
-            )}
-
-            <HistoryDialog workspaceId={workspaceId} open={historyOpen} onOpenChange={setHistoryOpen} />
-
-
-            <ScanConfigDialog
-                open={scanConfigOpen}
-                onOpenChange={setScanConfigOpen}
-                onStart={(types: string[]) => {
-                    handleAIExtractChapter(tempScanText, types);
-                    setTempScanText("");
-                }}
+            <ChapterSelectionDock
+                selectedChapters={selectedChapters}
+                isRaidenMode={isRaidenMode}
+                setSelectedChapters={setSelectedChapters}
+                setTranslateDialogOpen={setTranslateDialogOpen}
+                filtered={filtered as Chapter[]}
+                setTempScanText={setTempScanText}
+                setScanConfigOpen={setScanConfigOpen}
+                isAIExtracting={isAIExtracting}
+                handleBulkClearTranslation={handleBulkClearTranslation}
+                setBulkDeleteConfirmOpen={setBulkDeleteConfirmOpen}
             />
 
-            <ReviewDialog
-                open={isReviewOpen}
-                onOpenChange={setIsReviewOpen}
-                characters={pendingCharacters}
-                terms={pendingTerms}
-                onSave={handleConfirmSaveAI}
+            <ChapterListDialogs
+                workspaceId={workspaceId}
+                state={state}
+                actions={actions}
+                onTranslate={onTranslate}
+                onTabChange={onTabChange}
             />
-
-            {/* Premium AlertDialogs */}
-            <AlertDialog open={clearCacheConfirmOpen} onOpenChange={setClearCacheConfirmOpen}>
-                <AlertDialogContent className="max-w-[400px] rounded-3xl border-blue-100 shadow-2xl">
-                    <AlertDialogHeader className="items-center text-center">
-                        <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center mb-2">
-                            <Eraser className="h-8 w-8 text-blue-500" />
-                        </div>
-                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Dọn dẹp Cache AI?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-slate-500">
-                            Việc này sẽ buộc AI dịch mới hoàn toàn cho các yêu cầu sau. Hữu ích khi bạn thay đổi prompt hoặc muốn kết quả khác đi.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
-                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={async () => {
-                                setIsProcessing(true);
-                                try {
-                                    // Cache system removed - no longer needed
-                                    toast.success("Cache đã được tối ưu hóa tự động.");
-                                } finally {
-                                    setIsProcessing(false);
-                                }
-                            }}
-                            className="rounded-2xl bg-blue-600 hover:bg-blue-700 text-white border-0 px-8 shadow-lg shadow-blue-200"
-                        >
-                            Xác nhận Dọn
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
-                <AlertDialogContent className="max-w-[400px] rounded-3xl border-rose-100 shadow-2xl">
-                    <AlertDialogHeader className="items-center text-center">
-                        <div className="h-16 w-16 rounded-full bg-rose-50 flex items-center justify-center mb-2">
-                            <AlertTriangle className="h-8 w-8 text-rose-500 animate-bounce" />
-                        </div>
-                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Xóa vĩnh viễn {selectedChapters.length} chương?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-slate-500">
-                            Bạn không thể hoàn tác hành động này. Mọi dữ liệu bản gốc và bản dịch của các chương đã chọn sẽ biến mất.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
-                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={async () => {
-                                await db.chapters.bulkDelete(selectedChapters);
-                                setSelectedChapters([]);
-                                toast.success(`Đã xóa ${selectedChapters.length} chương.`);
-                            }}
-                            className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white border-0 px-8 shadow-lg shadow-rose-200"
-                        >
-                            Xác nhận Xóa
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </div>
     );
 }

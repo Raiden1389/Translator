@@ -11,7 +11,7 @@ interface TabSwitchProps {
 
 export function TabSwitch({ activeTab, setActiveTab }: TabSwitchProps) {
     return (
-        <div className="flex border border-border/60 bg-muted/10">
+        <div className="flex border border-border/60 bg-muted/30">
             <button
                 onClick={() => setActiveTab("translated")}
                 className={cn(
@@ -19,7 +19,7 @@ export function TabSwitch({ activeTab, setActiveTab }: TabSwitchProps) {
                     "uppercase tracking-widest border-r border-border/40",
                     activeTab === "translated"
                         ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted/30"
+                        : "text-foreground/60 hover:bg-muted/50"
                 )}
             >
                 <Edit3 className="w-3.5 h-3.5" />
@@ -33,7 +33,7 @@ export function TabSwitch({ activeTab, setActiveTab }: TabSwitchProps) {
                     "uppercase tracking-widest",
                     activeTab === "original"
                         ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted/30"
+                        : "text-foreground/60 hover:bg-muted/50"
                 )}
             >
                 <BookOpen className="w-3.5 h-3.5" />

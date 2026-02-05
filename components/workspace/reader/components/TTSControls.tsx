@@ -36,7 +36,7 @@ export function TTSControls({
     setTtsRate
 }: TTSControlsProps) {
     return (
-        <div className="flex bg-muted/10 border border-border/40">
+        <div className="flex bg-muted/30 border border-border/40">
             <div className="relative group border-r border-border/40">
                 <Button
                     variant="ghost"
@@ -47,7 +47,7 @@ export function TTSControls({
                         "h-7 rounded-none px-3 transition-colors",
                         isTTSPlaying
                             ? "bg-emerald-600/10 text-emerald-600"
-                            : "text-muted-foreground hover:bg-muted/30"
+                            : "text-foreground/80 hover:bg-muted/50 hover:text-foreground"
                     )}
                 >
                     {isTTSLoading ? (
@@ -83,7 +83,7 @@ export function TTSControls({
                     onClick={() => setShowTTSSettings(!showTTSSettings)}
                     className={cn(
                         "w-7 h-7 rounded-none transition-all",
-                        showTTSSettings ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/30"
+                        showTTSSettings ? "bg-muted text-foreground" : "text-foreground/60 hover:bg-muted/50 hover:text-foreground"
                     )}
                 >
                     <span className="text-[7px]">▼</span>
@@ -91,7 +91,7 @@ export function TTSControls({
 
                 {showTTSSettings && (
                     <div className="absolute top-full right-0 mt-2 w-56 bg-background border border-border text-foreground rounded-none shadow-none p-3 z-200 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mb-2 border-b border-border/40 pb-1">Giọng dọc</div>
+                        <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mb-2 border-b border-border/40 pb-1">Giọng đọc</div>
                         <div className="space-y-0.5 max-h-48 overflow-y-auto custom-scrollbar">
                             {VIETNAMESE_VOICES.map((voice) => (
                                 <button

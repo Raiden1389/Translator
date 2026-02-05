@@ -50,6 +50,7 @@ interface ReaderModalProps {
     onPrev?: () => void;
     hasPrev?: boolean;
     hasNext?: boolean;
+    onJumpToHub?: () => void;
 }
 
 export function ReaderModal({
@@ -58,7 +59,8 @@ export function ReaderModal({
     onNext,
     onPrev,
     hasPrev,
-    hasNext
+    hasNext,
+    onJumpToHub
 }: ReaderModalProps) {
     // 1. DATA LAYER
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
@@ -196,6 +198,11 @@ export function ReaderModal({
         clearSelection();
     };
 
+    const handleJumpToHub = useCallback(() => {
+        onClose();
+        if (onJumpToHub) onJumpToHub();
+    }, [onClose, onJumpToHub]);
+
     const scrollToTop = useCallback(() => {
         if (scrollViewportRef.current) {
             scrollViewportRef.current.scrollTo({
@@ -242,6 +249,7 @@ export function ReaderModal({
                         setTtsRate={(rate) => setReaderConfig(prev => ({ ...prev, ttsRate: rate }))}
                         onClearTranslation={handleClearTranslation}
                         onAIExtract={() => handleAIExtractChapter(chapter?.content_original || "")}
+                        onJumpToHub={handleJumpToHub}
                         scrollProgress={scrollProgress}
                     />
 

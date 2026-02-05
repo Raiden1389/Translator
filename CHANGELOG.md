@@ -1,3 +1,20 @@
+## [2.4.2] - 2026-02-05
+
+### 🧹 Final Engine Cleanup & Technical Debt Removal
+- **Complete Cache System Removal**:
+    - Deleted `createContextCache` and `deleteContextCache` from core API client.
+    - Stripped all context caching (Turbo Mode) logic from `TranslationProvider.v2`.
+    - Removed `cacheId` and `turbo` parameters from `translateChapter` and `translateWithChunking`.
+- **UI & Progress Refactor**:
+    - Removed all cache/turbo related metrics (`turboChapters`, `cacheHits`) from `useTranslationProgress` hook.
+    - Cleaned up `TranslationProgressOverlay` UI to remove obsolete turbo badges and cache stats.
+    - Fixed a critical JSX syntax error in the log container.
+- **Codebase Sanitization**:
+    - Deleted deprecated `TranslationProvider.v1` and backup translation files.
+    - Cleaned up `index.ts` exports.
+    - Generalized `Error` handling in catch blocks (switched from `any` to `unknown` with proper type guards).
+- **Type Safety**: Fixed multiple lint warnings and errors across the translation engine files.
+
 ## [2.4.1] - 2026-02-04
 
 ### 🛠️ Core Engine & UI Fixes (V2)

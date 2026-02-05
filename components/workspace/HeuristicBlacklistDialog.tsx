@@ -155,21 +155,26 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
                                 Blacklist đang trống
                             </div>
                         ) : (
-                            blacklist.map((item) => (
-                                <Badge
-                                    key={item.id}
-                                    variant="secondary"
-                                    className="gap-2 px-3 py-1.5 text-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                                >
-                                    {item.word}
-                                    <button
-                                        onClick={() => handleRemoveBlacklist(item.id!)}
-                                        className="hover:text-red-900"
+                            <>
+                                <div className="w-full text-[10px] text-muted-foreground italic mb-2 px-1">
+                                    💡 Mẹo: Sau khi xóa khỏi đây, sếp hãy chạy lại &quot;START RADAR SCAN&quot; để thuật ngữ xuất hiện lại ở trang Discovery.
+                                </div>
+                                {blacklist.map((item) => (
+                                    <Badge
+                                        key={item.id}
+                                        variant="secondary"
+                                        className="gap-2 px-3 py-1.5 text-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
                                     >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </Badge>
-                            ))
+                                        {item.word}
+                                        <button
+                                            onClick={() => handleRemoveBlacklist(item.id!)}
+                                            className="hover:text-red-900"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                            </>
                         )}
                     </div>
                 </div>

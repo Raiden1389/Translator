@@ -76,7 +76,7 @@ export function useHeuristic(workspaceId: string) {
     const removeFromBlacklist = async (id: number) => {
         try {
             await db.blacklist.delete(id);
-            toast.success("Đã xóa khỏi Blacklist Heuristic.");
+            toast.success("✅ Đã xóa khỏi Blacklist. Vui lòng quét Radar lại để từ xuất hiện trong Discovery.");
         } catch (error) {
             console.error("[useHeuristic] Remove from blacklist failed:", error);
             toast.error("Lỗi khi xóa khỏi blacklist");

@@ -2,7 +2,7 @@
 export * from "./types";
 
 // Re-export client functions
-export { recordUsage, getAvailableKeys, withKeyRotation, createContextCache, deleteContextCache } from "./client";
+export { recordUsage, getAvailableKeys, withKeyRotation } from "./client";
 
 // Re-export core processing engine
 export {

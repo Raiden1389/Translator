@@ -15,3 +15,15 @@
 - **20:55:** Production Readiness: Successfully completed `npm run build`, bumped version to **v1.5.0**, and Pushed to Git.
 - **21:10:** Initiated **Tauri Build** for stable desktop release distribution.
 - **21:15:** Executed `/save-brain` workflow to sync all project knowledge and memory.
+
+## 2026-02-04
+- **Morning:** Implemented **Overlay v2** with persistent stats (15s delay) and manual close.
+- **Afternoon:** Refactored Gemini 2.5 Flash token tracking for accurate cost calculation.
+- **Evening:** Decided to drop **Context Caching** due to cost vs complexity.
+
+## 2026-02-05
+- **10:15:** Initiated **Final Engine Cleanup**.
+- **10:30:** Removed all residual Turbo/Cache logic from Client, Translator, and Provider.
+- **10:45:** Deleted deprecated V1 components and backup files.
+- **11:00:** Sanitized codebase: switched `any` to `unknown`, fixed lint errors, and cleaned up index exports.
+- **11:15:** Updated **Session History** and **CHANGELOG.md** to v2.4.2.

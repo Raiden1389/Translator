@@ -37,9 +37,14 @@ export function useWorkspace(id: string) {
         };
     }, [id]);
 
-    const changeTab = (tab: string) => {
+    const changeTab = (tab: string, extraParams?: Record<string, string>) => {
         const params = new URLSearchParams(searchParams.toString());
         params.set("tab", tab);
+        if (extraParams) {
+            Object.entries(extraParams).forEach(([key, value]) => {
+                params.set(key, value);
+            });
+        }
         router.push(`?${params.toString()}`, { scroll: false });
     };
 

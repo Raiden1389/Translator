@@ -27,13 +27,13 @@ export function DisplaySettings({
     return (
         <div className="absolute top-full right-0 mt-2 w-72 bg-background border border-border text-foreground rounded-lg p-4 z-200 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="flex items-center justify-between pb-1 border-b border-border/40">
-                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Hiển thị</div>
-                <X className="w-4 h-4 text-muted-foreground/40 cursor-pointer hover:text-foreground transition-colors" onClick={() => setShowSettings(false)} />
+                <div className="text-[10px] text-foreground/70 uppercase font-black tracking-widest">Hiển thị</div>
+                <X className="w-4 h-4 text-foreground/40 cursor-pointer hover:text-foreground transition-colors" onClick={() => setShowSettings(false)} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                    <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest block">Nền</label>
+                    <label className="text-[9px] text-foreground font-black uppercase tracking-widest block">Nền</label>
                     <div className="relative">
                         <div
                             className="h-8 w-full rounded border border-border cursor-pointer transition-colors hover:border-muted-foreground/30"
@@ -64,7 +64,7 @@ export function DisplaySettings({
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest block">Chữ</label>
+                    <label className="text-[9px] text-foreground font-black uppercase tracking-widest block">Chữ</label>
                     <div className="relative">
                         <div
                             className="h-8 w-full rounded border border-border cursor-pointer transition-colors hover:border-muted-foreground/30"
@@ -111,7 +111,7 @@ export function DisplaySettings({
                                 "px-2 py-2 rounded-sm text-xs transition-all border font-bold text-left truncate",
                                 readerConfig.fontFamily === font.value
                                     ? "bg-muted border-primary/50 text-foreground"
-                                    : "bg-transparent border-border/60 text-muted-foreground hover:border-muted-foreground/30"
+                                    : "bg-transparent border-border/60 text-foreground/60 hover:border-foreground/40 hover:text-foreground"
                             )}
                             style={{ fontFamily: font.value }}
                         >
