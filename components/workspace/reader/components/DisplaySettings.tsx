@@ -1,9 +1,27 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { X, AlignLeft, AlignCenter, AlignJustify } from "lucide-react";
 import { ReaderConfig } from "../../shared/ReaderHeader";
+
+// Constants - extracted to prevent re-creation on every render
+const BG_COLORS = ["#ffffff", "#f8fafc", "#f1f5f9", "#fdfcf0", "#f5f5f4", "#faf7ed", "#f3f4f6", "#ecfdf5"] as const;
+const TEXT_COLORS = ["#171717", "#262626", "#404040", "#525252", "#7c2d12", "#1e3a8a", "#064e3b", "#701a75"] as const;
+const FONTS = [
+    { name: "Bookerly", value: "'Bookerly', serif" },
+    { name: "Merriweather", value: "'Merriweather', serif" },
+    { name: "Georgia", value: "Georgia, serif" },
+    { name: "Inter", value: "'Inter', sans-serif" },
+] as const;
+const ALIGN_OPTIONS = [
+    { v: "left" as const, i: AlignLeft },
+    { v: "center" as const, i: AlignCenter },
+    { v: "justify" as const, i: AlignJustify }
+] as const;
+
+// Slider styling - reused 3 times
+const SLIDER_CLASS = "w-full h-1.5 bg-muted/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer";
 
 interface DisplaySettingsProps {
     showSettings: boolean;
@@ -21,6 +39,28 @@ export function DisplaySettings({
     const bgInputRef = useRef<HTMLInputElement>(null);
     const textInputRef = useRef<HTMLInputElement>(null);
     const [activePicker, setActivePicker] = React.useState<"bg" | "text" | null>(null);
+
+    // Local state for smooth slider dragging
+    const [localFontSize, setLocalFontSize] = useState(readerConfig.fontSize);
+    const [localLineHeight, setLocalLineHeight] = useState(readerConfig.lineHeight);
+    const [localMaxWidth, setLocalMaxWidth] = useState(readerConfig.maxWidth);
+
+    // Sync local state when readerConfig changes externally
+    useEffect(() => {
+        setLocalFontSize(readerConfig.fontSize);
+        setLocalLineHeight(readerConfig.lineHeight);
+        setLocalMaxWidth(readerConfig.maxWidth);
+    }, [readerConfig.fontSize, readerConfig.lineHeight, readerConfig.maxWidth]);
+
+    // Commit to global state only when user releases slider
+    const handleCommit = () => {
+        setReaderConfig(p => ({
+            ...p,
+            fontSize: localFontSize,
+            lineHeight: localLineHeight,
+            maxWidth: localMaxWidth
+        }));
+    };
 
     if (!showSettings) return null;
 
@@ -42,7 +82,7 @@ export function DisplaySettings({
                         />
                         {activePicker === "bg" && (
                             <div className="absolute top-full left-0 mt-2 p-2 bg-background border border-border rounded shadow-none z-210 grid grid-cols-4 gap-1.5 w-40">
-                                {["#ffffff", "#f8fafc", "#f1f5f9", "#fdfcf0", "#f5f5f4", "#faf7ed", "#f3f4f6", "#ecfdf5"].map((color) => (
+                                {BG_COLORS.map((color) => (
                                     <button
                                         key={color}
                                         className={cn(
@@ -51,13 +91,13 @@ export function DisplaySettings({
                                         )}
                                         style={{ backgroundColor: color }}
                                         onClick={() => {
-                                            setReaderConfig({ ...readerConfig, backgroundColor: color });
+                                            setReaderConfig(prev => ({ ...prev, backgroundColor: color }));
                                             setActivePicker(null);
                                         }}
                                     />
                                 ))}
                                 <button className="col-span-4 text-[9px] font-bold text-muted-foreground hover:text-foreground h-5 pt-1" onClick={() => bgInputRef.current?.click()}>Custom</button>
-                                <input type="color" ref={bgInputRef} className="invisible absolute w-0 h-0" value={readerConfig.backgroundColor || "#ffffff"} onChange={(e) => setReaderConfig({ ...readerConfig, backgroundColor: e.target.value })} />
+                                <input type="color" ref={bgInputRef} className="invisible absolute w-0 h-0" value={readerConfig.backgroundColor || "#ffffff"} onChange={(e) => setReaderConfig(prev => ({ ...prev, backgroundColor: e.target.value }))} />
                             </div>
                         )}
                     </div>
@@ -73,7 +113,7 @@ export function DisplaySettings({
                         />
                         {activePicker === "text" && (
                             <div className="absolute top-full right-0 mt-2 p-2 bg-background border border-border rounded shadow-none z-210 grid grid-cols-4 gap-1.5 w-40">
-                                {["#171717", "#262626", "#404040", "#525252", "#7c2d12", "#1e3a8a", "#064e3b", "#701a75"].map((color) => (
+                                {TEXT_COLORS.map((color) => (
                                     <button
                                         key={color}
                                         className={cn(
@@ -82,13 +122,13 @@ export function DisplaySettings({
                                         )}
                                         style={{ backgroundColor: color }}
                                         onClick={() => {
-                                            setReaderConfig({ ...readerConfig, textColor: color });
+                                            setReaderConfig(prev => ({ ...prev, textColor: color }));
                                             setActivePicker(null);
                                         }}
                                     />
                                 ))}
                                 <button className="col-span-4 text-[9px] font-bold text-muted-foreground hover:text-foreground h-5 pt-1" onClick={() => textInputRef.current?.click()}>Custom</button>
-                                <input type="color" ref={textInputRef} className="invisible absolute w-0 h-0" value={readerConfig.textColor || "#262626"} onChange={(e) => setReaderConfig({ ...readerConfig, textColor: e.target.value })} />
+                                <input type="color" ref={textInputRef} className="invisible absolute w-0 h-0" value={readerConfig.textColor || "#262626"} onChange={(e) => setReaderConfig(prev => ({ ...prev, textColor: e.target.value }))} />
                             </div>
                         )}
                     </div>
@@ -98,12 +138,7 @@ export function DisplaySettings({
             <div className="space-y-1">
                 <label className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest block">Font</label>
                 <div className="grid grid-cols-2 gap-1.5">
-                    {[
-                        { name: "Bookerly", value: "'Bookerly', serif" },
-                        { name: "Merriweather", value: "'Merriweather', serif" },
-                        { name: "Georgia", value: "Georgia, serif" },
-                        { name: "Inter", value: "'Inter', sans-serif" },
-                    ].map((font) => (
+                    {FONTS.map((font) => (
                         <button
                             key={font.name}
                             onClick={() => setReaderConfig((prev: ReaderConfig) => ({ ...prev, fontFamily: font.value }))}
@@ -149,7 +184,7 @@ export function DisplaySettings({
                 <div className="space-y-1">
                     <span className="text-[8px] text-muted-foreground uppercase font-bold block text-center truncate">Căn lề</span>
                     <div className="flex h-8 bg-muted/20 border border-border rounded-sm">
-                        {[{ v: "left", i: AlignLeft }, { v: "center", i: AlignCenter }, { v: "justify", i: AlignJustify }].map((a) => (
+                        {ALIGN_OPTIONS.map((a) => (
                             <button
                                 key={a.v}
                                 onClick={() => setReaderConfig((prev) => ({ ...prev, textAlign: a.v as "left" | "center" | "right" | "justify" }))}
@@ -166,19 +201,56 @@ export function DisplaySettings({
             </div>
 
             <div className="space-y-2 pt-1 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                <div className="flex justify-between items-center bg-muted/10 p-2 border border-border/40 rounded-sm">
-                    <span>Cỡ chữ: {readerConfig.fontSize}px</span>
-                    <div className="flex gap-4">
-                        <button onClick={() => setReaderConfig(p => ({ ...p, fontSize: Math.max(12, p.fontSize - 1) }))} className="hover:text-primary">-</button>
-                        <button onClick={() => setReaderConfig(p => ({ ...p, fontSize: Math.min(32, p.fontSize + 1) }))} className="hover:text-primary">+</button>
+                <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[8px] text-muted-foreground uppercase font-bold">Cỡ chữ</span>
+                        <span className="text-[9px] font-mono font-bold text-foreground">{localFontSize}px</span>
                     </div>
+                    <input
+                        type="range"
+                        min={12}
+                        max={32}
+                        step={1}
+                        value={localFontSize}
+                        onChange={(e) => setLocalFontSize(parseInt(e.target.value))}
+                        onMouseUp={handleCommit}
+                        onTouchEnd={handleCommit}
+                        className={SLIDER_CLASS}
+                    />
                 </div>
-                <div className="flex justify-between items-center bg-muted/10 p-2 border border-border/40 rounded-sm">
-                    <span>Giãn dòng: {readerConfig.lineHeight.toFixed(1)}</span>
-                    <div className="flex gap-4">
-                        <button onClick={() => setReaderConfig(p => ({ ...p, lineHeight: Math.max(1.2, p.lineHeight - 0.1) }))} className="hover:text-primary">-</button>
-                        <button onClick={() => setReaderConfig(p => ({ ...p, lineHeight: Math.min(2.5, p.lineHeight + 0.1) }))} className="hover:text-primary">+</button>
+                <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[8px] text-muted-foreground uppercase font-bold">Giãn dòng</span>
+                        <span className="text-[9px] font-mono font-bold text-foreground">{localLineHeight.toFixed(1)}</span>
                     </div>
+                    <input
+                        type="range"
+                        min={1.2}
+                        max={2.5}
+                        step={0.1}
+                        value={localLineHeight}
+                        onChange={(e) => setLocalLineHeight(parseFloat(e.target.value))}
+                        onMouseUp={handleCommit}
+                        onTouchEnd={handleCommit}
+                        className={SLIDER_CLASS}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[8px] text-muted-foreground uppercase font-bold">Độ rộng</span>
+                        <span className="text-[9px] font-mono font-bold text-foreground">{localMaxWidth}px</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={600}
+                        max={1600}
+                        step={50}
+                        value={localMaxWidth}
+                        onChange={(e) => setLocalMaxWidth(parseInt(e.target.value))}
+                        onMouseUp={handleCommit}
+                        onTouchEnd={handleCommit}
+                        className={SLIDER_CLASS}
+                    />
                 </div>
             </div>
         </div>

@@ -71,6 +71,9 @@ export async function withKeyRotation<T>(
             topP?: number;
             maxOutputTokens?: number;
             responseMimeType?: string;
+            thinkingConfig?: {
+                thinkingBudget?: number;  // -1 = dynamic, 0 = disabled, >0 = fixed budget
+            };
         }
     },
     onLog?: (message: string) => void

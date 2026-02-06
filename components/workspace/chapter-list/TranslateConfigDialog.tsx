@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Edit, X, Save, ChevronDown, Zap } from "lucide-react";
+import { Edit, X, Save, ChevronDown, Zap, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ interface TranslationConfig {
     maxConcurrentChunks: number;
     chunkSize: number;
     temperature: number; // 🎨 NEW: AI creativity (0.0-1.0)
+    enableThinking: boolean; // 🧠 NEW: Thinking mode (costs 5.8x more but may improve quality)
 }
 
 interface TranslationSettingsManual {
@@ -47,10 +48,12 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         enableTurbo: true, // Auto-on by default
         maxConcurrentChunks: 3,
         chunkSize: 800,
-        temperature: 0.1 // Default: Low creativity for consistency
+        temperature: 0.1, // Default: Low creativity for consistency
+        enableThinking: false // Default: OFF to save cost (5.8x cheaper)
     });
     const [savedPrompts, setSavedPrompts] = useState<{ id?: number, title: string, content: string }[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [promptExpanded, setPromptExpanded] = useState(false);
 
 
     useEffect(() => {
@@ -127,14 +130,11 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                     <DialogTitle className="text-xl font-bold">
                         Cấu Hình Dịch
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground">
-                        Thiết lập tùy chọn cho tiến trình dịch {selectedCount} chương đã chọn.
-                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6 py-4 relative max-h-[60vh] overflow-y-auto pr-2">
                     {/* Active Config Display */}
-                    <div className="p-4 rounded-xl bg-muted/30 border border-border flex justify-between items-center text-sm">
+                    <div className="p-3 rounded-xl bg-muted/30 border border-border flex justify-between items-center text-sm">
                         <div>
                             <div className="text-[10px] text-muted-foreground uppercase font-black tracking-wider mb-1">Active AI Model</div>
                             <div className="font-mono font-bold text-primary">{currentSettings.model}</div>
@@ -162,6 +162,16 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                         {AI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                                     </select>
                                 </div>
+                                <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-sm font-medium">Fix lỗi ngắt dòng (Văn phẩy)</Label>
+                                        <p className="text-xs text-muted-foreground/70">AI tự động sửa dấu phẩy thành dấu chấm khi ngắt ý</p>
+                                    </div>
+                                    <Switch
+                                        checked={translateConfig.fixPunctuation}
+                                        onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, fixPunctuation: val })}
+                                    />
+                                </div>
                                 <Button className="w-full font-bold" onClick={saveSettings}>Lưu cấu hình</Button>
                             </div>
                         </div>
@@ -184,7 +194,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                             onValueChange={(val: number[]) => setTranslateConfig({ ...translateConfig, maxConcurrency: val[0] })}
                             className="py-1"
                         />
-                        <p className="text-[10px] text-muted-foreground italic font-medium">Chỉnh quá cao có thể bị AI từ chối do quá tải (Rate Limit).</p>
+                        <p className="text-xs text-muted-foreground/70 italic font-medium">Chỉnh quá cao có thể bị AI từ chối do quá tải (Rate Limit).</p>
                     </div>
 
                     {/* Temperature Slider */}
@@ -203,84 +213,84 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                             onValueChange={(val: number[]) => setTranslateConfig({ ...translateConfig, temperature: val[0] })}
                             className="py-1"
                         />
-                        <p className="text-[10px] text-muted-foreground italic font-medium">
+                        <p className="text-xs text-muted-foreground/70 italic font-medium">
                             <span className="font-bold">0.0-0.2:</span> Nhất quán, ít sáng tạo.
                             <span className="font-bold ml-2">0.3-0.5:</span> Cân bằng.
                             <span className="font-bold ml-2">0.6-1.0:</span> Sáng tạo, đa dạng.
                         </p>
                     </div>
 
-                    {/* Custom Prompt */}
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-sm font-bold">Prompt Tùy Chỉnh</Label>
-                            <div className="flex items-center gap-2">
-                                <div className="relative">
-                                    <Button variant="outline" size="sm" className="h-8 text-xs bg-background border-border w-[220px] justify-between font-medium" onClick={() => setDropdownOpen(!dropdownOpen)}>
-                                        <span className="truncate pr-2">
-                                            {translateConfig.customPrompt ? "Đang dùng prompt tùy chỉnh" : "Chọn mẫu prompt..."}
-                                        </span>
-                                        <ChevronDown className="h-3 w-3 opacity-50" />
-                                    </Button>
-                                    {dropdownOpen && (
-                                        <div className="absolute top-9 right-0 w-full z-10 bg-card border border-border rounded-lg shadow-xl py-1 max-h-[220px] overflow-y-auto">
-                                            {savedPrompts.map(p => (
-                                                <button key={p.id} className="w-full text-left px-4 py-2.5 text-xs hover:bg-muted font-medium truncate" onClick={() => {
-                                                    setTranslateConfig({ ...translateConfig, customPrompt: p.content });
-                                                    setDropdownOpen(false);
-                                                }}>
-                                                    {p.title}
-                                                </button>
-                                            ))}
-                                            {savedPrompts.length === 0 && <div className="px-4 py-3 text-[10px] text-muted-foreground text-center font-medium">Chưa có mẫu nào được lưu</div>}
+                    {/* Thinking Mode Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-amber-500/10 rounded-xl border border-amber-500/30">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-bold flex items-center gap-2">
+                                🧠 Thinking Mode (Experimental)
+                            </Label>
+                            <p className="text-xs text-muted-foreground/70 font-medium">
+                                Deep reasoning mode - <span className="font-bold text-amber-600">costs 5.8x more</span> ($3.50 vs $0.60 per 1M tokens)
+                            </p>
+                        </div>
+                        <Switch
+                            checked={translateConfig.enableThinking}
+                            onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, enableThinking: val })}
+                        />
+                    </div>
+
+                    {/* Custom Prompt - Collapsible */}
+                    <div className="space-y-3 p-4 bg-muted/20 rounded-xl border border-border">
+                        <button
+                            type="button"
+                            onClick={() => setPromptExpanded(!promptExpanded)}
+                            className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
+                        >
+                            <Label className="text-sm font-bold cursor-pointer">Prompt Tùy Chỉnh</Label>
+                            <ChevronRight className={`h-4 w-4 transition-transform ${promptExpanded ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {promptExpanded && (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="relative">
+                                            <Button variant="outline" size="sm" className="h-8 text-xs bg-background border-border w-[220px] justify-between font-medium" onClick={() => setDropdownOpen(!dropdownOpen)}>
+                                                <span className="truncate pr-2">
+                                                    {translateConfig.customPrompt ? "Đang dùng prompt tùy chỉnh" : "Chọn mẫu prompt..."}
+                                                </span>
+                                                <ChevronDown className="h-3 w-3 opacity-50" />
+                                            </Button>
+                                            {dropdownOpen && (
+                                                <div className="absolute top-9 right-0 w-full z-10 bg-card border border-border rounded-lg shadow-xl py-1 max-h-[220px] overflow-y-auto">
+                                                    {savedPrompts.map(p => (
+                                                        <button key={p.id} className="w-full text-left px-4 py-2.5 text-xs hover:bg-muted font-medium truncate" onClick={() => {
+                                                            setTranslateConfig({ ...translateConfig, customPrompt: p.content });
+                                                            setDropdownOpen(false);
+                                                        }}>
+                                                            {p.title}
+                                                        </button>
+                                                    ))}
+                                                    {savedPrompts.length === 0 && <div className="px-4 py-3 text-[10px] text-muted-foreground text-center font-medium">Chưa có mẫu nào được lưu</div>}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors" title="Lưu mẫu" onClick={handleSavePrompt}><Save className="h-4 w-4" /></Button>
+                                    </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors" title="Lưu mẫu" onClick={handleSavePrompt}><Save className="h-4 w-4" /></Button>
+                                <Textarea
+                                    className="bg-muted/10 border-border text-foreground text-sm min-h-[140px] focus:ring-1 focus:ring-primary leading-relaxed"
+                                    placeholder="Mô tả phong cách dịch, các ngôi xưng hô, văn phong kiếm hiệp/tiên hiệp..."
+                                    value={translateConfig.customPrompt}
+                                    onChange={(e) => setTranslateConfig({ ...translateConfig, customPrompt: e.target.value })}
+                                />
                             </div>
-                        </div>
-                        <Textarea
-                            className="bg-muted/10 border-border text-foreground text-sm min-h-[140px] focus:ring-1 focus:ring-primary leading-relaxed"
-                            placeholder="Mô tả phong cách dịch, các ngôi xưng hô, văn phong kiếm hiệp/tiên hiệp..."
-                            value={translateConfig.customPrompt}
-                            onChange={(e) => setTranslateConfig({ ...translateConfig, customPrompt: e.target.value })}
-                        />
+                        )}
                     </div>
-
-                    <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border">
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-bold">Fix lỗi ngắt dòng (Văn phẩy)</Label>
-                            <p className="text-[11px] text-muted-foreground font-medium">AI tự động sửa dấu phẩy thành dấu chấm khi ngắt ý</p>
-                        </div>
-                        <Switch
-                            checked={translateConfig.fixPunctuation}
-                            onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, fixPunctuation: val })}
-                        />
-                    </div>
-
-                    {/* Turbo Mode Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-[#bc13fe10] border-[#bc13fe30] rounded-xl border shadow-[0_0_15px_rgba(188,19,254,0.05)]">
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                                <Label className="text-sm font-bold text-[#bc13fe]">Turbo Cache Mode 🚀</Label>
-                                <span className="text-[9px] bg-[#bc13fe20] text-[#bc13fe] px-1.5 py-0.5 rounded font-black uppercase">Gemini Only</span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground font-medium">Giảm 80% Input Token bằng Context Caching (Auto dọn dẹp)</p>
-                        </div>
-                        <Switch
-                            checked={translateConfig.enableTurbo}
-                            onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, enableTurbo: val })}
-                            className="data-[state=checked]:bg-[#bc13fe]"
-                        />
-                    </div>
-
 
                     {/* Chunking Toggle with Parallel Selection */}
                     <div className="space-y-4 p-4 bg-muted/20 rounded-xl border border-border">
                         <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
                                 <Label className="text-sm font-bold">Parallel Chunking (Nhanh hơn ~40%)</Label>
-                                <p className="text-[11px] text-muted-foreground font-medium">Chia chapter thành chunks nhỏ và dịch song song</p>
+                                <p className="text-xs text-muted-foreground/70 font-medium">Chia chapter thành chunks nhỏ và dịch song song</p>
                             </div>
                             <Switch
                                 checked={translateConfig.enableChunking}
@@ -302,7 +312,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                     onValueChange={(val: number[]) => setTranslateConfig({ ...translateConfig, maxConcurrentChunks: val[0] })}
                                     className="py-1"
                                 />
-                                <p className="text-[10px] text-muted-foreground italic font-medium">Tier 1 API: Khuyến nghị 3-5 chunks. Quá cao có thể bị rate limit.</p>
+                                <p className="text-xs text-muted-foreground/70 italic font-medium">Tier 1 API: Khuyến nghị 3-5 chunks. Quá cao có thể bị rate limit.</p>
 
                                 <div className="space-y-2 pt-2 border-t border-border/50">
                                     <div className="flex items-center justify-between">
@@ -317,59 +327,21 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                         onValueChange={(val: number[]) => setTranslateConfig({ ...translateConfig, chunkSize: val[0] })}
                                         className="py-1"
                                     />
-                                    <p className="text-[10px] text-muted-foreground italic font-medium">Lag mạng: Hãy dùng chunk to (2000+). Mạng nhanh: Dùng chunk nhỏ (800-1200).</p>
+                                    <p className="text-xs text-muted-foreground/70 italic font-medium">Lag mạng: Hãy dùng chunk to (2000+). Mạng nhanh: Dùng chunk nhỏ (800-1200).</p>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <DialogFooter className="pt-4 border-t border-border mt-2">
-                    <Button variant="ghost" className="text-muted-foreground hover:text-foreground font-medium" onClick={() => onOpenChange(false)}>Hủy</Button>
-                    <Button className="font-bold min-w-[160px] shadow-lg shadow-primary/20" onClick={handleStart}>
+                <DialogFooter className="pt-4 border-t border-border mt-2 flex-col sm:flex-row gap-2">
+                    <Button variant="ghost" className="text-muted-foreground hover:text-foreground font-medium w-full sm:w-auto" onClick={() => onOpenChange(false)}>Hủy</Button>
+                    <Button size="lg" className="font-bold w-full sm:flex-1 shadow-lg shadow-primary/20" onClick={handleStart}>
                         Bắt đầu dịch ({selectedCount})
                     </Button>
                 </DialogFooter>
-
-                {/* Estimate Footer */}
-                <div className="px-6 pb-4">
-                    <EstimateInfo modelId={currentSettings.model} count={selectedCount} />
-                </div>
             </DialogContent>
         </Dialog>
     );
 }
 
-function EstimateInfo({ modelId, count }: { modelId: string, count: number }) {
-    const model = AI_MODELS.find(m => m.value === modelId);
-    if (!model) return null;
-
-    // More realistic estimation based on actual usage
-    const AVG_CHARS_PER_CHAPTER = 4000;
-    const TOKENS_PER_CHAR = 0.25;
-
-    // Content tokens
-    const CONTENT_TOKENS = AVG_CHARS_PER_CHAPTER * TOKENS_PER_CHAR * count;
-
-    // System Instruction overhead (TITLE_RULE + CORE_RULES + Glossary + Custom Prompt)
-    // Estimated ~800-1200 tokens per request
-    const SYSTEM_OVERHEAD_PER_CHAPTER = 1000;
-
-    const INPUT_TOKENS = CONTENT_TOKENS + (SYSTEM_OVERHEAD_PER_CHAPTER * count);
-    const OUTPUT_TOKENS = CONTENT_TOKENS * 1.2; // Output is usually 20% more than content
-
-    const inputCost = (INPUT_TOKENS / 1_000_000) * (model.inputPrice || 0);
-    const outputCost = (OUTPUT_TOKENS / 1_000_000) * (model.outputPrice || 0);
-    const totalCost = inputCost + outputCost;
-
-    return (
-        <div className="flex items-center justify-center gap-6 border-t border-border/50 pt-4 mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-            <div>
-                Est. Tokens: <span className="text-foreground font-mono">{Math.round(INPUT_TOKENS + OUTPUT_TOKENS).toLocaleString()}</span>
-            </div>
-            <div>
-                Est. Cost: <span className="text-emerald-500 font-mono">${totalCost.toFixed(5)}</span>
-            </div>
-        </div>
-    );
-}

@@ -38,13 +38,21 @@ export interface AdaptiveResult<T> {
  * - Cost savings: ~50-65% vs fixed 8192
  */
 export function calculateDynamicTokens(config: TokenConfig): number {
-    // Dynamic buffer: max(baseBuffer, inputLength * 4.0)
-    // 4.0x multiplier covers Gemini 2.5 Flash's base thinking overhead (~2400) + output expansion
-    // Note: Rules optimization didn't reduce thinking tokens - this is model's inherent behavior
-    const scaledBuffer = Math.max(config.baseBuffer, Math.ceil(config.inputLength * 4.0));
+    // Input tokens estimation (chars / 4)
+    const inputTokens = Math.ceil(config.inputLength / 4);
 
-    const estimated = Math.ceil((config.inputLength * 1.5) / 4) + scaledBuffer;
-    return Math.min(config.maxTokens, Math.max(config.minTokens, estimated));
+    // Output tokens = input tokens * 1.3 (Vietnamese expansion - empirically tested)
+    const outputTokens = Math.ceil(inputTokens * 1.3);
+
+    // Total needed = baseBuffer (thinking tokens) + outputTokens
+    const totalNeeded = config.baseBuffer + outputTokens;
+
+    // Cap at maxTokens, but ensure at least minTokens
+    const result = Math.min(config.maxTokens, Math.max(config.minTokens, totalNeeded));
+
+    console.log(`[ADAPTIVE TOKENS] inputLength=${config.inputLength} → inputTokens=${inputTokens} → outputTokens=${outputTokens} → totalNeeded=${totalNeeded} (baseBuffer=${config.baseBuffer}) → RESULT=${result}`);
+
+    return result;
 }
 
 /**

@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useCallback } from "react";
 import { db } from "@/lib/db";
-import { toast } from "sonner";
 import { TranslationSettings } from "@/lib/types";
 import {
     translateChapter,
@@ -30,6 +29,7 @@ interface BatchTranslateProps {
         enableChunking: boolean;
         maxConcurrentChunks: number;
         chunkSize?: number;
+        enableThinking?: boolean;  // 🧠 NEW: Thinking mode toggle
     };
     onComplete?: () => void;
 }
@@ -83,16 +83,16 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         onComplete
     }: BatchTranslateProps) => {
         if (queue.isProcessing) {
-            toast.error("Một tiến trình dịch khác đang chạy.");
+            progress.addNotification({ type: 'error', message: '❌ Một tiến trình dịch khác đang chạy' });
             return;
         }
 
-        // Filter chapters to translate (not already translated)
+        // Filter chapters to translate (not already translated OR translation deleted)
         const chaptersToTranslate = (chapters?.filter(c => selectedChapters.includes(c.id!)) || [])
-            .filter(c => c.status !== 'translated');
+            .filter(c => !c.content_translated || c.content_translated.trim() === '');
 
         if (chaptersToTranslate.length === 0) {
-            toast.info("Tất cả chương đã được dịch hoặc không có chương nào hợp lệ.");
+            progress.addNotification({ type: 'error', message: '⚠️ Tất cả chương đã được dịch hoặc không có chương nào hợp lệ' });
             return;
         }
 
@@ -110,22 +110,48 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             type: 'init'
         });
 
-        // 1. Shared Batch Context Optimization
+        // 1. Shared Batch Context Optimization - MERGE Dictionary + Approved Heuristic Terms
         const allOriginalText = chaptersToTranslate.map(c => c.content_original).join("\n\n");
+
+        // Load from both sources
         const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
+        const heuristicTerms = await db.heuristicTerms
+            .where('workspaceId')
+            .equals(workspaceId)
+            .filter(h => h.isApproved === true)
+            .toArray();
+
         const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
         const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
-        const sharedGlossary = dict
+        // Convert heuristicTerms to DictionaryEntry format
+        const heuristicAsDict = heuristicTerms.map(h => ({
+            id: h.id,
+            workspaceId: h.workspaceId,
+            original: h.original,
+            translated: h.translated,
+            type: h.type === 'character' ? 'character' : 'term',
+            createdAt: h.createdAt
+        }));
+
+        // Merge both sources (deduplicate by original)
+        const mergedDict = [...dict, ...heuristicAsDict];
+        const uniqueDict = Array.from(
+            new Map(mergedDict.map(item => [item.original.toLowerCase(), item])).values()
+        );
+
+        const sharedGlossary = uniqueDict
             .filter(d => !blockedWords.has(d.original.toLowerCase()) && allOriginalText.includes(d.original))
             .sort((a, b) => b.original.length - a.original.length)
             .slice(0, 100);
+
+        console.log(`[GLOSSARY] Loaded ${dict.length} dict + ${heuristicTerms.length} heuristic = ${sharedGlossary.length} final terms`);
 
         // 2. Process chapters
         const processChapter = async (chapter: Chapter) => {
             const logId = `chap-${chapter.id}`;
 
-            // Update queue and progress
+            // Update queue and progress - CRITICAL: Set title immediately
             queue.updateStatus(chapter.id!, 'processing');
             progress.updateChapterProgress(chapter.id!, {
                 chapterId: chapter.id!,
@@ -182,6 +208,13 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                 const content_original = chapter.content_original || "";
                 const startTime = Date.now();
 
+                // DEBUG: Log chunking config
+                console.log(`[CHUNKING DEBUG] Chapter ${chapter.order}:`, {
+                    enableChunking: translateConfig.enableChunking,
+                    maxConcurrentChunks: translateConfig.maxConcurrentChunks,
+                    chunkSize: translateConfig.chunkSize
+                });
+
                 // Prepare result holder
                 let result: TranslationResult;
 
@@ -195,6 +228,19 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                             enabled: true,
                             maxConcurrent: translateConfig.maxConcurrentChunks || 3,
                             maxCharsPerChunk: translateConfig.chunkSize || 1000,
+                            onProgress: (current, total) => {
+                                // Update progress state with chunk info
+                                progress.updateChapterProgress(chapter.id!, {
+                                    status: 'processing',
+                                    chunks: total
+                                });
+
+                                onLog({
+                                    timestamp: new Date(),
+                                    message: `📦 Đang dịch chunk ${current}/${total}...`,
+                                    type: 'info'
+                                });
+                            }
                         },
                         finalPrompt,
                         sharedGlossary
@@ -208,7 +254,8 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                             onLog,
                             (res) => resolve(res as TranslationResult),
                             finalPrompt,
-                            sharedGlossary
+                            sharedGlossary,
+                            translateConfig.enableThinking  // 🧠 Pass thinking mode config
                         ).catch(reject);
                     });
                 }
@@ -266,6 +313,14 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     term.type === 'character' && chapterContent.includes(term.original)
                 ).length;
 
+                // DEBUG: Log dictionary usage
+                console.log(`[DICT DEBUG] Chapter ${chapter.order}:`, {
+                    sharedGlossaryTotal: sharedGlossary.length,
+                    termsUsed,
+                    charactersUsed,
+                    sampleGlossary: sharedGlossary.slice(0, 3).map(g => ({ original: g.original, type: g.type }))
+                });
+
                 // Success notification in logs
                 onLog({
                     message: `✅ Lưu thành công! (${((Date.now() - startTime) / 1000).toFixed(1)}s)`,
@@ -273,12 +328,17 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     timestamp: new Date()
                 } as TranslationLog);
 
-                // Update UI state with dictionary usage
+                // Update UI state with dictionary usage and token stats
                 queue.updateStatus(chapter.id!, 'done');
                 progress.updateChapterProgress(chapter.id!, {
                     status: 'done',
                     termsUsed,
                     charactersUsed,
+                    tokens: result.stats?.tokens ? {
+                        input: result.stats.tokens.input,
+                        output: result.stats.tokens.output,
+                        total: result.stats.tokens.total
+                    } : undefined,
                 });
 
             } catch (error: unknown) {
@@ -306,11 +366,13 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         // 4. Wait for all chapters to complete
         await Promise.all(promises);
 
-        // 5. Cleanup
+        // 5. Capture stats BEFORE cleanup
+        const stats = progress.aggregateStats;
+
+        // 6. Cleanup
         progress.stopTracking();
 
         // Notification: Success
-        const stats = progress.aggregateStats;
         progress.addNotification({
             message: `🎉 Hoàn thành ${stats.completedChapters}/${stats.totalChapters} chương`,
             type: 'success'

@@ -32,7 +32,8 @@ export const translateChapter = async (
     onLog: (log: TranslationLog) => void,
     onSuccess: (result: TranslationResult) => void,
     customInstruction?: string,
-    sharedGlossary?: DictionaryEntry[]
+    sharedGlossary?: DictionaryEntry[],
+    enableThinking?: boolean  // 🧠 NEW: Control thinking mode (default: false to save cost)
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
@@ -42,6 +43,11 @@ export const translateChapter = async (
 
     try {
         // 1. Build Glossary Context
+        onLog({
+            timestamp: new Date(),
+            message: '📚 Đang tải từ điển...',
+            type: 'info'
+        });
         const { relevantDict, glossaryContext } = await buildGlossary(
             workspaceId,
             text,
@@ -58,6 +64,11 @@ export const translateChapter = async (
 
         // 3. Build System Instruction
         const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction, text);
+        onLog({
+            timestamp: new Date(),
+            message: '🤖 Đang gửi yêu cầu đến AI...',
+            type: 'info'
+        });
 
         // 4. Call API with Adaptive Tokens (Smart Retry)
         const adaptiveResult = await withAdaptiveTokens(
@@ -74,6 +85,9 @@ export const translateChapter = async (
                             topP: 0.95,
                             maxOutputTokens: maxTokens,
                             responseMimeType: "text/plain",
+                            thinkingConfig: {
+                                thinkingBudget: enableThinking ? -1 : 0  // -1 = dynamic thinking, 0 = disabled (5.8x cheaper)
+                            }
                         }
                     },
                     (msg: string) => {
@@ -86,12 +100,21 @@ export const translateChapter = async (
                 return candidates?.[0]?.finishReason;
             },
             {
-                inputLength: text.length,
-                baseBuffer: 3500,  // High buffer for Gemini 2.5 Flash thinking tokens (~2400)
+                inputLength: text.length,  // Content length only (for output estimation)
+                baseBuffer: 3500,  // Gemini 2.5 Flash thinking tokens (observed: 1858-3108, avg ~2500)
                 minTokens: 2048,
-                maxTokens: 8192
+                maxTokens: 16384   // Gemini 2.5 Flash supports up to 65K, but 16K is practical limit
             }
         );
+
+        // Warn if chapter is too long for non-chunking
+        if (text.length > 5000) {
+            onLog({
+                timestamp: new Date(),
+                message: `⚠️ Chapter dài ${text.length} chars - Khuyến nghị bật Chunking để tránh lỗi MAX_TOKENS`,
+                type: 'info'
+            });
+        }
 
         const rawResult = adaptiveResult.data;
 
@@ -102,6 +125,13 @@ export const translateChapter = async (
 
         // Track usage
         if (rawResult.usageMetadata) {
+            const metadata = rawResult.usageMetadata as any;
+            const thinkingTokens = metadata.thoughtsTokenCount || 0;
+            const inputTokens = metadata.promptTokenCount || 0;
+            const outputTokens = metadata.candidatesTokenCount || 0;
+
+            console.log(`🧠 [THINKING TOKENS] Input: ${inputTokens} | Output: ${outputTokens} | Thinking: ${thinkingTokens} | Total: ${inputTokens + outputTokens + thinkingTokens}`);
+
             recordUsage(aiModel as string, rawResult.usageMetadata);
         }
 
@@ -109,7 +139,11 @@ export const translateChapter = async (
         const rawText = extractResponseText(rawResult).trim();
 
         if (!rawText || rawText.trim() === "") {
-            throw new Error("❌ AI trả về nội dung rỗng! Có thể do: API lỗi, Prompt bị reject, hoặc Content vi phạm policy.");
+            const finishReason = adaptiveResult.finishReason;
+            if (finishReason === "MAX_TOKENS") {
+                throw new Error(`❌ Chapter quá dài (${text.length} chars) - Output bị cắt do MAX_TOKENS! Hãy BẬT CHUNKING trong cấu hình dịch.`);
+            }
+            throw new Error(`❌ AI trả về nội dung rỗng! Finish reason: ${finishReason}. Có thể do: API lỗi, Prompt bị reject, hoặc Content vi phạm policy.`);
         }
 
         // 6. Parse Plain Text Response

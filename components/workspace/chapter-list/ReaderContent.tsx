@@ -218,7 +218,8 @@ export const ReaderContent = React.memo(function ReaderContent({
                                 lineHeight: readerConfig.lineHeight,
                                 color: finalTextColor,
                                 textAlign: readerConfig.textAlign,
-                                maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`)
+                                maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`),
+                                willChange: 'font-size, line-height, max-width' // GPU optimization
                             }}
                             spellCheck={false}
                             ref={editorRef}

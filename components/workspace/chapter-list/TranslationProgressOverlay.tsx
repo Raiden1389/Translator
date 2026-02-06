@@ -274,33 +274,13 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const isFinished = !isTranslating && current >= total && total > 0;
 
     return (
-        <div className="fixed bottom-6 right-6 z-200 animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-auto group">
-            {/* Notification Badge */}
-            {latestNotification && (
-                <div className="mb-3 animate-in slide-in-from-top-2 fade-in duration-300">
-                    <div className={cn(
-                        "px-4 py-2.5 rounded-full border backdrop-blur-xl shadow-lg flex items-center gap-2 relative overflow-hidden",
-                        notificationColor[latestNotification.type]
-                    )}>
-                        <span className="text-sm">{notificationIcon[latestNotification.type]}</span>
-                        <span className="text-sm font-medium">{latestNotification.message}</span>
-                        {/* Auto-dismiss progress bar */}
-                        <div
-                            className="absolute bottom-0 left-0 h-0.5 bg-current/30"
-                            style={{
-                                width: '100%',
-                                animation: 'shrink-width 5s linear forwards'
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
+        <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-10 fade-in duration-500 pointer-events-auto group">
             <div className="bg-card border border-border p-6 rounded-3xl w-[420px] shadow-2xl space-y-6 relative overflow-hidden ring-1 ring-white/10 glass">
                 {/* Pin Button - Keep overlay visible */}
                 <button
                     onClick={() => setIsPinned(!isPinned)}
                     className={cn(
-                        "absolute top-4 right-14 p-1.5 rounded-full transition-all z-10",
+                        "absolute top-4 right-16 p-1.5 rounded-full transition-all z-10",
                         isPinned
                             ? "bg-primary/20 text-primary hover:bg-primary/30"
                             : "bg-muted/20 hover:bg-muted/40 text-muted-foreground",
@@ -322,7 +302,7 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                     <X className="h-4 w-4" />
                 </button>
 
-                <div className="flex items-center justify-between relative">
+                <div className="flex items-center justify-between relative pr-20">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
                             {isTranslating ? (
@@ -354,6 +334,17 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                 </div>
 
                 <div className="space-y-3 relative">
+                    {/* Notification Banner - Inside overlay */}
+                    {latestNotification && (
+                        <div className={cn(
+                            "px-3 py-2 rounded-xl border flex items-center gap-2 text-xs font-medium animate-in slide-in-from-top-2 fade-in duration-300",
+                            notificationColor[latestNotification.type]
+                        )}>
+                            <span>{notificationIcon[latestNotification.type]}</span>
+                            <span className="flex-1">{latestNotification.message}</span>
+                        </div>
+                    )}
+
                     <div className="flex justify-between items-end px-1">
                         <p className="text-foreground font-semibold text-[11px] truncate max-w-[70%] opacity-80">
                             {currentTitle || "Warming up core..."}

@@ -118,7 +118,12 @@ export async function translateWithChunking(
     const chunks = splitByParagraph(text, finalOptions.maxCharsPerChunk!);
     const batchId = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    // Don't toast chunk split - use onProgress for UI updates
+    // Notify user about chunking
+    onLog({
+        timestamp: new Date(),
+        message: `📦 Chương này chia làm ${chunks.length} chunks`,
+        type: 'info'
+    });
     finalOptions.onProgress?.(0, chunks.length);
 
     try {
@@ -127,7 +132,7 @@ export async function translateWithChunking(
 
         const promises = chunks.map((chunk, index) => {
             return chunkLimit(async () => {
-                // Update progress
+                // Update progress BEFORE starting translation
                 finalOptions.onProgress?.(index + 1, chunks.length);
 
                 try {

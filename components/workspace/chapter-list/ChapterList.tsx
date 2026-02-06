@@ -12,6 +12,7 @@ import { ChapterTable } from "./ChapterTable";
 import { ChapterCardGrid } from "./ChapterCardGrid";
 import { ReaderModal } from "./ReaderModal";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
+import { ChapterSelectionDock } from "../ChapterSelectionDock";
 
 import { TranslateConfigDialog } from "./TranslateConfigDialog";
 import { InspectionDialog } from "./InspectionDialog";
@@ -255,9 +256,9 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 toast.info("Không có thay đổi nào cần áp dụng.", { id: "applying-corrections" });
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Apply corrections error:", error);
-            toast.error("Lỗi khi áp dụng cải chính: " + error.message, { id: "applying-corrections" });
+            toast.error("Lỗi khi áp dụng cải chính: " + (error instanceof Error ? error.message : String(error)), { id: "applying-corrections" });
         }
     };
 
@@ -273,6 +274,35 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         }
     };
 
+    const handleBulkClearTranslation = async () => {
+        if (selectedChapters.length === 0) return toast.error("Vui lòng chọn chương cần reset.");
+        if (!confirm(`Xóa bản dịch của ${selectedChapters.length} chương đã chọn?`)) return;
+
+        try {
+            for (const id of selectedChapters) {
+                await clearChapterTranslation(id);
+            }
+            toast.success(`Đã reset ${selectedChapters.length} chương!`);
+            setSelectedChapters([]);
+        } catch (error) {
+            console.error("Bulk clear error:", error);
+            toast.error("Lỗi khi reset bản dịch.");
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedChapters.length === 0) return;
+
+        try {
+            await db.chapters.bulkDelete(selectedChapters);
+            toast.success(`Đã xóa ${selectedChapters.length} chương!`);
+            setSelectedChapters([]);
+        } catch (error) {
+            console.error("Bulk delete error:", error);
+            toast.error("Lỗi khi xóa chương.");
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -285,18 +315,22 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 open={translateDialogOpen}
                 onOpenChange={setTranslateDialogOpen}
                 selectedCount={selectedChapters.length}
-                onStart={(config: { customPrompt: string; autoExtract: boolean; maxConcurrency: number }, settings: TranslationSettings) => {
+                onStart={(config: {
+                    customPrompt: string;
+                    autoExtract: boolean;
+                    maxConcurrency: number;
+                    fixPunctuation?: boolean;
+                    enableChunking: boolean;
+                    maxConcurrentChunks: number;
+                    chunkSize?: number;
+                }, settings: TranslationSettings) => {
                     setTranslateDialogOpen(false);
                     onTranslate({
                         workspaceId,
                         chapters: filtered,
                         selectedChapters,
                         currentSettings: settings,
-                        translateConfig: {
-                            ...config,
-                            enableChunking: false,
-                            maxConcurrentChunks: 3
-                        },
+                        translateConfig: config, // Use config directly from dialog
                         onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
                     });
                 }}
@@ -428,6 +462,19 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 characters={pendingCharacters as GlossaryCharacter[]}
                 terms={pendingTerms as GlossaryTerm[]}
                 onSave={handleConfirmSaveAI}
+            />
+
+            <ChapterSelectionDock
+                selectedChapters={selectedChapters}
+                isRaidenMode={false}
+                setSelectedChapters={setSelectedChapters}
+                setTranslateDialogOpen={setTranslateDialogOpen}
+                filtered={filtered}
+                setTempScanText={() => { }}
+                setScanConfigOpen={setScanConfigOpen}
+                isAIExtracting={false}
+                handleBulkClearTranslation={handleBulkClearTranslation}
+                setBulkDeleteConfirmOpen={() => handleBulkDelete()}
             />
         </div>
     );
