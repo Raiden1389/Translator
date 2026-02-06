@@ -27,6 +27,9 @@ import { useAiQueueStats } from "../hooks/useAiQueueStatus";
 // NEW: Extracted hooks
 import { useChapterActions } from "./hooks/useChapterActions";
 import { useCorrections } from "./hooks/useCorrections";
+import { useDialogStates } from "./hooks/useDialogStates";
+import { useScanConfig } from "./hooks/useScanConfig";
+import { useReaderNavigation } from "./hooks/useReaderNavigation";
 
 import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
 
@@ -59,14 +62,10 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     );
 
     const [search, setSearch] = useState("");
-    const [readingChapterId, setReadingChapterId] = useState<number | null>(null);
     const [filterStatus, setFilterStatus] = usePersistedState<"all" | "draft" | "translated">(`workspace-${workspaceId}-filter`, "all");
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
     const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(`workspace-${workspaceId}-viewMode`, "grid");
-    const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
-    const [historyOpen, setHistoryOpen] = useState(false);
-    const [scanConfigOpen, setScanConfigOpen] = useState(false);
 
     const filtered = useMemo(() => {
         if (!chapters) return [];
@@ -106,7 +105,10 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
 
     const queueState = useAiQueueStats();
 
-    // NEW: Use extracted hooks
+    // NEW: Dialog states first (needed by other hooks)
+    const { translateDialogOpen, setTranslateDialogOpen, historyOpen, setHistoryOpen } = useDialogStates();
+
+    // NEW: Use all extracted hooks
     const {
         handleExport,
         handleInspect,
@@ -125,17 +127,22 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         setHistoryOpen
     });
 
-    const handleScan = () => setScanConfigOpen(true);
-    const handleStartScan = async (selectedTypes: EntityType[]) => {
-        setScanConfigOpen(false);
-        if (selectedChapters.length === 0) {
-            toast.error("Vui lòng chọn ít nhất 1 chương để quét!");
-            return;
-        }
-        const selectedChapterData = chapters?.filter(c => selectedChapters.includes(c.id!)) || [];
-        const combinedText = selectedChapterData.map(c => c.content_original).join("\n\n");
-        await handleAIExtractChapter(combinedText, selectedTypes as string[]);
-    };
+    const {
+        scanConfigOpen,
+        setScanConfigOpen,
+        handleScan,
+        handleStartScan
+    } = useScanConfig({ selectedChapters, chapters, handleAIExtractChapter });
+
+    const {
+        readingChapterId,
+        handleRead,
+        handlePrev,
+        handleNext,
+        handleClose: handleReaderClose,
+        hasPrev,
+        hasNext
+    } = useReaderNavigation({ workspaceId, filtered });
 
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const currentChapters = useMemo(() => {
@@ -198,7 +205,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onViewModeChange={setViewMode}
                 onScan={handleScan}
                 lastReadChapterId={workspace?.lastReadChapterId}
-                onReadContinue={(id) => setReadingChapterId(id)}
+                onReadContinue={handleRead}
                 onHistoryOpen={() => setHistoryOpen(true)}
                 onApplyCorrections={() => toast.info("Tính năng đang phát triển")}
                 onClearCache={handleSanitizeDatabase}
@@ -213,10 +220,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         selectedChapters={selectedChapters}
                         queueState={queueState}
                         onSelect={handleSelect}
-                        onRead={(id) => {
-                            setReadingChapterId(id);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: id });
-                        }}
+                        onRead={handleRead}
                         onInspect={handleInspect}
                         onClearTranslation={handleClearTranslation}
                         onImport={() => fileInputRef.current?.click()}
@@ -237,10 +241,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         onSelectGlobal={() => setSelectedChapters(filtered.map(c => c.id!))}
                         onDeselectAll={() => setSelectedChapters([])}
 
-                        onRead={(id) => {
-                            setReadingChapterId(id);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: id });
-                        }}
+                        onRead={handleRead}
                         onInspect={handleInspect}
                         onClearTranslation={handleClearTranslation}
                         onApplyCorrections={handleApplyCorrections}
@@ -264,25 +265,11 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 <ReaderModal
                     chapterId={readingChapterId}
                     isOpen={!!readingChapterId}
-                    onClose={() => setReadingChapterId(null)}
+                    onClose={handleReaderClose}
                     hasPrev={filtered.findIndex(c => c.id === readingChapterId) > 0}
                     hasNext={filtered.findIndex(c => c.id === readingChapterId) < filtered.length - 1}
-                    onPrev={() => {
-                        const idx = filtered.findIndex(c => c.id === readingChapterId);
-                        if (idx > 0) {
-                            const newId = filtered[idx - 1].id!;
-                            setReadingChapterId(newId);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: newId });
-                        }
-                    }}
-                    onNext={() => {
-                        const idx = filtered.findIndex(c => c.id === readingChapterId);
-                        if (idx < filtered.length - 1) {
-                            const newId = filtered[idx + 1].id!;
-                            setReadingChapterId(newId);
-                            db.workspaces.update(workspaceId, { lastReadChapterId: newId });
-                        }
-                    }}
+                    onPrev={handlePrev}
+                    onNext={handleNext}
                 />
             )}
 
