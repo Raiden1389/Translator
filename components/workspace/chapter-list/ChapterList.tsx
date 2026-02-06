@@ -335,6 +335,32 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         }
     };
 
+    // Fix Title Case (ALL CAPS → Title Case)
+    const handleFixTitleCase = async () => {
+        toast.loading("🔧 Đang sửa Title Case...", { id: "fixing-titles" });
+
+        try {
+            const { fixAllCapsTitles } = await import("@/lib/utils/title-case-fixer");
+            const fixedCount = await fixAllCapsTitles(workspaceId);
+
+            if (fixedCount > 0) {
+                toast.success(`✨ Đã sửa ${fixedCount} tiêu đề!`, {
+                    id: "fixing-titles",
+                    description: "ALL CAPS → Title Case"
+                });
+            } else {
+                toast.info("✅ Tất cả tiêu đề đã đúng format!", {
+                    id: "fixing-titles",
+                    description: "Không tìm thấy title nào cần sửa"
+                });
+            }
+        } catch (error) {
+            console.error("Fix title error:", error);
+            toast.error("❌ Lỗi khi sửa tiêu đề", { id: "fixing-titles" });
+        }
+    };
+
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -394,6 +420,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onApplyCorrections={() => toast.info("Tính năng đang phát triển")}
                 onClearCache={handleSanitizeDatabase}
                 onFixTitles={() => toast.info("Tính năng đang phát triển")}
+                onFixTitleCase={handleFixTitleCase}
             />
 
             <ErrorBoundary name="ChapterListView">

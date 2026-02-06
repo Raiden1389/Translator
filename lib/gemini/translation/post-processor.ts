@@ -44,6 +44,25 @@ export async function applyPostProcessing(
         }
     }
 
+    // 🔧 NORMALIZE: Fix ALL CAPS titles (e.g., "KHAI TIẾC" → "Khai Tiếc")
+    if (parsed.translatedTitle) {
+        const title = parsed.translatedTitle;
+        const letters = title.replace(/[^a-zA-ZÀ-ỹ]/g, ''); // Only letters
+        const uppercaseCount = (title.match(/[A-ZÀ-Ý]/g) || []).length;
+        const isAllCaps = letters.length > 0 && uppercaseCount / letters.length > 0.5;
+
+        if (isAllCaps) {
+            // Convert to Title Case
+            parsed.translatedTitle = title
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+            console.log(`🔧 [POST-PROCESSOR] Title normalized from ALL CAPS: "${title}" → "${parsed.translatedTitle}"`);
+        }
+    }
+
+
     // Apply Auto-Corrections (Universal Logic: NFC + LongestFirst + CasePreserve)
     const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
     if (corrections.length > 0) {

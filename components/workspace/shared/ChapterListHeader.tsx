@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import {
     Search, ChevronLeft, ChevronRight,
     FileText, LayoutGrid, LayoutList, Zap,
-    Clock, ShieldCheck, Eraser,
+    Clock, ShieldCheck, Eraser, CaseSensitive,
     Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
@@ -60,6 +60,7 @@ interface ChapterListHeaderProps {
     processing?: boolean;
     onSelectRange?: (start: number, end: number) => void;
     onFixTitles?: () => void; // New: Fix Chinese characters in titles
+    onFixTitleCase?: () => void; // NEW: Fix ALL CAPS titles
 }
 
 export function ChapterListHeader({
@@ -90,7 +91,8 @@ export function ChapterListHeader({
     onRefresh,
     processing,
     onSelectRange,
-    onFixTitles
+    onFixTitles,
+    onFixTitleCase
 }: ChapterListHeaderProps) {
     const [rangeValue, setRangeValue] = React.useState("");
     const tokenStats = useWorkspaceTokens(workspaceId);
@@ -317,6 +319,23 @@ export function ChapterListHeader({
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-[10px] font-bold">Dọn HTML rác</TooltipContent>
                         </Tooltip>
+
+                        {onFixTitleCase && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-purple-500 hover:text-purple-600 transition-all active:scale-95 group disabled:opacity-50"
+                                        onClick={onFixTitleCase}
+                                        disabled={processing || importing}
+                                    >
+                                        <CaseSensitive className={cn("h-4 w-4 group-hover:scale-110 transition-transform", processing && "animate-pulse")} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-[10px] font-bold">Fix Title Case</TooltipContent>
+                            </Tooltip>
+                        )}
 
                         <Tooltip>
                             <TooltipTrigger asChild>

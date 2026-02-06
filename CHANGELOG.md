@@ -1,3 +1,29 @@
+## [2.5.3] - 2026-02-06
+
+### ✨ New Feature: Title Case Normalization
+
+**Problem**: Một số chương có title viết HOA HẾT (e.g., "KHAI TIẾC", "LỜI KỊCH")
+
+**Solution**:
+1. **Auto-Fix (Post-Processing)**:
+   - Tự động detect titles viết hoa hết (>50% chữ cái là UPPERCASE)
+   - Convert sang Title Case: "KHAI TIẾC" → "Khai Tiếc"
+   - Chạy tự động khi dịch chương mới
+   - File: `lib/gemini/translation/post-processor.ts`
+
+2. **Manual Fix Button**:
+   - Nút "Fix Title Case" (icon CaseSensitive màu tím) trong Action Hub
+   - Scan toàn bộ workspace, fix titles cũ đã dịch
+   - File: `lib/utils/title-case-fixer.ts` (NEW)
+
+**Files Modified**:
+- ✅ `lib/gemini/translation/post-processor.ts` - Auto normalization
+- ✅ `lib/utils/title-case-fixer.ts` (NEW) - Manual fix utility
+- ✅ `components/workspace/chapter-list/ChapterList.tsx` - Handler
+- ✅ `components/workspace/shared/ChapterListHeader.tsx` - UI button
+
+---
+
 ## [2.5.2] - 2026-02-06
 
 ### 🐛 Bug Fixes
