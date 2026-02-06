@@ -6,9 +6,6 @@ import Dexie from "dexie";
 import { db, type Chapter } from "@/lib/db";
 import { toast } from "sonner";
 import { ChapterListHeader } from "../shared/ChapterListHeader";
-import { ChapterTable } from "./ChapterTable";
-import { ChapterCardGrid } from "./ChapterCardGrid";
-import { ReaderModal } from "./ReaderModal";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
 import { ChapterSelectionDock } from "../ChapterSelectionDock";
 
@@ -30,6 +27,10 @@ import { useCorrections } from "./hooks/useCorrections";
 import { useDialogStates } from "./hooks/useDialogStates";
 import { useScanConfig } from "./hooks/useScanConfig";
 import { useReaderNavigation } from "./hooks/useReaderNavigation";
+
+// NEW: Extracted view components
+import { ChapterListDialogs } from "./components/ChapterListDialogs";
+import { ChapterListContent } from "./components/ChapterListContent";
 
 import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
 
@@ -156,34 +157,11 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 relative pb-10">
-            <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
+
+            {/* Overlays */}
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
 
-            <TranslateConfigDialog
-                open={translateDialogOpen}
-                onOpenChange={setTranslateDialogOpen}
-                selectedCount={selectedChapters.length}
-                onStart={(config: {
-                    customPrompt: string;
-                    autoExtract: boolean;
-                    maxConcurrency: number;
-                    fixPunctuation?: boolean;
-                    enableChunking: boolean;
-                    maxConcurrentChunks: number;
-                    chunkSize?: number;
-                }, settings: TranslationSettings) => {
-                    setTranslateDialogOpen(false);
-                    onTranslate({
-                        workspaceId,
-                        chapters: filtered,
-                        selectedChapters,
-                        currentSettings: settings,
-                        translateConfig: config,
-                        onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
-                    });
-                }}
-            />
-
+            {/* Header */}
             <ChapterListHeader
                 workspaceId={workspaceId}
                 totalChapters={chapters.length}
@@ -213,86 +191,53 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onFixTitleCase={handleFixTitleCase}
             />
 
-            <ErrorBoundary name="ChapterListView">
-                {viewMode === "grid" ? (
-                    <ChapterCardGrid
-                        chapters={currentChapters}
-                        selectedChapters={selectedChapters}
-                        queueState={queueState}
-                        onSelect={handleSelect}
-                        onRead={handleRead}
-                        onInspect={handleInspect}
-                        onClearTranslation={handleClearTranslation}
-                        onImport={() => fileInputRef.current?.click()}
-                    />
-                ) : (
-                    <ChapterTable
-                        chapters={currentChapters}
-                        selectedChapters={selectedChapters}
-                        queueState={queueState}
-                        setSelectedChapters={setSelectedChapters}
-                        onSelect={handleSelect}
+            {/* Main Content */}
+            <ChapterListContent
+                viewMode={viewMode}
+                currentChapters={currentChapters}
+                selectedChapters={selectedChapters}
+                queueState={queueState}
+                setSelectedChapters={setSelectedChapters}
+                filtered={filtered}
+                handleSelect={handleSelect}
+                handleRead={handleRead}
+                handleInspect={handleInspect}
+                handleClearTranslation={handleClearTranslation}
+                handleApplyCorrections={handleApplyCorrections}
+                fileInputRef={fileInputRef}
+            />
 
-                        onSelectPage={() => {
-                            const pageIds = currentChapters.map(c => c.id!);
-                            const newSet = new Set([...selectedChapters, ...pageIds]);
-                            setSelectedChapters(Array.from(newSet));
-                        }}
-                        onSelectGlobal={() => setSelectedChapters(filtered.map(c => c.id!))}
-                        onDeselectAll={() => setSelectedChapters([])}
-
-                        onRead={handleRead}
-                        onInspect={handleInspect}
-                        onClearTranslation={handleClearTranslation}
-                        onApplyCorrections={handleApplyCorrections}
-                    />
-                )}
-            </ErrorBoundary>
-
-            {inspectingChapter && (
-                <InspectionDialog
-                    open={isInspectOpen}
-                    onOpenChange={setIsInspectOpen}
-                    chapterTitle={inspectingChapter.title}
-                    issues={inspectingChapter.issues}
-                    onNavigateToIssue={(original) => {
-                        console.log("Navigate to:", original);
-                    }}
-                />
-            )}
-
-            {readingChapterId && (
-                <ReaderModal
-                    chapterId={readingChapterId}
-                    isOpen={!!readingChapterId}
-                    onClose={handleReaderClose}
-                    hasPrev={filtered.findIndex(c => c.id === readingChapterId) > 0}
-                    hasNext={filtered.findIndex(c => c.id === readingChapterId) < filtered.length - 1}
-                    onPrev={handlePrev}
-                    onNext={handleNext}
-                />
-            )}
-
-            <HistoryDialog
+            {/* All Dialogs */}
+            <ChapterListDialogs
+                translateDialogOpen={translateDialogOpen}
+                setTranslateDialogOpen={setTranslateDialogOpen}
+                selectedChapters={selectedChapters}
+                onTranslate={onTranslate}
                 workspaceId={workspaceId}
-                open={historyOpen}
-                onOpenChange={setHistoryOpen}
+                filtered={filtered}
+                onShowScanResults={onShowScanResults}
+                isInspectOpen={isInspectOpen}
+                setIsInspectOpen={setIsInspectOpen}
+                inspectingChapter={inspectingChapter}
+                readingChapterId={readingChapterId}
+                handleReaderClose={handleReaderClose}
+                handlePrev={handlePrev}
+                handleNext={handleNext}
+                hasPrev={hasPrev}
+                hasNext={hasNext}
+                historyOpen={historyOpen}
+                setHistoryOpen={setHistoryOpen}
+                scanConfigOpen={scanConfigOpen}
+                setScanConfigOpen={setScanConfigOpen}
+                handleStartScan={handleStartScan}
+                isReviewOpen={isReviewOpen}
+                setIsReviewOpen={setIsReviewOpen}
+                pendingCharacters={pendingCharacters}
+                pendingTerms={pendingTerms}
+                handleConfirmSaveAI={handleConfirmSaveAI}
             />
 
-            <ScanConfigDialog
-                open={scanConfigOpen}
-                onOpenChange={setScanConfigOpen}
-                onStart={handleStartScan}
-            />
-
-            <ReviewDialog
-                open={isReviewOpen}
-                onOpenChange={setIsReviewOpen}
-                characters={pendingCharacters as GlossaryCharacter[]}
-                terms={pendingTerms as GlossaryTerm[]}
-                onSave={handleConfirmSaveAI}
-            />
-
+            {/* Selection Dock */}
             <ChapterSelectionDock
                 selectedChapters={selectedChapters}
                 isRaidenMode={false}
