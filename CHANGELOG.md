@@ -1,4 +1,54 @@
+## [2.5.4] - 2026-02-06
+
+### 🔧 Refactoring - PromptLab Component Decomposition
+
+- **PromptLab.tsx Refactored** (392 LOC → 180 LOC, -54% reduction):
+  - **Extracted Custom Hooks**:
+    - `usePromptState` - Centralized all state management (15 state variables)
+    - `usePromptActions` - Extracted all business logic (5 action handlers)
+  - **Created 6 Reusable Components**:
+    - `PromptLabHeader` - Header with fight button
+    - `TestSampleCard` - Sample input card with reset functionality
+    - `GoalsCard` - Goals input with Spirit DNA extraction
+    - `PromptCard` - **Reusable** A/B prompt card (used for both Prompt A & B)
+    - `WinnerCard` - Winner display with trophy icon
+    - `SavePromptDialog` - Save prompt to library dialog
+  - **Legacy Backup**: Moved original file to `PromptLab.legacy.tsx` for rollback safety
+
+### 📚 Documentation - Shadow File Refactor Strategy v2.0
+
+- **Added Entry File Pattern (Option C)**:
+  - Documented 3-file system architecture (entry/legacy/shadow)
+  - **Atomic Switch Pattern**: 5-second rollback mechanism via single-line comment toggle
+  - **A/B Testing Support**: Built-in feature flag pattern for production testing
+  - **Comparison Table**: When to use Entry File vs Classic Shadow vs Component Extraction
+  - **Complete Workflow**: 5-step process from setup to cleanup
+- **Updated Section Numbering**: Reorganized PHASE 2 options (2.1-2.5)
+
+### 📦 Files Modified
+
+**Refactoring:**
+- `components/workspace/PromptLab.tsx` - Refactored main component
+- `components/workspace/PromptLab.legacy.tsx` - NEW: Backup of original (392 LOC)
+- `components/workspace/PromptLab/hooks/usePromptState.ts` - NEW: State management hook
+- `components/workspace/PromptLab/hooks/usePromptActions.ts` - NEW: Business logic hook
+- `components/workspace/PromptLab/components/PromptLabHeader.tsx` - NEW
+- `components/workspace/PromptLab/components/TestSampleCard.tsx` - NEW
+- `components/workspace/PromptLab/components/GoalsCard.tsx` - NEW
+- `components/workspace/PromptLab/components/PromptCard.tsx` - NEW (reusable)
+- `components/workspace/PromptLab/components/WinnerCard.tsx` - NEW
+- `components/workspace/PromptLab/components/SavePromptDialog.tsx` - NEW
+
+**Documentation:**
+- `workflows/shadow-refactor-strategy.md` - Enhanced with Entry File Pattern
+
+### ✅ Verification
+- Build Status: ✅ Passed (Exit code 0)
+- TypeScript: ✅ No errors
+- Strategy: Option B (Component Extraction) - Non-critical code, low risk
+
 ## [2.5.1] - 2026-02-06
+
 
 ### ⚡ Performance Optimization - Chapter List
 
