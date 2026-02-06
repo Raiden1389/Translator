@@ -3,36 +3,28 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Dexie from "dexie";
-import { db, type Chapter } from "@/lib/db";
 import { toast } from "sonner";
-import { ChapterListHeader } from "../shared/ChapterListHeader";
-import { ImportProgressOverlay } from "./ImportProgressOverlay";
-import { ChapterSelectionDock } from "../ChapterSelectionDock";
 
-import { TranslateConfigDialog } from "./TranslateConfigDialog";
-import { InspectionDialog } from "./InspectionDialog";
-import { HistoryDialog } from "../shared/HistoryDialog";
-import { ScanConfigDialog, EntityType } from "../ScanConfigDialog";
-import { ReviewDialog } from "../shared/ReviewDialog";
-import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import { db, type Chapter } from "@/lib/db";
+import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
+
+import { usePersistedState } from "@/lib/hooks/usePersistedState";
 import { useChapterSelection } from "../hooks/useChapterSelection";
 import { useChapterImport } from "../hooks/useChapterImport";
-import { usePersistedState } from "@/lib/hooks/usePersistedState";
 import { useAIExtraction } from "../editor/hooks/useAIExtraction";
 import { useAiQueueStats } from "../hooks/useAiQueueStatus";
 
-// NEW: Extracted hooks
 import { useChapterActions } from "./hooks/useChapterActions";
 import { useCorrections } from "./hooks/useCorrections";
 import { useDialogStates } from "./hooks/useDialogStates";
 import { useScanConfig } from "./hooks/useScanConfig";
 import { useReaderNavigation } from "./hooks/useReaderNavigation";
 
-// NEW: Extracted view components
+import { ChapterListHeader } from "../shared/ChapterListHeader";
+import { ImportProgressOverlay } from "./ImportProgressOverlay";
+import { ChapterSelectionDock } from "../ChapterSelectionDock";
 import { ChapterListDialogs } from "./components/ChapterListDialogs";
 import { ChapterListContent } from "./components/ChapterListContent";
-
-import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
 
 interface ChapterListProps {
     workspaceId: string;
