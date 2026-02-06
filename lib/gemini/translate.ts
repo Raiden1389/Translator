@@ -33,10 +33,37 @@ export const translateChapter = async (
     onSuccess: (result: TranslationResult) => void,
     customInstruction?: string,
     sharedGlossary?: DictionaryEntry[],
-    enableThinking?: boolean  // 🧠 NEW: Control thinking mode (default: false to save cost)
+    enableThinking?: boolean,  // 🧠 For Gemini 2.5 Flash
+    thinkingLevel?: "minimal" | "low" | "medium" | "high",  // 🧠 For Gemini 3.0 Flash
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
+
+    /**
+     * Build thinking config based on model version
+     * Gemini 2.5: Uses thinkingBudget (-1 = dynamic, 0 = disabled)
+     * Gemini 3.0: Uses thinking_level ("minimal" | "low" | "medium" | "high")
+     */
+    const buildThinkingConfig = (
+        model: string,
+        legacyEnableThinking?: boolean,
+        level?: "minimal" | "low" | "medium" | "high"
+    ): { thinkingBudget?: number; thinking_level?: string } => {
+        const isGemini3 = model.includes('gemini-3');
+
+        if (isGemini3) {
+            // Gemini 3.0: Use thinking_level
+            return {
+                thinking_level: level || "minimal"  // Default to minimal to save cost
+            };
+        } else {
+            // Gemini 2.5: Use thinkingBudget
+            return {
+                thinkingBudget: legacyEnableThinking ? -1 : 0
+            };
+        }
+    };
+
 
     // Clean text: Normalize Unicode (NFC) and remove excessive whitespace
     text = text.normalize('NFC').trim().replace(/\n\s*\n/g, '\n\n');
@@ -85,9 +112,7 @@ export const translateChapter = async (
                             topP: 0.95,
                             maxOutputTokens: maxTokens,
                             responseMimeType: "text/plain",
-                            thinkingConfig: {
-                                thinkingBudget: enableThinking ? -1 : 0  // -1 = dynamic thinking, 0 = disabled (5.8x cheaper)
-                            }
+                            thinkingConfig: buildThinkingConfig(aiModel as string, enableThinking, thinkingLevel)
                         }
                     },
                     (msg: string) => {

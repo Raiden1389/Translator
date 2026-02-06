@@ -29,7 +29,8 @@ interface BatchTranslateProps {
         enableChunking: boolean;
         maxConcurrentChunks: number;
         chunkSize?: number;
-        enableThinking?: boolean;  // 🧠 NEW: Thinking mode toggle
+        enableThinking?: boolean;  // 🧠 For Gemini 2.5 Flash
+        thinkingLevel?: "minimal" | "low" | "medium" | "high";  // 🧠 For Gemini 3.0 Flash
     };
     onComplete?: () => void;
 }
@@ -255,7 +256,8 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                             (res) => resolve(res as TranslationResult),
                             finalPrompt,
                             sharedGlossary,
-                            translateConfig.enableThinking  // 🧠 Pass thinking mode config
+                            undefined,  // enableThinking (legacy, deprecated)
+                            translateConfig.thinkingLevel  // 🧠 Pass thinking level for Gemini 3.0
                         ).catch(reject);
                     });
                 }

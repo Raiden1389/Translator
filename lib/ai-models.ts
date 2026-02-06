@@ -1,5 +1,5 @@
 export const AI_MODELS = [
-    { value: "gemini-3-flash-preview", label: "Gemini 3.0 Flash (Paid Tier)", inputPrice: 0.15, outputPrice: 0.6 },
+    { value: "gemini-3-flash-preview", label: "Gemini 3.0 Flash (Paid Tier)", inputPrice: 0.50, outputPrice: 3.00 },
     { value: "gemini-3-pro-preview", label: "Gemini 3.0 Pro (Paid Tier)", inputPrice: 1.25, outputPrice: 5.0 },
     { value: "gemini-2.5-flash-preview-09-2025", label: "Gemini 2.5 Flash (Sếp đang dùng)", inputPrice: 0.075, outputPrice: 0.3 },
 ];

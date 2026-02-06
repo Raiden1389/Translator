@@ -72,7 +72,8 @@ export async function withKeyRotation<T>(
             maxOutputTokens?: number;
             responseMimeType?: string;
             thinkingConfig?: {
-                thinkingBudget?: number;  // -1 = dynamic, 0 = disabled, >0 = fixed budget
+                thinkingBudget?: number;  // Gemini 2.5: -1 = dynamic, 0 = disabled
+                thinking_level?: string;  // Gemini 3.0: "minimal" | "low" | "medium" | "high"
             };
         }
     },

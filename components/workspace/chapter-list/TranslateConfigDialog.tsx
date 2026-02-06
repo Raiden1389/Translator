@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Edit, X, Save, ChevronDown, Zap, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
@@ -28,7 +29,8 @@ interface TranslationConfig {
     maxConcurrentChunks: number;
     chunkSize: number;
     temperature: number; // 🎨 NEW: AI creativity (0.0-1.0)
-    enableThinking: boolean; // 🧠 NEW: Thinking mode (costs 5.8x more but may improve quality)
+    enableThinking?: boolean; // 🧠 For Gemini 2.5 Flash
+    thinkingLevel: "minimal" | "low" | "medium" | "high"; // 🧠 NEW: For Gemini 3.0
 }
 
 interface TranslationSettingsManual {
@@ -39,7 +41,7 @@ interface TranslationSettingsManual {
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [currentSettings, setCurrentSettings] = useState({ apiKey: "", model: DEFAULT_MODEL });
-    const [translateConfig, setTranslateConfig] = useState({
+    const [translateConfig, setTranslateConfig] = useState<TranslationConfig>({
         customPrompt: "",
         autoExtract: false,
         maxConcurrency: 5,
@@ -49,11 +51,19 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         maxConcurrentChunks: 3,
         chunkSize: 800,
         temperature: 0.1, // Default: Low creativity for consistency
-        enableThinking: false // Default: OFF to save cost (5.8x cheaper)
+        thinkingLevel: "minimal" // Default: Minimal to save cost
     });
     const [savedPrompts, setSavedPrompts] = useState<{ id?: number, title: string, content: string }[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [promptExpanded, setPromptExpanded] = useState(false);
+    const isMounted = useRef(true);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            isMounted.current = false;
+        };
+    }, []);
 
 
     useEffect(() => {
@@ -97,8 +107,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
     const saveSettings = async () => {
         await db.settings.put({ key: "apiKeyPrimary", value: currentSettings.apiKey });
         await db.settings.put({ key: "aiModel", value: currentSettings.model });
-        setSettingsOpen(false);
-        toast.success("Đã lưu cấu hình AI!");
+        if (isMounted.current) {
+            setSettingsOpen(false);
+            toast.success("Đã lưu cấu hình AI!");
+        }
     };
 
     const handleSavePrompt = async () => {
@@ -106,8 +118,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         const title = prompt("Tên mẫu prompt này?");
         if (title) {
             await db.prompts.add({ title, content: translateConfig.customPrompt, createdAt: new Date() });
-            setSavedPrompts(await db.prompts.toArray());
-            toast.success("Đã lưu prompt thành công!");
+            if (isMounted.current) {
+                setSavedPrompts(await db.prompts.toArray());
+                toast.success("Đã lưu prompt thành công!");
+            }
         }
     };
 
@@ -220,21 +234,82 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                         </p>
                     </div>
 
-                    {/* Thinking Mode Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-amber-500/10 rounded-xl border border-amber-500/30">
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-bold flex items-center gap-2">
-                                🧠 Thinking Mode (Experimental)
-                            </Label>
-                            <p className="text-xs text-muted-foreground/70 font-medium">
-                                Deep reasoning mode - <span className="font-bold text-amber-600">costs 5.8x more</span> ($3.50 vs $0.60 per 1M tokens)
-                            </p>
+                    {/* Thinking Controls - Conditional based on model */}
+                    {currentSettings.model.includes('gemini-3') ? (
+                        // Gemini 3.0: Thinking Level Selector
+                        <div className="space-y-3 p-4 bg-purple-500/10 rounded-xl border border-purple-500/30">
+                            <div className="space-y-1">
+                                <Label className="text-sm font-bold flex items-center gap-2">
+                                    🧠 Thinking Level <span className="text-xs font-normal text-purple-600">(Gemini 3.0)</span>
+                                </Label>
+                                <p className="text-xs text-muted-foreground/70 font-medium">
+                                    Control AI reasoning depth - Higher = Smarter but slower & more expensive
+                                </p>
+                            </div>
+                            <Select
+                                value={translateConfig.thinkingLevel}
+                                onValueChange={(val: "minimal" | "low" | "medium" | "high") => setTranslateConfig({ ...translateConfig, thinkingLevel: val })}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="minimal">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono text-xs">⚡</span>
+                                            <div>
+                                                <div className="font-semibold">Minimal</div>
+                                                <div className="text-xs text-muted-foreground">Fastest, Cheapest (~$0.0035/chapter)</div>
+                                            </div>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="low">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono text-xs">🔹</span>
+                                            <div>
+                                                <div className="font-semibold">Low</div>
+                                                <div className="text-xs text-muted-foreground">Simple tasks (~$0.0040/chapter)</div>
+                                            </div>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="medium">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono text-xs">⭐</span>
+                                            <div>
+                                                <div className="font-semibold">Medium (Recommended)</div>
+                                                <div className="text-xs text-muted-foreground">Balanced quality/cost (~$0.0050/chapter)</div>
+                                            </div>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="high">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono text-xs">🔥</span>
+                                            <div>
+                                                <div className="font-semibold">High</div>
+                                                <div className="text-xs text-muted-foreground">Complex reasoning (~$0.0070/chapter)</div>
+                                            </div>
+                                        </div>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <Switch
-                            checked={translateConfig.enableThinking}
-                            onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, enableThinking: val })}
-                        />
-                    </div>
+                    ) : (
+                        // Gemini 2.5: Thinking Toggle
+                        <div className="flex items-center justify-between p-4 bg-amber-500/10 rounded-xl border border-amber-500/30">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-bold flex items-center gap-2">
+                                    🧠 Thinking Mode <span className="text-xs font-normal text-amber-600">(Gemini 2.5)</span>
+                                </Label>
+                                <p className="text-xs text-muted-foreground/70 font-medium">
+                                    Deep reasoning mode - <span className="font-bold text-amber-600">costs 5.8x more</span> ($3.50 vs $0.60 per 1M tokens)
+                                </p>
+                            </div>
+                            <Switch
+                                checked={translateConfig.enableThinking || false}
+                                onCheckedChange={(val: boolean) => setTranslateConfig({ ...translateConfig, enableThinking: val })}
+                            />
+                        </div>
+                    )}
 
                     {/* Custom Prompt - Collapsible */}
                     <div className="space-y-3 p-4 bg-muted/20 rounded-xl border border-border">
