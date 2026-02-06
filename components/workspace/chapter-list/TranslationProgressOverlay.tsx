@@ -4,63 +4,21 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime } from "./TranslationProgressOverlay/utils";
-
-// ─────────────────────────────────────────────────────────────
-// STAFF-GRADE CONFIGURATION
-// ─────────────────────────────────────────────────────────────
-const MAX_FAKE_PERCENT = 99.5;
-const PROGRESS_STEP_BUFFER = 0.5;
-const MIN_CREEP_STEP = 0.04;
-const CREEP_SLOWDOWN_FACTOR = 40;
-const REFRESH_INTERVAL_MS = 1000;
-const MIN_SAMPLES_FOR_ETA = 3; // Tránh nhiễu ETA ở những chương đầu
-const EMA_ALPHA = 0.3; // Hệ số mượt cho Exponential Moving Average
-const SCROLL_THRESHOLD_PX = 40; // Khoảng cách để nhận diện "đang ở đáy"
-
-interface LogEntry {
-    id: string;
-    message: string;
-    type: 'info' | 'success' | 'error';
-    order: number;
-    tokens?: { input: number; output: number; total: number };
-    chunks?: number;
-}
-
-
-interface SystemNotification {
-    id: string;
-    message: string;
-    type: 'init' | 'turbo' | 'success' | 'error';
-    timestamp: number;
-}
-
-interface TranslationProgressOverlayProps {
-    isTranslating: boolean;
-    progress: {
-        current: number;
-        total: number;
-        currentTitle: string;
-        logs?: LogEntry[];
-        totalTokens?: number;
-        totalCost?: number;
-        chunksProcessed?: number;
-        startTime?: number;
-        notifications?: SystemNotification[];
-        totalTermsUsed?: number;        // Total glossary terms used across all chapters
-        totalCharactersUsed?: number;   // Total characters used across all chapters
-        currentTermsUsed?: number;      // Terms used in current chapter
-        currentCharactersUsed?: number; // Characters used in current chapter
-        currentChunk?: number;          // Current chunk being processed (1-indexed)
-        totalChunks?: number;           // Total chunks in current chapter
-        chapterStats?: Array<{          // Per-chapter dictionary usage breakdown
-            chapterId: number;
-            order: number;
-            title: string;
-            termsUsed: number;
-            charactersUsed: number;
-        }>;
-    };
-}
+import type {
+    LogEntry,
+    SystemNotification,
+    TranslationProgressOverlayProps
+} from "./TranslationProgressOverlay/types";
+import {
+    MAX_FAKE_PERCENT,
+    PROGRESS_STEP_BUFFER,
+    MIN_CREEP_STEP,
+    CREEP_SLOWDOWN_FACTOR,
+    REFRESH_INTERVAL_MS,
+    MIN_SAMPLES_FOR_ETA,
+    EMA_ALPHA,
+    SCROLL_THRESHOLD_PX
+} from "./TranslationProgressOverlay/constants";
 
 // Memory-efficient Log Item
 const LogItem = React.memo(({ log }: { log: LogEntry }) => (
