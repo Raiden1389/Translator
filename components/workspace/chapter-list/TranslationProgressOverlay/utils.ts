@@ -84,3 +84,16 @@ export function formatTokens(tokens: number): string {
   }
   return tokens.toString();
 }
+
+/**
+ * Format elapsed time in HH:MM:SS or MM:SS format
+ */
+export function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
