@@ -7,6 +7,7 @@ import { Trash2, Book, Zap, Clock, CheckCircle2, Loader2, Eraser } from "lucide-
 import { cn } from "@/lib/utils";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { EditableTitle } from "./EditableTitle";
 
 interface ChapterRowProps {
     id: number;
@@ -148,15 +149,7 @@ export const ChapterRow = React.memo(function ChapterRow({
         isRaidenMode ? "text-purple-500/60" : "text-blue-500/60"
     ), [isRaidenMode]);
 
-    const translatedTitleContainerClassName = React.useMemo(() => cn(
-        "truncate",
-        isRaidenMode ? "text-slate-400" : "text-slate-600"
-    ), [isRaidenMode]);
 
-    const translatedTitleButtonClassName = React.useMemo(() => cn(
-        "transition-colors block w-full text-left truncate italic text-sm font-medium",
-        isRaidenMode ? "hover:text-purple-300" : "hover:text-blue-600"
-    ), [isRaidenMode]);
 
     const statusBadgeClassName = React.useMemo(() => cn(
         "inline-flex items-center px-3 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-tighter cursor-help gap-1 shadow-xs",
@@ -214,14 +207,12 @@ export const ChapterRow = React.memo(function ChapterRow({
                 </button>
             </div>
 
-            <div className={translatedTitleContainerClassName}>
-                <button
-                    onClick={handleReadClick}
-                    className={translatedTitleButtonClassName}
-                >
-                    {(title_translated || "—").replace(/<br\s*\/?>/gi, " ")}
-                </button>
-            </div>
+            <EditableTitle
+                id={id}
+                title_translated={title_translated}
+                isRaidenMode={isRaidenMode}
+                onRead={handleReadClick}
+            />
 
 
             <div className="flex flex-col items-center justify-center gap-0.5">

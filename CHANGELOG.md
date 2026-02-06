@@ -1,6 +1,41 @@
 ## [2.5.4] - 2026-02-06
 
-### 🔧 Refactoring - PromptLab Component Decomposition
+### � Bug Fixes
+
+- **Title Case Fixer → Sentence Case**:
+  - Fixed Vietnamese all-caps title conversion to use Sentence Case instead of Title Case
+  - "KHỔ CHỦ" now correctly converts to "Khổ chủ" (only first letter capitalized)
+  - Updated regex to include all Vietnamese uppercase characters (Ổ, Ơ, Ư, etc.)
+  - File: `lib/utils/title-case-fixer.ts`
+
+### ✨ Features
+
+- **Editable Title with Icon**:
+  - Added inline title editing with hover-to-show edit icon (✏️)
+  - Click icon to edit without triggering Reader Modal
+  - Enter/Blur to save, Escape to cancel
+  - Toast notifications for save success/error
+  - Files: `components/workspace/chapter-list/EditableTitle.tsx` (new), `ChapterRow.tsx` (updated)
+
+- **Auto-select Translated Chapters**:
+  - New button in Export Modal: "✨ Tự động chọn đã dịch"
+  - Automatically fills range with first-to-last translated chapters
+  - Shows toast with count and range (e.g., "✨ Đã chọn 450 chương đã dịch (1-450)")
+  - Files: `components/workspace/export/ExportForm.tsx`, `ExportTab.tsx`
+
+### 📦 Files Modified
+
+- `lib/utils/title-case-fixer.ts` - Sentence case logic
+- `components/workspace/chapter-list/EditableTitle.tsx` - New editable title component
+- `components/workspace/chapter-list/ChapterRow.tsx` - Integrated EditableTitle
+- `components/workspace/export/ExportForm.tsx` - Auto-select button UI
+- `components/workspace/ExportTab.tsx` - Auto-select logic implementation
+
+---
+
+## [2.5.4] - 2026-02-06 (Earlier)
+
+### �🔧 Refactoring - PromptLab Component Decomposition
 
 - **PromptLab.tsx Refactored** (392 LOC → 180 LOC, -54% reduction):
   - **Extracted Custom Hooks**:
