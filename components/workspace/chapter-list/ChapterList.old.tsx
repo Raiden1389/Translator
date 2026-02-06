@@ -4,7 +4,9 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Dexie from "dexie";
 import { db, type Chapter } from "@/lib/db";
+import { clearChapterTranslation } from "@/lib/services/chapter.service";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { ChapterListHeader } from "../shared/ChapterListHeader";
 import { ChapterTable } from "./ChapterTable";
 import { ChapterCardGrid } from "./ChapterCardGrid";
@@ -24,11 +26,10 @@ import { usePersistedState } from "@/lib/hooks/usePersistedState";
 import { useAIExtraction } from "../editor/hooks/useAIExtraction";
 import { useAiQueueStats } from "../hooks/useAiQueueStatus";
 
-// NEW: Extracted hooks
-import { useChapterActions } from "./hooks/useChapterActions";
-import { useCorrections } from "./hooks/useCorrections";
-
-import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
+import { inspectChapter } from "@/lib/gemini";
+import { applyCorrectionRule } from "@/lib/gemini/text/correction";
+import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings, InspectionIssue } from "@/lib/types"; // Kept ReviewData for prop type
+import { sanitizeExistingTranslations } from "@/lib/utils/db-sanitizer";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -58,6 +59,8 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         [workspaceId]
     );
 
+
+
     const [search, setSearch] = useState("");
     const [readingChapterId, setReadingChapterId] = useState<number | null>(null);
     const [filterStatus, setFilterStatus] = usePersistedState<"all" | "draft" | "translated">(`workspace-${workspaceId}-filter`, "all");
@@ -65,9 +68,13 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
     const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(`workspace-${workspaceId}-viewMode`, "grid");
     const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
+    // Removed local reviewData state
+    const [inspectingChapter, setInspectingChapter] = useState<{ id: number, title: string, issues: InspectionIssue[] } | null>(null);
+    const [isInspectOpen, setIsInspectOpen] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [scanConfigOpen, setScanConfigOpen] = useState(false);
 
+    // Filtered Content
     const filtered = useMemo(() => {
         if (!chapters) return [];
         return chapters.filter(c => {
@@ -77,8 +84,10 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         });
     }, [chapters, search, filterStatus]);
 
+    // PERFORMANCE FIX: Memoize to prevent new array on every render
     const allChapterIds = useMemo(() => filtered.map(c => c.id!), [filtered]);
 
+    // Hooks
     const {
         selectedChapters,
         setSelectedChapters,
@@ -94,6 +103,8 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         handleImportJSON
     } = useChapterImport(workspaceId, chapters?.length || 0);
 
+
+    // AI Extraction
     const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(workspaceId).toArray(), [workspaceId]);
     const {
         pendingCharacters,
@@ -104,30 +115,13 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         handleConfirmSaveAI
     } = useAIExtraction(workspaceId, dictEntries || []);
 
+    // PERFORMANCE FIX: Single global queue subscription instead of O(N) subscriptions
     const queueState = useAiQueueStats();
-
-    // NEW: Use extracted hooks
-    const {
-        handleExport,
-        handleInspect,
-        handleClearTranslation,
-        handleBulkClearTranslation,
-        handleBulkDelete,
-        handleSanitizeDatabase,
-        inspectingChapter,
-        isInspectOpen,
-        setIsInspectOpen
-    } = useChapterActions({ workspaceId, selectedChapters, filtered, setHistoryOpen });
-
-    const { handleApplyCorrections, handleFixTitleCase } = useCorrections({
-        workspaceId,
-        selectedChapters,
-        setHistoryOpen
-    });
 
     const handleScan = () => setScanConfigOpen(true);
     const handleStartScan = async (selectedTypes: EntityType[]) => {
         setScanConfigOpen(false);
+        // Get all selected chapters' content
         if (selectedChapters.length === 0) {
             toast.error("Vui lòng chọn ít nhất 1 chương để quét!");
             return;
@@ -137,6 +131,9 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         await handleAIExtractChapter(combinedText, selectedTypes as string[]);
     };
 
+    // Removed local useBatchTranslate
+
+    // Pagination
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const currentChapters = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
@@ -145,10 +142,230 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
 
     useEffect(() => { setCurrentPage(1); }, [search, filterStatus]);
 
+    // Handlers
+    const handleExport = async () => {
+        const selectedIds = selectedChapters.length > 0 ? selectedChapters : filtered.map(c => c.id!);
+        if (selectedIds.length === 0) return toast.error("Không có gì để xuất.");
+        const data = await db.chapters.bulkGet(selectedIds);
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `workspace-export-${new Date().getTime()}.json`;
+        a.click();
+    };
+
+
+    const handleInspect = async (id: number) => {
+        const chapter = await db.chapters.get(id);
+        if (!chapter || !chapter.content_translated) {
+            return toast.error("Chương này chưa dịch hoặc không tồn tại.");
+        }
+
+        toast.loading(`Đang rà soát chương: ${chapter.title}...`, {
+            id: "inspecting-toast",
+            icon: <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        });
+
+        try {
+            const issues = await inspectChapter(workspaceId, chapter.content_translated);
+            // Save results to DB
+            await db.chapters.update(id, { inspectionResults: issues });
+
+            setInspectingChapter({ id, title: chapter.title, issues });
+            setIsInspectOpen(true);
+
+            toast.success("Rà soát hoàn tất!", { id: "inspecting-toast" });
+        } catch (error) {
+            console.error("Inspect error:", error);
+            toast.error("Lỗi khi rà soát AI.", { id: "inspecting-toast" });
+        }
+    };
+
+    const handleApplyCorrections = async () => {
+        if (selectedChapters.length === 0) return toast.error("Vui lòng chọn chương cần sửa.");
+
+        const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
+        if (corrections.length === 0) return toast.error("Chưa có dữ liệu Cải chính (Corrections).");
+
+        toast.loading(`Đang áp dụng cải chính cho ${selectedChapters.length} chương...`, { id: "applying-corrections" });
+
+        try {
+            const chaptersToFix = await db.chapters.where("id").anyOf(selectedChapters).toArray();
+            let updatedCount = 0;
+
+            const snapshotStr = JSON.stringify(chaptersToFix.map(c => ({
+                chapterId: c.id,
+                before: { title: c.title_translated || "", content: c.content_translated || "" }
+            })));
+            const snapshot = JSON.parse(snapshotStr); // Deep copy just in case
+
+            await db.transaction('rw', db.chapters, db.history, async () => {
+                let anyChange = false;
+
+                for (const chapter of chaptersToFix) {
+                    if (!chapter.content_translated) continue;
+
+                    let newContent = chapter.content_translated;
+                    let newTitle = chapter.title_translated || "";
+                    let hasChanges = false;
+
+                    // Apply all corrections (Batch)
+                    for (const correction of corrections) {
+                        const originalContent = newContent;
+                        const originalTitle = newTitle;
+
+                        newContent = applyCorrectionRule(newContent, correction);
+                        if (newTitle) {
+                            newTitle = applyCorrectionRule(newTitle, correction);
+                        }
+
+                        if (newContent !== originalContent || newTitle !== originalTitle) {
+                            hasChanges = true;
+                        }
+                    }
+
+                    if (hasChanges) {
+                        await db.chapters.update(chapter.id!, {
+                            content_translated: newContent,
+                            title_translated: newTitle,
+                            updatedAt: new Date()
+                        });
+                        updatedCount++;
+                        anyChange = true;
+                    }
+                }
+
+                if (anyChange) {
+                    // ROTATION STRATEGY: Delete ALL previous history for this workspace before adding new one.
+                    // This ensures we only keep the LATEST snapshot (Single Undo).
+                    await db.history.where("workspaceId").equals(workspaceId).delete();
+
+                    // Save New History
+                    await db.history.add({
+                        workspaceId,
+                        actionType: 'batch_correction',
+                        summary: `Áp dụng cải chính (${updatedCount} chương)`,
+                        timestamp: new Date(),
+                        affectedCount: updatedCount,
+                        snapshot: snapshot // Store PREVIOUS state
+                    });
+                }
+            });
+
+            if (updatedCount > 0) {
+                toast.success(`Đã cập nhật ${updatedCount} chương!`, {
+                    id: "applying-corrections",
+                    action: {
+                        label: "Lịch sử / Undo",
+                        onClick: () => setHistoryOpen(true)
+                    }
+                });
+            } else {
+                toast.info("Không có thay đổi nào cần áp dụng.", { id: "applying-corrections" });
+            }
+
+        } catch (error: unknown) {
+            console.error("Apply corrections error:", error);
+            toast.error("Lỗi khi áp dụng cải chính: " + (error instanceof Error ? error.message : String(error)), { id: "applying-corrections" });
+        }
+    };
+
+    const handleClearTranslation = async (id: number) => {
+        if (!confirm("Xóa bản dịch của chương này để dịch lại? (Bản gốc Trung Quốc vẫn được giữ nguyên)")) return;
+
+        try {
+            await clearChapterTranslation(id);
+            toast.success("Đã xóa bản dịch. Bạn có thể dịch lại chương này.");
+        } catch (error) {
+            console.error("Clear translation error:", error);
+            toast.error("Lỗi khi xóa bản dịch.");
+        }
+    };
+
+    const handleBulkClearTranslation = async () => {
+        if (selectedChapters.length === 0) return toast.error("Vui lòng chọn chương cần reset.");
+        if (!confirm(`Xóa bản dịch của ${selectedChapters.length} chương đã chọn?`)) return;
+
+        try {
+            for (const id of selectedChapters) {
+                await clearChapterTranslation(id);
+            }
+            toast.success(`Đã reset ${selectedChapters.length} chương!`);
+            setSelectedChapters([]);
+        } catch (error) {
+            console.error("Bulk clear error:", error);
+            toast.error("Lỗi khi reset bản dịch.");
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedChapters.length === 0) return;
+
+        try {
+            await db.chapters.bulkDelete(selectedChapters);
+            toast.success(`Đã xóa ${selectedChapters.length} chương!`);
+            setSelectedChapters([]);
+        } catch (error) {
+            console.error("Bulk delete error:", error);
+            toast.error("Lỗi khi xóa chương.");
+        }
+    };
+
+    const handleSanitizeDatabase = async () => {
+        toast.loading("🧹 Đang dọn dẹp HTML rác trong database...", { id: "sanitizing" });
+
+        try {
+            const cleanedCount = await sanitizeExistingTranslations(workspaceId);
+
+            if (cleanedCount > 0) {
+                toast.success(`✨ Đã làm sạch ${cleanedCount} chương!`, {
+                    id: "sanitizing",
+                    description: "HTML tags đã được loại bỏ khỏi bản dịch cũ"
+                });
+            } else {
+                toast.info("✅ Database đã sạch sẽ!", {
+                    id: "sanitizing",
+                    description: "Không tìm thấy HTML rác nào"
+                });
+            }
+        } catch (error) {
+            console.error("Sanitize error:", error);
+            toast.error("❌ Lỗi khi dọn dẹp database", { id: "sanitizing" });
+        }
+    };
+
+    // Fix Title Case (ALL CAPS → Title Case)
+    const handleFixTitleCase = async () => {
+        toast.loading("🔧 Đang sửa Title Case...", { id: "fixing-titles" });
+
+        try {
+            const { fixAllCapsTitles } = await import("@/lib/utils/title-case-fixer");
+            const fixedCount = await fixAllCapsTitles(workspaceId);
+
+            if (fixedCount > 0) {
+                toast.success(`✨ Đã sửa ${fixedCount} tiêu đề!`, {
+                    id: "fixing-titles",
+                    description: "ALL CAPS → Title Case"
+                });
+            } else {
+                toast.info("✅ Tất cả tiêu đề đã đúng format!", {
+                    id: "fixing-titles",
+                    description: "Không tìm thấy title nào cần sửa"
+                });
+            }
+        } catch (error) {
+            console.error("Fix title error:", error);
+            toast.error("❌ Lỗi khi sửa tiêu đề", { id: "fixing-titles" });
+        }
+    };
+
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 relative pb-10">
+            {/* TranslationProgressOverlay for imports */}
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
             <ImportProgressOverlay importing={importing} progress={importProgress} importStatus={importStatus} />
 
@@ -171,7 +388,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         chapters: filtered,
                         selectedChapters,
                         currentSettings: settings,
-                        translateConfig: config,
+                        translateConfig: config, // Use config directly from dialog
                         onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => onShowScanResults({ chars, terms })
                     });
                 }}
@@ -230,6 +447,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                         onSelect={handleSelect}
 
                         onSelectPage={() => {
+                            // Union current page IDs with existing selection
                             const pageIds = currentChapters.map(c => c.id!);
                             const newSet = new Set([...selectedChapters, ...pageIds]);
                             setSelectedChapters(Array.from(newSet));
@@ -255,6 +473,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     chapterTitle={inspectingChapter.title}
                     issues={inspectingChapter.issues}
                     onNavigateToIssue={(original) => {
+                        // For now just close or keep open, navigating would require editor context
                         console.log("Navigate to:", original);
                     }}
                 />
