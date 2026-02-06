@@ -49,6 +49,8 @@ interface TranslationProgressOverlayProps {
         totalCharactersUsed?: number;   // Total characters used across all chapters
         currentTermsUsed?: number;      // Terms used in current chapter
         currentCharactersUsed?: number; // Characters used in current chapter
+        currentChunk?: number;          // Current chunk being processed (1-indexed)
+        totalChunks?: number;           // Total chunks in current chapter
     };
 }
 
@@ -83,9 +85,15 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
         totalCharactersUsed = 0,
         currentTermsUsed = 0,
         currentCharactersUsed = 0,
+        currentChunk = 0,
+        totalChunks = 0,
     } = progress;
     const logContainerRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true); // Track if user is at bottom
+
+    // 🔍 DEBUG: Log progress data
+    console.log('[OVERLAY DEBUG]', { current, total, chunksProcessed, currentTitle });
+
 
     // Internal states
     const [displayPercent, setDisplayPercent] = useState(0);
@@ -347,10 +355,14 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
 
                     <div className="flex justify-between items-end px-1">
                         <p className="text-foreground font-semibold text-[11px] truncate max-w-[70%] opacity-80">
-                            {currentTitle || "Warming up core..."}
+                            {currentTitle}
                         </p>
                         <div className="text-[10px] text-muted-foreground/60 font-black uppercase tracking-widest tabular-nums">
-                            {current} / {total}
+                            {totalChunks > 0 ? (
+                                <span title="Chunk progress">{currentChunk} / {totalChunks} chunks</span>
+                            ) : (
+                                <span>{current} / {total}</span>
+                            )}
                         </div>
                     </div>
 

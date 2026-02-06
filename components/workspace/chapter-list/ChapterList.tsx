@@ -24,6 +24,7 @@ import { useChapterSelection } from "../hooks/useChapterSelection";
 import { useChapterImport } from "../hooks/useChapterImport";
 import { usePersistedState } from "@/lib/hooks/usePersistedState";
 import { useAIExtraction } from "../editor/hooks/useAIExtraction";
+import { useAiQueueStats } from "../hooks/useAiQueueStatus";
 
 import { inspectChapter } from "@/lib/gemini";
 import { applyCorrectionRule } from "@/lib/gemini/text/correction";
@@ -82,12 +83,15 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         });
     }, [chapters, search, filterStatus]);
 
+    // PERFORMANCE FIX: Memoize to prevent new array on every render
+    const allChapterIds = useMemo(() => filtered.map(c => c.id!), [filtered]);
+
     // Hooks
     const {
         selectedChapters,
         setSelectedChapters,
         handleSelect
-    } = useChapterSelection(filtered.map(c => c.id!));
+    } = useChapterSelection(allChapterIds);
 
     const {
         importing,
@@ -97,6 +101,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         handleFileUpload,
         handleImportJSON
     } = useChapterImport(workspaceId, chapters?.length || 0);
+
 
     // AI Extraction
     const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(workspaceId).toArray(), [workspaceId]);
@@ -108,6 +113,9 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         handleAIExtractChapter,
         handleConfirmSaveAI
     } = useAIExtraction(workspaceId, dictEntries || []);
+
+    // PERFORMANCE FIX: Single global queue subscription instead of O(N) subscriptions
+    const queueState = useAiQueueStats();
 
     const handleScan = () => setScanConfigOpen(true);
     const handleStartScan = async (selectedTypes: EntityType[]) => {
@@ -369,6 +377,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     <ChapterCardGrid
                         chapters={currentChapters}
                         selectedChapters={selectedChapters}
+                        queueState={queueState}
                         onSelect={handleSelect}
                         onRead={(id) => {
                             setReadingChapterId(id);
@@ -382,6 +391,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                     <ChapterTable
                         chapters={currentChapters}
                         selectedChapters={selectedChapters}
+                        queueState={queueState}
                         setSelectedChapters={setSelectedChapters}
                         onSelect={handleSelect}
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, Book } from "lucide-react";
 import { type Chapter } from "@/lib/db";
+import { type AiQueueState } from "@/lib/services/ai-queue";
 import { ChapterRow } from "./ChapterRow";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -24,6 +25,7 @@ import { AlertTriangle } from "lucide-react";
 interface ChapterTableProps {
     chapters: Chapter[];
     selectedChapters: number[];
+    queueState: AiQueueState;
     setSelectedChapters: (ids: number[]) => void;
     onSelect: (id: number, shiftKey?: boolean) => void;
 
@@ -40,9 +42,9 @@ interface ChapterTableProps {
     lastReadChapterId?: number;
 }
 
-export function ChapterTable(props: ChapterTableProps) {
+export const ChapterTable = React.memo(function ChapterTable(props: ChapterTableProps) {
     const {
-        chapters, selectedChapters, setSelectedChapters, onSelect,
+        chapters, selectedChapters, queueState, setSelectedChapters, onSelect,
         onSelectPage, onSelectGlobal, onDeselectAll,
         onRead, onInspect, onClearTranslation, onApplyCorrections,
         lastReadChapterId
@@ -146,6 +148,10 @@ export function ChapterTable(props: ChapterTableProps) {
                                     isLastRead={lastReadChapterId === chapter.id}
                                     hasContent={!!chapter.content_translated && chapter.content_translated.length > 0}
                                     hasTitle={!!chapter.title_translated && chapter.title_translated.length > 0}
+                                    queueStatus={
+                                        queueState.runningIds.includes(`translate-chap-${chapter.id}`) ? 'running' :
+                                            queueState.pendingIds.includes(`translate-chap-${chapter.id}`) ? 'queued' : 'none'
+                                    }
                                     onMouseDown={handleMouseDown}
                                     onMouseEnter={handleMouseEnter}
                                     onSelect={onSelect}
@@ -189,4 +195,4 @@ export function ChapterTable(props: ChapterTableProps) {
             </AlertDialog>
         </div>
     );
-}
+});

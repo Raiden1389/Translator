@@ -70,8 +70,17 @@ export function useChapterTable({ chapters, selectedChapters, setSelectedChapter
         await deleteChapter(id);
     }, []);
 
-    const isPageAllSelected = chapters.length > 0 && chapters.every(c => selectedSet.has(c.id!));
-    const isPageSomeSelected = chapters.some(c => selectedSet.has(c.id!));
+    // PERFORMANCE FIX: Memoize checkbox state (O(N) but only when chapters/selectedSet change)
+    // Can't use count-based logic because selectedSet is global, chapters is paginated
+    const isPageAllSelected = useMemo(
+        () => chapters.length > 0 && chapters.every(c => selectedSet.has(c.id!)),
+        [chapters, selectedSet]
+    );
+
+    const isPageSomeSelected = useMemo(
+        () => !isPageAllSelected && chapters.some(c => selectedSet.has(c.id!)),
+        [chapters, selectedSet, isPageAllSelected]
+    );
 
     return {
         state: {

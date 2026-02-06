@@ -39,6 +39,8 @@ export interface ChapterProgress {
     error?: string;
     termsUsed?: number;        // Number of glossary terms used
     charactersUsed?: number;   // Number of persona/characters used
+    currentChunk?: number;     // Current chunk being processed (1-indexed)
+    totalChunks?: number;      // Total chunks in this chapter
 }
 
 /**
@@ -254,10 +256,10 @@ export function useTranslationProgress(): UseTranslationProgressReturn {
         const totalThinkingTokens = chapters.reduce((sum, c) => sum + (c.tokens?.thinking || 0), 0);
 
         // Cost calculation (Gemini 2.5 Flash pricing)
-        // Input: $0.075 per 1M tokens, Output: $0.30 per 1M tokens, Thinking: $0.30 per 1M tokens
+        // Input: $0.075 per 1M tokens, Output: $0.30 per 1M tokens, Thinking: FREE ($0)
         const inputCost = (totalInputTokens / 1_000_000) * 0.075;
         const outputCost = (totalOutputTokens / 1_000_000) * 0.30;
-        const thinkingCost = (totalThinkingTokens / 1_000_000) * 0.30;
+        const thinkingCost = 0; // Thinking tokens are FREE in Gemini 2.5 Flash
         const totalCost = inputCost + outputCost + thinkingCost;
 
         const totalChunks = chapters.reduce((sum, c) => sum + (c.chunks || 0), 0);

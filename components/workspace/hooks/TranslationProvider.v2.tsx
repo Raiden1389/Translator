@@ -53,6 +53,8 @@ interface TranslationContextType {
         totalCost?: number;
         turboActive?: boolean;
         chunksProcessed?: number;
+        currentChunk?: number;  // Current chunk being processed (1-indexed)
+        totalChunks?: number;   // Total chunks in current chapter
         cacheHits?: number;
         startTime?: number;
         notifications?: import("./useTranslationProgress").SystemNotification[];
@@ -233,7 +235,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                                 // Update progress state with chunk info
                                 progress.updateChapterProgress(chapter.id!, {
                                     status: 'processing',
-                                    chunks: total
+                                    chunks: total,
+                                    currentChunk: current,
+                                    totalChunks: total
                                 });
 
                                 onLog({
@@ -368,17 +372,8 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         // 4. Wait for all chapters to complete
         await Promise.all(promises);
 
-        // 5. Capture stats BEFORE cleanup
-        const stats = progress.aggregateStats;
-
-        // 6. Cleanup
+        // 5. Cleanup
         progress.stopTracking();
-
-        // Notification: Success
-        progress.addNotification({
-            message: `🎉 Hoàn thành ${stats.completedChapters}/${stats.totalChapters} chương`,
-            type: 'success'
-        });
 
         onComplete?.();
     }, [queue, progress]);
@@ -390,7 +385,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         batchProgress: {
             current: progress.aggregateStats.completedChapters,
             total: progress.aggregateStats.totalChapters,
-            currentTitle: progress.currentChapter?.title || '',
+            currentTitle: '',
             logs: progress.logs,
             totalTokens: progress.aggregateStats.totalTokens,
             totalCost: progress.aggregateStats.totalCost,
@@ -401,6 +396,8 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             totalCharactersUsed: progress.aggregateStats.totalCharactersUsed,
             currentTermsUsed: progress.currentChapter?.termsUsed || 0,
             currentCharactersUsed: progress.currentChapter?.charactersUsed || 0,
+            currentChunk: progress.currentChapter?.currentChunk || 0,
+            totalChunks: progress.currentChapter?.totalChunks || 0,
         },
         startBatchTranslate,
     };

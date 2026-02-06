@@ -105,11 +105,20 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
     }, [open]);
 
     const saveSettings = async () => {
-        await db.settings.put({ key: "apiKeyPrimary", value: currentSettings.apiKey });
-        await db.settings.put({ key: "aiModel", value: currentSettings.model });
-        if (isMounted.current) {
-            setSettingsOpen(false);
-            toast.success("Đã lưu cấu hình AI!");
+        try {
+            await db.settings.put({ key: "apiKeyPrimary", value: currentSettings.apiKey });
+            await db.settings.put({ key: "aiModel", value: currentSettings.model });
+
+            if (isMounted.current) {
+                toast.success("Đã lưu cấu hình AI!");
+                // Close dialog AFTER toast
+                setSettingsOpen(false);
+            }
+        } catch (error) {
+            console.error("[SAVE SETTINGS ERROR]", error);
+            if (isMounted.current) {
+                toast.error("Lỗi khi lưu cấu hình!");
+            }
         }
     };
 
@@ -246,52 +255,16 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                     Control AI reasoning depth - Higher = Smarter but slower & more expensive
                                 </p>
                             </div>
-                            <Select
+                            <select
                                 value={translateConfig.thinkingLevel}
-                                onValueChange={(val: "minimal" | "low" | "medium" | "high") => setTranslateConfig({ ...translateConfig, thinkingLevel: val })}
+                                onChange={(e) => setTranslateConfig({ ...translateConfig, thinkingLevel: e.target.value as "minimal" | "low" | "medium" | "high" })}
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                             >
-                                <SelectTrigger className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="minimal">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono text-xs">⚡</span>
-                                            <div>
-                                                <div className="font-semibold">Minimal</div>
-                                                <div className="text-xs text-muted-foreground">Fastest, Cheapest (~$0.0035/chapter)</div>
-                                            </div>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="low">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono text-xs">🔹</span>
-                                            <div>
-                                                <div className="font-semibold">Low</div>
-                                                <div className="text-xs text-muted-foreground">Simple tasks (~$0.0040/chapter)</div>
-                                            </div>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="medium">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono text-xs">⭐</span>
-                                            <div>
-                                                <div className="font-semibold">Medium (Recommended)</div>
-                                                <div className="text-xs text-muted-foreground">Balanced quality/cost (~$0.0050/chapter)</div>
-                                            </div>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="high">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono text-xs">🔥</span>
-                                            <div>
-                                                <div className="font-semibold">High</div>
-                                                <div className="text-xs text-muted-foreground">Complex reasoning (~$0.0070/chapter)</div>
-                                            </div>
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                                <option value="minimal">⚡ Minimal - Fastest, Cheapest (~$0.0035/chapter)</option>
+                                <option value="low">🔹 Low - Simple tasks (~$0.0040/chapter)</option>
+                                <option value="medium">⭐ Medium (Recommended) - Balanced (~$0.0050/chapter)</option>
+                                <option value="high">🔥 High - Complex reasoning (~$0.0070/chapter)</option>
+                            </select>
                         </div>
                     ) : (
                         // Gemini 2.5: Thinking Toggle

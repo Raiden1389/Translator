@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { ChapterCard } from "./ChapterCard";
 import { FileUp } from "lucide-react";
 import { db, type Chapter } from "@/lib/db";
+import { type AiQueueState } from "@/lib/services/ai-queue";
 import { Button } from "@/components/ui/button";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -21,6 +22,7 @@ import { AlertTriangle } from "lucide-react";
 interface ChapterCardGridProps {
     chapters: Chapter[];
     selectedChapters: number[];
+    queueState: AiQueueState; // Not used in grid view, but required for consistency
     onSelect: (id: number, shiftKey?: boolean) => void;
     onRead: (id: number) => void;
     onInspect: (id: number) => void;
@@ -29,7 +31,7 @@ interface ChapterCardGridProps {
     lastReadChapterId?: number;
 }
 
-export function ChapterCardGrid({
+export const ChapterCardGrid = React.memo(function ChapterCardGrid({
     chapters,
     selectedChapters,
     onSelect,
@@ -162,4 +164,6 @@ export function ChapterCardGrid({
             </AlertDialog>
         </div>
     );
-}
+});
+
+ChapterCardGrid.displayName = "ChapterCardGrid";
