@@ -51,6 +51,13 @@ interface TranslationProgressOverlayProps {
         currentCharactersUsed?: number; // Characters used in current chapter
         currentChunk?: number;          // Current chunk being processed (1-indexed)
         totalChunks?: number;           // Total chunks in current chapter
+        chapterStats?: Array<{          // Per-chapter dictionary usage breakdown
+            chapterId: number;
+            order: number;
+            title: string;
+            termsUsed: number;
+            charactersUsed: number;
+        }>;
     };
 }
 
@@ -87,6 +94,7 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
         currentCharactersUsed = 0,
         currentChunk = 0,
         totalChunks = 0,
+        chapterStats = [],
     } = progress;
     const logContainerRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true); // Track if user is at bottom
@@ -100,6 +108,7 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [eta, setEta] = useState("Calculating...");
     const [showStats, setShowStats] = useState(false);
+    const [showDictBreakdown, setShowDictBreakdown] = useState(false); // NEW: Dictionary breakdown toggle
     const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(new Set());
 
     // Get latest non-dismissed notification
@@ -124,13 +133,19 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     const nextStepLimit = total > 0 ? Math.round(((current + 1) / total) * 100) : 100;
 
     // Calculate speed (chapters/min)
-    const speed = startTime && elapsedSeconds > 0
+    const speed = elapsedSeconds > 0 && current > 0
         ? (current / (elapsedSeconds / 60))
         : 0;
 
     // 1. Progress Synced & Reset Logic (Stable)
     useEffect(() => {
-        if (!isTranslating) return;
+        if (!isTranslating) {
+            // Force 100% when finished
+            if (current >= total && total > 0) {
+                requestAnimationFrame(() => setDisplayPercent(100));
+            }
+            return;
+        }
 
         if (current === 0) {
             requestAnimationFrame(() => {
@@ -171,10 +186,18 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
         }
     }, [basePercent, isTranslating, current, total, elapsedSeconds]);
 
-    // 2. Stable Timer
+    // 2. Stable Timer - FIX: Don't reset when finished, keep final time for speed calculation
+    const prevTranslatingRef = useRef(isTranslating);
+
     useEffect(() => {
-        if (!isTranslating) {
+        // Reset timer only when starting NEW translation (false → true transition)
+        if (isTranslating && !prevTranslatingRef.current) {
             requestAnimationFrame(() => setElapsedSeconds(0));
+        }
+        prevTranslatingRef.current = isTranslating;
+
+        if (!isTranslating) {
+            // Keep elapsed time - don't reset
             return;
         }
 
@@ -405,13 +428,20 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                             <div className="text-sm font-bold">{speed.toFixed(1)} ch/min</div>
                         </div>
 
-                        {/* Dictionary Usage Section */}
+                        {/* Dictionary Usage Section - Clickable Breakdown */}
                         {(totalTermsUsed > 0 || totalCharactersUsed > 0) && (
                             <>
                                 <div className="col-span-2 border-t border-border/40 pt-2 mt-1">
-                                    <div className="text-[9px] text-muted-foreground/80 uppercase tracking-wider mb-1.5 font-bold">
-                                        📖 Dictionary Usage
-                                    </div>
+                                    {/* Clickable Header */}
+                                    <button
+                                        onClick={() => setShowDictBreakdown(!showDictBreakdown)}
+                                        className="w-full text-left hover:bg-muted/20 -mx-1 px-1 py-0.5 rounded transition-colors"
+                                    >
+                                        <div className="text-[9px] text-muted-foreground/80 uppercase tracking-wider mb-1.5 font-bold flex items-center justify-between">
+                                            <span>📖 Dictionary Usage</span>
+                                            <span className="text-[10px]">{showDictBreakdown ? '▼' : '▶'}</span>
+                                        </div>
+                                    </button>
 
                                     {/* Current Chapter Stats */}
                                     {(currentTermsUsed > 0 || currentCharactersUsed > 0) && (
@@ -437,7 +467,7 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                                     )}
 
                                     {/* Total Batch Stats */}
-                                    <div className="flex gap-3 text-xs text-muted-foreground/80">
+                                    <div className="flex gap-3 text-xs text-muted-foreground/80 mb-2">
                                         {totalTermsUsed > 0 && (
                                             <span className="flex items-center gap-1">
                                                 <span>📚</span>
@@ -453,6 +483,39 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
                                             </span>
                                         )}
                                     </div>
+
+                                    {/* Per-Chapter Breakdown (Expandable) */}
+                                    {showDictBreakdown && chapterStats.length > 0 && (
+                                        <div className="mt-2 space-y-1 max-h-[120px] overflow-y-auto custom-scrollbar animate-in slide-in-from-top-2 fade-in">
+                                            {chapterStats.map((stat) => (
+                                                <div
+                                                    key={stat.chapterId}
+                                                    className="flex items-center justify-between p-1.5 bg-muted/10 rounded text-[10px] hover:bg-muted/20 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                        <span className="bg-muted px-1 rounded text-muted-foreground shrink-0 tabular-nums font-mono">
+                                                            CH {stat.order}
+                                                        </span>
+                                                        <span className="truncate text-foreground/70">{stat.title}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        {stat.termsUsed > 0 && (
+                                                            <span className="flex items-center gap-0.5 text-blue-500">
+                                                                <span>📚</span>
+                                                                <span className="font-bold tabular-nums">{stat.termsUsed}</span>
+                                                            </span>
+                                                        )}
+                                                        {stat.charactersUsed > 0 && (
+                                                            <span className="flex items-center gap-0.5 text-purple-500">
+                                                                <span>👤</span>
+                                                                <span className="font-bold tabular-nums">{stat.charactersUsed}</span>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         )}

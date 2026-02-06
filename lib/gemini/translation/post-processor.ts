@@ -21,9 +21,27 @@ export async function applyPostProcessing(
     workspaceId: string,
     relevantDict: DictionaryEntry[]
 ): Promise<TranslationResult> {
-    // 🔥 VALIDATION: Nếu Title còn chữ Hán thì báo lỗi
+    // 🔥 AUTO-FIX: Nếu Title còn chữ Hán → Tự động fix bằng translateTitleOnly
     if (parsed.translatedTitle && /[\u4e00-\u9fff]/.test(parsed.translatedTitle)) {
-        throw new Error("CẢNH BÁO: Phát hiện chữ Hán trong Tiêu đề! Gemini đang trả về dữ liệu rác.");
+        console.warn(`⚠️ [POST-PROCESSOR] Title contains Chinese characters: "${parsed.translatedTitle}" - Auto-fixing...`);
+
+        try {
+            const { translateTitleOnly } = await import("../titleFixer");
+            const fixedTitle = await translateTitleOnly(parsed.translatedTitle);
+
+            // Verify fixed title doesn't have Chinese
+            if (fixedTitle && !/[\u4e00-\u9fff]/.test(fixedTitle)) {
+                parsed.translatedTitle = fixedTitle;
+                console.log(`✅ [POST-PROCESSOR] Title auto-fixed: "${fixedTitle}"`);
+            } else {
+                // If still has Chinese after fix, use fallback
+                console.error(`❌ [POST-PROCESSOR] Title fix failed, using fallback`);
+                parsed.translatedTitle = "Chương: (Tiêu đề chưa dịch)";
+            }
+        } catch (error) {
+            console.error(`❌ [POST-PROCESSOR] Title fix error:`, error);
+            parsed.translatedTitle = "Chương: (Tiêu đề chưa dịch)";
+        }
     }
 
     // Apply Auto-Corrections (Universal Logic: NFC + LongestFirst + CasePreserve)

@@ -1,0 +1,43 @@
+# Antigravity Indexing Ignore
+# Exclude heavy build artifacts and dependencies to reduce RAM usage by 30-50%
+
+# Build outputs (CRITICAL - largest RAM consumers)
+.next/
+out/
+build/
+dist/
+target/
+src-tauri/target/
+
+# Dependencies
+node_modules/
+.pnp/
+.yarn/
+
+# Cache & temp files
+.cache/
+.tmp/
+*.tsbuildinfo
+coverage/
+
+# Version control
+.git/
+
+# IDE & tools
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project metadata (already indexed elsewhere)
+.brain/
+.agent/
+.claude/
+.knowns/
+
+# Logs
+*.log
+.pnpm-debug.log*
+
+# Environment files
+.env*

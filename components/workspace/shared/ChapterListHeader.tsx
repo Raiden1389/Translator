@@ -315,7 +315,7 @@ export function ChapterListHeader({
                                     <Eraser className={cn("h-4 w-4 group-hover:scale-110 transition-transform", processing && "animate-pulse")} />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-[10px] font-bold">Dọn Cache</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px] font-bold">Dọn HTML rác</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>

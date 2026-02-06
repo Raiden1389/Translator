@@ -29,6 +29,7 @@ import { useAiQueueStats } from "../hooks/useAiQueueStatus";
 import { inspectChapter } from "@/lib/gemini";
 import { applyCorrectionRule } from "@/lib/gemini/text/correction";
 import { ReviewData, GlossaryCharacter, GlossaryTerm, TranslationSettings, InspectionIssue } from "@/lib/types"; // Kept ReviewData for prop type
+import { sanitizeExistingTranslations } from "@/lib/utils/db-sanitizer";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -311,6 +312,29 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         }
     };
 
+    const handleSanitizeDatabase = async () => {
+        toast.loading("🧹 Đang dọn dẹp HTML rác trong database...", { id: "sanitizing" });
+
+        try {
+            const cleanedCount = await sanitizeExistingTranslations(workspaceId);
+
+            if (cleanedCount > 0) {
+                toast.success(`✨ Đã làm sạch ${cleanedCount} chương!`, {
+                    id: "sanitizing",
+                    description: "HTML tags đã được loại bỏ khỏi bản dịch cũ"
+                });
+            } else {
+                toast.info("✅ Database đã sạch sẽ!", {
+                    id: "sanitizing",
+                    description: "Không tìm thấy HTML rác nào"
+                });
+            }
+        } catch (error) {
+            console.error("Sanitize error:", error);
+            toast.error("❌ Lỗi khi dọn dẹp database", { id: "sanitizing" });
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -368,7 +392,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onReadContinue={(id) => setReadingChapterId(id)}
                 onHistoryOpen={() => setHistoryOpen(true)}
                 onApplyCorrections={() => toast.info("Tính năng đang phát triển")}
-                onClearCache={() => toast.info("Cache được tối ưu tự động")}
+                onClearCache={handleSanitizeDatabase}
                 onFixTitles={() => toast.info("Tính năng đang phát triển")}
             />
 

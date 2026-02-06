@@ -11,6 +11,7 @@ import {
 } from "@/lib/gemini";
 import { aiQueue } from "@/lib/services/ai-queue";
 import type { Chapter } from "@/lib/db";
+import { cleanHtmlContent, sanitizeTranslatedContent } from "@/lib/utils/text-sanitizer";
 
 // Import new hooks
 import { useTranslationQueue } from "./useTranslationQueue";
@@ -62,6 +63,13 @@ interface TranslationContextType {
         totalCharactersUsed?: number;
         currentTermsUsed?: number;
         currentCharactersUsed?: number;
+        chapterStats?: Array<{
+            chapterId: number;
+            order: number;
+            title: string;
+            termsUsed: number;
+            charactersUsed: number;
+        }>;
     };
 
     // Actions
@@ -208,7 +216,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     finalPrompt += "\n\n[QUAN TRỌNG] Văn bản gốc có thói quen ngắt dòng bằng dấu phẩy. Mày hãy tự động sửa lại hệ thống dấu câu sao cho đúng chuẩn văn học Việt Nam.";
                 }
 
-                const content_original = chapter.content_original || "";
+                // 🛡️ LAYER 1 (PRE): Clean HTML from original content BEFORE sending to AI
+                // This saves tokens and prevents AI from being confused by HTML tags
+                const content_original = cleanHtmlContent(chapter.content_original || "");
                 const startTime = Date.now();
 
                 // DEBUG: Log chunking config
@@ -298,11 +308,16 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     finalTitle = originalTitle;
                 }
 
+                // 🛡️ LAYER 2 (POST): Sanitize translated content from AI
+                // This is the final defense layer to ensure NO HTML tags remain
+                const cleanTranslatedText = sanitizeTranslatedContent(result.translatedText);
+                const cleanTranslatedTitle = sanitizeTranslatedContent(finalTitle);
+
                 // SAVE TO DB
                 await db.chapters.update(chapter.id!, {
-                    content_translated: result.translatedText,
-                    title_translated: finalTitle,
-                    wordCountTranslated: result.translatedText.trim().split(/\s+/).length,
+                    content_translated: cleanTranslatedText,
+                    title_translated: cleanTranslatedTitle,
+                    wordCountTranslated: cleanTranslatedText.trim().split(/\s+/).length,
                     status: 'translated',
                     lastTranslatedAt: new Date(),
                     translationModel: currentSettings.model,
@@ -398,6 +413,16 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             currentCharactersUsed: progress.currentChapter?.charactersUsed || 0,
             currentChunk: progress.currentChapter?.currentChunk || 0,
             totalChunks: progress.currentChapter?.totalChunks || 0,
+            chapterStats: Array.from(progress.progress.values())
+                .filter(ch => ch.status === 'done' && (ch.termsUsed || ch.charactersUsed))
+                .map(ch => ({
+                    chapterId: ch.chapterId,
+                    order: ch.order,
+                    title: ch.title,
+                    termsUsed: ch.termsUsed || 0,
+                    charactersUsed: ch.charactersUsed || 0,
+                }))
+                .sort((a, b) => a.order - b.order),
         },
         startBatchTranslate,
     };

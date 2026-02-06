@@ -1,24 +1,13 @@
 import { useState, useRef } from "react";
 import { db, Chapter } from "@/lib/db";
 import { toast } from "sonner";
+import { cleanHtmlContent } from "@/lib/utils/text-sanitizer";
 
 export function useChapterImport(workspaceId: string, currentChaptersCount: number) {
     const [importing, setImporting] = useState(false);
     const [progress, setProgress] = useState(0);
     const [importStatus, setImportStatus] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const cleanHtmlContent = (html: string) => {
-        if (!html) return "";
-        return html
-            .replace(/<br\s*\/?>/gi, "\n") // Chuyển <br> thành xuống dòng
-            .replace(/<\/?[^>]+(>|$)/g, "") // Loại bỏ tất cả thẻ HTML khác
-            .replace(/&nbsp;/g, " ")
-            .replace(/&emsp;/g, " ")
-            .replace(/\u2003/g, " ") // Loại bỏ ký tự đặc biệt của Trung Quốc
-            .replace(/\n\s*\n/g, "\n\n") // Gom các dòng trống thừa
-            .trim();
-    };
 
     const processJsonChapters = async (data: any) => {
         let rawChapters = [];
