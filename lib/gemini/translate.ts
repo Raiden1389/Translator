@@ -9,6 +9,7 @@ import { buildGlossary } from "./translation/glossary-builder";
 import { parsePlainTextChapter } from "./translation/parser";
 import { applyPostProcessing } from "./translation/post-processor";
 import { calculateStats } from "./translation/stats-calculator";
+import { GeminiResponse } from "../schemas/gemini-response.schema";
 
 /**
  * Main Translation Function (Orchestrator)
@@ -102,7 +103,7 @@ export const translateChapter = async (
             async (maxTokens: number) => {
                 console.log(`📡 [PAYLOAD] Model: ${aiModel} | Content Size: ${text.length} chars | System Instruction Size: ${fullInstruction.length} chars | Dynamic maxTokens: ${maxTokens}`);
 
-                return await withKeyRotation<Record<string, unknown>>(
+                return await withKeyRotation<GeminiResponse>(
                     {
                         model: (aiModel as string).trim(),
                         systemInstruction: fullInstruction,
@@ -121,7 +122,7 @@ export const translateChapter = async (
                 );
             },
             (result) => {
-                const candidates = (result as { candidates?: Array<{ finishReason?: string }> }).candidates;
+                const candidates = (result as GeminiResponse).candidates;
                 return candidates?.[0]?.finishReason;
             },
             {
@@ -148,14 +149,9 @@ export const translateChapter = async (
         // Track retry for final message (don't toast immediately)
         const wasRetried = adaptiveResult.wasRetried;
 
-        // Track usage
+        // Track usage with validated response
         if (rawResult.usageMetadata) {
-            interface UsageMetadata {
-                thoughtsTokenCount?: number;
-                promptTokenCount?: number;
-                candidatesTokenCount?: number;
-            }
-            const metadata = rawResult.usageMetadata as UsageMetadata;
+            const metadata = rawResult.usageMetadata;
             const thinkingTokens = metadata.thoughtsTokenCount || 0;
             const inputTokens = metadata.promptTokenCount || 0;
             const outputTokens = metadata.candidatesTokenCount || 0;

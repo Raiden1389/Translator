@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { AI_MODELS } from "../ai-models";
+import { safeParseGeminiResponse, GeminiResponse } from "../schemas/gemini-response.schema";
 
 /**
  * Record API usage metadata to IndexedDB
@@ -60,8 +61,9 @@ import { invoke } from "@tauri-apps/api/core";
 
 /**
  * Execute a Gemini request using the NATIVE bridge (Key stays in Rust)
+ * Now with Zod validation for runtime type safety
  */
-export async function withKeyRotation<T>(
+export async function withKeyRotation<T = GeminiResponse>(
     params: {
         model: string,
         systemInstruction?: string,
@@ -124,6 +126,8 @@ export async function withKeyRotation<T>(
                 }
             }
 
+            let rawResponse: unknown;
+
             if (isTauri) {
                 // TAURI NATIVE REQUEST
                 const responseText = await invoke<string>("native_gemini_request", {
@@ -132,16 +136,7 @@ export async function withKeyRotation<T>(
                     apiKey: key
                 });
 
-                const parsed = JSON.parse(responseText);
-                if (parsed.error) {
-                    const msg = parsed.error.message || "Gemini API Error (Native)";
-                    // Don't log error here if we have more keys to try
-                    if (i === keyQueue.length - 1) {
-                        if (onLog) onLog(`Lỗi: ${msg}`);
-                    }
-                    throw new Error(msg);
-                }
-                return parsed as T;
+                rawResponse = JSON.parse(responseText);
             } else {
                 // BROWSER DIRECT REQUEST (FALLBACK)
                 if (!key) {
@@ -160,12 +155,33 @@ export async function withKeyRotation<T>(
                     throw new Error(errData.error?.message || res.statusText);
                 }
 
-                const data = await res.json();
-                return data as T;
+                rawResponse = await res.json();
             }
 
+            // ✅ Validate response with Zod
+            const validationResult = safeParseGeminiResponse(rawResponse);
+
+            if (!validationResult.success) {
+                console.error("[Gemini API] Response validation failed:", validationResult.error);
+                throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
+            }
+
+            const validated = validationResult.data;
+
+            // Check for API errors
+            if (validated.error) {
+                const msg = validated.error.message || "Gemini API Error";
+                // Don't log error here if we have more keys to try
+                if (i === keyQueue.length - 1) {
+                    if (onLog) onLog(`Lỗi: ${msg}`);
+                }
+                throw new Error(msg);
+            }
+
+            return validated as T;
+
         } catch (error: unknown) {
-            const errMatch = error as Error;
+            const errMatch = error instanceof Error ? error : new Error(String(error));
             lastError = errMatch;
             // Silent retry for intermediate keys, only log if it's the last attempt or critical
             if (i < keyQueue.length - 1) {
@@ -178,3 +194,4 @@ export async function withKeyRotation<T>(
     }
     throw lastError;
 }
+
