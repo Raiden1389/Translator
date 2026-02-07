@@ -106,17 +106,29 @@ YÊU CẦU: Trả về JSON mảng: [{"original": "...", "type": "character | sk
                 const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
                 const jsonStr = jsonMatch ? jsonMatch[0] : cleanText;
 
+                let rawData: unknown;
                 try {
-                    refined = JSON.parse(jsonStr);
+                    rawData = JSON.parse(jsonStr);
                 } catch (parseErr: unknown) {
                     const lastBrace = jsonStr.lastIndexOf('}');
                     if (lastBrace !== -1) {
                         const repaired = jsonStr.substring(0, lastBrace + 1) + "]";
-                        refined = JSON.parse(repaired);
+                        rawData = JSON.parse(repaired);
                     } else {
                         throw parseErr;
                     }
                 }
+
+                // ✅ Validate with Zod after repair
+                const { safeParseHeuristicRefinerResponse } = await import('../../schemas/ai-services.schema');
+                const validationResult = safeParseHeuristicRefinerResponse(rawData);
+
+                if (!validationResult.success) {
+                    console.error('[Heuristic Refiner] Validation failed:', validationResult.error);
+                    throw new Error(`AI response invalid: ${validationResult.error}`);
+                }
+
+                refined = validationResult.data as { original: string, type: string }[];
             } catch {
                 if (onLog) onLog(`⚠️ Đợt ${i + 1} phản hồi lỗi định dạng, đang bỏ qua...`);
                 continue;

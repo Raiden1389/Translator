@@ -1,4 +1,5 @@
 import { withKeyRotation, recordUsage } from '../gemini/client';
+import { safeParseNERResponse } from '../schemas/ai-services.schema';
 
 /**
  * AI NER Service - Named Entity Recognition using Gemini API
@@ -121,7 +122,17 @@ Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text kh�
                 continue; // Skip this chunk, continue with next
             }
 
-            const entities: ExtractedEntity[] = JSON.parse(jsonMatch[0]);
+            // ✅ Validate with Zod
+            const rawData = JSON.parse(jsonMatch[0]);
+            const validationResult = safeParseNERResponse(rawData);
+
+            if (!validationResult.success) {
+                console.error(`Chunk ${i + 1}: AI response validation failed:`, validationResult.error);
+                onProgress?.(`⚠️ Chunk ${i + 1}: AI trả về format sai, bỏ qua...`);
+                continue;
+            }
+
+            const entities = validationResult.data as ExtractedEntity[];
 
             // Filter by allowed types
             const filtered = entities.filter(e =>
