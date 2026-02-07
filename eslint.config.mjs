@@ -12,7 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Tauri build artifacts (binary files causing parsing errors)
+    "src-tauri/target/**",
+    // TypeScript build info
+    "*.tsbuildinfo",
   ]),
+  // Allow require() in CommonJS config files
+  {
+    files: ["tailwind.config.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

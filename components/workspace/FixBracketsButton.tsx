@@ -18,8 +18,9 @@ export function FixBracketsButton({ workspaceId }: { workspaceId: string }) {
         try {
             const result = await fixAllBrackets(workspaceId);
             toast.success(`Đã sửa ${result.fixed}/${result.total} chương!`);
-        } catch (error: any) {
-            toast.error("Lỗi: " + error.message);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Lỗi không xác định";
+            toast.error("Lỗi: " + errorMessage);
         } finally {
             setIsFixing(false);
         }

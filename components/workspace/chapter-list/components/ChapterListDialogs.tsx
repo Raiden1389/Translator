@@ -8,6 +8,17 @@ import { ReviewDialog } from "../../shared/ReviewDialog";
 import type { Chapter } from "@/lib/db";
 import type { GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
 import type { EntityType } from "../../ScanConfigDialog";
+import type { InspectionIssue } from "@/lib/types";
+
+interface TranslateConfig {
+  customPrompt: string;
+  autoExtract: boolean;
+  maxConcurrency: number;
+  fixPunctuation?: boolean;
+  enableChunking: boolean;
+  maxConcurrentChunks: number;
+  chunkSize?: number;
+}
 
 interface ChapterListDialogsProps {
   // TranslateConfig
@@ -19,7 +30,7 @@ interface ChapterListDialogsProps {
     chapters: Chapter[];
     selectedChapters: number[];
     currentSettings: TranslationSettings;
-    translateConfig: any;
+    translateConfig: TranslateConfig;
     onReviewNeeded: (chars: GlossaryCharacter[], terms: GlossaryTerm[]) => void;
   }) => void;
   workspaceId: string;
@@ -29,7 +40,7 @@ interface ChapterListDialogsProps {
   // Inspection
   isInspectOpen: boolean;
   setIsInspectOpen: (open: boolean) => void;
-  inspectingChapter: { id: number; title: string; inspectionResults?: any[] } | null;
+  inspectingChapter: { id: number; title: string; inspectionResults?: InspectionIssue[] } | null;
 
   // Reader
   readingChapterId: number | null;
@@ -51,9 +62,9 @@ interface ChapterListDialogsProps {
   // Review
   isReviewOpen: boolean;
   setIsReviewOpen: (open: boolean) => void;
-  pendingCharacters: any[];
-  pendingTerms: any[];
-  handleConfirmSaveAI: (saveChars: any[], saveTerms: any[], blacklistChars?: any[], blacklistTerms?: any[]) => Promise<void>;
+  pendingCharacters: GlossaryCharacter[];
+  pendingTerms: GlossaryTerm[];
+  handleConfirmSaveAI: (saveChars: GlossaryCharacter[], saveTerms: GlossaryTerm[], blacklistChars?: GlossaryCharacter[], blacklistTerms?: GlossaryTerm[]) => Promise<void>;
 }
 
 export function ChapterListDialogs({

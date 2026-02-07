@@ -79,8 +79,9 @@ export function usePromptActions(props: UsePromptActionsProps) {
       setPromptB(promptB);
       toast.success("Đã tạo xong 2 variants!");
       return true;
-    } catch (e: any) {
-      toast.error("Lỗi: " + e.message);
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      toast.error("Lỗi: " + errorMessage);
       return false;
     }
   };
@@ -101,8 +102,9 @@ export function usePromptActions(props: UsePromptActionsProps) {
       });
       await handleGeneratePrompts();
       return true;
-    } catch (e: any) {
-      toast.error("Lỗi: " + e.message);
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      toast.error("Lỗi: " + errorMessage);
       return false;
     }
   };
@@ -146,8 +148,9 @@ export function usePromptActions(props: UsePromptActionsProps) {
       setReason(evalResult.reason);
 
       return true;
-    } catch (e: any) {
-      toast.error("Lỗi khi chạy Test: " + e.message);
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      toast.error("Lỗi khi chạy Test: " + errorMessage);
       return false;
     }
   };

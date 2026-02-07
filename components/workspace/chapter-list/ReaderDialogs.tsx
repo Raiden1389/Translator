@@ -73,7 +73,7 @@ export function ReaderDialogs({
                                 ].map((t) => (
                                     <button
                                         key={t.value}
-                                        onClick={() => setCorrectionType(t.value as any)}
+                                        onClick={() => setCorrectionType(t.value as 'replace' | 'wrap' | 'regex')}
                                         className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all ${correctionType === t.value ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                     >
                                         {t.label}

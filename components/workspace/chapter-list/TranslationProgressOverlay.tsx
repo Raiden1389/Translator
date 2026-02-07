@@ -33,8 +33,6 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     chapterStats = [],
   } = progress;
 
-  console.log('[OVERLAY DEBUG]', { current, total, chunksProcessed, currentTitle });
-
   const [showStats, setShowStats] = useState(false);
 
   // Custom hooks

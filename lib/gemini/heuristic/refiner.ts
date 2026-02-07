@@ -143,7 +143,7 @@ YÊU CẦU: Trả về JSON mảng: [{"original": "...", "type": "character | sk
 
                     await db.heuristicTerms.update(existing.id!, {
                         translated: localTranslated,
-                        type: finalType as any,
+                        type: finalType as 'skill' | 'character' | 'location' | 'title' | 'unknown',
                         confidence: 99,
                         updatedAt: new Date()
                     });

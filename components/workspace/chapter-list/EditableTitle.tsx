@@ -82,33 +82,24 @@ export function EditableTitle({ id, title_translated, isRaidenMode, onRead }: Ed
   }
 
   return (
-    <div className="flex items-center gap-2 w-full group">
-      <button
-        onClick={onRead}
-        className={cn(
-          "flex-1 truncate italic text-sm font-medium text-left",
-          isRaidenMode ? "text-slate-400 hover:text-purple-300" : "text-slate-600 hover:text-blue-600"
-        )}
-      >
-        {(title_translated || "—").replace(/<br\s*\/?>/gi, " ")}
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation(); // Prevent opening Reader Modal
+    <button
+      onClick={(e) => {
+        // Shift+Click or Ctrl+Click to edit
+        if (e.shiftKey || e.ctrlKey) {
+          e.stopPropagation();
           setIsEditing(true);
-        }}
-        className={cn(
-          "opacity-0 group-hover:opacity-100 transition-opacity",
-          "p-1 rounded hover:bg-muted/50",
-          "text-muted-foreground hover:text-foreground"
-        )}
-        title="Sửa tiêu đề"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-          <path d="m15 5 4 4" />
-        </svg>
-      </button>
-    </div>
+        } else {
+          // Normal click opens Reader Modal
+          onRead(e);
+        }
+      }}
+      className={cn(
+        "w-full truncate italic text-sm font-medium text-left",
+        isRaidenMode ? "text-slate-400 hover:text-purple-300" : "text-slate-600 hover:text-blue-600"
+      )}
+      title="Click để đọc, Shift+Click hoặc Ctrl+Click để sửa"
+    >
+      {(title_translated || "—").replace(/<br\s*\/?>/gi, " ")}
+    </button>
   );
 }

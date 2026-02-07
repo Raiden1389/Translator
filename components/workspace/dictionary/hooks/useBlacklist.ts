@@ -101,9 +101,10 @@ export function useBlacklist(workspaceId: string) {
                 }
             }
             toast.success(`Đã cập nhật nghĩa cho ${missingMeanings.length} mục trong Blacklist.`);
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            if (error.message?.includes('network')) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('network')) {
                 toast.error("Lỗi mạng. Kiểm tra kết nối.");
             } else {
                 toast.error("Lỗi khi dịch Blacklist");

@@ -76,8 +76,12 @@ export function AISettingsTab() {
             if (!mountedRef.current) return
 
             if (data.models) {
-                const models = data.models
-                    .map((m: any) => {
+                interface GeminiModel {
+                    name: string;
+                    [key: string]: unknown;
+                }
+                const models = (data.models as GeminiModel[])
+                    .map((m) => {
                         const id = m.name.replace("models/", "")
                         return { value: id, label: id }
                     })
@@ -126,16 +130,17 @@ export function AISettingsTab() {
                 const result = { key, status: 'valid' as const, ms }
                 setKeyStatuses(prev => prev.map(s => s.key === key ? result : s))
                 return result
-            } catch (e: any) {
+            } catch (e) {
                 console.warn("Key Check Failed:", e)
-                let errorMsg = e.message || e.toString()
+                let errorMsg = e instanceof Error ? e.message : String(e)
+                const errorWithStatus = e as { status?: number; statusText?: string; message?: string }
 
-                if (e.status === 429 || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED")) {
+                if (errorWithStatus.status === 429 || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED")) {
                     errorMsg = "Hết hạn mức (Quota Exceeded)"
                 } else if (errorMsg.includes("API key expired")) {
                     errorMsg = "Key đã hết hạn"
-                } else if (e.status) {
-                    errorMsg = `${e.status} - ${e.statusText || errorMsg}`
+                } else if (errorWithStatus.status) {
+                    errorMsg = `${errorWithStatus.status} - ${errorWithStatus.statusText || errorMsg}`
                 }
 
                 if (!mountedRef.current || stopCheckingRef.current) return

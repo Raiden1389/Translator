@@ -266,7 +266,7 @@ export class StorageBridge {
     }
 
     inTauri() {
-        if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) return true;
+        if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) return true;
         return false;
     }
 }

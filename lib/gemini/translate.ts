@@ -150,7 +150,12 @@ export const translateChapter = async (
 
         // Track usage
         if (rawResult.usageMetadata) {
-            const metadata = rawResult.usageMetadata as any;
+            interface UsageMetadata {
+                thoughtsTokenCount?: number;
+                promptTokenCount?: number;
+                candidatesTokenCount?: number;
+            }
+            const metadata = rawResult.usageMetadata as UsageMetadata;
             const thinkingTokens = metadata.thoughtsTokenCount || 0;
             const inputTokens = metadata.promptTokenCount || 0;
             const outputTokens = metadata.candidatesTokenCount || 0;

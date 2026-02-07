@@ -6,6 +6,7 @@ import { InspectionIssue } from "@/lib/types";
 import { useReaderTTS } from "../hooks/useReaderTTS";
 import { useReaderInspection } from "../hooks/useReaderInspection";
 import { useReaderSelection } from "../hooks/useReaderSelection";
+import { Chapter } from "@/lib/db";
 
 interface ReaderContextValue {
     // Config
@@ -46,7 +47,7 @@ interface ReaderContextValue {
     clearSelection: () => void;
 
     // Chapter data
-    chapter: any;
+    chapter: Chapter;
     chapterId: number;
 }
 
@@ -63,7 +64,7 @@ export function useReaderContext() {
 interface ReaderProviderProps {
     children: ReactNode;
     chapterId: number;
-    chapter: any;
+    chapter: Chapter;
 }
 
 export function ReaderProvider({ children, chapterId, chapter }: ReaderProviderProps) {
@@ -72,7 +73,7 @@ export function ReaderProvider({ children, chapterId, chapter }: ReaderProviderP
     const inspection = useReaderInspection(chapterId, chapter);
     const tts = useReaderTTS(
         chapterId,
-        chapter?.content_translated,
+        chapter?.content_translated || "",
         config.readerConfig
     );
 

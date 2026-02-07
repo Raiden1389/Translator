@@ -5,7 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 
 export function TitleBar() {
-    const [appWindow, setAppWindow] = useState<any>(null);
+    const [appWindow, setAppWindow] = useState<ReturnType<typeof getCurrentWindow> | null>(null);
 
     useEffect(() => {
         try {

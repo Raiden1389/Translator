@@ -220,8 +220,18 @@ function getTechnicalCause(reason: string, type: string): string[] {
 /**
  * Helper: Get impact assessment
  */
-function getImpactAssessment(reason: string, type: string) {
-    const impacts: Record<string, any> = {
+function getImpactAssessment(reason: string, type: string): {
+    precision: string;
+    recall: string;
+    performance: string;
+    risk: string;
+} {
+    const impacts: Record<string, {
+        precision: string;
+        recall: string;
+        performance: string;
+        risk: string;
+    }> = {
         NO_ANCHOR: {
             precision: '-10~15%',
             recall: '+30~40%',
@@ -284,7 +294,12 @@ function getConceptualFix(reason: string, type: string): string[] {
 /**
  * Helper: Get recommendation
  */
-function getRecommendation(classification: string, impact: any): string {
+function getRecommendation(classification: string, impact: {
+    precision: string;
+    recall: string;
+    performance: string;
+    risk: string;
+}): string {
     if (classification === 'INTENTIONAL') return 'Không cần sửa - Đúng thiết kế';
     if (classification === 'DANGEROUS') return 'KHÔNG NÊN sửa - Rủi ro cao';
     if (impact.risk === 'High') return 'QUESTIONABLE - Cần test kỹ trước khi apply';

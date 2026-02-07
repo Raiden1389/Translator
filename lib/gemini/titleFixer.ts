@@ -5,6 +5,17 @@ import { SyllableRepository } from "../repositories/syllable-repo";
 import { VietPhraseRepository } from "../repositories/viet-phrase-repo";
 import { extractResponseText, scrubAIChatter } from "./contentProcessor";
 
+interface GeminiResponse {
+    candidates?: Array<{
+        content?: {
+            parts?: Array<{ text?: string }>;
+        };
+    }>;
+    error?: {
+        message?: string;
+    };
+}
+
 /**
  * Detect if a title contains Chinese characters
  * Uses a broad range of CJK characters for maximum safety
@@ -69,7 +80,7 @@ QUY TẮC:
 VÍ DỤ ĐÚNG: "Chương 2: Thuận Thế"`;
 
     try {
-        const result = (await withKeyRotation<any>(
+        const result = await withKeyRotation<GeminiResponse>(
             {
                 model: aiModel.trim(),
                 prompt,
@@ -79,7 +90,7 @@ VÍ DỤ ĐÚNG: "Chương 2: Thuận Thế"`;
                 }
             },
             (msg: string) => console.log(`[Title Fixer] ${msg}`)
-        ));
+        );
 
         let text = extractResponseText(result);
         text = scrubAIChatter(text).trim().replace(/^"|"$/g, '');
@@ -143,8 +154,9 @@ export async function fixAllTitles(
 
             // Minimal throttle
             await new Promise(r => setTimeout(r, 50));
-        } catch (error: any) {
-            stats.errors.push(`Chương ${chapter.order}: ${error.message || 'Lỗi không xác định'}`);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+            stats.errors.push(`Chương ${chapter.order}: ${errorMessage}`);
             stats.skipped++;
         }
     }

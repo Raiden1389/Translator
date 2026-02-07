@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { extractGlossary, categorizeTerms } from "@/lib/gemini";
-import { db } from "@/lib/db";
+import { db, Chapter, DictionaryEntry } from "@/lib/db";
 import { toast } from "sonner";
 import { GlossaryCharacter, GlossaryTerm, GlossaryResult } from "@/lib/types";
 
@@ -11,7 +11,7 @@ export function useDictionaryAI(workspaceId: string) {
     const [pendingTerms, setPendingTerms] = useState<GlossaryTerm[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
 
-    const handleAIExtract = useCallback(async (source: "latest" | "current" | "select", dictionary: any[]) => {
+    const handleAIExtract = useCallback(async (source: "latest" | "current" | "select", dictionary: DictionaryEntry[]) => {
         if (!workspaceId) return;
         setIsExtracting(true);
         try {
@@ -22,7 +22,7 @@ export function useDictionaryAI(workspaceId: string) {
                 return;
             }
 
-            let targetChapter: any;
+            let targetChapter: Chapter | undefined;
             if (source === "latest") {
                 chapters.sort((a, b) => b.order - a.order);
                 targetChapter = chapters[0];
@@ -66,15 +66,16 @@ export function useDictionaryAI(workspaceId: string) {
             } else {
                 toast.info("AI không trả về kết quả nào.");
             }
-        } catch (e: any) {
+        } catch (e) {
             console.error("Extraction error", e);
+            const errorMessage = e instanceof Error ? e.message : String(e);
             // Better error handling
-            if (e.message?.includes('network')) {
+            if (errorMessage.includes('network')) {
                 toast.error("Lỗi mạng. Kiểm tra kết nối internet.");
-            } else if (e.message?.includes('quota')) {
+            } else if (errorMessage.includes('quota')) {
                 toast.error("Hết quota API. Đợi hoặc đổi API key.");
             } else {
-                toast.error(`Lỗi: ${e.message || 'Unknown error'}`);
+                toast.error(`Lỗi: ${errorMessage}`);
             }
         } finally {
             setIsExtracting(false);
@@ -106,13 +107,15 @@ export function useDictionaryAI(workspaceId: string) {
                         });
                         await db.dictionary.where({ original: res.original, workspaceId }).delete();
                     } else {
-                        await db.dictionary.where({ original: res.original, workspaceId }).modify({ type: res.category as any });
+                        const validType = res.category as DictionaryEntry['type'];
+                        await db.dictionary.where({ original: res.original, workspaceId }).modify({ type: validType });
                     }
                 }
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            if (error.message?.includes('network')) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('network')) {
                 toast.error("Lỗi mạng. Kiểm tra kết nối.");
             } else {
                 toast.error("Lỗi AI phân loại");

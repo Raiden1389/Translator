@@ -21,7 +21,7 @@ export function resolveEntity(input: {
     text: string;
     frequency: number;
     patternMatched: boolean;
-    semanticFlags: any;
+    semanticFlags: Record<string, boolean>;
 }): ResolverResult {
 
     if (!input.patternMatched) {

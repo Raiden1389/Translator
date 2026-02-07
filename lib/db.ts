@@ -158,7 +158,7 @@ export interface HeuristicTerm {
     isApproved: boolean;
     isGarbage?: boolean; // Added: Skip these terms in future scans
     occurrences: number;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -343,7 +343,7 @@ db.dictionary.hook('updating', (_mods, _prim, obj) => markDictionaryDirty(obj.wo
 db.dictionary.hook('deleting', (_prim, obj) => markDictionaryDirty(obj.workspaceId));
 
 export const rehydrateFromStorage = async () => {
-    if (typeof window === 'undefined' || !(window as any).__TAURI__) {
+    if (typeof window === 'undefined' || !(window as { __TAURI__?: unknown }).__TAURI__) {
         return;
     }
 

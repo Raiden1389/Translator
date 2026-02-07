@@ -60,7 +60,8 @@ export function useExport({ workspace, chapters }: UseExportParams) {
         try {
             const folders = await gdrive.listFolders();
             setDriveFolders(folders);
-        } catch (error: any) {
+        } catch (error) {
+            console.error("Error loading folders:", error);
             toast.error("Lỗi khi tải thư mục Drive.");
         }
     };
@@ -78,8 +79,9 @@ export function useExport({ workspace, chapters }: UseExportParams) {
         try {
             await gdrive.connect();
             toast.success("Kết nối thành công!");
-        } catch (error: any) {
-            toast.error(error.message || "Lỗi kết nối");
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Lỗi kết nối";
+            toast.error(errorMessage);
         }
     };
 
@@ -98,7 +100,10 @@ export function useExport({ workspace, chapters }: UseExportParams) {
         }
         try {
             await db.settings.put({ key: "gdrive_token", value: token });
-            (gdrive as any).accessToken = token;
+            // Directly set the access token on the gdrive instance
+            if ('accessToken' in gdrive) {
+                (gdrive as { accessToken: string | null }).accessToken = token;
+            }
             const userInfo = await gdrive.getUserInfo(token);
             await db.settings.put({ key: "gdrive_user", value: userInfo });
             toast.success("Đã lưu token!");
@@ -157,8 +162,9 @@ export function useExport({ workspace, chapters }: UseExportParams) {
             } else {
                 toast.error("Lỗi: " + result.error);
             }
-        } catch (error: any) {
-            toast.error("Lỗi xuất file: " + error.message);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Lỗi không xác định";
+            toast.error("Lỗi xuất file: " + errorMessage);
         } finally {
             setIsExporting(false);
             setExportProgress(0);

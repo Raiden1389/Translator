@@ -9,8 +9,24 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
     const [importStatus, setImportStatus] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const processJsonChapters = async (data: any) => {
-        let rawChapters = [];
+    interface RawChapterData {
+        id?: number;
+        title?: string;
+        content?: string;
+        content_original?: string;
+        content_translated?: string;
+        status?: string;
+        order?: number;
+        [key: string]: unknown;
+    }
+
+    interface JsonImportData {
+        chapters?: RawChapterData[];
+        [key: string]: unknown;
+    }
+
+    const processJsonChapters = async (data: JsonImportData | RawChapterData[]) => {
+        let rawChapters: RawChapterData[] = [];
 
         // Hỗ trợ cả mảng trực tiếp hoặc object có key 'chapters'
         if (Array.isArray(data)) {
@@ -23,7 +39,7 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
             throw new Error("Không tìm thấy danh sách chương trong file JSON.");
         }
 
-        const chaptersWithWorkspace = rawChapters.map((c: any, index: number) => {
+        const chaptersWithWorkspace = rawChapters.map((c: RawChapterData, index: number) => {
             const { id: _id, ...rest } = c;
             // Ưu tiên key 'content' (từ crawler) hoặc 'content_original'
             const rawContent = rest.content || rest.content_original || "";
@@ -120,9 +136,10 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
                 const count = await processJsonChapters(JSON.parse(text));
                 toast.success(`Đã nạp thêm ${count} chương từ file JSON!`);
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
-            toast.error(err.message || "Lỗi khi nhập file.");
+            const errorMessage = err instanceof Error ? err.message : "Lỗi khi nhập file.";
+            toast.error(errorMessage);
         } finally {
             setImporting(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -131,14 +148,14 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
 
     const handleImportJSON = async (e?: React.ChangeEvent<HTMLInputElement>) => {
         let text = "";
-        if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+        if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
             try {
                 const { open } = await import("@tauri-apps/plugin-dialog");
                 const { readTextFile } = await import("@tauri-apps/plugin-fs");
                 const selected = await open({ filters: [{ name: 'JSON', extensions: ['json'] }], multiple: false });
                 if (selected && typeof selected === 'string') text = await readTextFile(selected);
-                else if (selected && typeof selected === 'object' && 'path' in (selected as any))
-                    text = await readTextFile((selected as any).path);
+                else if (selected && typeof selected === 'object' && selected !== null && 'path' in selected && typeof (selected as { path: string }).path === 'string')
+                    text = await readTextFile((selected as { path: string }).path);
             } catch (err) { console.error("Tauri Import Error:", err); }
         }
 
@@ -148,9 +165,10 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
         try {
             const count = await processJsonChapters(JSON.parse(text));
             toast.success(`Đã nhập thành công ${count} chương!`);
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
-            toast.error(err.message || "Lỗi khi nhập file JSON.");
+            const errorMessage = err instanceof Error ? err.message : "Lỗi khi nhập file JSON.";
+            toast.error(errorMessage);
         }
     };
 
