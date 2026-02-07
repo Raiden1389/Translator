@@ -1,6 +1,6 @@
 {
   "name": "raiden-ai-translator",
-  "version": "2.5.4",
+  "version": "2.6.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 --webpack",
@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:any": "powershell -ExecutionPolicy Bypass -File scripts/lint-any.ps1",
     "tauri": "tauri",
     "build:static": "next build && next export"
   },

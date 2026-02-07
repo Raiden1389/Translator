@@ -49,7 +49,7 @@ export function useDictionary(workspaceId: string) {
             if (existing) {
                 await db.dictionary.update(existing.id!, {
                     translated: newTranslated,
-                    type: newType as any,
+                    type: newType,
                     createdAt: new Date()
                 });
             } else {
@@ -57,7 +57,7 @@ export function useDictionary(workspaceId: string) {
                     workspaceId,
                     original: newOriginal,
                     translated: newTranslated,
-                    type: newType as any,
+                    type: newType,
                     createdAt: new Date()
                 });
             }
@@ -81,7 +81,7 @@ export function useDictionary(workspaceId: string) {
     }, []);
 
     const handleUpdateType = useCallback(async (id: number, type: string) => {
-        await db.dictionary.update(id, { type: type as any });
+        await db.dictionary.update(id, { type });
     }, []);
 
     const handleBulkDelete = useCallback(async () => {
@@ -94,7 +94,7 @@ export function useDictionary(workspaceId: string) {
 
     const handleBulkUpdateType = useCallback(async (type: string) => {
         if (!selectedEntries.length) return;
-        await db.dictionary.where('id').anyOf(selectedEntries).modify({ type: type as any });
+        await db.dictionary.where('id').anyOf(selectedEntries).modify({ type });
     }, [selectedEntries]);
 
     const toggleSelectAll = useCallback(() => {
@@ -145,7 +145,7 @@ export function useDictionary(workspaceId: string) {
                     if (existing) {
                         await db.dictionary.update(existing.id!, {
                             translated,
-                            type: (type || 'general') as any,
+                            type: type || 'general',
                             createdAt: new Date()
                         });
                         updated++;
@@ -154,7 +154,7 @@ export function useDictionary(workspaceId: string) {
                             workspaceId,
                             original,
                             translated,
-                            type: (type || 'general') as any,
+                            type: type || 'general',
                             createdAt: new Date()
                         });
                         imported++;
@@ -284,7 +284,7 @@ export function useDictionary(workspaceId: string) {
                     if (existing) {
                         await db.dictionary.update(existing.id!, {
                             translated: item.translated,
-                            type: (item.type || 'general') as any,
+                            type: item.type || 'general',
                             description: item.description,
                             createdAt: new Date()
                         });
@@ -294,7 +294,7 @@ export function useDictionary(workspaceId: string) {
                             workspaceId,
                             original: item.original,
                             translated: item.translated,
-                            type: (item.type || 'general') as any,
+                            type: item.type || 'general',
                             description: item.description,
                             createdAt: new Date()
                         });

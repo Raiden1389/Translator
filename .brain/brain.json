@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "4.0.0",
-        "last_updated": "2026-02-05T13:10:00Z"
+        "last_updated": "2026-02-07T14:00:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Optimization & Architecture Release - v2.4.2 (Chapter List Refactor)"
+        "status": "Type Safety & Validation Enhancement - v2.5.4+ (Zod Integration)"
     },
     "tech_stack": {
         "frontend": {
@@ -15,7 +15,8 @@
             "styling": "Tailwind CSS 4 + Tailwind Animate",
             "icons": "Lucide React",
             "state_management": "React Hooks + Dexie LiveQuery",
-            "components": "Radix UI primitives"
+            "components": "Radix UI primitives",
+            "validation": "Zod 3.x (Runtime schema validation)"
         },
         "backend": {
             "runtime": "Tauri (Rust) for system access",
@@ -25,6 +26,11 @@
             "engine": "IndexedDB",
             "wrapper": "Dexie.js",
             "schema_version": 100
+        },
+        "type_safety": {
+            "language": "TypeScript 5.x",
+            "validation": "Zod for runtime type checking",
+            "patterns": "Boundary Pattern (validate at entry points)"
         }
     },
     "features": [
@@ -38,7 +44,8 @@
         "Action Hub 2.0: Hệ thống công cụ nhanh 2 hàng (Cache, JSON Import/Export, AI Scan, History)",
         "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
         "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-preserving) và Cải chính trực tiếp vào Reader",
-        "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch"
+        "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
+        "Type Safety Enhancement: Loại bỏ 'any' types, tích hợp Zod validation cho external data"
     ],
     "database_schema": {
         "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",
@@ -70,7 +77,67 @@
             {
                 "name": "settings",
                 "desc": "Cài đặt API, model, theme"
+            },
+            {
+                "name": "heuristicTerms",
+                "desc": "Thực thể được phát hiện bởi Heuristic Scanner"
             }
         ]
+    },
+    "knowledge_items": {
+        "patterns": [
+            {
+                "name": "Boundary Pattern",
+                "description": "Validate external data (JSON, API) at entry points using Zod, keep internal logic strictly typed",
+                "files": [
+                    "lib/schemas/*.ts"
+                ]
+            },
+            {
+                "name": "Shadow File Refactoring",
+                "description": "Create components separately, assemble in new file, atomic swap for safe refactoring",
+                "reference": "knowns://patterns/shadow-file-refactoring-strategy"
+            },
+            {
+                "name": "Type Guards for Error Handling",
+                "description": "Use 'error instanceof Error' instead of 'any' in catch blocks",
+                "example": "catch (error) { const msg = error instanceof Error ? error.message : String(error); }"
+            }
+        ],
+        "gotchas": [
+            {
+                "issue": "ZodError.errors property",
+                "solution": "Use 'error.issues' instead of 'error.errors' in Zod v3+",
+                "severity": "low"
+            },
+            {
+                "issue": "TypeScript 'any' types",
+                "solution": "Replace with 'unknown' or specific types, use type guards",
+                "severity": "medium"
+            }
+        ],
+        "conventions": [
+            {
+                "rule": "Schema files location",
+                "standard": "All Zod schemas in lib/schemas/ with .schema.ts suffix"
+            },
+            {
+                "rule": "Safe parse pattern",
+                "standard": "Export both parse() and safeParse() functions from schema files"
+            }
+        ]
+    },
+    "recent_improvements": {
+        "type_safety": {
+            "any_types_eliminated": 50,
+            "files_refactored": 20,
+            "lint_errors_reduced": 55,
+            "validation_coverage": "JSON imports (100%), API responses (0%), DB data (0%)"
+        },
+        "code_quality": {
+            "total_problems": "238 -> 180 (-58)",
+            "errors": "132 -> 77 (-55)",
+            "warnings": "106 -> 103 (-3)"
+        }
     }
 }

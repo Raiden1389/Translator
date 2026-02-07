@@ -102,7 +102,7 @@ export function useExport({ workspace, chapters }: UseExportParams) {
             await db.settings.put({ key: "gdrive_token", value: token });
             // Directly set the access token on the gdrive instance
             if ('accessToken' in gdrive) {
-                (gdrive as { accessToken: string | null }).accessToken = token;
+                (gdrive as unknown as { accessToken: string | null }).accessToken = token;
             }
             const userInfo = await gdrive.getUserInfo(token);
             await db.settings.put({ key: "gdrive_user", value: userInfo });
