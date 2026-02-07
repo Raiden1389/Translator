@@ -120,3 +120,78 @@ export function safeParseHeuristicRefinerResponse(rawData: unknown): {
     };
   }
 }
+
+// ============================================
+// GLOSSARY LENIENT SCHEMAS (Prevent crashes)
+// ============================================
+
+/**
+ * Lenient schema for glossary extraction
+ * Only ensures it's an object, doesn't validate structure strictly
+ * Prevents crashes from AI hallucination while allowing flexibility
+ */
+export const GlossaryResponseSchema = z.object({
+  characters: z.array(z.any()).optional().default([]),
+  terms: z.array(z.any()).optional().default([]),
+}).catchall(z.any()); // Allow extra fields
+
+export type GlossaryResponse = z.infer<typeof GlossaryResponseSchema>;
+
+/**
+ * Lenient schema for categorize/translate responses
+ */
+export const TermArraySchema = z.array(z.record(z.string(), z.any()));
+
+/**
+ * Safe parse for glossary response
+ */
+export function safeParseGlossaryResponse(rawData: unknown): {
+  success: true;
+  data: GlossaryResponse;
+} | {
+  success: false;
+  error: string;
+} {
+  try {
+    const data = GlossaryResponseSchema.parse(rawData);
+    return { success: true, data };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: `Glossary response invalid: Expected object with characters/terms arrays`,
+      };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Lỗi parse glossary response",
+    };
+  }
+}
+
+/**
+ * Safe parse for term arrays (categorize/translate)
+ */
+export function safeParseTermArray(rawData: unknown): {
+  success: true;
+  data: Record<string, any>[];
+} | {
+  success: false;
+  error: string;
+} {
+  try {
+    const data = TermArraySchema.parse(rawData);
+    return { success: true, data };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: `Term array invalid: Expected array of objects`,
+      };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Lỗi parse term array",
+    };
+  }
+}

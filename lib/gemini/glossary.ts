@@ -44,10 +44,21 @@ LƯU Ý: Nếu không tìm thấy thực thể nào đáng chú ý, trả về c
         const rawText = extractResponseText(response);
         const jsonStr = cleanJsonResponse(rawText);
 
-        let glossaryData = { characters: [], terms: [] };
+        let glossaryData: { characters: any[]; terms: any[] } = { characters: [], terms: [] };
 
         try {
-            glossaryData = JSON.parse(jsonStr);
+            const rawData = JSON.parse(jsonStr);
+
+            // ✅ Lenient validation - only ensure it's an object with arrays
+            const { safeParseGlossaryResponse } = await import('../schemas/ai-services.schema');
+            const validationResult = safeParseGlossaryResponse(rawData);
+
+            if (!validationResult.success) {
+                console.error('[Glossary] AI response validation failed:', validationResult.error);
+                // Continue with empty data instead of crashing
+            } else {
+                glossaryData = validationResult.data;
+            }
         } catch (e) {
             console.error("Failed to parse glossary JSON", e, jsonStr);
             // Fallback: If JSON fail but we have raw text, we might try regex here?
