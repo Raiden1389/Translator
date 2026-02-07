@@ -1,35 +1,26 @@
-# Parse ESLint output and show file paths with any types
+# Get full ESLint output and parse file paths correctly
 $output = npm run lint 2>&1 | Out-String
-$lines = $output -split "`n"
+$lines = $output -split "`r?`n"
 
+$results = @()
 $currentFile = ""
-$anyErrors = @()
 
 foreach ($line in $lines) {
-    # Detect file path - ESLint format: "path/to/file.ts"
-    # Usually appears as a standalone line before errors
-    $trimmed = $line.Trim()
-    
-    # Check if line looks like a file path (ends with .ts, .tsx, .js, .jsx)
-    if ($trimmed -match '\.(tsx?|jsx?)$' -and $trimmed -notmatch '^\s*\d+:\d+') {
-        $currentFile = $trimmed
+    # Detect file path (line without leading spaces, ends with .ts/.tsx/.js/.jsx)
+    if ($line -match '^[^\s].*\.(tsx?|jsx?)$') {
+        $currentFile = $line.Trim()
     }
-    # Detect 'any' error
-    elseif ($line -match '@typescript-eslint/no-explicit-any') {
+    # Detect 'any' error line
+    elseif ($line -match '@typescript-eslint/no-explicit-any' -and $line -match '^\s*(\d+):(\d+)') {
         if ($currentFile) {
-            # Extract line:col
-            if ($line -match '^\s*(\d+):(\d+)\s+error') {
-                $lineNum = $matches[1]
-                $colNum = $matches[2]
-                $anyErrors += "$currentFile`:$lineNum`:$colNum"
-            }
+            $results += "$currentFile`:$($matches[1]):$($matches[2])"
         }
     }
 }
 
-if ($anyErrors.Count -eq 0) {
+if ($results.Count -eq 0) {
     Write-Host "No 'any' types found!" -ForegroundColor Green
 } else {
-    Write-Host "`nFound $($anyErrors.Count) 'any' types:`n" -ForegroundColor Yellow
-    $anyErrors | ForEach-Object { Write-Host $_ }
+    Write-Host "`nFound $($results.Count) 'any' types:`n" -ForegroundColor Yellow
+    $results | ForEach-Object { Write-Host $_ }
 }
