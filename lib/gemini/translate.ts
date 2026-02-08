@@ -2,11 +2,30 @@ import { db, DictionaryEntry } from "../db";
 import { DEFAULT_MODEL } from "../ai-models";
 import { TranslationResult, TranslationLog } from "./types";
 import { withKeyRotation, recordUsage } from "./client";
-import { extractResponseText, finalSweep } from "./contentProcessor";
+import { extractResponseText } from "./contentProcessor";
 import { analyzeTextHeuristics, assembleSystemInstruction } from "./rules/assembler";
+import { withAdaptiveTokens } from "./adaptive-tokens";
+import { buildGlossary } from "./translation/glossary-builder";
+import { parsePlainTextChapter } from "./translation/parser";
+import { applyPostProcessing } from "./translation/post-processor";
+import { calculateStats } from "./translation/stats-calculator";
+import { GeminiResponse } from "../schemas/gemini-response.schema";
 
 /**
- * Main Translation Function
+ * Main Translation Function (Orchestrator)
+ * 
+ * Architecture:
+ * - Modular design with clear separation of concerns
+ * - Adaptive token management for cost optimization
+ * - Smart retry logic for reliability
+ * 
+ * Flow:
+ * 1. Build glossary context
+ * 2. Analyze text heuristics
+ * 3. Call API with adaptive tokens
+ * 4. Parse response
+ * 5. Post-process (corrections, validation)
+ * 6. Calculate stats
  */
 export const translateChapter = async (
     workspaceId: string,
@@ -14,155 +33,173 @@ export const translateChapter = async (
     onLog: (log: TranslationLog) => void,
     onSuccess: (result: TranslationResult) => void,
     customInstruction?: string,
-    sharedGlossary?: DictionaryEntry[]
+    sharedGlossary?: DictionaryEntry[],
+    enableThinking?: boolean,  // 🧠 For Gemini 2.5 Flash
+    thinkingLevel?: "minimal" | "low" | "medium" | "high",  // 🧠 For Gemini 3.0 Flash
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;
 
+    /**
+     * Build thinking config based on model version
+     * Gemini 2.5: Uses thinkingBudget (-1 = dynamic, 0 = disabled)
+     * Gemini 3.0: Uses thinking_level ("minimal" | "low" | "medium" | "high")
+     */
+    const buildThinkingConfig = (
+        model: string,
+        legacyEnableThinking?: boolean,
+        level?: "minimal" | "low" | "medium" | "high"
+    ): { thinkingBudget?: number; thinking_level?: string } => {
+        const isGemini3 = model.includes('gemini-3');
+
+        if (isGemini3) {
+            // Gemini 3.0: Use thinking_level
+            return {
+                thinking_level: level || "minimal"  // Default to minimal to save cost
+            };
+        } else {
+            // Gemini 2.5: Use thinkingBudget
+            return {
+                thinkingBudget: legacyEnableThinking ? -1 : 0
+            };
+        }
+    };
+
+
     // Clean text: Normalize Unicode (NFC) and remove excessive whitespace
     text = text.normalize('NFC').trim().replace(/\n\s*\n/g, '\n\n');
 
-    // 1. Get Glossary & Blacklist
-    let relevantDict: DictionaryEntry[] = [];
-
-    if (sharedGlossary && sharedGlossary.length > 0) {
-        relevantDict = sharedGlossary;
-    } else {
-        const dict = await db.dictionary.where('workspaceId').equals(workspaceId).toArray();
-        const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
-        const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
-
-        // Filter glossary: Remove blacklisted, only keep terms that appear, LIMIT 30 terms
-        relevantDict = dict
-            .filter(d => !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original))
-            .sort((a, b) => b.original.length - a.original.length)
-            .slice(0, 30);
-    }
-
-    const glossaryContext = relevantDict.length > 0
-        ? `\n\nTHUẬT NGỮ (ƯU TIÊN DÙNG):\n${relevantDict.map(d => `${d.original} -> ${d.translated}`).join('\n')}`
-        : '';
-
-    // 2. Perform Heuristic Scan (Multi-point Start-Middle-End)
-    const analysis = analyzeTextHeuristics(text);
-    onLog({
-        timestamp: new Date(),
-        message: `🧠 Phân tích ngữ cảnh: ${analysis.detectedRegister} | Confidence: ${analysis.confidence}% | Combat: ${analysis.isCombat ? 'Có' : 'Không'}`,
-        type: 'info'
-    });
-
-    // 3. Build System Instruction (Dynamic Assembly v5.0)
-    const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction);
-
     try {
-        console.log(`📡 [PAYLOAD] Model: ${aiModel} | Content Size: ${text.length} chars | System Instruction Size: ${fullInstruction.length} chars`);
-
-        const rawResult = await withKeyRotation<Record<string, unknown>>(
-            {
-                model: (aiModel as string).trim(),
-                systemInstruction: fullInstruction,
-                prompt: text,
-                generationConfig: {
-                    temperature: 0.1,
-                    topP: 0.95,
-                    maxOutputTokens: 8192,
-                    responseMimeType: "text/plain",
-                }
-            },
-            (msg: string) => onLog({ timestamp: new Date(), message: msg, type: 'info' })
+        // 1. Build Glossary Context
+        onLog({
+            timestamp: new Date(),
+            message: '📚 Đang tải từ điển...',
+            type: 'info'
+        });
+        const { relevantDict, glossaryContext } = await buildGlossary(
+            workspaceId,
+            text,
+            sharedGlossary
         );
 
-        // Track usage (if available in bridge response)
-        if (rawResult.usageMetadata) {
-            recordUsage(aiModel as string, rawResult.usageMetadata);
-        }
+        // 2. Analyze Text Heuristics
+        const analysis = analyzeTextHeuristics(text);
+        onLog({
+            timestamp: new Date(),
+            message: `🧠 Phân tích ngữ cảnh: ${analysis.detectedRegister} | Confidence: ${analysis.confidence}% | Combat: ${analysis.isCombat ? 'Có' : 'Không'}`,
+            type: 'info'
+        });
 
-        const rawText = extractResponseText(rawResult).trim();
-        let parsed: TranslationResult = {
-            translatedTitle: "",
-            translatedText: rawText
-        };
+        // 3. Build System Instruction
+        const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction, text);
+        onLog({
+            timestamp: new Date(),
+            message: '🤖 Đang gửi yêu cầu đến AI...',
+            type: 'info'
+        });
 
-        try {
-            // 1. Cleaner extraction: catch the first { and last }
-            const firstBrace = rawText.indexOf('{');
-            const lastBrace = rawText.lastIndexOf('}');
+        // 4. Call API with Adaptive Tokens (Smart Retry)
+        const adaptiveResult = await withAdaptiveTokens(
+            async (maxTokens: number) => {
+                console.log(`📡 [PAYLOAD] Model: ${aiModel} | Content Size: ${text.length} chars | System Instruction Size: ${fullInstruction.length} chars | Dynamic maxTokens: ${maxTokens}`);
 
-            if (firstBrace !== -1 && lastBrace !== -1) {
-                const jsonStr = rawText.substring(firstBrace, lastBrace + 1);
-
-                // 2. Try Standard Parse
-                try {
-                    const raw = JSON.parse(jsonStr);
-                    parsed = {
-                        translatedTitle: raw.title || raw.translatedTitle || raw.chapter_title || "",
-                        translatedText: raw.content || raw.translatedText || raw.text || raw.translated_content || ""
-                    };
-                } catch {
-                    // 3. Last ditch: JSON is malformed, try regex-based extraction
-                    const titleMatch = jsonStr.match(/"(?:title|translatedTitle|chapter_title)":\s*"([^"]*)"/);
-                    const contentMatch = jsonStr.match(/"(?:content|translatedText|text|translated_content)":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
-
-                    parsed = {
-                        translatedTitle: titleMatch ? titleMatch[1] : "",
-                        translatedText: contentMatch ? contentMatch[1] : rawText
-                    };
-                }
-
-                // 4. Critical Fix: Some AI models return literal "\n" strings instead of real newlines
-                if (parsed.translatedText && parsed.translatedText.includes('\\n')) {
-                    parsed.translatedText = parsed.translatedText
-                        .replace(/\\n/g, '\n')
-                        .replace(/\\r/g, '');
-                }
+                return await withKeyRotation<GeminiResponse>(
+                    {
+                        model: (aiModel as string).trim(),
+                        systemInstruction: fullInstruction,
+                        prompt: text,
+                        generationConfig: {
+                            temperature: 0.1,
+                            topP: 0.95,
+                            maxOutputTokens: maxTokens,
+                            responseMimeType: "text/plain",
+                            thinkingConfig: buildThinkingConfig(aiModel as string, enableThinking, thinkingLevel)
+                        }
+                    },
+                    (msg: string) => {
+                        onLog({ timestamp: new Date(), message: msg, type: 'info' });
+                    }
+                );
+            },
+            (result) => {
+                const candidates = (result as GeminiResponse).candidates;
+                return candidates?.[0]?.finishReason;
+            },
+            {
+                inputLength: text.length,  // Content length only (for output estimation)
+                baseBuffer: 3500,  // Gemini 2.5 Flash thinking tokens (observed: 1858-3108, avg ~2500)
+                minTokens: 2048,
+                maxTokens: 16384   // Gemini 2.5 Flash supports up to 65K, but 16K is practical limit
             }
-        } catch (err) {
-            console.error("❌ JSON extraction failed. Falling back to raw text.", err);
-            parsed = {
-                translatedTitle: "",
-                translatedText: rawText
-            };
-        }
+        );
 
-        // High-confidence filter: If we ended up with raw JSON as the content, it's a failure
-        if (parsed.translatedText.trim().startsWith('{') && parsed.translatedText.includes('"content"')) {
-            const lastMatch = parsed.translatedText.match(/"content":\s*"([\s\S]*?)"(?=\s*(?:,|\}|"|$))/);
-            if (lastMatch) parsed.translatedText = lastMatch[1].replace(/\\n/g, '\n');
-        }
-
-        // 3. Apply Auto-Corrections (Universal Logic: NFC + LongestFirst + CasePreserve)
-        const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
-        if (corrections.length > 0) {
-            const { applyAllCorrections } = await import("./contentProcessor");
-            parsed.translatedText = applyAllCorrections(parsed.translatedText, corrections);
-            if (parsed.translatedTitle) {
-                parsed.translatedTitle = applyAllCorrections(parsed.translatedTitle, corrections);
-            }
-        }
-
-        // 4. Final Sweep (Clean up brackets, explanations, and structure)
-        parsed.translatedText = finalSweep(parsed.translatedText, relevantDict);
-        if (parsed.translatedTitle) {
-            parsed.translatedTitle = finalSweep(parsed.translatedTitle, relevantDict);
-        }
-
-        const result = parsed;
-
-        // 4. Calculate Stats
-        let termUsage = 0;
-        let charUsage = 0;
-        if (result.translatedText) {
-            const lowerText = result.translatedText.toLowerCase();
-            relevantDict.forEach(d => {
-                if (lowerText.includes(d.translated.toLowerCase())) {
-                    if (d.type === 'character' || d.type === 'name') charUsage++;
-                    else termUsage++;
-                }
+        // Warn if chapter is too long for non-chunking
+        if (text.length > 5000) {
+            onLog({
+                timestamp: new Date(),
+                message: `⚠️ Chapter dài ${text.length} chars - Khuyến nghị bật Chunking để tránh lỗi MAX_TOKENS`,
+                type: 'info'
             });
         }
 
-        result.stats = { terms: termUsage, characters: charUsage };
-        onLog({ timestamp: new Date(), message: "Dịch hoàn tất!", type: 'success' });
+        const rawResult = adaptiveResult.data;
+
+
+
+        // Track retry for final message (don't toast immediately)
+        const wasRetried = adaptiveResult.wasRetried;
+
+        // Track usage with validated response
+        if (rawResult.usageMetadata) {
+            const metadata = rawResult.usageMetadata;
+            const thinkingTokens = metadata.thoughtsTokenCount || 0;
+            const inputTokens = metadata.promptTokenCount || 0;
+            const outputTokens = metadata.candidatesTokenCount || 0;
+
+            console.log(`🧠 [THINKING TOKENS] Input: ${inputTokens} | Output: ${outputTokens} | Thinking: ${thinkingTokens} | Total: ${inputTokens + outputTokens + thinkingTokens}`);
+
+            recordUsage(aiModel as string, rawResult.usageMetadata);
+        }
+
+        // 5. Extract & Validate Response
+        const rawText = extractResponseText(rawResult).trim();
+
+        if (!rawText || rawText.trim() === "") {
+            const finishReason = adaptiveResult.finishReason;
+            if (finishReason === "MAX_TOKENS") {
+                throw new Error(`❌ Chapter quá dài (${text.length} chars) - Output bị cắt do MAX_TOKENS! Hãy BẬT CHUNKING trong cấu hình dịch.`);
+            }
+            throw new Error(`❌ AI trả về nội dung rỗng! Finish reason: ${finishReason}. Có thể do: API lỗi, Prompt bị reject, hoặc Content vi phạm policy.`);
+        }
+
+        // 6. Parse Plain Text Response
+        const parsed = parsePlainTextChapter(rawText);
+
+        // 7. Post-Process (Corrections, Validation, Final Sweep)
+        const processed = await applyPostProcessing(parsed, workspaceId, relevantDict);
+
+        // 8. Calculate Stats
+        const stats = calculateStats(
+            processed.translatedText,
+            relevantDict,
+            rawResult.usageMetadata as { promptTokenCount?: number; candidatesTokenCount?: number }
+        );
+
+        const result: TranslationResult = {
+            ...processed,
+            stats
+        };
+
+        // 9. Success - Consolidated message with all info
+        const tokenMsg = stats.tokens
+            ? ` [${stats.tokens.input}i + ${stats.tokens.output}o = ${stats.tokens.total}t]`
+            : "";
+        const retrySuffix = wasRetried ? " (retry)" : "";
+        onLog({
+            timestamp: new Date(),
+            message: `✅ Dịch xong!${tokenMsg}${retrySuffix}`,
+            type: 'success'
+        });
         onSuccess(result);
 
     } catch (error: unknown) {

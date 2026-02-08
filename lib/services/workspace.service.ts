@@ -31,9 +31,10 @@ export async function deleteWorkspace(id: string): Promise<DeleteWorkspaceResult
         await storage.deleteWorkspace(id);
 
         return { success: true };
-    } catch (err: any) {
+    } catch (err) {
         console.error("Failed to delete workspace:", err);
-        return { success: false, error: err?.message || "Lỗi khi xóa Workspace." };
+        const errorMessage = err instanceof Error ? err.message : "Lỗi khi xóa Workspace.";
+        return { success: false, error: errorMessage };
     }
 }
 

@@ -2,390 +2,176 @@
 
 import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Zap, Swords, Trophy, Sparkles, RefreshCw, Copy, Check, FileText, SparklesIcon, Save, Beaker, Wand2 } from "lucide-react";
+import { Swords } from "lucide-react";
 import { db } from "@/lib/db";
-import { translateChapter, generatePromptVariants, evaluateTranslation, analyzeStyleDNA } from "@/lib/gemini";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { useRaiden } from "@/components/theme/RaidenProvider";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
+import { usePromptState } from "./PromptLab/hooks/usePromptState";
+import { usePromptActions } from "./PromptLab/hooks/usePromptActions";
+
+import { PromptLabHeader } from "./PromptLab/components/PromptLabHeader";
+import { TestSampleCard } from "./PromptLab/components/TestSampleCard";
+import { GoalsCard } from "./PromptLab/components/GoalsCard";
+import { PromptCard } from "./PromptLab/components/PromptCard";
+import { WinnerCard } from "./PromptLab/components/WinnerCard";
+import { SavePromptDialog } from "./PromptLab/components/SavePromptDialog";
 
 const SAMPLE_TEXT = `许七安走在京城的街道上，周围是熙熙攘攘的人群。他必须要搞清楚，这个世界到底发生了什么。"天道崩塌，妖魔横行..." 脑海中回荡着这句话。作为一名穿越者，他本想安稳度日，但命运似乎并不打算放过他。前方的打更人衙门威严耸立，那是他唯一的去处。`;
 
 export const PromptLab = ({ workspaceId }: { workspaceId: string }) => {
-    const { isRaidenMode } = useRaiden();
-    const [testSample, setTestSample] = useState("");
-    const [promptGoals, setPromptGoals] = useState("Văn phong trôi chảy, tự nhiên. Giữ nguyên Hán Việt các từ tu tiên.");
-    const [promptA, setPromptA] = useState("Mày là dịch giả chuyên nghiệp Trung - Việt. Dịch tự nhiên, giữ nguyên tên riêng.");
-    const [promptB, setPromptB] = useState("Dịch văn phong kiếm hiệp, tiên hiệp cổ điển. Dùng nhiều từ Hán Việt sang trọng, trau chuốt.");
-    const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isFighting, setIsFighting] = useState(false);
 
-    // Fetch first chapter for sample
-    const firstChapter = useLiveQuery(() =>
-        db.chapters.where("workspaceId").equals(workspaceId).sortBy("order").then(c => c[0]),
-        [workspaceId]
-    );
+  const state = usePromptState();
+  const {
+    testSample,
+    setTestSample,
+    promptGoals,
+    setPromptGoals,
+    promptA,
+    setPromptA,
+    promptB,
+    setPromptB,
+    resultA,
+    setResultA,
+    resultB,
+    setResultB,
+    scoreA,
+    setScoreA,
+    scoreB,
+    setScoreB,
+    winner,
+    setWinner,
+    reason,
+    setReason,
+    isSaveDialogOpen,
+    setIsSaveDialogOpen,
+    saveName,
+    setSaveName,
+    pendingSaveContent,
+    setPendingSaveContent,
+  } = state;
 
-    useEffect(() => {
-        if (firstChapter?.content_original && !testSample) {
-            // Take first 800 chars as sample
-            setTestSample(firstChapter.content_original.substring(0, 800) + "...");
-        } else if (!firstChapter && !testSample) {
-            setTestSample(SAMPLE_TEXT);
-        }
-    }, [firstChapter, testSample]);
+  const actions = usePromptActions({
+    workspaceId,
+    promptGoals,
+    setPromptA,
+    setPromptB,
+    setPromptGoals,
+    testSample,
+    promptA,
+    promptB,
+    setResultA,
+    setResultB,
+    setScoreA,
+    setScoreB,
+    setWinner,
+    setReason,
+    saveName,
+    pendingSaveContent,
+    setIsSaveDialogOpen,
+    setSaveName,
+    setPendingSaveContent,
+  });
 
-    const [resultA, setResultA] = useState("");
-    const [resultB, setResultB] = useState("");
-    const [scoreA, setScoreA] = useState<number | null>(null);
-    const [scoreB, setScoreB] = useState<number | null>(null);
-    const [winner, setWinner] = useState<string | null>(null);
-    const [reason, setReason] = useState("");
-    const [isFighting, setIsFighting] = useState(false);
+  const firstChapter = useLiveQuery(
+    () => db.chapters.where("workspaceId").equals(workspaceId).sortBy("order").then(c => c[0]),
+    [workspaceId]
+  );
 
-    // Save Prompt State
-    const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-    const [saveName, setSaveName] = useState("");
-    const [pendingSaveContent, setPendingSaveContent] = useState("");
+  useEffect(() => {
+    if (firstChapter?.content_original && !testSample) {
+      setTestSample(firstChapter.content_original.substring(0, 800) + "...");
+    } else if (!firstChapter && !testSample) {
+      setTestSample(SAMPLE_TEXT);
+    }
+  }, [firstChapter, testSample]);
 
-    const openSaveDialog = (defaultName: string, content: string) => {
-        setSaveName(defaultName);
-        setPendingSaveContent(content);
-        setIsSaveDialogOpen(true);
-    };
+  const handleResetSample = () => {
+    if (firstChapter?.content_original) {
+      setTestSample(firstChapter.content_original.substring(0, 800) + "...");
+      toast.success("Đã lấy nội dung gốc từ Chương 1!");
+    } else {
+      setTestSample(SAMPLE_TEXT);
+      toast.info("Không tìm thấy chương nào, dùng văn bản mẫu.");
+    }
+  };
 
-    const confirmSavePrompt = async () => {
-        if (!saveName.trim()) {
-            toast.error("Vui lòng nhập tên prompt!");
-            return;
-        }
-        await db.prompts.add({
-            title: saveName,
-            content: pendingSaveContent,
-            createdAt: new Date()
-        });
-        toast.success("Đã lưu prompt vào thư viện!");
-        setIsSaveDialogOpen(false);
-    };
+  const handleGeneratePrompts = async () => {
+    setIsGenerating(true);
+    await actions.handleGeneratePrompts();
+    setIsGenerating(false);
+  };
 
-    const handleGeneratePrompts = async () => {
-        if (!promptGoals.trim()) {
-            toast.error("Vui lòng nhập mục tiêu prompt!");
-            return;
-        }
-        setIsGenerating(true);
-        toast.info("Đang suy nghĩ prompt...");
-        try {
-            const { promptA, promptB } = await generatePromptVariants(promptGoals);
-            setPromptA(promptA);
-            setPromptB(promptB);
-            toast.success("Đã tạo xong 2 variants!");
-        } catch (e: any) {
-            toast.error("Lỗi: " + e.message);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
+  const handleExtractSpirit = async () => {
+    setIsGenerating(true);
+    await actions.handleExtractSpirit();
+    setIsGenerating(false);
+  };
 
-    const handleExtractSpirit = async () => {
-        setIsGenerating(true);
-        toast.info("Đang trích xuất linh hồn (Spirit Extraction)...");
-        try {
-            // 1. Fetch first 5 chapters
-            const chapters = await db.chapters.where("workspaceId").equals(workspaceId).sortBy("order");
-            if (chapters.length === 0) {
-                throw new Error("Không tìm thấy chương nào để phân tích!");
-            }
-            const samples = chapters.slice(0, 5).map(c => c.content_original);
+  const handleFight = async () => {
+    setIsFighting(true);
+    await actions.handleFight();
+    setIsFighting(false);
+  };
 
-            // 2. Analyze DNA
-            const dna = await analyzeStyleDNA(samples);
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <PromptLabHeader isFighting={isFighting} onFight={handleFight} />
 
-            // 3. Fill Goals
-            const newGoals = `Phong cách: ${dna.tone}. Bối cảnh: ${dna.setting}. Xưng hô: ${dna.pronouns}. Mô tả: ${dna.description}`;
-            setPromptGoals(newGoals);
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TestSampleCard
+          testSample={testSample}
+          onTestSampleChange={setTestSample}
+          onReset={handleResetSample}
+        />
 
-            toast.success("Đã trích xuất DNA thành công!", {
-                description: dna.tone + " - " + dna.setting
-            });
+        <GoalsCard
+          promptGoals={promptGoals}
+          onPromptGoalsChange={setPromptGoals}
+          isGenerating={isGenerating}
+          onExtractSpirit={handleExtractSpirit}
+          onGeneratePrompts={handleGeneratePrompts}
+        />
+      </div>
 
-            // Auto generate prompts after extraction? Optional but cool.
-            handleGeneratePrompts();
-
-        } catch (e: any) {
-            toast.error("Lỗi: " + e.message);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-
-    const handleFight = async () => {
-        if (!testSample.trim()) {
-            toast.error("Vui lòng nhập văn bản mẫu!");
-            return;
-        }
-        setIsFighting(true);
-        setResultA("");
-        setResultB("");
-        setScoreA(null);
-        setScoreB(null);
-        setWinner(null);
-        setReason("");
-
-        try {
-            // 1. Run both translations
-            toast.info("Đang bắt đầu so tài...");
-
-            const runA = new Promise<string>((resolve, reject) => {
-                translateChapter(workspaceId, testSample, () => { }, (res) => resolve(res.translatedText), promptA)
-                    .catch(reject);
-            });
-
-            const runB = new Promise<string>((resolve, reject) => {
-                translateChapter(workspaceId, testSample, () => { }, (res) => resolve(res.translatedText), promptB)
-                    .catch(reject);
-            });
-
-            const [resA, resB] = await Promise.all([runA, runB]);
-            setResultA(resA);
-            setResultB(resB);
-
-            // 2. AI Rating
-            toast.info("Trọng tài AI đang chấm điểm...");
-            const evalResult = await evaluateTranslation(testSample, resA, resB);
-
-            setScoreA(evalResult.scoreA);
-            setScoreB(evalResult.scoreB);
-            setWinner(evalResult.winner === "Draw" ? "Hòa" : (evalResult.winner === "A" ? "Prompt A" : "Prompt B"));
-            setReason(evalResult.reason);
-
-        } catch (e: any) {
-            toast.error("Lỗi khi chạy Test: " + e.message);
-        } finally {
-            setIsFighting(false);
-        }
-    };
-
-    return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
-                        <Swords className="w-6 h-6 text-primary" />
-                        Prompt Lab
-                    </h2>
-                    <p className="text-muted-foreground text-sm">Thử nghiệm và tối ưu hóa câu lệnh dịch (A/B Testing)</p>
-                </div>
-                <Button
-                    onClick={handleFight}
-                    disabled={isFighting}
-                    className="bg-primary hover:bg-primary/90 text-white font-black px-10 py-7 rounded-2xl shadow-xl shadow-primary/20 gap-3 group overflow-hidden relative active:scale-95 transition-all"
-                >
-                    <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                    <RefreshCw className={cn("w-5 h-5", isFighting && "animate-spin")} />
-                    {isFighting ? "ĐANG CHIẾN ĐẤU..." : "START A/B TEST"}
-                </Button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left: Input & Generator */}
-                <Card className={cn("border-border shadow-sm", isRaidenMode ? "bg-card border-transparent" : "bg-card")}>
-                    <CardHeader className={cn("pb-3 border-b border-l-4 border-l-indigo-500", !isRaidenMode && "bg-muted/30")}>
-                        <CardTitle className="text-foreground text-sm font-bold flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-indigo-500" />
-                                VĂN BẢN MẪU (TEST SAMPLE)
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    if (firstChapter?.content_original) {
-                                        setTestSample(firstChapter.content_original.substring(0, 800) + "...");
-                                        toast.success("Đã lấy nội dung gốc từ Chương 1!");
-                                    } else {
-                                        setTestSample(SAMPLE_TEXT);
-                                        toast.info("Không tìm thấy chương nào, dùng văn bản mẫu.");
-                                    }
-                                }}
-                                className="text-[10px] bg-white border-slate-200 text-slate-600 hover:text-primary h-6 px-2"
-                            >
-                                <RefreshCw className="w-2.5 h-2.5 mr-1" />
-                                Reset
-                            </Button>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <Textarea
-                            value={testSample}
-                            onChange={(e) => setTestSample(e.target.value)}
-                            className="bg-slate-50/30 border-border text-foreground text-sm h-36 focus:bg-white transition-all resize-none font-sans"
-                            placeholder="Nhập đoạn văn bản muốn test dịch..."
-                        />
-                    </CardContent>
-                </Card>
-
-                <Card className={cn("border-border shadow-sm", isRaidenMode ? "bg-card border-transparent" : "bg-card")}>
-                    <CardHeader className={cn("pb-3 border-b border-l-4 border-l-primary", !isRaidenMode && "bg-muted/30")}>
-                        <CardTitle className="text-foreground text-sm font-bold flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-primary" />
-                            MỤC TIÊU CẦN ĐẠT
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4 space-y-4">
-                        <p className="text-[11px] text-muted-foreground italic">
-                            * Nhập phong cách bạn muốn (VD: Kiếm hiệp, Hiện đại...) AI sẽ tối ưu prompt.
-                        </p>
-                        <Textarea
-                            value={promptGoals}
-                            onChange={(e) => setPromptGoals(e.target.value)}
-                            className="bg-slate-50/30 border-border text-foreground text-sm h-16 focus:bg-white transition-all resize-none font-sans"
-                            placeholder="Mô tả mục tiêu..."
-                        />
-                        <div className="flex gap-2">
-                            <Button
-                                disabled={isGenerating}
-                                onClick={handleExtractSpirit}
-                                variant="outline"
-                                className="flex-1 bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 h-9 text-xs font-bold"
-                            >
-                                <Wand2 className={cn("w-3.5 h-3.5 mr-1.5", isGenerating && "animate-spin")} />
-                                Spirit DNA
-                            </Button>
-                            <Button
-                                disabled={isGenerating}
-                                onClick={handleGeneratePrompts}
-                                className="flex-1 h-9 text-xs font-bold"
-                            >
-                                <SparklesIcon className={cn("w-3.5 h-3.5 mr-1.5", isGenerating && "animate-spin")} />
-                                Tạo Prompt
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:block">
-                    <div className="w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center shadow-2xl">
-                        <Swords className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                </div>
-
-                {/* Prompt A */}
-                <Card className={cn("shadow-sm overflow-hidden group border", isRaidenMode ? "bg-card border-indigo-500/20" : "bg-card border-border")}>
-                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
-                    <CardHeader className={cn("pb-2 border-b border-indigo-200/50", !isRaidenMode && "bg-indigo-50/30")}>
-                        <CardTitle className="text-indigo-600 text-sm font-black flex items-center justify-between uppercase">
-                            PROMPT A (Base)
-                            {scoreA && <span className="text-2xl font-black text-indigo-500/50 italic">{scoreA}</span>}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-4">
-                        <Textarea
-                            value={promptA}
-                            onChange={(e) => setPromptA(e.target.value)}
-                            className="bg-muted/30 border-border text-foreground font-mono text-[13px] h-32 tracking-tight leading-normal focus:bg-background transition-all"
-                        />
-                        <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">KẾT QUẢ DỊCH A</span>
-                            <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt A - " + new Date().toLocaleTimeString('vi-VN'), promptA)} className="h-6 text-[10px] bg-indigo-100/50 hover:bg-indigo-200/50 text-indigo-700 rounded-lg px-3 border border-indigo-200/50">
-                                <Save className="w-2.5 h-2.5 mr-1" /> Lưu Prompt
-                            </Button>
-                        </div>
-                        <div className="min-h-[220px] p-4 rounded-xl bg-muted/20 border border-border/50 text-foreground text-sm italic leading-relaxed shadow-xs">
-                            {resultA || (isFighting ? "Đang dịch..." : "Chưa có dữ liệu.")}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Prompt B */}
-                <Card className={cn("shadow-sm overflow-hidden group border", isRaidenMode ? "bg-card border-primary/20" : "bg-card border-border")}>
-                    <div className="absolute top-0 right-0 w-1 h-full bg-primary" />
-                    <CardHeader className={cn("pb-2 border-b border-primary/20", !isRaidenMode && "bg-primary/5")}>
-                        <CardTitle className="text-primary text-sm font-black flex items-center justify-between uppercase">
-                            PROMPT B (Variant)
-                            {scoreB && <span className="text-2xl font-black text-primary/50 italic">{scoreB}</span>}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-4">
-                        <Textarea
-                            value={promptB}
-                            onChange={(e) => setPromptB(e.target.value)}
-                            className="bg-muted/30 border-border text-foreground font-mono text-[13px] h-32 tracking-tight leading-normal focus:bg-background transition-all"
-                        />
-                        <div className="flex justify-between items-center">
-                            <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">KẾT QUẢ DỊCH B</span>
-                            <Button variant="ghost" size="sm" onClick={() => openSaveDialog("Prompt B - " + new Date().toLocaleTimeString('vi-VN'), promptB)} className="h-6 text-[10px] bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-3 border border-primary/20">
-                                <Save className="w-2.5 h-2.5 mr-1" /> Lưu Prompt
-                            </Button>
-                        </div>
-                        <div className="min-h-[220px] p-4 rounded-xl bg-muted/20 border border-border/50 text-foreground text-sm italic leading-relaxed shadow-xs">
-                            {resultB || (isFighting ? "Đang dịch..." : "Chưa có dữ liệu.")}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {winner && (
-                <div className="animate-in zoom-in-95 duration-500">
-                    <Card className={cn("shadow-lg relative overflow-hidden border", isRaidenMode ? "bg-gradient-to-br from-primary/10 to-transparent border-primary/20" : "bg-card border-primary/20")}>
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 p-2 bg-primary text-white font-black text-[10px] rounded-b-xl shadow-lg uppercase tracking-widest">
-                            WINNER
-                        </div>
-                        <CardContent className="pt-8 pb-6 flex items-center gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 shadow-inner">
-                                <Trophy className="w-8 h-8 text-primary" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-black text-foreground">{winner}</h3>
-                                <p className="text-muted-foreground text-sm">{reason}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-
-            <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-                <DialogContent className="sm:max-w-[425px] bg-popover border-border text-popover-foreground">
-                    <DialogHeader>
-                        <DialogTitle>Lưu Prompt vào Thư viện</DialogTitle>
-                        <DialogDescription className="text-muted-foreground">
-                            Đặt tên gợi nhớ cho prompt này để dễ dàng tìm kiếm sau này.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right text-muted-foreground">
-                                Tên
-                            </Label>
-                            <Input
-                                id="name"
-                                value={saveName}
-                                onChange={(e) => setSaveName(e.target.value)}
-                                className="col-span-3 bg-background border-border text-foreground focus:border-primary"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setIsSaveDialogOpen(false)} className="text-muted-foreground hover:text-foreground">Hủy</Button>
-                        <Button type="submit" onClick={confirmSavePrompt} className="bg-emerald-600 hover:bg-emerald-700 text-white">Lưu Ngay</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 hidden lg:block">
+          <div className="w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center shadow-2xl">
+            <Swords className="w-5 h-5 text-muted-foreground" />
+          </div>
         </div>
-    );
+
+        <PromptCard
+          variant="A"
+          prompt={promptA}
+          onPromptChange={setPromptA}
+          result={resultA}
+          score={scoreA}
+          isFighting={isFighting}
+          onSave={() => actions.openSaveDialog("Prompt A - " + new Date().toLocaleTimeString('vi-VN'), promptA)}
+        />
+
+        <PromptCard
+          variant="B"
+          prompt={promptB}
+          onPromptChange={setPromptB}
+          result={resultB}
+          score={scoreB}
+          isFighting={isFighting}
+          onSave={() => actions.openSaveDialog("Prompt B - " + new Date().toLocaleTimeString('vi-VN'), promptB)}
+        />
+      </div>
+
+      {winner && <WinnerCard winner={winner} reason={reason} />}
+
+      <SavePromptDialog
+        open={isSaveDialogOpen}
+        onOpenChange={setIsSaveDialogOpen}
+        saveName={saveName}
+        onSaveNameChange={setSaveName}
+        onConfirm={actions.confirmSavePrompt}
+      />
+    </div>
+  );
 };

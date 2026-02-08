@@ -11,6 +11,7 @@ export function useBlacklist(workspaceId: string) {
         () => db.blacklist.where('workspaceId').equals(workspaceId).toArray(),
         [workspaceId]
     ) || [];
+    const [sourceFilter, setSourceFilter] = useState<'all' | 'content' | 'engine'>('all');
 
     const [blacklistSearch, setBlacklistSearch] = useState("");
     const [selectedBlacklist, setSelectedBlacklist] = useState<number[]>([]);
@@ -18,12 +19,21 @@ export function useBlacklist(workspaceId: string) {
 
     const filteredBlacklist = useMemo(() => {
         return blacklist
-            .filter(b =>
-                b.word.toLowerCase().includes(blacklistSearch.toLowerCase()) ||
-                (b.translated && b.translated.toLowerCase().includes(blacklistSearch.toLowerCase()))
-            )
+            .filter(b => {
+                // Search
+                const matchesSearch = b.word.toLowerCase().includes(blacklistSearch.toLowerCase()) ||
+                    (b.translated && b.translated.toLowerCase().includes(blacklistSearch.toLowerCase()));
+
+                if (!matchesSearch) return false;
+
+                // Source Filter
+                if (sourceFilter === 'content') return b.source === 'ai' || b.source === 'manual';
+                if (sourceFilter === 'engine') return b.source === 'heuristic';
+
+                return true;
+            })
             .sort((a, b) => (b.id || 0) - (a.id || 0));
-    }, [blacklist, blacklistSearch]);
+    }, [blacklist, blacklistSearch, sourceFilter]);
 
     const handleRestoreBlacklist = useCallback(async (id: number) => {
         const item = blacklist.find(b => b.id === id);
@@ -91,9 +101,10 @@ export function useBlacklist(workspaceId: string) {
                 }
             }
             toast.success(`Đã cập nhật nghĩa cho ${missingMeanings.length} mục trong Blacklist.`);
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            if (error.message?.includes('network')) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes('network')) {
                 toast.error("Lỗi mạng. Kiểm tra kết nối.");
             } else {
                 toast.error("Lỗi khi dịch Blacklist");
@@ -155,6 +166,39 @@ export function useBlacklist(workspaceId: string) {
         e.target.value = '';
     }, [workspaceId]);
 
+    const handleHeuristicExport = useCallback(async () => {
+        const engineTerms = blacklist.filter(b => b.source === 'heuristic');
+        if (engineTerms.length === 0) {
+            toast.error("Không có mẫu vật (Heuristic) để xuất!");
+            return;
+        }
+
+        try {
+            const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+            const content = engineTerms.map(b => b.word).join('\n');
+            const filename = `heuristic_engine_samples_${new Date().getTime()}.txt`;
+            await writeTextFile(filename, content, { baseDir: BaseDirectory.Desktop });
+            toast.success(`✅ Đã xuất ${engineTerms.length} mẫu vật ra Desktop/`, {
+                description: filename
+            });
+        } catch (err) {
+            toast.error("Lỗi xuất file: " + String(err));
+        }
+    }, [blacklist]);
+
+    const handleClearHeuristic = useCallback(async () => {
+        const engineTerms = blacklist.filter(b => b.source === 'heuristic');
+        if (engineTerms.length === 0) return;
+
+        if (confirm(`⚠️ Xóa toàn bộ ${engineTerms.length} mẫu vật Heuristic để chuẩn bị vòng lặp mới?`)) {
+            await db.blacklist
+                .where('[workspaceId+source]')
+                .equals([workspaceId, 'heuristic'])
+                .delete();
+            toast.success("Đã dọn sạch bộ nhớ Engine. Sẵn sàng quét lại!");
+        }
+    }, [blacklist, workspaceId]);
+
     return {
         blacklist,
         filteredBlacklist,
@@ -162,11 +206,16 @@ export function useBlacklist(workspaceId: string) {
         setBlacklistSearch,
         selectedBlacklist,
         setSelectedBlacklist,
+        sourceFilter,
+        setSourceFilter,
         isTranslating,
         handleRestoreBlacklist,
         handleBulkRestoreBlacklist,
         handleTranslateBlacklist,
         handleBlacklistExport,
         handleBlacklistImport,
+        handleHeuristicExport,
+        handleClearHeuristic,
+        workspaceId
     };
 }

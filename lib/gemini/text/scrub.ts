@@ -25,12 +25,20 @@ export function extractResponseText(response: unknown): string {
         if (typeof sdkRes.response?.text === 'function') return sdkRes.response.text();
 
         const rawRes = response as {
-            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-            response?: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+            candidates?: Array<{
+                content?: {
+                    parts?: Array<{ text?: string }>;
+                    text?: string; // Gemini 2.5 sometimes puts text here directly
+                }
+            }>;
+            response?: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }>; text?: string } }> };
         };
 
         const candidates = rawRes.candidates || rawRes.response?.candidates;
-        return candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const content = candidates?.[0]?.content;
+
+        // Try parts first, then fallback to direct text property
+        return content?.parts?.[0]?.text || content?.text || "";
     } catch {
         return "";
     }

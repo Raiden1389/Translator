@@ -24,9 +24,13 @@ export async function generateCacheKey(
     text: string,
     model: string,
     instruction: string,
-    glossaryContext: string = ""
+    _glossaryContext: string = "" // Keep for signature compatibility but ignore in hash
 ): Promise<string> {
-    const data = `${text}|${model}|${instruction}|${glossaryContext}`;
+    // AUDIT FIX: We exclude glossaryContext from the cache key.
+    // Why? Glossary recommendations might vary slightly between batches,
+    // but we don't want to re-translate the same paragraph just because 
+    // one minor term was added/removed from the prompt's reference list.
+    const data = `${text}|${model}|${instruction}`;
     const encoder = new TextEncoder();
     const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
     const hashArray = Array.from(new Uint8Array(hashBuffer));

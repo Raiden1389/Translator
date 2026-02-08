@@ -4,21 +4,22 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    ArrowLeft, BookOpen,
+    ArrowLeft,
     Settings, FileText,
-    Database, LayoutDashboard, Swords, Zap
+    Database, LayoutDashboard, Swords, Zap,
+    BrainCircuit
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChapterList } from "@/components/workspace/ChapterList";
-import { DictionaryTab } from "@/components/workspace/DictionaryTab";
+import { ChapterList } from "@/components/workspace/chapter-list/ChapterList";
 import { PromptLab } from "@/components/workspace/PromptLab";
 import { AISettingsTab } from "./AISettingsTab";
 import { ExportTab } from "./ExportTab";
 import { OverviewTab } from "./OverviewTab";
+import { IntelligenceHub } from "./intelligence/IntelligenceHub";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
-import { useTranslation } from "./hooks/TranslationProvider";
+import { useTranslation } from "./hooks/TranslationProvider.v2";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -31,7 +32,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useWorkspace } from "./hooks/useWorkspace";
-import { ReviewDialog } from "./ReviewDialog";
+import { ReviewDialog } from "./shared/ReviewDialog";
 
 export default function WorkspaceClient({ id }: { id: string }) {
     const { state, actions } = useWorkspace(id);
@@ -51,7 +52,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
     const tabs = [
         { id: "overview", label: "Tổng Quan", icon: LayoutDashboard },
         { id: "chapters", label: "Chương", icon: FileText },
-        { id: "dictionary", label: "Dữ Liệu Dịch", icon: BookOpen },
+        { id: "intelligence", label: "Raiden Hub", icon: BrainCircuit },
         { id: "promptLab", label: "Prompt Lab", icon: Swords },
         { id: "settings", label: "Cài Đặt", icon: Settings },
         { id: "export", label: "Xuất File", icon: Database },
@@ -160,22 +161,32 @@ export default function WorkspaceClient({ id }: { id: string }) {
                 "flex-1 min-w-0 overflow-hidden flex flex-col relative h-full transition-colors duration-500",
                 isRaidenMode ? "bg-background text-foreground" : "bg-muted/40 text-foreground"
             )}>
-                <header className={cn(
-                    "h-20 flex items-center justify-between px-8 pt-4 border-b shrink-0 transition-colors duration-500",
-                    isRaidenMode ? "bg-background border-border" : "bg-white/80 backdrop-blur-md border-border"
-                )}>
-                    <h2 className="text-sm font-bold capitalize flex items-center gap-2">
-                        {tabs.find(t => t.id === activeTab)?.label}
-                        <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-mono font-black">WS_ID: {id.slice(0, 8)}</span>
-                    </h2>
-                </header>
+                {activeTab !== "intelligence" && (
+                    <header className={cn(
+                        "h-20 flex items-center justify-between px-8 pt-4 border-b shrink-0 transition-colors duration-500",
+                        isRaidenMode ? "bg-background border-border" : "bg-white/80 backdrop-blur-md border-border"
+                    )}>
+                        <h2 className="text-sm font-bold capitalize flex items-center gap-2">
+                            {tabs.find(t => t.id === activeTab)?.label}
+                            <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-mono font-black">WS_ID: {id.slice(0, 8)}</span>
+                        </h2>
+                    </header>
+                )}
 
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                    <div className="max-w-6xl mx-auto">
+                <div className={cn(
+                    "flex-1 overflow-hidden transition-all duration-300",
+                    activeTab === "intelligence" ? "p-0" : "p-8 overflow-y-auto"
+                )}>
+                    <div className={cn("mx-auto h-full flex flex-col", activeTab === "intelligence" ? "max-w-none" : "max-w-6xl")}>
                         <ErrorBoundary name="WorkspaceTabContent">
                             {activeTab === "overview" && <OverviewTab workspace={workspace} />}
-                            {activeTab === "chapters" && <ChapterList workspaceId={id} onTranslate={startBatchTranslate} />}
-                            {activeTab === "dictionary" && <DictionaryTab workspaceId={id} />}
+                            {activeTab === "chapters" && <ChapterList workspaceId={id} onTranslate={startBatchTranslate} onShowScanResults={(data) => setReviewData(data)} />}
+                            {activeTab === "intelligence" && (
+                                <IntelligenceHub
+                                    workspaceId={id}
+                                    onClose={() => changeTab("chapters", { openReader: "true" })}
+                                />
+                            )}
                             {activeTab === "promptLab" && <PromptLab workspaceId={id} />}
 
                             {activeTab === "settings" && (

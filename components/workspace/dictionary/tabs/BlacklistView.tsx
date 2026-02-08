@@ -1,130 +1,93 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useBlacklist } from "../hooks/useBlacklist";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Download, Upload, RotateCcw, Sparkles } from "lucide-react";
-import { db } from "@/lib/db";
-import { EditableCell } from "../../shared/EditableCell";
+import { SyllableRepository } from "@/lib/repositories/syllable-repo";
+import { BlacklistHeader } from "../components/BlacklistHeader";
+import { BlacklistGrid } from "../components/BlacklistGrid";
+import { BlacklistGridRow } from "../components/BlacklistGridRow";
+import { BlacklistFooter } from "../components/BlacklistFooter";
 
 interface BlacklistViewProps {
     workspaceId: string;
 }
 
 export function BlacklistView({ workspaceId }: BlacklistViewProps) {
-    const {
-        filteredBlacklist,
-        blacklistSearch,
-        setBlacklistSearch,
-        selectedBlacklist,
-        setSelectedBlacklist,
-        isTranslating,
-        handleRestoreBlacklist,
-        handleBulkRestoreBlacklist,
-        handleTranslateBlacklist,
-        handleBlacklistExport,
-        handleBlacklistImport,
-    } = useBlacklist(workspaceId);
+    const hook = useBlacklist(workspaceId);
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    useEffect(() => {
+        SyllableRepository.getInstance().load("/dicts/ChinesePhienAmWords.txt").then(() => {
+            setIsLoaded(true);
+        });
+    }, []);
+
+    const counts = useMemo(() => ({
+        content: hook.blacklist.filter(b => b.source === 'ai' || b.source === 'manual').length,
+        engine: hook.blacklist.filter(b => b.source === 'heuristic').length
+    }), [hook.blacklist]);
+
+    const handleSelectAll = useCallback((checked: boolean) => {
+        const { filteredBlacklist, setSelectedBlacklist } = hook;
+        if (checked) setSelectedBlacklist(filteredBlacklist.map(b => b.id!));
+        else setSelectedBlacklist([]);
+    }, [hook]);
+
+    const handleRowSelect = useCallback((id: number, checked: boolean) => {
+        const { selectedBlacklist, setSelectedBlacklist } = hook;
+        if (checked) setSelectedBlacklist([...selectedBlacklist, id]);
+        else setSelectedBlacklist(selectedBlacklist.filter(i => i !== id));
+    }, [hook]);
 
     return (
-        <div className="space-y-6">
-            {/* Toolbar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="relative flex-1 md:w-[400px]">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        value={blacklistSearch}
-                        onChange={(e) => setBlacklistSearch(e.target.value)}
-                        className="pl-9 bg-background border-border text-foreground"
-                        placeholder="Tìm kiếm trong blacklist..."
-                    />
-                </div>
+        <div className="flex flex-col h-full bg-background text-foreground animate-in fade-in duration-200 overflow-hidden">
+            <BlacklistHeader
+                sourceFilter={hook.sourceFilter}
+                onFilterChange={hook.setSourceFilter}
+                counts={counts}
+                searchValue={hook.blacklistSearch}
+                onSearchChange={hook.setBlacklistSearch}
+                onExport={hook.handleBlacklistExport}
+                onImport={hook.handleBlacklistImport}
+                onHeuristicExport={hook.handleHeuristicExport}
+                onClearHeuristic={hook.handleClearHeuristic}
+            />
 
-                <div className="flex gap-2">
-                    <Button variant="outline" className="border-border" onClick={() => document.getElementById('blacklist-import')?.click()}>
-                        <Upload className="mr-2 h-4 w-4" /> Import
-                    </Button>
-                    <input
-                        type="file"
-                        id="blacklist-import"
-                        className="hidden"
-                        accept=".json"
-                        onChange={handleBlacklistImport}
-                    />
-                    <Button variant="outline" className="border-border" onClick={handleBlacklistExport}>
-                        <Download className="mr-2 h-4 w-4" /> Export
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className="border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
-                        onClick={handleTranslateBlacklist}
-                        disabled={isTranslating}
-                    >
-                        <Sparkles className="mr-2 h-4 w-4" /> {isTranslating ? "Đang dịch..." : "AI Dịch Nghĩa"}
-                    </Button>
-                </div>
-            </div>
-
-            {/* Bulk Actions */}
-            {selectedBlacklist.length > 0 && (
-                <div className="flex items-center gap-4 bg-amber-500/20 p-2 px-4 rounded-lg border border-amber-500/50 mb-4">
-                    <span className="text-sm font-medium text-foreground">{selectedBlacklist.length} đã chọn</span>
-                    <Button size="sm" variant="outline" className="h-8 border-amber-500/50 text-amber-400 hover:text-amber-300" onClick={handleBulkRestoreBlacklist}>
-                        <RotateCcw className="mr-2 h-4 w-4" /> Khôi phục hàng loạt
-                    </Button>
+            {hook.selectedBlacklist.length > 0 && (
+                <div className="flex items-center justify-between px-3 py-1.5 bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider rounded-sm mb-4">
+                    <span>{hook.selectedBlacklist.length} items flagged for recovery</span>
+                    <button onClick={hook.handleBulkRestoreBlacklist} className="underline hover:no-underline px-2">
+                        Restore All
+                    </button>
                 </div>
             )}
 
-            {/* Table */}
-            <div className="rounded-md border border-border bg-card overflow-hidden">
-                <div className="divide-y divide-border h-[calc(100vh-250px)] overflow-y-auto scrollbar-hide">
-                    {filteredBlacklist.length === 0 ? (
-                        <div className="p-8 text-center text-muted-foreground italic">
-                            Chưa có từ nào trong Blacklist
-                        </div>
-                    ) : (
-                        filteredBlacklist.map((entry) => {
-                            const isSelected = selectedBlacklist.includes(entry.id!);
-                            return (
-                                <div key={entry.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted group">
-                                    <div className="col-span-1 flex justify-center">
-                                        <Checkbox
-                                            checked={isSelected}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) setSelectedBlacklist([...selectedBlacklist, entry.id!]);
-                                                else setSelectedBlacklist(selectedBlacklist.filter(id => id !== entry.id));
-                                            }}
-                                            className="border-border"
-                                        />
-                                    </div>
-                                    <div className="col-span-4 text-foreground font-serif text-lg select-text">{entry.word}</div>
-                                    <div className="col-span-5">
-                                        <EditableCell
-                                            initialValue={entry.translated || entry.word}
-                                            onSave={(val) => db.blacklist.update(entry.id!, { translated: val })}
-                                        />
-                                    </div>
-                                    <div className="col-span-2 flex justify-end">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
-                                            onClick={() => handleRestoreBlacklist(entry.id!)}
-                                        >
-                                            <RotateCcw className="mr-2 h-4 w-4" /> Khôi phục
-                                        </Button>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            </div>
-            <div className="text-center text-xs text-muted-foreground mt-4">
-                Hiển thị {filteredBlacklist.length} kết quả
-            </div>
+            <BlacklistGrid
+                items={hook.filteredBlacklist}
+                selectedIds={hook.selectedBlacklist}
+                onSelectAll={handleSelectAll}
+                sourceFilter={hook.sourceFilter}
+            >
+                {hook.filteredBlacklist.map(entry => (
+                    <BlacklistGridRow
+                        key={entry.id}
+                        entry={entry}
+                        isSelected={hook.selectedBlacklist.includes(entry.id!)}
+                        onSelect={handleRowSelect}
+                        onRestore={hook.handleRestoreBlacklist}
+                        sourceFilter={hook.sourceFilter}
+                        isLoaded={isLoaded}
+                    />
+                ))}
+            </BlacklistGrid>
+
+            <BlacklistFooter
+                workspaceId={workspaceId}
+                itemCount={hook.filteredBlacklist.length}
+                isLoaded={isLoaded}
+                sourceFilter={hook.sourceFilter}
+                onDeepScan={hook.handleTranslateBlacklist}
+            />
         </div>
     );
 }

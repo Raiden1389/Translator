@@ -67,36 +67,6 @@ export const MODERN_SLANG_MAP = [
 ];
 
 export const IDIOM_SYSTEM_RULE = `
-KIỂM SOÁT PHONG CÁCH DỊCH & CẢM QUAN (V5.0 - STORYTELLER):
-
-1. NGUYÊN TẮC CẢM QUAN TỐI THƯỢNG (QUAN TRỌNG NHẤT):
-- Người Việt mô tả CẢM GIÁC XÃ HỘI, không mô tả SINH LÝ CƠ THỂ.
-- Nếu gốc là phản xạ sinh lý (VD: 倒吸一口凉气 - hít một hơi lạnh) -> PHẢI dịch sang cảm giác (VD: xuýt xoa, giật mình, kinh ngạc).
-- Tuyệt đối không để lại các cụm từ mô tả cơ thể máy móc như: "mặt không đỏ tim không đập", "trong lòng không khỏi".
-
-2. DỌN SẠCH HARD BLACKLIST:
-- Cấm tuyệt đối sử dụng các cụm: [${HARD_BLACKLIST.join(", ")}]. Thay thế bằng cách diễn đạt thuần Việt.
-
-3. STYLE PRESSURE & BATTLE:
-- Chiến đấu: Dùng từ ngữ mạnh, rợn người: [${BATTLE_FEEDBACK_MAP.map(m => `${m.from} -> ${m.to}`).join(", ")}].
-- ONOMATOPOEIA (TỪ TƯỢNG THANH): Khuyến khích dùng các từ tượng thanh thuần Việt như "Bốp", "Chát", "Thịch", "Rầm", "Vút" để tăng tính hình động cho cảnh chiến đấu.
-- Đời thường: Ưu tiên diễn đạt mềm mại:
-${STYLE_PRESSURE_MAP.map(m => `- ${m.from} -> ưu tiên [${m.to.join(", ")}]`).join("\n")}
-- ANTI-OVERDRAMATIZATION: Không dùng mô tả kịch tính (rợn người, sát khí, kinh hồn) cho tình huống đời thường hoặc thoại ngắn.
-
-4. DIALOGUE PROTECTION (LỜI THOẠI):
-- Luôn phân biệt Lời kể và Lời thoại. 
-- Với Lời thoại ngắn: Ưu tiên câu gãy, trực tiếp, ngắn gọn. Tránh dùng thành ngữ hoặc mô tả cảm xúc dài dòng (VD: "Cút!" là "Cút!", không phải "Cút đi cho ta!").
-- SLANG PACING: Không dùng slang mạnh (vãi, đệt, đù) liên tiếp nhiều câu nếu ngữ cảnh không thực sự căng thẳng.
-
-5. SOCIAL REGISTER (PHONG THÁI NHÂN VẬT):
-- Xuất thân thấp/Giang hồ: Dùng từ thô, ngắn, trực diện. Tránh văn hoa.
-- Địa vị cao/Quý tộc: Lời nói tiết chế, gọn gàng, dùng từ Hán Việt nhã nhặn.
-
-6. STRUCTURE & WHITELIST:
-- Phá bỏ cấu trúc "Bởi vì... cho nên", "Sở dĩ... là vì". 1 dòng input = 1 dòng output.
-- WHITELIST FLEXIBILITY: Whitelist [${WHITELIST.map(w => w.phrase).join(", ")}] có thể giữ nguyên, nhưng nếu rewrite giúp câu tự nhiên hơn thì ƯU TIÊN REWRITE.
-
-7. ĐỊNH HƯỚNG TÁC GIẢ:
-- Bạn là một người kể chuyện, không phải máy dịch. Khi rewrite, hãy giữ nguyên CẢM XÚC và HÀNH ĐỘNG nhưng dùng ngôn ngữ của người Việt thực thụ.
+- TƯ DUY: Tả cảm giác, không tả sinh lý.
+- CẤM: hít hơi lạnh, không đỏ mặt, vấn đề không lớn.
 `;

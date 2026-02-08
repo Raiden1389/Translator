@@ -1,81 +1,32 @@
 import { IDIOM_SYSTEM_RULE } from "./idioms";
 
-// Update this version whenever CORE_RULES, PRONOUN_RULE or STRUCTURE_RULE changes
-export const SYSTEM_VERSION = "v2.5";
+export const SYSTEM_VERSION = "v3.3";
 
-/**
- * System Instruction Constants (Optimized for Novel Translation)
- */
+// 🔥 CRITICAL: Title Translation Rule (HIGHEST PRIORITY)
+export const TITLE_RULE = `[TIÊU ĐỀ]: Dòng 1 = Tiêu đề dịch (第10章 -> Chương 10). CẤM Hán tự, dùng Âm Hán Việt nếu cần. Chỉ viết hoa chữ đầu.`;
 
-// Voice & Tone rules
-export const VOICE_TONE_RULE = `
-VĂN PHONG & GIỌNG ĐIỆU:
-- TRUNG THÀNH VỚI CẢM XÚC: Nếu gốc mỉa mai, châm biếm -> Bản dịch phải giữ được sắc thái đó.
-- CẤM TỰ Ý THÊM HÀI: Nếu gốc nghiêm túc -> Tuyệt đối không dùng từ lóng hoặc cách nói hài hước.
-- Hài hước phải tự nhiên, hợp ngữ cảnh, tránh dùng quá nhiều ngôn ngữ mạng ("trẻ tre").
-`;
-
-// Capitalization rules
-export const CAPITALIZATION_RULE = `
-QUY TẮC VIẾT HOA (CỰC KỲ QUAN TRỌNG):
-1. CHỈ viết hoa chữ cái đầu tiên của câu hoặc ngay sau dấu mở ngoặc kép (“).
-2. Tên riêng (Người, Địa danh) PHẢI viết hoa: Lưu Bị, Tào Tháo, Quan Vũ, Tịnh Châu...
-3. TUYỆT ĐỐI KHÔNG viết hoa danh từ chung, chức vụ, quan hệ, đại từ giữa câu:
-   - SAI: "... gặp lại Đại ca", "... gọi Tướng quân", "... là Ta làm"
-   - ĐÚNG: "... gặp lại đại ca", "... gọi tướng quân", "... là ta làm"
-   - Danh sách cấm viết hoa giữa câu: ta, ngươi, hắn, nàng, đại ca, minh chủ, tướng quân, tiểu thư, huynh, đệ, tỷ, muội, nương tử, mẫu thân, phụ thân...
-4. Ngay cả khi một từ được viết hoa trong danh sách THUẬT NGỮ, bạn VẪN PHẢI viết thường nó nếu nó không phải tên riêng và đang đứng giữa câu.
-`;
-
-// Pronoun rules
-export const PRONOUN_RULE = `
-ĐẠI TỪ & DANH XƯNG:
-- 我 (Wǒ): Ta, chúng ta.
-- 你 (Nǐ): Ngươi, các ngươi.
-- 他 (Tā) / 她 / 它: Hắn, nàng, nó.
-- CHỈ viết hoa đại từ/danh xưng nếu đứng đầu câu.
-`;
-
-// Line & structure rules
-export const STRUCTURE_RULE = `
-CẤU TRÚC:
-- 1 dòng input = 1 dòng output. Giữ nguyên \\n\\n.
-- Giữ nguyên các ký hiệu đặc biệt [], ().
-`;
-
-// Core translation rules
+// Optimized System Instruction (Minimalistic & Powerful)
 export const CORE_RULES = `
-YÊU CẦU CỐT LÕI:
-1. Trả về JSON { "title": "...", "content": "..." }.
-2. Tiêu đề (title) PHẢI bao gồm số chương nếu bản gốc có (VD: 第10章 -> Chương 10).
-3. Văn phong tiểu thuyết mượt mà, thoát ý, ưu tiên Thuần Việt. 
-4. TUYỆT ĐỐI KHÔNG để lại bất kỳ ký tự tiếng Trung (Hán tự) nào trong bản dịch. Mọi tên riêng, địa danh, chiêu thức phải được dịch sang âm Hán Việt (VD: 秦铭 -> Tần Minh).
-5. BẢN DỊCH KHÔNG ĐƯỢC CHỨA CHỮ HÁN (HANZI). Đây là yêu cầu bắt buộc và tối thượng. Nếu không biết dịch, hãy dùng âm Hán Việt phổ thông nhất. 
-6. KHÔNG giải thích nghĩa đằng sau.
+- DỊCH: Trung-Việt tiểu thuyết, thoát ý, thuần Việt. 1 dòng gốc = 1 dòng dịch.
+- VIẾT HOA: Tên riêng/đầu câu. Các đại từ (hắn/nàng/tướng quân/môn chủ) VIẾT THƯỜNG.
+- ĐẠI TỪ: 我-Ta, 你-Ngươi, 他/she-Hắn/Nàng. Võ hiệp: Ta/Ngươi, Hiện đại: Tôi/Bạn. (Hắn/Nàng viết thường).
+- FORMAT: Dòng 1 là Tiêu đề, sau đó xuống dòng, các dòng sau là Nội dung. CẤM JSON/Giải thích.
 `;
 
-/**
- * Build full system instruction
- */
+export const VOICE_TONE_RULE = `- GIỌNG: Sát nhân vật. Thô ráp trong thoại, mượt mà khi tả.`;
+export const STRUCTURE_RULE = `- CẤU TRÚC: Phá câu Tàu. Dịch câu ngắn, dồn dập khi chiến đấu.`;
+export const IDIOM_RULE = `- THÀNH NGỮ 4 CHỮ: Phổ biến (Tam Quốc, võ học) → GIỮ Âm Hán Việt (VD: Nhân trung Lữ Bố mã trung Xích Thố, Thiên hạ vô song). Hiếm/ít người biết → DỊCH thoát ý. Khi nghi ngờ → DỊCH.`;
+export const TOP_BLACKLIST = `- CẤM: hít hơi lạnh, mặt không đỏ tim không đập, vấn đề không lớn, trong lòng không khỏi, thanh âm vang lên.`;
+export const BATTLE_RULE = `- CHIẾN ĐẤU: Câu ngắn, dồn dập. "Ngã xuống đất" → "Đập mạnh xuống đất". Tạo cảm giác đau, không ước lệ.`;
+export const EMOTION_RULE = `- CẢM XÚC: Thể hiện qua ánh mắt, hơi thở, động tác. KHÔNG gọi tên trực tiếp (tức giận, sợ hãi, vui mừng).`;
+export const DIALOGUE_RULE = `- HỘI THOẠI: Giống người NÓI, không giống người KỂ. Không mở đầu "nói rằng", "lên tiếng". Đối thoại nhanh → bỏ chủ ngữ.`;
+export const CAPITALIZATION_RULE = "";
+
 export function buildSystemInstruction(
     customInstruction?: string,
     glossaryContext?: string
 ): string {
-    const baseStyle = customInstruction ||
-        "Bạn là dịch giả tiểu thuyết Trung - Việt cao cấp. Bản dịch phải tự nhiên như người Việt viết, thoát khỏi văn phong 'Convert'.";
-
-    return `${baseStyle}
-
-${CORE_RULES}
-
-${CAPITALIZATION_RULE}
-
-${PRONOUN_RULE}
-
-${VOICE_TONE_RULE}
-
-${IDIOM_SYSTEM_RULE}
-
-${STRUCTURE_RULE}
-${glossaryContext || ""}`;
+    const base = customInstruction || "Dịch giả tiểu thuyết cao cấp.";
+    // Priority order: Base → Title Rule (CRITICAL!) → Glossary → Core → Voice → Idioms → Structure
+    return `${base}\n${TITLE_RULE}\n${glossaryContext || ""}\n${CORE_RULES}\n${VOICE_TONE_RULE}\n${IDIOM_SYSTEM_RULE}\n${STRUCTURE_RULE}`;
 }

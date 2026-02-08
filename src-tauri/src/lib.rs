@@ -5,6 +5,7 @@ use std::env;
 use jieba_rs::Jieba;
 use once_cell::sync::Lazy;
 use serde::Serialize;
+use tauri::Manager;
 
 static JIEBA: Lazy<Jieba> = Lazy::new(|| Jieba::new());
 
@@ -72,6 +73,67 @@ async fn native_list_models(api_key: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+async fn native_gemini_create_cache(
+    payload: String,
+    api_key: Option<String>,
+) -> Result<String, String> {
+    let actual_key = match api_key {
+        Some(k) if !k.is_empty() => k,
+        _ => {
+            dotenvy::dotenv().ok();
+            std::env::var("GEMINI_API_KEY").map_err(|_| "Missing API Key".to_string())?
+        }
+    };
+
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/cachedContents?key={}",
+        actual_key
+    );
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    Ok(text)
+}
+
+#[tauri::command]
+async fn native_gemini_delete_cache(
+    cache_name: String,
+    api_key: Option<String>,
+) -> Result<String, String> {
+    let actual_key = match api_key {
+        Some(k) if !k.is_empty() => k,
+        _ => {
+            dotenvy::dotenv().ok();
+            std::env::var("GEMINI_API_KEY").map_err(|_| "Missing API Key".to_string())?
+        }
+    };
+
+    // cache_name is expected to be "cachedContents/id"
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/{}?key={}",
+        cache_name, actual_key
+    );
+
+    let client = reqwest::Client::new();
+    let res = client
+        .delete(url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    Ok(text)
+}
+
+#[tauri::command]
 fn get_gemini_key() -> Result<String, String> {
     dotenvy::dotenv().ok();
     env::var("GEMINI_API_KEY").map_err(|_| "Không tìm thấy GEMINI_API_KEY trong .env".to_string())
@@ -108,6 +170,85 @@ fn open_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn create_storage_symlink(
+    new_path: String,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    use std::path::PathBuf;
+    use std::fs;
+
+    // 1. Get current AppData path
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e: tauri::Error| e.to_string())?;
+    
+    let _current_path = app_data_dir.to_str().ok_or("Invalid path")?.to_string();
+    let new_target = PathBuf::from(&new_path);
+
+    // 2. Validate new path
+    if !new_target.exists() {
+        fs::create_dir_all(&new_target).map_err(|e| format!("Cannot create directory: {}", e))?;
+    }
+
+    // 3. Check if current path has data
+    let has_data = app_data_dir.exists() && app_data_dir.read_dir().map(|mut d: std::fs::ReadDir| d.next().is_some()).unwrap_or(false);
+
+    // 4. Copy data if exists
+    if has_data {
+        copy_dir_recursive(&app_data_dir, &new_target)
+            .map_err(|e| format!("Failed to copy data: {}", e))?;
+    }
+
+    // 5. Remove old directory
+    if app_data_dir.exists() {
+        fs::remove_dir_all(&app_data_dir)
+            .map_err(|e| format!("Failed to remove old directory: {}", e))?;
+    }
+
+    // 6. Create symlink
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::fs::symlink_dir;
+        symlink_dir(&new_target, &app_data_dir)
+            .map_err(|e| format!("Failed to create symlink: {}. Try running as Administrator.", e))?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::os::unix::fs::symlink;
+        symlink(&new_target, &app_data_dir)
+            .map_err(|e| format!("Failed to create symlink: {}", e))?;
+    }
+
+    Ok(format!("Storage moved to: {}", new_path))
+}
+
+// Helper function to copy directory recursively
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    use std::fs;
+    
+    if !dst.exists() {
+        fs::create_dir_all(dst)?;
+    }
+
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+
+        if ty.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)?;
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -119,10 +260,13 @@ pub fn run() {
             tts::edge_tts_speak,
             auth::start_auth_server,
             native_gemini_request,
+            native_gemini_create_cache,
+            native_gemini_delete_cache,
             native_list_models,
             segment_chinese,
             get_gemini_key,
-            open_folder
+            open_folder,
+            create_storage_symlink
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

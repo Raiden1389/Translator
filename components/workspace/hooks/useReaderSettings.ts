@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ReaderConfig } from "../ReaderHeader";
+import { ReaderConfig } from "../shared/ReaderHeader";
 import { VIETNAMESE_VOICES } from "@/lib/tts";
 
 const DEFAULT_CONFIG: ReaderConfig = {
@@ -13,6 +13,9 @@ const DEFAULT_CONFIG: ReaderConfig = {
     backgroundColor: "#FFFCF7", /* Warm Cream */
     maxWidth: 720,
     showDialogueLines: true,
+    indentText: true,
+    paragraphSpacing: 0.75,
+    letterSpacing: 0,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: VIETNAMESE_VOICES[0].value,

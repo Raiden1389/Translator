@@ -1,0 +1,17 @@
+# ESLint Ignore - Exclude build artifacts and false positives
+
+# Tauri build artifacts (binary files causing 600+ parsing errors)
+src-tauri/target/
+
+# Next.js build outputs
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Cache
+.cache/

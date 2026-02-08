@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslation } from "@/components/workspace/hooks/TranslationProvider";
-import { TranslationProgressOverlay } from "@/components/workspace/TranslationProgressOverlay";
+import { useTranslation } from "@/components/workspace/hooks/TranslationProvider.v2";
+import { TranslationProgressOverlay } from "@/components/workspace/chapter-list/TranslationProgressOverlay";
 
 export function GlobalTranslationProgress() {
     const { isTranslating, batchProgress } = useTranslation();

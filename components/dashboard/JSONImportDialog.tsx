@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2, X, FileJson, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { safeParseJSONImport } from "@/lib/schemas/json-import.schema";
 
 export function JSONImportDialog() {
     const [isOpen, setIsOpen] = useState(false);
@@ -20,41 +21,39 @@ export function JSONImportDialog() {
         setLoading(true);
         try {
             const text = await file.text();
-            const data = JSON.parse(text);
+            const rawData = JSON.parse(text);
 
-            let bookInfo = (data as any).book || {};
-            const chaptersList = Array.isArray(data) ? data : ((data as any).chapters || []);
+            // ✅ Validate with Zod schema - No more 'any' types!
+            const result = safeParseJSONImport(rawData);
 
-            // Handle Case: Export from Action Hub (already has book info)
-            if (Array.isArray(data)) {
-                bookInfo = { title: "Bộ truyện mới (Imported)", author: "Chưa rõ" };
+            if (!result.success) {
+                toast.error(result.error);
+                return;
             }
 
-            if (!chaptersList || chaptersList.length === 0) {
-                throw new Error("Định dạng file JSON không hợp lệ hoặc không có chương nào.");
-            }
+            const { book, chapters } = result.data;
 
             const workspaceId = crypto.randomUUID();
 
             // 1. Create Workspace
             await db.workspaces.add({
                 id: workspaceId,
-                title: bookInfo.title || "Tác phẩm mới",
-                author: bookInfo.author || "Chưa rõ",
-                cover: bookInfo.cover || "",
-                description: bookInfo.description || "",
-                genre: bookInfo.genre || "Khác",
-                sourceLang: bookInfo.language || "Chinese (中文)",
+                title: book.title,
+                author: book.author,
+                cover: book.cover || "",
+                description: book.description || "",
+                genre: book.genre,
+                sourceLang: book.language || "Chinese (中文)",
                 targetLang: "Vietnamese (Tiếng Việt)",
                 createdAt: new Date(),
                 updatedAt: new Date(),
             });
 
             // 2. Add Chapters
-            const chapters = chaptersList.map((ch: any, index: number) => {
-                const rest = { ...ch };
-                delete rest.id;
-                const rawContent = rest.content || rest.content_original || "";
+            const processedChapters = chapters.map((ch, index) => {
+                const { id: _id, content, ...rest } = ch;
+                const rawContent = content || ch.content_original;
+
                 // Normalize line breaks
                 const normalizedContent = rawContent
                     .replace(/<br\s*\/?>/gi, "\n")
@@ -64,26 +63,32 @@ export function JSONImportDialog() {
                 return {
                     ...rest,
                     workspaceId,
-                    title: rest.title || `Chương ${index + 1}`,
+                    title: ch.title,
                     content_original: normalizedContent,
-                    content_translated: rest.content_translated || "",
-                    order: rest.order || index + 1,
-                    status: rest.status || 'draft',
+                    content_translated: ch.content_translated,
+                    order: ch.order || index + 1,
+                    status: ch.status,
                     wordCountOriginal: normalizedContent.length,
-                    lastTranslatedAt: rest.lastTranslatedAt ? new Date(rest.lastTranslatedAt) : undefined,
-                    createdAt: rest.createdAt ? new Date(rest.createdAt) : new Date(),
+                    lastTranslatedAt: ch.lastTranslatedAt ? new Date(ch.lastTranslatedAt) : undefined,
+                    createdAt: ch.createdAt ? new Date(ch.createdAt) : new Date(),
                     updatedAt: new Date(),
                 };
             });
 
-            await db.chapters.bulkAdd(chapters);
+            await db.chapters.bulkAdd(processedChapters);
 
-            toast.success(`Đã nạp bộ truyện "${data.book.title}" thành công!`);
+            toast.success(`Đã nạp bộ truyện "${book.title}" thành công!`);
             setIsOpen(false);
             router.push(`/workspace?id=${workspaceId}`);
-        } catch (error: any) {
+        } catch (error) {
             console.error("JSON Import Error:", error);
-            toast.error(error.message || "Lỗi khi xử lý file JSON.");
+
+            if (error instanceof SyntaxError) {
+                toast.error("File JSON không hợp lệ. Vui lòng kiểm tra lại format.");
+            } else {
+                const errorMessage = error instanceof Error ? error.message : "Lỗi không xác định";
+                toast.error("Lỗi khi xử lý file JSON: " + errorMessage);
+            }
         } finally {
             setLoading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";

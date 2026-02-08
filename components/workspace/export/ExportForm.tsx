@@ -18,6 +18,7 @@ interface ExportFormProps {
     onExport: () => void;
     formatLabel: string;
     useDrive?: boolean;
+    onAutoSelectTranslated?: () => void; // NEW
 }
 
 export function ExportForm({
@@ -30,7 +31,8 @@ export function ExportForm({
     exportProgress,
     onExport,
     formatLabel,
-    useDrive
+    useDrive,
+    onAutoSelectTranslated
 }: ExportFormProps) {
     return (
         <div className="space-y-4">
@@ -70,6 +72,19 @@ export function ExportForm({
                             </div>
                         </div>
                     </div>
+
+                    {/* Auto-select Translated Button */}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-10 font-bold text-sm border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 transition-all"
+                        onClick={onAutoSelectTranslated}
+                    >
+                        <span className="flex items-center gap-2">
+                            ✨ Tự động chọn đã dịch
+                        </span>
+                    </Button>
 
                     <div className="pt-2 space-y-4">
                         <Button

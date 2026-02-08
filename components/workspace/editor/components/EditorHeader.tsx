@@ -34,8 +34,7 @@ interface EditorHeaderProps {
     isSaving: boolean;
     onSave: () => void;
     translationLength: number;
-    isAIExtracting: boolean;
-    handleAIExtractChapter: () => void;
+
     isTranslating: boolean;
     handleTranslate: () => void;
     prevChapterId: number | null;
@@ -57,8 +56,7 @@ export function EditorHeader({
     isSaving,
     onSave,
     translationLength,
-    isAIExtracting,
-    handleAIExtractChapter,
+
     isTranslating,
     handleTranslate,
     prevChapterId,
@@ -163,24 +161,11 @@ export function EditorHeader({
                     <Save className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">{isSaving ? "Saving..." : "Lưu"}</span>
                 </Button>
-                <Button
-                    size="sm"
-                    onClick={handleAIExtractChapter}
-                    disabled={isAIExtracting || isTranslating}
-                    variant="outline"
-                    className="bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300 transition-all"
-                >
-                    {isAIExtracting ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                        <FileSearch className="mr-2 h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">Quét AI chương này</span>
-                </Button>
+
                 <Button
                     size="sm"
                     onClick={handleTranslate}
-                    disabled={isTranslating || isAIExtracting}
+                    disabled={isTranslating}
                     className="bg-linear-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white border-0 transition-all"
                 >
                     {isTranslating ? (

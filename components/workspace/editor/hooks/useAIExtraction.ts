@@ -2,14 +2,19 @@ import { useState } from "react";
 import { db, DictionaryEntry } from "@/lib/db";
 import { ExtractedCharacter, ExtractedTerm } from "@/lib/gemini/types";
 import { toast } from "sonner";
+import { extractEntities, EntityType } from "@/lib/services/ai-ner.service";
 
+/**
+ * AI Extraction Hook - Uses Gemini AI for Named Entity Recognition
+ * Independent from legacy Name Hunter system
+ */
 export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntry[]) {
     const [isAIExtracting, setIsAIExtracting] = useState(false);
     const [pendingCharacters, setPendingCharacters] = useState<ExtractedCharacter[]>([]);
     const [pendingTerms, setPendingTerms] = useState<ExtractedTerm[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
 
-    const handleAIExtractChapter = async (content_original: string, allowedTypes?: any[]) => {
+    const handleAIExtractChapter = async (content_original: string, allowedTypes?: string[]) => {
         if (!content_original) return;
         setIsAIExtracting(true);
         const toastId = "ai-extract-progress";
@@ -17,12 +22,12 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
         try {
             toast.loading("Đang khởi tạo AI NER...", { id: toastId });
 
-            const { AiExtractor } = await import("@/lib/services/name-hunter/ai-extractor");
-            const { TermType } = await import("@/lib/services/name-hunter/types");
+            // Convert string types to EntityType enum
+            const typesToScan: EntityType[] = allowedTypes
+                ? allowedTypes.map(t => t as EntityType)
+                : [EntityType.Person, EntityType.Location, EntityType.Organization, EntityType.Skill];
 
-            const typesToScan = allowedTypes || [TermType.Person, TermType.Location, TermType.Organization, TermType.Skill, TermType.Unknown];
-
-            const rawResults = await AiExtractor.extract(content_original, {
+            const rawResults = await extractEntities(content_original, workspaceId, {
                 allowedTypes: typesToScan,
                 onProgress: (msg: string) => toast.loading(msg, { id: toastId })
             });
@@ -32,26 +37,26 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
 
                 // Split and FILTER rawResults (Remove existing entries)
                 const newCharacters: ExtractedCharacter[] = rawResults
-                    .filter((c: any) => c.type === TermType.Person && !existingOriginals.has(c.chinese || c.original))
-                    .map((c: any) => ({
-                        original: c.chinese || c.original,
-                        translated: c.original,
+                    .filter(e => e.type === EntityType.Person && !existingOriginals.has(e.chinese || e.original))
+                    .map(e => ({
+                        original: e.chinese || e.original,
+                        translated: e.original,
                         type: 'name',
                         gender: 'unknown',
                         role: 'mob',
-                        description: c.context || 'Nhân vật mới',
+                        description: e.context || 'Nhân vật mới',
                         isExisting: false
                     }));
 
                 const newTerms: ExtractedTerm[] = rawResults
-                    .filter((c: any) => c.type !== TermType.Person && !existingOriginals.has(c.chinese || c.original))
-                    .map((c: any) => ({
-                        original: c.chinese || c.original,
-                        translated: c.original,
-                        type: c.type === TermType.Location ? 'location' :
-                            c.type === TermType.Organization ? 'organization' :
-                                c.type === TermType.Skill ? 'skill' : 'other',
-                        description: c.context || 'Thuật ngữ mới',
+                    .filter(e => e.type !== EntityType.Person && !existingOriginals.has(e.chinese || e.original))
+                    .map(e => ({
+                        original: e.chinese || e.original,
+                        translated: e.original,
+                        type: e.type === EntityType.Location ? 'location' :
+                            e.type === EntityType.Organization ? 'organization' :
+                                e.type === EntityType.Skill ? 'skill' : 'other',
+                        description: e.context || 'Thuật ngữ mới',
                         isExisting: false
                     }));
 
@@ -81,8 +86,8 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
     const handleConfirmSaveAI = async (
         saveChars: ExtractedCharacter[],
         saveTerms: ExtractedTerm[],
-        blacklistChars: ExtractedCharacter[],
-        blacklistTerms: ExtractedTerm[]
+        blacklistChars: ExtractedCharacter[] = [],
+        blacklistTerms: ExtractedTerm[] = []
     ) => {
         try {
             let addedCount = 0;
@@ -141,8 +146,27 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
                 }
             }
 
-            // TODO: Implement blacklist logic if needed
-            // For now we just acknowledge they were processed
+            // Handle blacklist items
+            for (const char of blacklistChars) {
+                await db.blacklist.add({
+                    workspaceId,
+                    word: char.original,
+                    translated: char.translated,
+                    source: 'manual',
+                    createdAt: new Date()
+                });
+            }
+
+            for (const term of blacklistTerms) {
+                await db.blacklist.add({
+                    workspaceId,
+                    word: term.original,
+                    translated: term.translated,
+                    source: 'manual',
+                    createdAt: new Date()
+                });
+            }
+
             const totalItems = addedCount + updatedCount;
             const blacklistCount = blacklistChars.length + blacklistTerms.length;
 

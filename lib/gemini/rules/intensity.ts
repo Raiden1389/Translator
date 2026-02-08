@@ -62,19 +62,7 @@ export const INTENSITY_MATRIX = {
 } as const;
 
 export const INTENSITY_RULE_COMPACT = `
-EMOTION INTENSITY LADDER (v1.1):
-Chọn từ theo cường độ cảm xúc và ngữ cảnh:
-- Shock: [1:khẽ giật mình, 2:xuýt xoa, 3:sững sờ]
-- Fear: [1:chột dạ, 2:toát mồ hôi, 3:lạnh gáy/kinh hồn]
-- Regret: [1:cười gượng, 2:cười khan, 3:cười cay đắng]
-- Pace (Speed): [1:thoáng chốc, 2:chớp mắt, 3:nhanh như điện]
-- Contempt: [1:cười nhạt, 2:khịt mũi, 3:cười khẩy]
-- Pain: [1:nhíu mày, 2:tái mét, 3:đau thấu xương]
-- Anger: [1:hằm hằm, 2:tím mặt, 3:nổi trận lôi đình/sát khí]
-- Calm: [1:bình thản, 2:điềm nhiên, 3:lặng lẽ không gợn sóng]
-- Pride: [1:tự tin, 2:ngẩng cao đầu, 3:coi thường tất cả]
-
-⚠️ QUY TẮC AN TOÀN:
-1. TRÁNH ĐỤNG TRẦN: Level 3 chỉ dùng cho Combat hoặc Xung đột trực diện. Đời thường ưu tiên Lv1-Lv2.
-2. THOẠI NGẮN: Không áp dụng ladder cho thoại cực ngắn (VD: "Cút!", "Hả?"). Hãy giữ nguyên sự thô ráp.
+[INTENSITY] (Lv1-2-3): 
+Shock(giật mình-xuýt xoa-sững sờ), Fear(chột dạ-toát mồ hôi-lạnh gáy), Pace(thoáng chốc-chớp mắt-nhanh như điện), Contempt(cười nhạt-khịt mũi-cười khẩy), Pain(nhíu mày-tái mét-đau thấu xương), Anger(hằm hằm-tím mặt-sát khí).
+Lv3 chỉ dùng cho Climax/Combat. Thoại ngắn giữ nguyên thô ráp.
 `;

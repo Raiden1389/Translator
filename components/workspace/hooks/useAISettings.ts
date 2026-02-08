@@ -67,9 +67,10 @@ export function useAISettings() {
             toast.success("Đã nạp Key từ Backend (.env) thành công!", {
                 description: "Đừng quên bấm 'Lưu Thay Đổi' để áp dụng."
             });
-        } catch (err: any) {
+        } catch (err) {
             console.error("Backend Key Error:", err);
-            toast.error(err.toString());
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            toast.error(errorMessage);
         } finally {
             setIsBackendKeyLoading(false);
         }
@@ -81,8 +82,9 @@ export function useAISettings() {
         try {
             const models = await fetchGeminiModels(primaryKey);
             setAvailableModels(models);
-        } catch (e: any) {
-            toast.error(e.message || "Lỗi khi lấy danh sách Model.");
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : "Lỗi khi lấy danh sách Model.";
+            toast.error(errorMessage);
         } finally {
             setIsLoadingModels(false);
         }

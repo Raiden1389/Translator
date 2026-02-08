@@ -205,8 +205,19 @@ export class GoogleDriveService {
     }
 
     async logout() {
-        if ((window as any).google?.accounts?.oauth2?.revoke && this.accessToken) {
-            (window as any).google.accounts.oauth2.revoke(this.accessToken, () => {
+        interface GoogleOAuthWindow extends Window {
+            google?: {
+                accounts?: {
+                    oauth2?: {
+                        revoke?: (token: string, callback: () => void) => void;
+                    };
+                };
+            };
+        }
+
+        const win = window as GoogleOAuthWindow;
+        if (win.google?.accounts?.oauth2?.revoke && this.accessToken) {
+            win.google.accounts.oauth2.revoke(this.accessToken, () => {
                 // Token revoked silently
             });
         }

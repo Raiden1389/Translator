@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 // Sub-components
 import { AISettingsTab } from "./settings/AISettingsTab"
 import { DictionaryTab } from "./settings/DictionaryTab"
+import { StorageSettings } from "../settings/StorageSettings"
 
 interface SettingsDialogProps {
     workspaceId?: string;
@@ -86,11 +87,8 @@ export function SettingsDialog({ workspaceId, defaultTab = "ai", trigger }: Sett
                         <DictionaryTab workspaceId={workspaceId} />
                     </TabsContent>
 
-                    <TabsContent value="general" className="py-20 text-center flex flex-col items-center justify-center space-y-4">
-                        <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center text-white/20">
-                            <Settings className="h-6 w-6" />
-                        </div>
-                        <p className="text-sm text-white/30 italic font-medium">Tính năng "Cấu hình chung" đang được phát triển...</p>
+                    <TabsContent value="general" className="py-4">
+                        <StorageSettings />
                     </TabsContent>
                 </Tabs>
 

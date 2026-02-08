@@ -243,6 +243,27 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
                         rangeStart={rangeStart} rangeEnd={rangeEnd} setRangeStart={setRangeStart} setRangeEnd={setRangeEnd}
                         totalAvailable={chapters.length} isExporting={isExporting} exportProgress={exportProgress}
                         onExport={handleStartExport} formatLabel={`${format.toUpperCase()} (${lang === 'vi' ? 'Việt' : 'Trung'})`} useDrive={useDrive}
+                        onAutoSelectTranslated={() => {
+                            // Find all translated chapters
+                            const translatedChapters = chapters.filter(ch =>
+                                ch.status === 'translated' ||
+                                (ch.content_translated && ch.content_translated.trim().length > 0)
+                            );
+
+                            if (translatedChapters.length === 0) {
+                                toast.info("Chưa có chương nào được dịch");
+                                return;
+                            }
+
+                            // Find continuous range (first to last translated)
+                            const firstTranslated = translatedChapters[0].order;
+                            const lastTranslated = translatedChapters[translatedChapters.length - 1].order;
+
+                            setRangeStart(firstTranslated.toString());
+                            setRangeEnd(lastTranslated.toString());
+
+                            toast.success(`✨ Đã chọn ${translatedChapters.length} chương đã dịch (${firstTranslated}-${lastTranslated})`);
+                        }}
                     />
                     <div className={cn(
                         "p-5 rounded-2xl flex items-start gap-4 border transition-all shadow-sm",

@@ -1,7 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { storage } from './storageBridge';
 import { InspectionIssue } from './types';
-import { TranslationResult } from './gemini/types';
 
 export interface Workspace {
     id: string; // UUID
@@ -35,6 +34,17 @@ export interface Chapter {
     translationModel?: string; // e.g. "gemini-1.5-pro"
     translationDurationMs?: number; // e.g. 5000
     sourceUrl?: string; // Added: URL for crawling content on-demand
+    stats?: {
+        tokens?: {
+            input: number;
+            output: number;
+            total: number;
+            thinking?: number; // Gemini 2.5 Flash thinking tokens
+            system?: number;  // System instruction overhead
+            content?: number; // Actual story content
+        };
+        characters?: number;
+    };
     updatedAt?: Date;
 }
 
@@ -76,15 +86,9 @@ export interface APIUsageEntry {
     model: string; // The model ID
     inputTokens: number;
     outputTokens: number;
+    thinkingTokens?: number; // Gemini 2.5 Flash thinking tokens (billed as output)
     totalCost: number; // Accumulated cost in USD
     updatedAt: Date;
-}
-
-export interface TranslationCacheEntry {
-    key: string; // Hash(chunk + model + instruction + glossary)
-    result: TranslationResult;
-    timestamp: Date;
-    model: string;
 }
 
 export interface HistoryEntry {
@@ -106,7 +110,7 @@ export interface BlacklistEntry {
     workspaceId: string; // Added for isolation
     word: string;
     translated?: string;
-    source?: 'manual' | 'ai';
+    source?: 'manual' | 'ai' | 'heuristic';
     createdAt: Date;
 }
 
@@ -143,6 +147,42 @@ export interface PromptEntry {
 }
 
 
+export interface HeuristicTerm {
+    id?: number;
+    workspaceId: string;
+    original: string;
+    translated: string; // Auto-mapped Hán Việt
+    type: 'skill' | 'character' | 'location' | 'title' | 'unknown';
+    confidence: number; // 0-100
+    pinyin: string;
+    isApproved: boolean;
+    isGarbage?: boolean; // Added: Skip these terms in future scans
+    occurrences: number;
+    metadata?: Record<string, unknown>;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface ConsistencyLog {
+    id?: number;
+    workspaceId: string;
+    chapterId?: number;
+    issueType: 'drift' | 'missing' | 'inconsistent_translation';
+    details: string;
+    timestamp: Date;
+}
+
+/**
+ * UI Preferences (v2.7.0 - UI Polish)
+ * Stores user preferences for UI features
+ */
+export interface UIPreference {
+    key: string; // Primary key (e.g., 'commandPalette.lastCommand', 'reader.fontSize')
+    value: unknown; // JSON-serializable value
+    updatedAt: Date;
+}
+
+
 const db = new Dexie('AITranslatorDB') as Dexie & {
     workspaces: EntityTable<Workspace, 'id'>;
     chapters: EntityTable<Chapter, 'id'>;
@@ -154,7 +194,9 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     ttsCache: EntityTable<TTSCacheEntry, 'id'>;
     apiUsage: EntityTable<APIUsageEntry, 'model'>;
     history: EntityTable<HistoryEntry, 'id'>;
-    translationCache: EntityTable<TranslationCacheEntry, 'key'>; // New Cache Table
+    heuristicTerms: EntityTable<HeuristicTerm, 'id'>;
+    consistencyLogs: EntityTable<ConsistencyLog, 'id'>;
+    uiPreferences: EntityTable<UIPreference, 'key'>; // v2.7.0 - UI Polish
 };
 
 // ----------------------------------------------------------------------
@@ -170,36 +212,36 @@ db.version(100).stores({
     ttsCache: '++id, chapterId, voice, textHash, pitch, rate, [chapterId+voice+textHash+pitch+rate]',
     apiUsage: 'model',
     history: '++id, workspaceId, timestamp',
-    translationCache: 'key, timestamp', // Thêm index timestamp để dọn dẹp thần tốc
     settings: 'key'
-}).upgrade(async (trans) => {
-    // Legacy Migration to V100: Consolidating history
-    const workspaces = await trans.table('workspaces').toArray();
-    if (workspaces.length > 0) {
-        // 1. From V11: Ensure isolation for Dictionary, Blacklist, and Corrections
-        const firstWsId = workspaces[0].id;
-
-        await trans.table('dictionary').toCollection().modify((item: any) => {
-            if (!item.workspaceId) item.workspaceId = firstWsId;
-        });
-        await trans.table('blacklist').toCollection().modify((item: any) => {
-            if (!item.workspaceId) item.workspaceId = firstWsId;
-        });
-        await trans.table('corrections').toCollection().modify((item: any) => {
-            if (!item.workspaceId) item.workspaceId = firstWsId;
-        });
-
-        // 2. From V20: Refactor Corrections to be Type-Aware
-        await trans.table('corrections').toCollection().modify((c: any) => {
-            if (!c.type) {
-                c.type = 'replace';
-                c.from = c.original;
-                c.to = c.replacement;
-            }
-        });
-    }
-    console.log("🚀 Database migrated to Stable V100 architecture with legacy support.");
 });
+
+// ----------------------------------------------------------------------
+// HEURISTIC ENGINE UPGRADE (v101-102)
+// ----------------------------------------------------------------------
+db.version(101).stores({
+    heuristicTerms: '++id, workspaceId, original, type, isApproved, [workspaceId+original]',
+    consistencyLogs: '++id, workspaceId, chapterId, issueType'
+});
+
+db.version(102).stores({
+    heuristicTerms: '++id, workspaceId, original, type, isApproved, [workspaceId+original], [workspaceId+isApproved], [workspaceId+type]'
+});
+
+db.version(103).stores({
+    heuristicTerms: '++id, workspaceId, original, type, isApproved, isGarbage, [workspaceId+original], [workspaceId+isApproved], [workspaceId+isGarbage]'
+});
+
+db.version(104).stores({
+    blacklist: '++id, workspaceId, word, source, [workspaceId+source]'
+});
+
+// ----------------------------------------------------------------------
+// UI POLISH (v105) - v2.7.0
+// ----------------------------------------------------------------------
+db.version(105).stores({
+    uiPreferences: 'key' // Simple key-value store for UI preferences
+});
+
 
 // ----------------------------------------------------------------------
 // DIRTY FLAG SYNC SYSTEM (High Performance Incremental)
@@ -211,7 +253,7 @@ const dirtyDictionaries = new Set<string>();
 // Content cache to avoid redundant IO (Dictionary can be large)
 const lastSavedDictContent = new Map<string, string>();
 
-let isRehydrated = false;
+
 
 export const markWorkspaceDirty = (workspaceId: string) => {
     if (!workspaceId) return;
@@ -228,59 +270,86 @@ export const markDictionaryDirty = (workspaceId: string) => {
     dirtyDictionaries.add(workspaceId);
 };
 
-// Sync Worker: Process granular dirty flags every 5 seconds
-if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-    setInterval(async () => {
-        // RACE CONDITION GUARD: Don't start syncing until rehydration is complete
-        if (!isRehydrated) return;
+// ⚠️ AUTO-SYNC WORKER REMOVED
+// Manual save will be triggered by user action (footer button)
+// Dirty flags are kept for tracking unsaved changes
 
-        // 1. Process Metadata
+// Manual Save Function (called by UI)
+export const manualSaveAllWorkspaces = async (): Promise<{ saved: number; errors: string[] }> => {
+    const errors: string[] = [];
+    let saved = 0;
+
+    try {
+        // 1. Save all dirty workspaces metadata
         if (dirtyWorkspaces.size > 0) {
             const ids = Array.from(dirtyWorkspaces);
             for (const id of ids) {
-                dirtyWorkspaces.delete(id);
-                const ws = await db.workspaces.get(id);
-                if (ws) await storage.saveMetadata(id, ws);
-            }
-        }
-
-        // 2. Process Dictionary
-        if (dirtyDictionaries.size > 0) {
-            const ids = Array.from(dirtyDictionaries);
-            for (const id of ids) {
-                dirtyDictionaries.delete(id);
-                const ws = await db.workspaces.get(id);
-                if (!ws) continue;
-
-                const dict = await db.dictionary.where('workspaceId').equals(id).toArray();
-                const contentStr = JSON.stringify(dict);
-
-                if (lastSavedDictContent.get(id) !== contentStr) {
-                    await storage.saveDictionary(id, ws.title, dict);
-                    lastSavedDictContent.set(id, contentStr);
-                    console.log(`💾 [Sync Worker] Dictionary for ${ws.title} saved.`);
+                try {
+                    const ws = await db.workspaces.get(id);
+                    if (ws) {
+                        await storage.saveMetadata(id, ws);
+                        dirtyWorkspaces.delete(id);
+                        saved++;
+                    }
+                } catch (e) {
+                    errors.push(`Workspace ${id}: ${e}`);
                 }
             }
         }
 
-        // 3. Process Chapters
+        // 2. Save all dirty dictionaries
+        if (dirtyDictionaries.size > 0) {
+            const ids = Array.from(dirtyDictionaries);
+            for (const id of ids) {
+                try {
+                    const ws = await db.workspaces.get(id);
+                    if (!ws) continue;
+
+                    const dict = await db.dictionary.where('workspaceId').equals(id).toArray();
+                    const contentStr = JSON.stringify(dict);
+
+                    if (lastSavedDictContent.get(id) !== contentStr) {
+                        await storage.saveDictionary(id, ws.title, dict);
+                        lastSavedDictContent.set(id, contentStr);
+                        dirtyDictionaries.delete(id);
+                        saved++;
+                    }
+                } catch (e) {
+                    errors.push(`Dictionary ${id}: ${e}`);
+                }
+            }
+        }
+
+        // 3. Save all dirty chapters
         if (dirtyChapters.size > 0) {
             const compoundIds = Array.from(dirtyChapters);
             for (const cid of compoundIds) {
-                dirtyChapters.delete(cid);
-                const [wsId, chapIdStr] = cid.split(':');
-                const ws = await db.workspaces.get(wsId);
-                if (!ws) continue;
+                try {
+                    const [wsId, chapIdStr] = cid.split(':');
+                    const ws = await db.workspaces.get(wsId);
+                    if (!ws) continue;
 
-                const chapId = parseInt(chapIdStr);
-                const chap = await db.chapters.get(chapId);
-                if (chap) await storage.saveChapter(wsId, ws.title, chapId, chap);
+                    const chapId = parseInt(chapIdStr);
+                    const chap = await db.chapters.get(chapId);
+                    if (chap) {
+                        await storage.saveChapter(wsId, ws.title, chapId, chap);
+                        dirtyChapters.delete(cid);
+                        saved++;
+                    }
+                } catch (e) {
+                    errors.push(`Chapter ${cid}: ${e}`);
+                }
             }
         }
-    }, 5000);
-}
 
-// Hooks: Targeting specific components
+        return { saved, errors };
+    } catch (e) {
+        errors.push(`Global error: ${e}`);
+        return { saved, errors };
+    }
+};
+
+// Hooks: Track dirty state (no auto-save)
 db.workspaces.hook('creating', (_prim, obj) => markWorkspaceDirty(obj.id));
 db.workspaces.hook('updating', (_mods, _prim, obj) => markWorkspaceDirty(obj.id));
 db.workspaces.hook('deleting', (_prim, obj) => markWorkspaceDirty(obj.id));
@@ -294,8 +363,7 @@ db.dictionary.hook('updating', (_mods, _prim, obj) => markDictionaryDirty(obj.wo
 db.dictionary.hook('deleting', (_prim, obj) => markDictionaryDirty(obj.workspaceId));
 
 export const rehydrateFromStorage = async () => {
-    if (typeof window === 'undefined' || !(window as any).__TAURI__) {
-        isRehydrated = true;
+    if (typeof window === 'undefined' || !(window as { __TAURI__?: unknown }).__TAURI__) {
         return;
     }
 
@@ -309,13 +377,11 @@ export const rehydrateFromStorage = async () => {
 
         const count = await db.workspaces.count();
         if (count > 0) {
-            isRehydrated = true;
             return;
         }
 
         const workspaceIds = await storage.listWorkspaces();
         if (workspaceIds.length === 0) {
-            isRehydrated = true;
             return;
         }
 
@@ -334,70 +400,103 @@ export const rehydrateFromStorage = async () => {
     } catch (e) {
         console.error("Rehydration failed:", e);
     } finally {
-        isRehydrated = true;
-        console.log("🏁 Rehydration complete. Sync worker active.");
+        console.log("🏁 Rehydration complete.");
     }
 };
 
-/**
- * Clear the entire translation cache (Manual Trigger)
- */
-export const clearTranslationCache = async () => {
-    await db.translationCache.clear();
-};
+// ----------------------------------------------------------------------
+// UI PREFERENCES HELPERS (v2.7.0 - UI Polish)
+// ----------------------------------------------------------------------
+
+import { featureFlags } from './featureFlags';
 
 /**
- * Clear translation for a specific chapter
+ * Get UI preference by key
+ * Returns null if feature flag is OFF (safe for rollback)
  */
-export const clearChapterTranslation = async (chapterId: number) => {
-    await db.chapters.update(chapterId, {
-        content_translated: undefined,
-        title_translated: undefined,
-        status: 'draft',
-        lastTranslatedAt: undefined,
-        translationDurationMs: undefined,
-        translationModel: undefined,
-        inspectionResults: undefined,
-        updatedAt: new Date()
-    });
-};
+export async function getUIPreference<T = unknown>(key: string): Promise<T | null> {
+    if (!featureFlags.uiPreferences) {
+        return null; // Feature disabled - don't touch DB
+    }
 
-/**
- * Cleanup old/large cache (Auto Trigger)
- * - Removes items older than 30 days
- * - Keeps max 5000 items
- */
-export const cleanupCache = async () => {
     try {
-        const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-        const MAX_ITEMS = 5000;
-        const now = Date.now();
-        const cutoff = new Date(now - MAX_AGE_MS);
-
-        // 1. Fast delete older than 30 days using index
-        const expiredCount = await db.translationCache
-            .where('timestamp')
-            .below(cutoff)
-            .delete();
-
-        if (expiredCount > 0) {
-            console.log(`🧹 [Cache Cleanup] Deleted ${expiredCount} expired items via index.`);
-        }
-
-        // 2. Size limit enforcement (only if still over limit)
-        const totalCount = await db.translationCache.count();
-        if (totalCount > MAX_ITEMS) {
-            const excessKeys = await db.translationCache
-                .orderBy('timestamp')
-                .limit(totalCount - MAX_ITEMS)
-                .primaryKeys();
-
-            await db.translationCache.bulkDelete(excessKeys);
-            console.log(`🧹 [Cache Cleanup] Trimmed ${excessKeys.length} excess items.`);
-        }
+        const pref = await db.uiPreferences.get(key);
+        return pref ? (pref.value as T) : null;
     } catch (error) {
-        console.error("Cache cleanup failed:", error);
+        console.error(`Failed to get UI preference "${key}":`, error);
+        return null;
+    }
+}
+
+/**
+ * Set UI preference
+ * No-op if feature flag is OFF (safe for rollback)
+ */
+export async function setUIPreference(key: string, value: unknown): Promise<void> {
+    if (!featureFlags.uiPreferences) {
+        return; // Feature disabled - don't touch DB
+    }
+
+    try {
+        await db.uiPreferences.put({
+            key,
+            value,
+            updatedAt: new Date()
+        });
+    } catch (error) {
+        console.error(`Failed to set UI preference "${key}":`, error);
+    }
+}
+
+/**
+ * Delete UI preference
+ * No-op if feature flag is OFF (safe for rollback)
+ */
+export async function deleteUIPreference(key: string): Promise<void> {
+    if (!featureFlags.uiPreferences) {
+        return; // Feature disabled - don't touch DB
+    }
+
+    try {
+        await db.uiPreferences.delete(key);
+    } catch (error) {
+        console.error(`Failed to delete UI preference "${key}":`, error);
+    }
+}
+
+/**
+ * Get all UI preferences
+ * Returns empty array if feature flag is OFF (safe for rollback)
+ */
+export async function getAllUIPreferences(): Promise<UIPreference[]> {
+    if (!featureFlags.uiPreferences) {
+        return []; // Feature disabled - don't touch DB
+    }
+
+    try {
+        return await db.uiPreferences.toArray();
+    } catch (error) {
+        console.error('Failed to get all UI preferences:', error);
+        return [];
+    }
+}
+
+/**
+ * Clear all UI preferences
+ * No-op if feature flag is OFF (safe for rollback)
+ */
+export async function clearAllUIPreferences(): Promise<void> {
+    if (!featureFlags.uiPreferences) {
+        return; // Feature disabled - don't touch DB
+    }
+
+    try {
+        await db.uiPreferences.clear();
+        console.log('✅ All UI preferences cleared');
+    } catch (error) {
+        console.error('Failed to clear UI preferences:', error);
     }
 }
 
 export { db };
+

@@ -5,7 +5,7 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ReviewDialog } from "./ReviewDialog";
+import { ReviewDialog } from "./shared/ReviewDialog";
 import { cn } from "@/lib/utils";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { useCharacterManagement } from "./characters/useCharacterManagement";

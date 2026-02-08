@@ -37,9 +37,22 @@ export async function exportWorkspace(workspaceId: string): Promise<Blob> {
 export async function importWorkspace(file: File): Promise<void> {
     try {
         const text = await file.text();
-        const data = JSON.parse(text);
+        const rawData = JSON.parse(text);
 
-        // Validate data structure
+        // ✅ Add version if missing (backward compatibility)
+        const { ensureBackupVersion, safeParseBackup } = await import('./schemas/backup.schema');
+        const versionedData = ensureBackupVersion(rawData);
+
+        // ✅ Validate with versioned schema
+        const validationResult = safeParseBackup(versionedData);
+
+        if (!validationResult.success) {
+            throw new Error(`Backup file invalid: ${validationResult.error}`);
+        }
+
+        const data = validationResult.data;
+
+        // Validate data structure (redundant but safe)
         if (!data.workspace || !data.chapters) {
             throw new Error("Invalid export file format");
         }

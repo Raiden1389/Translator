@@ -1,11 +1,8 @@
 /**
- * PROMPT ASSEMBLER v1.0
- * Purpose: Dynamically assemble the system instruction based on sample analysis.
+ * DYNAMIC PROMPT ASSEMBLER v2.2 (Enhanced Quality Rules)
  */
-import { CORE_RULES, CAPITALIZATION_RULE, PRONOUN_RULE, STRUCTURE_RULE, VOICE_TONE_RULE } from "../constants";
-import { IDIOM_SYSTEM_RULE } from "../idioms";
-import { INTENSITY_RULE_COMPACT } from "./intensity";
-import { REGISTER_RULE_COMPACT } from "./register";
+import { CORE_RULES, TITLE_RULE, IDIOM_RULE, TOP_BLACKLIST, BATTLE_RULE, EMOTION_RULE, DIALOGUE_RULE } from "../constants";
+import { IDIOM_SYSTEM_RULE, STYLE_PRESSURE_MAP, BATTLE_FEEDBACK_MAP } from "../idioms";
 
 export interface HeuristicAnalysis {
     isCombat: boolean;
@@ -14,95 +11,72 @@ export interface HeuristicAnalysis {
     confidence: number;
 }
 
-/**
- * Heuristic Scan v1.0
- * Multi-point sampling (Start, Middle, End) to detect context.
- */
 export function analyzeTextHeuristics(text: string): HeuristicAnalysis {
     if (!text || text.length < 300) {
         return { isCombat: false, isPersonalityHeavy: false, detectedRegister: 'Neutral', confidence: 100 };
     }
 
-    const points = [
-        text.substring(0, 200),
-        text.substring(Math.floor(text.length / 2) - 100, Math.floor(text.length / 2) + 100),
-        text.substring(text.length - 200)
-    ];
+    const sample = text.substring(0, 500).toLowerCase();
 
-    const sample = points.join(" ").toLowerCase();
-
-    // 1. Detect Combat keywords
-    const combatWords = ["đánh", "giết", "chiến", "oành", "nổ", "máu", "kiếm", "đao", "thủ", "công", "bạo"];
+    // Improved Combat Detection
+    const combatWords = ["đánh", "giết", "chiến", "oành", "nổ", "máu", "kiếm", "đao", "chiêu", "thức", "động", "lực", "hồn"];
     const combatCount = combatWords.filter(w => sample.includes(w)).length;
 
-    // 2. Detect Register
-    const highWords = ["tiên tử", "tiểu thư", "thanh nhã", "phi phàm", "thoát tục", "quý"];
-    const lowWords = ["lưu manh", "côn đồ", "vĩa", "mịa", "ngưu bức", "trang bức", "gáy"];
-    const ancientWords = ["lão quái", "trưởng bối", "lão tổ", "ngàn năm", "tổ sư", "uy nghiêm"];
-    const cuteWords = ["tiểu sư muội", "nhí nhảnh", "linh thú", "nha", "nhé", "ngây thơ"];
-
-    const highScore = highWords.filter(w => sample.includes(w)).length;
-    const lowScore = lowWords.filter(w => sample.includes(w)).length;
-    const ancientScore = ancientWords.filter(w => sample.includes(w)).length;
-    const cuteScore = cuteWords.filter(w => sample.includes(w)).length;
+    const highScore = ["tiên tử", "tiểu thư", "thanh nhã", "phi phàm"].filter(w => sample.includes(w)).length;
+    const ancientScore = ["lão quái", "trưởng bối", "lão tổ", "bối phận"].filter(w => sample.includes(w)).length;
 
     let detectedRegister: 'High' | 'Low' | 'Ancient' | 'Cute' | 'Neutral' = 'Neutral';
-    const scores = [
-        { type: 'High' as const, score: highScore },
-        { type: 'Low' as const, score: lowScore },
-        { type: 'Ancient' as const, score: ancientScore },
-        { type: 'Cute' as const, score: cuteScore }
-    ];
-
-    const top = scores.sort((a, b) => b.score - a.score)[0];
-    if (top.score > 2) detectedRegister = top.type;
-
-    // 3. Confidence Calculation
-    const totalScore = combatCount + highScore + lowScore + ancientScore + cuteScore;
-    let confidence = 50;
-    if (totalScore > 5) confidence = 85;
-    if (totalScore < 2) confidence = 30; // Ambiguous
+    if (highScore > 1) detectedRegister = 'High';
+    else if (ancientScore > 1) detectedRegister = 'Ancient';
 
     return {
-        isCombat: combatCount > 3,
-        isPersonalityHeavy: (highScore + lowScore + ancientScore + cuteScore) > 2,
+        isCombat: combatCount > 2,
+        isPersonalityHeavy: (highScore + ancientScore) > 1,
         detectedRegister,
-        confidence
+        confidence: 100
     };
 }
 
-export function assembleSystemInstruction(analysis: HeuristicAnalysis, glossaryContext: string = "", customInstruction?: string): string {
-    const baseStyle = customInstruction || "Bạn là dịch giả tiểu thuyết Trung - Việt cao cấp. Bản dịch phải thoát ý, tự nhiên và ĐẶC BIỆT chú trọng vào cảm xúc người đọc.";
+/**
+ * Filter Idioms based on text content to keep prompt slim
+ */
+function getRelevantIdioms(text: string): string {
+    const raw = text.toLowerCase();
+    const relevant: string[] = [];
 
-    let extraModules = "";
-
-    // Safety Fallback: Only load modules if confidence > 70
-    if (analysis.confidence >= 70) {
-        if (analysis.isCombat || analysis.isPersonalityHeavy) {
-            extraModules += `\n${INTENSITY_RULE_COMPACT}`;
+    // Check Battle Idioms
+    BATTLE_FEEDBACK_MAP.forEach(m => {
+        if (raw.includes(m.from.toLowerCase())) {
+            relevant.push(`${m.from} -> ${m.to}`);
         }
+    });
 
-        if (analysis.detectedRegister !== 'Neutral') {
-            extraModules += `\n${REGISTER_RULE_COMPACT}`;
-            extraModules += `\nLƯU Ý: Đang ở chế độ Role-play Register: ${analysis.detectedRegister}.`;
-        }
-    } else {
-        extraModules += "\nCHẾ ĐỘ: Trung lập (Neutral Fallback). Ưu tiên sự an toàn và chuẩn mực.";
-    }
+    // Check Style Idioms (Limit to top 5 to avoid bloat)
+    const styleMatches = STYLE_PRESSURE_MAP
+        .filter(m => raw.includes(m.from.toLowerCase()))
+        .slice(0, 5);
 
-    return `${baseStyle}
+    styleMatches.forEach(m => {
+        relevant.push(`${m.from} -> ưu tiên [${m.to.slice(0, 2).join(", ")}]`);
+    });
 
-${CORE_RULES}
+    if (relevant.length === 0) return "";
+    return `\nLƯU Ý THÀNH NGỮ CHO ĐOẠN NÀY (HÃY ÁP DỤNG):\n${relevant.join("\n")}`;
+}
 
-${CAPITALIZATION_RULE}
+export function assembleSystemInstruction(
+    analysis: HeuristicAnalysis,
+    glossaryContext: string = "",
+    customInstruction?: string,
+    originalText?: string // New optional param for smart filtering
+): string {
+    // Use custom instruction if provided, otherwise use default base style
+    const baseStyle = customInstruction || "Dịch giả tiểu thuyết Trung-Việt. Thoát ý, mượt mà.";
 
-${PRONOUN_RULE}
+    // Smart Idioms injection
+    const relevantIdioms = originalText ? getRelevantIdioms(originalText) : "";
 
-${VOICE_TONE_RULE}
-
-${IDIOM_SYSTEM_RULE}
-${extraModules}
-
-${STRUCTURE_RULE}
-${glossaryContext}`;
+    // Priority: Title Rule (#1) -> Glossary -> Base Style -> Core Rules -> Quality Rules -> Idioms
+    // Quality Rules: Blacklist, Battle, Emotion, Dialogue, Idiom handling
+    return `${TITLE_RULE}\n${glossaryContext}\n${baseStyle}\n${CORE_RULES}\n${TOP_BLACKLIST}\n${BATTLE_RULE}\n${EMOTION_RULE}\n${DIALOGUE_RULE}\n${IDIOM_RULE}\n${IDIOM_SYSTEM_RULE}${relevantIdioms}`;
 }

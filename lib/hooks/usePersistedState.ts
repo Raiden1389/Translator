@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Hook to persist state to localStorage with debouncing
@@ -18,7 +18,7 @@ export function usePersistedState<T>(
             if (saved) {
                 return JSON.parse(saved);
             }
-        } catch (error) {
+        } catch {
             // Silently fail - use initial value
         }
         return initialValue;
@@ -29,7 +29,7 @@ export function usePersistedState<T>(
         const timeoutId = setTimeout(() => {
             try {
                 localStorage.setItem(key, JSON.stringify(state));
-            } catch (error) {
+            } catch {
                 // Silently fail persistence
             }
         }, debounceMs);
@@ -44,7 +44,7 @@ export function usePersistedState<T>(
  * Hook to persist multiple related states as a single object
  * Useful for persisting header state (search, filter, page, etc.)
  */
-export function usePersistedObject<T extends Record<string, any>>(
+export function usePersistedObject<T extends Record<string, unknown>>(
     key: string,
     initialValue: T,
     debounceMs: number = 300
