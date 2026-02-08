@@ -1,3 +1,50 @@
+## [2.6.1] - 2026-02-08
+
+### ✨ UX Enhancements
+
+- **Command Palette**:
+  - Added keyboard shortcuts for quick translation actions
+  - `Ctrl+T`: Translate selected chapters
+  - `Ctrl+Shift+T`: Toggle selection for all chapters
+  - Implemented in `useWorkspaceShortcuts.ts`
+
+- **Reader Display Settings**:
+  - **5 One-Click Theme Presets**: Light, Sepia, Dusk, Night, AMOLED
+  - **Expanded Font Library**: 9 font choices (added Lora, Noto Serif, Literata, Crimson Text, Nunito)
+  - **Advanced Spacing Controls**: Paragraph spacing and letter spacing sliders
+  - **Theme Compatibility Fixes**:
+    - Paragraph highlight colors now adapt to dark themes
+    - Chapter titles dynamically use reader config colors
+    - Removed rounded corners from reader modal for seamless appearance
+
+### 🐛 Bug Fixes
+
+- **TXT Import Improvements**:
+  - **Fixed Chapter Detection Regex**: Now requires `章` after `第` + number (e.g., `第2章`)
+    - Prevents false positives like `第二步` (step 2) from being detected as chapters
+  - **Duplicate Chapter Detection**: Auto-skip duplicate chapter titles during import
+    - Displays count of skipped duplicates in toast notification
+  - **Console Logging**: Added debug logs for duplicate detection
+
+- **Build Configuration**:
+  - Fixed infinite build loop in `package.json` and `tauri.conf.json`
+  - Added empty `turbopack: {}` config to silence Next.js 16 warning
+  - Added `bxf` alias for `f9` build script
+
+### 📦 Files Modified
+- `app/layout.tsx` - Added Google Font imports (Lora, Noto Serif, Literata, Crimson Text, Nunito)
+- `components/workspace/reader/components/DisplaySettings.tsx` - Complete rewrite with theme presets
+- `components/workspace/chapter-list/ReaderContent.tsx` - Applied spacing settings, fixed title color
+- `components/workspace/chapter-list/ReaderModal.tsx` - Fixed background consistency
+- `components/workspace/hooks/useChapterImport.ts` - Fixed regex + duplicate detection
+- `components/workspace/hooks/useReaderConfig.ts` - Added spacing defaults
+- `components/workspace/hooks/useReaderSettings.ts` - Added missing `paragraphSpacing` and `letterSpacing` fields
+- `components/workspace/hooks/useWorkspaceShortcuts.ts` - Added command palette shortcuts
+- `next.config.ts` - Added turbopack config
+- `package.json` - Fixed build loop, added `bxf` alias
+- `src-tauri/Cargo.toml` - Version sync
+- `src-tauri/tauri.conf.json` - Version sync
+
 ## [2.6.0] - 2026-02-07
 
 ### 🎯 Type Safety & Runtime Validation (Zod Integration)

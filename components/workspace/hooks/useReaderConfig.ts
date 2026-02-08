@@ -11,6 +11,8 @@ const DEFAULT_CONFIG: ReaderConfig = {
     maxWidth: 800,
     showDialogueLines: true,
     indentText: true,
+    paragraphSpacing: 0.75,
+    letterSpacing: 0,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: "vi-VN-HoaiMyNeural", // Default Vietnamese voice

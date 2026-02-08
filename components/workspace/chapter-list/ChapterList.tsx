@@ -25,6 +25,8 @@ import { ImportProgressOverlay } from "./ImportProgressOverlay";
 import { ChapterSelectionDock } from "../ChapterSelectionDock";
 import { ChapterListDialogs } from "./components/ChapterListDialogs";
 import { ChapterListContent } from "./components/ChapterListContent";
+import { useWorkspaceShortcuts } from "../hooks/useWorkspaceShortcuts";
+import { DEFAULT_TRANSLATION_CONFIG } from "./TranslateConfigDialog";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -136,6 +138,44 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         hasPrev,
         hasNext
     } = useReaderNavigation({ workspaceId, filtered });
+
+    // Workspace keyboard shortcuts
+    useWorkspaceShortcuts({
+        onTranslateSelected: () => {
+            // Ctrl+T: Translate immediately with default settings from dialog
+            if (selectedChapters.length > 0 && workspace) {
+                const defaultSettings: TranslationSettings = {
+                    apiKey: '', // Will use global API key
+                    model: 'gemini-2.0-flash-exp',
+                    temperature: 0.3,
+                };
+
+                onTranslate({
+                    workspaceId,
+                    chapters: filtered,
+                    selectedChapters,
+                    currentSettings: defaultSettings,
+                    translateConfig: DEFAULT_TRANSLATION_CONFIG,
+                    onReviewNeeded: (chars, terms) => onShowScanResults({ chars, terms }),
+                });
+
+                toast.success(`Translating ${selectedChapters.length} chapter(s)`, {
+                    description: 'Using default settings',
+                });
+            }
+        },
+        onOpenSettings: () => {
+            // Ctrl+Shift+T: Open settings dialog
+            setTranslateDialogOpen(true);
+        },
+        onSelectAll: () => {
+            setSelectedChapters(allChapterIds);
+        },
+        onDeselectAll: () => {
+            setSelectedChapters([]);
+        },
+        hasSelection: selectedChapters.length > 0,
+    });
 
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const currentChapters = useMemo(() => {

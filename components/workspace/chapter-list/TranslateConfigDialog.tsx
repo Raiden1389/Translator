@@ -38,6 +38,20 @@ interface TranslationSettingsManual {
     model: string;
 }
 
+// Export default config for keyboard shortcuts
+export const DEFAULT_TRANSLATION_CONFIG: TranslationConfig = {
+    customPrompt: "",
+    autoExtract: false,
+    maxConcurrency: 5,
+    fixPunctuation: false,
+    enableChunking: true,
+    enableTurbo: false,
+    maxConcurrentChunks: 5,
+    chunkSize: 800,
+    temperature: 0.1,
+    thinkingLevel: "minimal"
+};
+
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [currentSettings, setCurrentSettings] = useState({ apiKey: "", model: DEFAULT_MODEL });

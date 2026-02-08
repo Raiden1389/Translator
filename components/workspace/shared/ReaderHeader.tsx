@@ -37,6 +37,8 @@ export interface ReaderConfig {
     maxWidth: number;
     showDialogueLines: boolean;
     indentText: boolean;
+    paragraphSpacing: number; // in rem, default 0.75
+    letterSpacing: number; // in em, default 0
     ttsPitch: number;
     ttsRate: number;
     ttsVoice: string;

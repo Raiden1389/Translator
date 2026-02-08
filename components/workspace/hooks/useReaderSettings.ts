@@ -14,6 +14,8 @@ const DEFAULT_CONFIG: ReaderConfig = {
     maxWidth: 720,
     showDialogueLines: true,
     indentText: true,
+    paragraphSpacing: 0.75,
+    letterSpacing: 0,
     ttsPitch: 0,
     ttsRate: 0,
     ttsVoice: VIETNAMESE_VOICES[0].value,

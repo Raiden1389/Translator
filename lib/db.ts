@@ -172,6 +172,17 @@ export interface ConsistencyLog {
     timestamp: Date;
 }
 
+/**
+ * UI Preferences (v2.7.0 - UI Polish)
+ * Stores user preferences for UI features
+ */
+export interface UIPreference {
+    key: string; // Primary key (e.g., 'commandPalette.lastCommand', 'reader.fontSize')
+    value: unknown; // JSON-serializable value
+    updatedAt: Date;
+}
+
+
 const db = new Dexie('AITranslatorDB') as Dexie & {
     workspaces: EntityTable<Workspace, 'id'>;
     chapters: EntityTable<Chapter, 'id'>;
@@ -185,6 +196,7 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     history: EntityTable<HistoryEntry, 'id'>;
     heuristicTerms: EntityTable<HeuristicTerm, 'id'>;
     consistencyLogs: EntityTable<ConsistencyLog, 'id'>;
+    uiPreferences: EntityTable<UIPreference, 'key'>; // v2.7.0 - UI Polish
 };
 
 // ----------------------------------------------------------------------
@@ -222,6 +234,14 @@ db.version(103).stores({
 db.version(104).stores({
     blacklist: '++id, workspaceId, word, source, [workspaceId+source]'
 });
+
+// ----------------------------------------------------------------------
+// UI POLISH (v105) - v2.7.0
+// ----------------------------------------------------------------------
+db.version(105).stores({
+    uiPreferences: 'key' // Simple key-value store for UI preferences
+});
+
 
 // ----------------------------------------------------------------------
 // DIRTY FLAG SYNC SYSTEM (High Performance Incremental)
@@ -384,4 +404,99 @@ export const rehydrateFromStorage = async () => {
     }
 };
 
+// ----------------------------------------------------------------------
+// UI PREFERENCES HELPERS (v2.7.0 - UI Polish)
+// ----------------------------------------------------------------------
+
+import { featureFlags } from './featureFlags';
+
+/**
+ * Get UI preference by key
+ * Returns null if feature flag is OFF (safe for rollback)
+ */
+export async function getUIPreference<T = unknown>(key: string): Promise<T | null> {
+    if (!featureFlags.uiPreferences) {
+        return null; // Feature disabled - don't touch DB
+    }
+
+    try {
+        const pref = await db.uiPreferences.get(key);
+        return pref ? (pref.value as T) : null;
+    } catch (error) {
+        console.error(`Failed to get UI preference "${key}":`, error);
+        return null;
+    }
+}
+
+/**
+ * Set UI preference
+ * No-op if feature flag is OFF (safe for rollback)
+ */
+export async function setUIPreference(key: string, value: unknown): Promise<void> {
+    if (!featureFlags.uiPreferences) {
+        return; // Feature disabled - don't touch DB
+    }
+
+    try {
+        await db.uiPreferences.put({
+            key,
+            value,
+            updatedAt: new Date()
+        });
+    } catch (error) {
+        console.error(`Failed to set UI preference "${key}":`, error);
+    }
+}
+
+/**
+ * Delete UI preference
+ * No-op if feature flag is OFF (safe for rollback)
+ */
+export async function deleteUIPreference(key: string): Promise<void> {
+    if (!featureFlags.uiPreferences) {
+        return; // Feature disabled - don't touch DB
+    }
+
+    try {
+        await db.uiPreferences.delete(key);
+    } catch (error) {
+        console.error(`Failed to delete UI preference "${key}":`, error);
+    }
+}
+
+/**
+ * Get all UI preferences
+ * Returns empty array if feature flag is OFF (safe for rollback)
+ */
+export async function getAllUIPreferences(): Promise<UIPreference[]> {
+    if (!featureFlags.uiPreferences) {
+        return []; // Feature disabled - don't touch DB
+    }
+
+    try {
+        return await db.uiPreferences.toArray();
+    } catch (error) {
+        console.error('Failed to get all UI preferences:', error);
+        return [];
+    }
+}
+
+/**
+ * Clear all UI preferences
+ * No-op if feature flag is OFF (safe for rollback)
+ */
+export async function clearAllUIPreferences(): Promise<void> {
+    if (!featureFlags.uiPreferences) {
+        return; // Feature disabled - don't touch DB
+    }
+
+    try {
+        await db.uiPreferences.clear();
+        console.log('✅ All UI preferences cleared');
+    } catch (error) {
+        console.error('Failed to clear UI preferences:', error);
+    }
+}
+
 export { db };
+

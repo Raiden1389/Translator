@@ -96,17 +96,19 @@ const ParagraphItem = React.memo(({
         <p
             id={`tts-para-${index}`}
             className={cn(
-                "mb-(--reader-paragraph-spacing) transition-all duration-300 rounded-sm px-4 py-1 -mx-4 border border-transparent antialiased",
+                "transition-all duration-300 px-4 py-1 -mx-4 border border-transparent antialiased",
                 // Option: Only indent if narrative OR if user explicitly wants it
                 readerConfig.indentText && !isDialogue && "indent-8",
                 "hover:cursor-text",
                 isDialogue && !isRaidenMode && showDialogueLines && "border-l-2 border-l-[hsl(var(--dialogue-quote-border))]",
                 isHighlighted
-                    ? (isRaidenMode ? "bg-purple-500/10 border-purple-500/20" : "bg-blue-50/60 border-blue-200/50 shadow-xs")
-                    : (isRaidenMode ? "hover:bg-slate-800/10" : "hover:bg-slate-50/20")
+                    ? (isRaidenMode ? "bg-purple-500/10 border-purple-500/20" : "bg-white/10 border-white/10")
+                    : (isRaidenMode ? "hover:bg-slate-800/10" : "hover:bg-white/5")
             )}
             style={{
-                lineHeight: readerConfig.lineHeight
+                lineHeight: readerConfig.lineHeight,
+                marginBottom: `${readerConfig.paragraphSpacing ?? 0.75}rem`,
+                letterSpacing: `${readerConfig.letterSpacing ?? 0}em`,
             }}
             dangerouslySetInnerHTML={renderContent()}
         />
@@ -167,7 +169,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     opacity: isParallel ? 0.4 : 0.8
                                 }}>
                                 {chapter.content_original?.replace(/<br\s*\/?>/gi, '\n').split(/\n+/).map(p => p.trim()).filter(p => p.length > 0).map((p, i) => (
-                                    <p key={i} className="mb-[var(--reader-paragraph-spacing)]">
+                                    <p key={i} style={{ marginBottom: `${readerConfig.paragraphSpacing ?? 0.75}rem` }}>
                                         {p}
                                     </p>
                                 ))}
@@ -190,11 +192,11 @@ export const ReaderContent = React.memo(function ReaderContent({
                                 "font-bold text-4xl mb-12 text-center antialiased",
                                 "mx-auto px-6",
                                 "drop-shadow-sm transition-all duration-500",
-                                isRaidenMode ? "text-slate-100" : "text-gray-900",
                                 isParallel ? "pt-6" : "pt-16 md:pt-24"
                             )}
                                 style={{
                                     fontFamily: readerConfig.fontFamily,
+                                    color: finalTextColor,
                                     maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`)
                                 }}
                             >
@@ -216,6 +218,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                 fontFamily: readerConfig.fontFamily,
                                 fontSize: `${readerConfig.fontSize}px`,
                                 lineHeight: readerConfig.lineHeight,
+                                letterSpacing: `${readerConfig.letterSpacing ?? 0}em`,
                                 color: finalTextColor,
                                 textAlign: readerConfig.textAlign,
                                 maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`),

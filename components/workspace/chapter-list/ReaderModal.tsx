@@ -209,7 +209,7 @@ export function ReaderModal({
 
     return (
         <div className="fixed inset-x-0 bottom-[28px] top-[32px] z-100 flex items-center justify-center bg-transparent animate-in slide-in-from-bottom-8 duration-500 ease-out">
-            <div className="w-full h-full bg-background rounded-t-[32px] overflow-hidden flex flex-col border-t border-border shadow-2xl relative">
+            <div className="w-full h-full overflow-hidden flex flex-col border-t border-border shadow-2xl relative" style={{ backgroundColor: readerConfig.backgroundColor || 'hsl(var(--background))' }}>
                 <div className="relative flex-1 flex flex-col overflow-hidden">
                     <ReaderHeader
                         isHeaderVisible={isHeaderVisible}

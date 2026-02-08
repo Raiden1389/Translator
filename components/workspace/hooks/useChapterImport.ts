@@ -96,30 +96,87 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
                 await db.chapters.bulkAdd(chaptersToAdd);
                 toast.success(`Đã nhập ${chaptersToAdd.length} chương từ EPUB!`);
             } else if (file.name.endsWith(".txt")) {
-                const text = await file.text();
+                setImportStatus("Detecting file encoding...");
+
+                // Read first chunk to detect encoding
+                const buffer = await file.slice(0, 10000).arrayBuffer();
+                const uint8Array = new Uint8Array(buffer);
+
+                // Detect encoding using jschardet
+                const jschardet = await import('jschardet');
+                const detected = jschardet.detect(Buffer.from(uint8Array));
+                const encoding = detected.encoding || 'UTF-8';
+
+                console.log('[TXT Import] Detected encoding:', encoding, 'Confidence:', detected.confidence);
+                setImportStatus(`Reading file (${encoding})...`);
+
+                // Read file with detected encoding
+                let text: string;
+                if (encoding.toUpperCase().includes('GB') || encoding.toUpperCase().includes('GBK')) {
+                    // Chinese encoding (GBK/GB2312)
+                    const iconv = await import('iconv-lite');
+                    const arrayBuffer = await file.arrayBuffer();
+                    text = iconv.decode(Buffer.from(arrayBuffer), encoding);
+                } else {
+                    // UTF-8 or other
+                    text = await file.text();
+                }
+
+                setImportStatus("Splitting chapters...");
                 const lines = text.split("\n");
+                const totalLines = lines.length;
+
                 const chaptersToAdd = [];
+                const seenTitles = new Set<string>(); // Track seen chapter titles
                 let currentTitle = "Phần 1";
                 let currentContent: string[] = [];
+                let skippedDuplicates = 0;
 
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    if (/^\s*(Chương|Chapter|Tiết|Quyển|Episode|第|卷|回)\s*(\d+|[零一二三四五六七八九十百千]+)/i.test(line)) {
-                        if (currentContent.length > 0) {
-                            const contentStr = currentContent.join("\n").trim();
-                            chaptersToAdd.push({
-                                workspaceId, title: currentTitle, content_original: contentStr,
-                                content_translated: "", status: "draft" as const,
-                                order: currentChaptersCount + chaptersToAdd.length + 1,
-                                wordCountOriginal: contentStr.length, wordCountTranslated: 0
-                            });
+                // Process in chunks to avoid UI freeze
+                const CHUNK_SIZE = 1000; // Process 1000 lines at a time
+
+                for (let chunkStart = 0; chunkStart < totalLines; chunkStart += CHUNK_SIZE) {
+                    const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, totalLines);
+                    const progress = Math.round((chunkEnd / totalLines) * 100);
+
+                    setImportStatus(`Processing lines ${chunkStart + 1}-${chunkEnd}/${totalLines}...`);
+                    setProgress(progress);
+
+                    // Yield to UI thread
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+                    for (let i = chunkStart; i < chunkEnd; i++) {
+                        const line = lines[i];
+                        if (/^\s*(Chương|Chapter|Tiết|Quyển|Episode|第\s*(\d+|[零一二三四五六七八九十百千]+)\s*章|卷|回)\s*(\d+|[零一二三四五六七八九十百千]+)?/i.test(line)) {
+                            const newTitle = line.trim();
+
+                            // Check for duplicate
+                            if (seenTitles.has(newTitle)) {
+                                console.log(`[TXT Import] Skipping duplicate chapter: ${newTitle}`);
+                                skippedDuplicates++;
+                                continue; // Skip this duplicate chapter marker
+                            }
+
+                            if (currentContent.length > 0) {
+                                const contentStr = currentContent.join("\n").trim();
+                                chaptersToAdd.push({
+                                    workspaceId, title: currentTitle, content_original: contentStr,
+                                    content_translated: "", status: "draft" as const,
+                                    order: currentChaptersCount + chaptersToAdd.length + 1,
+                                    wordCountOriginal: contentStr.length, wordCountTranslated: 0
+                                });
+                            }
+
+                            currentTitle = newTitle;
+                            seenTitles.add(newTitle);
+                            currentContent = [];
+                        } else {
+                            currentContent.push(line);
                         }
-                        currentTitle = line.trim();
-                        currentContent = [];
-                    } else {
-                        currentContent.push(line);
                     }
                 }
+
+                // Add last chapter
                 if (currentContent.length > 0) {
                     const contentStr = currentContent.join("\n").trim();
                     chaptersToAdd.push({
@@ -129,8 +186,16 @@ export function useChapterImport(workspaceId: string, currentChaptersCount: numb
                         wordCountOriginal: contentStr.length, wordCountTranslated: 0
                     });
                 }
+
+                setImportStatus(`Saving ${chaptersToAdd.length} chapters to database...`);
+                setProgress(100);
+
                 await db.chapters.bulkAdd(chaptersToAdd);
-                toast.success(`Đã nhập file TXT thành công!`);
+
+                const message = skippedDuplicates > 0
+                    ? `Đã nhập ${chaptersToAdd.length} chương (bỏ qua ${skippedDuplicates} chương trùng lặp)`
+                    : `Đã nhập ${chaptersToAdd.length} chương từ file TXT!`;
+                toast.success(message);
             } else if (file.name.endsWith(".json")) {
                 const text = await file.text();
                 const count = await processJsonChapters(JSON.parse(text));

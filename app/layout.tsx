@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Lora, Merriweather } from "next/font/google";
+import { Geist, Geist_Mono, Lora, Merriweather, Noto_Serif, Literata, Crimson_Text, Nunito } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,7 +26,33 @@ const merriweather = Merriweather({
   display: "swap",
 });
 
+const notoSerif = Noto_Serif({
+  variable: "--font-noto-serif",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
+const literata = Literata({
+  variable: "--font-literata",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const crimsonText = Crimson_Text({
+  variable: "--font-crimson-text",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "600", "700"],
+  display: "swap",
+});
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Raiden AI Translator",
@@ -41,6 +67,9 @@ import { RaidenProvider } from "@/components/theme/RaidenProvider";
 import { TranslationProvider } from "@/components/workspace/hooks/TranslationProvider.v2";
 import { GlobalTranslationProgress } from "@/components/layout/GlobalTranslationProgress";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { GlobalShortcutsManager } from "@/components/layout/GlobalShortcutsManager";
+import { CommandPalette } from "@/components/CommandPalette/CommandPalette";
+import { CommandRegistrar } from "@/components/layout/CommandRegistrar";
 
 export default function RootLayout({
   children,
@@ -50,10 +79,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-px select-none`}
+        className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${merriweather.variable} ${notoSerif.variable} ${literata.variable} ${crimsonText.variable} ${nunito.variable} antialiased bg-transparent h-screen w-screen overflow-hidden flex flex-col p-px select-none`}
       >
         <div className="flex-1 flex flex-col bg-background rounded-lg border border-border shadow-2xl overflow-hidden relative group/window">
           <RaidenProvider>
+            <GlobalShortcutsManager />
             <ErrorBoundary>
               <TranslationProvider>
                 <TooltipProvider delayDuration={400}>
@@ -72,6 +102,8 @@ export default function RootLayout({
                       className: "bg-card border border-border text-foreground shadow-2xl rounded-xl",
                     }}
                   />
+                  <CommandPalette />
+                  <CommandRegistrar />
                 </TooltipProvider>
               </TranslationProvider>
             </ErrorBoundary>
