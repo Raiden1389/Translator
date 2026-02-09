@@ -5,7 +5,6 @@ import { CheckboxNative } from "@/components/ui/checkbox-native";
 import { Button } from "@/components/ui/button";
 import { Trash2, Book, Zap, Clock, CheckCircle2, Loader2, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EditableTitle } from "./EditableTitle";
 
@@ -62,8 +61,6 @@ export const ChapterRow = React.memo(function ChapterRow({
     queueStatus,
     index
 }: ChapterRowProps) {
-    const { isRaidenMode } = useRaiden();
-
     const isRunning = queueStatus === 'running' || queueStatus === 'queued';
     // Fix: queueStatus is a string ('none', 'running', 'queued'). !'none' is false.
     const isTranslated = (status === 'translated' || hasContent || hasTitle) && !isRunning;
@@ -71,16 +68,13 @@ export const ChapterRow = React.memo(function ChapterRow({
 
     // PERFORMANCE FIX: Memoize className to prevent recalculation on every render
     const rowClassName = React.useMemo(() => cn(
-        "grid grid-cols-[50px_60px_1fr_1fr_140px_100px] items-center px-4 py-2 border-b transition-all group cursor-pointer h-fit min-h-[50px] relative overflow-hidden",
-        isRaidenMode ? "border-slate-800/40" : "border-border/50",
+        "grid grid-cols-[50px_60px_1fr_1fr_140px_100px] items-center px-4 py-2 border-b border-border/50 transition-all group cursor-pointer h-fit min-h-[50px] relative overflow-hidden",
         isSelected || isInDrag
-            ? (isRaidenMode ? "bg-primary/10 border-l-4 border-primary shadow-inner" : "bg-primary/10 border-l-4 border-primary shadow-inner")
-            : (isRaidenMode
-                ? "hover:bg-primary/5 hover:border-l-4 hover:border-primary/50"
-                : (index % 2 === 1 ? "bg-card hover:bg-emerald-500/5 hover:border-l-[6px] hover:border-emerald-500/30" : "bg-muted/20 hover:bg-emerald-500/5 hover:border-l-[6px] hover:border-emerald-500/30")),
+            ? "bg-primary/10 border-l-4 border-primary shadow-inner"
+            : (index % 2 === 1 ? "bg-card hover:bg-emerald-500/5 hover:border-l-[6px] hover:border-emerald-500/30" : "bg-muted/20 hover:bg-emerald-500/5 hover:border-l-[6px] hover:border-emerald-500/30"),
         isDraft && "opacity-70 grayscale-[0.3] hover:opacity-100 hover:grayscale-0",
-        isLastRead && (isRaidenMode ? "bg-emerald-500/10 border-l-[6px] border-emerald-500/60" : "bg-emerald-50/50 border-l-[6px] border-emerald-500/50 shadow-inner")
-    ), [isRaidenMode, isSelected, isInDrag, isDraft, isLastRead, index]);
+        isLastRead && "bg-emerald-500/10 border-l-[6px] border-emerald-500/60"
+    ), [isSelected, isInDrag, isDraft, isLastRead, index]);
 
     // PERFORMANCE FIX: Memoize event handlers
     const handleMouseDownCallback = React.useCallback((e: React.MouseEvent) => {
@@ -123,55 +117,45 @@ export const ChapterRow = React.memo(function ChapterRow({
 
     // PERFORMANCE FIX: Memoize ALL classNames to prevent recalculation
     const checkboxClassName = React.useMemo(() => cn(
-        "shadow-sm",
-        isRaidenMode
-            ? "border-slate-600 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
-            : "border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-    ), [isRaidenMode]);
+        "shadow-sm border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+    ), []);
 
     const orderClassName = React.useMemo(() => cn(
-        "text-center font-mono text-[10px]",
-        isRaidenMode ? "text-slate-600" : "text-slate-400"
-    ), [isRaidenMode]);
+        "text-center font-mono text-[10px] text-muted-foreground"
+    ), []);
 
     const titleClassName = React.useMemo(() => cn(
-        "font-bold truncate select-text",
-        isRaidenMode ? "text-slate-200" : "text-slate-900"
-    ), [isRaidenMode]);
+        "font-bold truncate select-text text-foreground"
+    ), []);
 
     const titleButtonClassName = React.useMemo(() => cn(
-        "transition-colors block w-full text-left truncate font-serif text-base",
-        isRaidenMode ? "hover:text-purple-400" : "hover:text-blue-600"
-    ), [isRaidenMode]);
+        "transition-colors block w-full text-left truncate font-serif text-base hover:text-primary"
+    ), []);
 
     const titleIconClassName = React.useMemo(() => cn(
-        "w-3 h-3 shrink-0",
-        isRaidenMode ? "text-purple-500/60" : "text-blue-500/60"
-    ), [isRaidenMode]);
+        "w-3 h-3 shrink-0 text-primary/60"
+    ), []);
 
 
 
     const statusBadgeClassName = React.useMemo(() => cn(
         "inline-flex items-center px-3 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-tighter cursor-help gap-1 shadow-xs",
-        isRunning ? (isRaidenMode ? "bg-purple-900/20 text-purple-400 border-purple-800/30 animate-pulse" : "bg-blue-50 text-blue-600 border-blue-200 animate-pulse") :
-            isTranslated ? (isRaidenMode ? "bg-emerald-950/20 text-emerald-400 border-emerald-900/30" : "bg-emerald-50 text-emerald-700 border-emerald-200/50") :
-                (isRaidenMode ? "bg-slate-800 text-slate-500 border-slate-700" : "bg-gray-100/50 text-gray-500 border-gray-200")
-    ), [isRunning, isTranslated, isRaidenMode]);
+        isRunning ? "bg-primary/10 text-primary border-primary/30 animate-pulse" :
+            isTranslated ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" :
+                "bg-muted text-muted-foreground border-border"
+    ), [isRunning, isTranslated]);
 
     const inspectButtonClassName = React.useMemo(() => cn(
-        "h-7 w-7",
-        isRaidenMode ? "text-slate-500 hover:text-purple-400 hover:bg-purple-500/10" : "text-slate-400 hover:text-primary hover:bg-blue-50"
-    ), [isRaidenMode]);
+        "h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent"
+    ), []);
 
     const clearButtonClassName = React.useMemo(() => cn(
-        "h-7 w-7",
-        isRaidenMode ? "text-slate-500 hover:text-amber-400 hover:bg-amber-500/10" : "text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-    ), [isRaidenMode]);
+        "h-7 w-7 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+    ), []);
 
     const deleteButtonClassName = React.useMemo(() => cn(
-        "h-7 w-7",
-        isRaidenMode ? "text-slate-500 hover:text-rose-500 hover:bg-rose-500/10" : "text-slate-400 hover:text-rose-500 hover:bg-rose-50"
-    ), [isRaidenMode]);
+        "h-7 w-7 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10"
+    ), []);
 
     return (
         <div
@@ -210,7 +194,6 @@ export const ChapterRow = React.memo(function ChapterRow({
             <EditableTitle
                 id={id}
                 title_translated={title_translated}
-                isRaidenMode={isRaidenMode}
                 onRead={handleReadClick}
             />
 

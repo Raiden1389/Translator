@@ -28,7 +28,7 @@ export function TextSelectionMenu({ position, selectedText, onAction, onClose }:
     return (
         <div
             ref={menuRef}
-            className="fixed z-[9999] bg-[#1e1e2e] border border-white/10 shadow-2xl rounded-lg p-1 flex gap-1 animate-in fade-in zoom-in-95 duration-200"
+            className="fixed z-[9999] bg-popover border border-border shadow-2xl rounded-lg p-1 flex gap-1 animate-in fade-in zoom-in-95 duration-200"
             style={{
                 top: position.y - 50, // Display above selection
                 left: position.x,
@@ -38,29 +38,29 @@ export function TextSelectionMenu({ position, selectedText, onAction, onClose }:
             <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-white/80 hover:bg-white/10 hover:text-white"
+                className="h-8 px-2 text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                 onClick={() => onAction("dictionary")}
                 title="Lưu vào Từ điển"
             >
-                <Book className="w-4 h-4 mr-2 text-blue-400" />
+                <Book className="w-4 h-4 mr-2 text-primary" />
                 Từ điển
             </Button>
-            <div className="w-px bg-white/10 my-1" />
+            <div className="w-px bg-border my-1" />
             <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-white/80 hover:bg-white/10 hover:text-white"
+                className="h-8 px-2 text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                 onClick={() => onAction("blacklist")}
                 title="Thêm vào Blacklist"
             >
-                <ShieldBan className="w-4 h-4 mr-2 text-red-400" />
+                <ShieldBan className="w-4 h-4 mr-2 text-destructive" />
                 Blacklist
             </Button>
-            <div className="w-px bg-white/10 my-1" />
+            <div className="w-px bg-border my-1" />
             <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-white/80 hover:bg-white/10 hover:text-white"
+                className="h-8 px-2 text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                 onClick={() => onAction("correction")}
                 title="Sửa lỗi (Tự động thay thế sau này)"
             >

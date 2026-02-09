@@ -140,22 +140,22 @@ export function GeminiOAuthSettings() {
   return (
     <Card className="border-purple-500/20 bg-linear-to-br from-purple-500/5 to-transparent">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <span className="text-2xl">🔐</span>
           Gemini OAuth (Không cần API Key)
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-foreground/80">
           Sử dụng tài khoản Google để truy cập Gemini API - Hỗ trợ nhiều tài khoản
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* OAuth Mode Toggle */}
-        <div className="flex items-center justify-between p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30">
+        <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border">
           <div className="flex-1">
-            <Label htmlFor="oauth-mode" className="text-sm font-bold text-white cursor-pointer">
+            <Label htmlFor="oauth-mode" className="text-sm font-bold text-foreground cursor-pointer">
               Dùng OAuth thay vì API Key
             </Label>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Bật để sử dụng tài khoản Google, tắt để dùng API Key (không cần xóa key)
             </p>
           </div>
@@ -269,27 +269,27 @@ export function GeminiOAuthSettings() {
         )}
 
         {/* Add Account */}
-        <div className="space-y-4 pt-4 border-t border-gray-700">
-          <h3 className="text-sm font-bold text-gray-300">Thêm tài khoản mới:</h3>
+        <div className="space-y-4 pt-4 border-t border-border">
+          <h3 className="text-sm font-bold text-foreground">Thêm tài khoản mới:</h3>
 
           {!showCodeInput ? (
             <Button
               onClick={handleStartAuth}
-              className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <ExternalLink className="w-4 h-4 mr-2" />
               Đăng nhập với Google
             </Button>
           ) : (
             <div className="space-y-3">
-              <div className="p-4 rounded-lg bg-black/30 border border-purple-500/30 space-y-2">
-                <p className="text-sm text-gray-300">
+              <div className="p-4 rounded-lg bg-muted/30 border border-border space-y-2">
+                <p className="text-sm text-foreground">
                   <strong>Bước 1:</strong> Cửa sổ Google OAuth đã mở
                 </p>
-                <p className="text-sm text-gray-300">
+                <p className="text-sm text-foreground">
                   <strong>Bước 2:</strong> Đăng nhập và cho phép truy cập
                 </p>
-                <p className="text-sm text-gray-300">
+                <p className="text-sm text-foreground">
                   <strong>Bước 3:</strong> Sau khi redirect về localhost:11451, copy URL hoặc mã code
                 </p>
               </div>
@@ -299,14 +299,14 @@ export function GeminiOAuthSettings() {
                 value={authCode}
                 onChange={(e) => setAuthCode(e.target.value)}
                 placeholder="Dán URL hoặc mã code ở đây..."
-                className="w-full px-4 py-2 rounded-lg bg-black/30 border border-purple-500/30 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500"
+                className="w-full px-4 py-2 rounded-lg bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
               />
 
               <div className="flex gap-2">
                 <Button
                   onClick={handleSubmitCode}
                   disabled={loading || !authCode.trim()}
-                  className="flex-1 bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {loading ? (
                     <>
@@ -324,7 +324,7 @@ export function GeminiOAuthSettings() {
                     setError(null);
                   }}
                   variant="outline"
-                  className="border-gray-600 hover:bg-gray-800"
+                  className="border-border hover:bg-muted"
                 >
                   Hủy
                 </Button>
@@ -335,8 +335,8 @@ export function GeminiOAuthSettings() {
 
         {/* Info Box */}
         <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 space-y-2">
-          <p className="text-sm text-blue-300 font-semibold">💡 Lợi ích:</p>
-          <ul className="text-sm text-blue-200 space-y-1 list-disc list-inside">
+          <p className="text-sm text-primary font-semibold">💡 Lợi ích:</p>
+          <ul className="text-sm text-foreground space-y-1 list-disc list-inside">
             <li>Không cần API key riêng</li>
             <li>Hỗ trợ nhiều tài khoản Google</li>
             <li>Chuyển đổi tài khoản dễ dàng</li>
@@ -345,13 +345,6 @@ export function GeminiOAuthSettings() {
           </ul>
         </div>
 
-        {/* Security Note */}
-        <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-          <p className="text-xs text-yellow-300">
-            🔒 <strong>Bảo mật:</strong> Credentials được lưu trong IndexedDB của trình duyệt,
-            không gửi đến server bên thứ 3 (khác MCAI proxy).
-          </p>
-        </div>
       </CardContent>
     </Card>
   );

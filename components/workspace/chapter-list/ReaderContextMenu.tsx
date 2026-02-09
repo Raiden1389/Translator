@@ -44,7 +44,7 @@ export function ReaderContextMenu({ position, selectedText, onAction, onClose }:
     return createPortal(
         <div
             ref={menuRef}
-            className="fixed z-[9999] bg-[#1e1e2e] border border-white/10 shadow-2xl rounded-lg overflow-hidden min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
+            className="fixed z-[9999] bg-popover border border-border shadow-2xl rounded-lg overflow-hidden min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
             style={{
                 top: position.y,
                 left: position.x,
@@ -54,34 +54,34 @@ export function ReaderContextMenu({ position, selectedText, onAction, onClose }:
             <div className="p-1 space-y-0.5">
                 <button
                     onClick={() => onAction("dictionary")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-white/90 hover:bg-white/10 rounded-md transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors"
                 >
-                    <Book className="w-4 h-4 text-blue-400" />
+                    <Book className="w-4 h-4 text-primary" />
                     Thêm vào Từ điển
                 </button>
                 <button
                     onClick={() => onAction("blacklist")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-white/90 hover:bg-white/10 rounded-md transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors"
                 >
-                    <ShieldBan className="w-4 h-4 text-red-400" />
+                    <ShieldBan className="w-4 h-4 text-destructive" />
                     Thêm vào Blacklist
                 </button>
                 <button
                     onClick={() => onAction("correction")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-white/90 hover:bg-white/10 rounded-md transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors"
                 >
                     <Wand2 className="w-4 h-4 text-amber-400" />
                     Sửa & Thay thế
                 </button>
 
-                <div className="h-px bg-white/10 my-1" />
+                <div className="h-px bg-border my-1" />
 
 
                 <button
                     onClick={() => onAction("copy")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-white/90 hover:bg-white/10 rounded-md transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors"
                 >
-                    <Copy className="w-4 h-4 text-white/50" />
+                    <Copy className="w-4 h-4 text-muted-foreground" />
                     Sao chép
                 </button>
             </div>

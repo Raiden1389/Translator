@@ -222,10 +222,10 @@ export function AISettingsTab() {
                             <Button
                                 onClick={handleSaveAll}
                                 disabled={isSaving}
-                                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-black h-14 rounded-2xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.98] gap-3 text-lg"
+                                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-11 rounded-xl shadow-lg transition-all gap-2 text-sm"
                             >
-                                {isSaving ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
-                                LƯU TOÀN BỘ CÀI ĐẶT
+                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                Lưu cài đặt
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Lưu các cài đặt API Key và Model xuống bộ nhớ máy</TooltipContent>

@@ -11,12 +11,10 @@ import {
     FileText, Database, Sparkles, Loader2,
     Search, Link as LinkIcon
 } from "lucide-react";
-import { useRaiden } from "@/components/theme/RaidenProvider";
 import { useOverview } from "./hooks/useOverview";
 import { Workspace } from "@/lib/db";
 
 export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
-    const { isRaidenMode } = useRaiden();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { state, actions } = useOverview(workspace);
 
@@ -47,22 +45,19 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Left Column: Stats & Info */}
                 <div className="lg:col-span-1 space-y-6">
-                    <Card className={cn(
-                        "overflow-hidden relative transition-all",
-                        isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-sm hover:shadow-md"
-                    )}>
+                    <Card className="overflow-hidden relative transition-all bg-card border-border shadow-sm hover:shadow-md">
                         <CardHeader className="pb-2">
-                            <CardTitle className={cn("text-base flex items-center gap-2", isRaidenMode ? "text-slate-200" : "text-foreground")}>
-                                <Zap className={cn("w-4 h-4", isRaidenMode ? "text-purple-400" : "text-primary")} /> Thống Kê
+                            <CardTitle className="text-base flex items-center gap-2 text-foreground">
+                                <Zap className="w-4 h-4 text-primary" /> Thống Kê
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className={cn("flex justify-between items-center text-sm p-3 rounded-xl", isRaidenMode ? "bg-slate-900/40" : "bg-muted/30 border border-border/50")}>
-                                <span className={isRaidenMode ? "text-slate-400" : "text-muted-foreground font-medium"}>Tổng số chương</span>
-                                <span className={cn("font-bold font-mono text-xl", isRaidenMode ? "text-slate-100" : "text-foreground")}>{stats.totalChapters.toLocaleString()}</span>
+                            <div className="flex justify-between items-center text-sm p-3 rounded-xl bg-muted/30 border border-border/50">
+                                <span className="text-muted-foreground font-medium">Tổng số chương</span>
+                                <span className="font-bold font-mono text-xl text-foreground">{stats.totalChapters.toLocaleString()}</span>
                             </div>
-                            <div className={cn("flex justify-between items-center text-sm p-3 rounded-xl", isRaidenMode ? "bg-slate-900/40" : "bg-muted/30 border border-border/50")}>
-                                <span className={isRaidenMode ? "text-slate-400" : "text-muted-foreground font-medium"}>Đã dịch</span>
+                            <div className="flex justify-between items-center text-sm p-3 rounded-xl bg-muted/30 border border-border/50">
+                                <span className="text-muted-foreground font-medium">Đã dịch</span>
                                 <span className="text-emerald-500 font-bold font-mono text-xl">{stats.translatedChapters.toLocaleString()}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -78,11 +73,11 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                             <div className="pt-2 border-t border-border mt-2">
                                 <Tooltip>
                                     <TooltipTrigger className="w-full">
-                                        <div className={cn("flex justify-between items-center p-3 rounded-xl cursor-help transition-all hover:scale-[1.02]", isRaidenMode ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-emerald-50/50 border border-emerald-100")}>
-                                            <div className={cn("text-xs font-bold uppercase tracking-tight", isRaidenMode ? "text-emerald-400" : "text-emerald-600")}>Translation Cost</div>
+                                        <div className="flex justify-between items-center p-3 rounded-lg cursor-help transition-all hover:bg-muted/50 bg-background border border-border">
+                                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Translation Cost</div>
                                             <div className="text-right">
-                                                <div className={cn("font-black font-mono text-xl leading-tight", isRaidenMode ? "text-emerald-300" : "text-emerald-700")}>${stats.totalCostUSD.toFixed(2)}</div>
-                                                <div className="text-[9px] font-medium text-muted-foreground">{stats.translatedChapters} chapters</div>
+                                                <div className="font-bold font-mono text-lg leading-tight text-foreground">${stats.totalCostUSD.toFixed(2)}</div>
+                                                <div className="text-[10px] font-medium text-muted-foreground">{stats.translatedChapters} chapters</div>
                                             </div>
                                         </div>
                                     </TooltipTrigger>
@@ -106,7 +101,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                         </CardContent>
                     </Card>
 
-                    <Card className={cn("overflow-hidden transition-all", isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-sm")}>
+                    <Card className="overflow-hidden transition-all bg-card border-border shadow-sm">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-foreground text-base flex items-center gap-2">
                                 <BookOpen className="w-4 h-4 text-primary" /> Thông Tin
@@ -114,22 +109,22 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2 group">
-                                <label className={cn("text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors", isRaidenMode ? "text-slate-500 group-focus-within:text-purple-400" : "text-muted-foreground group-focus-within:text-primary")}>
+                                <label className="text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors text-muted-foreground group-focus-within:text-primary">
                                     <Users className="w-3 h-3" /> Tác Giả
                                 </label>
                                 <input
-                                    className={cn("bg-transparent font-bold text-lg w-full border-b focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all", isRaidenMode ? "text-slate-100 border-slate-700 focus:border-purple-500" : "text-foreground border-border focus:border-primary")}
+                                    className="bg-transparent font-bold text-lg w-full border-b focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all text-foreground border-border focus:border-primary"
                                     defaultValue={workspace.author?.normalize('NFC')}
                                     placeholder="Chưa rõ tác giả"
                                     onBlur={(e) => handleUpdateField('author', e.target.value.normalize('NFC'))}
                                 />
                             </div>
                             <div className="space-y-2 group">
-                                <label className={cn("text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors", isRaidenMode ? "text-slate-500 group-focus-within:text-purple-400" : "text-muted-foreground group-focus-within:text-primary")}>
+                                <label className="text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 transition-colors text-muted-foreground group-focus-within:text-primary">
                                     <Database className="w-3 h-3" /> Thể Loại
                                 </label>
                                 <AutoResizeTextarea
-                                    className={cn("bg-transparent text-base w-full border-b focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all min-h-[40px] resize-none", isRaidenMode ? "text-slate-200 border-slate-700 focus:border-purple-500" : "text-foreground border-border focus:border-primary")}
+                                    className="bg-transparent text-base w-full border-b focus:ring-0 focus:outline-none placeholder:text-muted-foreground/20 py-2 transition-all min-h-[40px] resize-none text-foreground border-border focus:border-primary"
                                     defaultValue={workspace.genre?.normalize('NFC') || ""}
                                     placeholder="Chưa phân loại"
                                     onSave={(val) => handleUpdateField('genre', val.normalize('NFC'))}
@@ -142,7 +137,7 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                 {/* Right Column: Cover & Description */}
                 <div className="lg:col-span-2 space-y-6 flex flex-col h-full">
                     <Card
-                        className={cn("h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300", isDragging ? 'border-primary border-2 bg-primary/5' : '', isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-md")}
+                        className={cn("h-64 flex items-center justify-center relative overflow-hidden group transition-all duration-300 bg-card border-border shadow-md", isDragging && 'border-primary border-2 bg-primary/5')}
                         onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
                         tabIndex={0}
                         onKeyDown={(e) => {
@@ -264,25 +259,25 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                         </div>
                     </Card>
 
-                    <Card className={cn("flex-1 flex flex-col overflow-hidden transition-all", isRaidenMode ? "bg-card border-transparent shadow-2xl" : "bg-card border-border shadow-sm")}>
+                    <Card className="flex-1 flex flex-col overflow-hidden transition-all bg-card border-border shadow-sm">
                         <CardHeader className="pb-2">
-                            <CardTitle className={cn("text-base flex items-center justify-between", isRaidenMode ? "text-slate-200" : "text-foreground")}>
+                            <CardTitle className="text-base flex items-center justify-between text-foreground">
                                 <div className="flex items-center gap-2">
-                                    <FileText className={cn("w-4 h-4", isRaidenMode ? "text-purple-400" : "text-primary")} /> Mô Tả / Tóm Tắt
+                                    <FileText className="w-4 h-4 text-primary" /> Mô Tả / Tóm Tắt
                                     {workspace.isAiDescription && (
-                                        <div className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm", isRaidenMode ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400" : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600")}>
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
                                             <Sparkles className="w-2.5 h-2.5" /> AI Generated
                                         </div>
                                     )}
                                 </div>
-                                <Button variant="ghost" size="sm" className={cn("h-7 px-2 transition-all duration-300 rounded-lg group/wand", isRaidenMode ? "text-slate-500 hover:text-purple-400 hover:bg-purple-500/10" : "text-muted-foreground hover:text-primary hover:bg-primary/5", isGeneratingSummary && "animate-pulse")} onClick={handleAutoSummary} disabled={isGeneratingSummary} >
-                                    {isGeneratingSummary ? <Loader2 className={cn("w-3.5 h-3.5 animate-spin", isRaidenMode ? "text-purple-400" : "text-primary")} /> : <Sparkles className="w-3.5 h-3.5 group-hover/wand:scale-110 transition-transform" />}
+                                <Button variant="ghost" size="sm" className={cn("h-7 px-2 transition-all duration-300 rounded-lg group/wand text-muted-foreground hover:text-primary hover:bg-primary/5", isGeneratingSummary && "animate-pulse")} onClick={handleAutoSummary} disabled={isGeneratingSummary} >
+                                    {isGeneratingSummary ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> : <Sparkles className="w-3.5 h-3.5 group-hover/wand:scale-110 transition-transform" />}
                                 </Button>
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex-1">
                             <AutoResizeTextarea
-                                className={cn("transition-colors", isRaidenMode ? "text-slate-300" : "text-foreground")}
+                                className="transition-colors text-foreground"
                                 defaultValue={workspace.description || ""}
                                 placeholder="Nhập mô tả hoặc tóm tắt truyện tại đây..."
                                 onSave={(val) => handleUpdateField('description', val)}

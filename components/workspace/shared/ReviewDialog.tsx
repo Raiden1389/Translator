@@ -149,7 +149,7 @@ export function ReviewDialog({
                                             </div>
 
                                             {char.isExisting && (
-                                                <span className="shrink-0 text-[8px] font-black text-blue-500/20 uppercase tracking-tighter mr-2">Exist</span>
+                                                <span className="shrink-0 text-[8px] font-black text-muted-foreground/20 uppercase tracking-tighter mr-2">Exist</span>
                                             )}
                                         </div>
                                     ))}

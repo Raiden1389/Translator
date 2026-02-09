@@ -8,11 +8,10 @@ import { toast } from "sonner";
 interface EditableTitleProps {
   id: number;
   title_translated?: string;
-  isRaidenMode: boolean;
   onRead: (e: React.MouseEvent) => void;
 }
 
-export function EditableTitle({ id, title_translated, isRaidenMode, onRead }: EditableTitleProps) {
+export function EditableTitle({ id, title_translated, onRead }: EditableTitleProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(title_translated || "");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,8 +93,7 @@ export function EditableTitle({ id, title_translated, isRaidenMode, onRead }: Ed
         }
       }}
       className={cn(
-        "w-full truncate italic text-sm font-medium text-left",
-        isRaidenMode ? "text-slate-400 hover:text-purple-300" : "text-slate-600 hover:text-blue-600"
+        "w-full truncate italic text-sm font-medium text-left text-muted-foreground hover:text-primary transition-colors"
       )}
       title="Click để đọc, Shift+Click hoặc Ctrl+Click để sửa"
     >

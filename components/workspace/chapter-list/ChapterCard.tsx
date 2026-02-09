@@ -72,12 +72,11 @@ export const ChapterCard = React.memo(function ChapterCard({
     return (
         <div
             className={cn(
-                "group relative p-4 rounded-2xl border transition-all duration-300",
-                isRaidenMode ? "bg-slate-900/50" : "bg-card",
+                "group relative p-4 rounded-2xl border transition-all duration-300 bg-card",
                 isSelected
-                    ? (isRaidenMode ? "border-purple-500 bg-purple-900/20 shadow-[0_0_20px_rgba(168,85,247,0.1)]" : "border-blue-300 bg-blue-50/80 shadow-md scale-[1.01]")
-                    : (isRaidenMode ? "border-slate-800 hover:border-slate-700 hover:bg-slate-800/40" : "border-slate-100 hover:bg-white hover:border-blue-200 hover:shadow-lg"),
-                isLastRead && (isRaidenMode ? "ring-2 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "ring-2 ring-emerald-500/30 border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]")
+                    ? "border-primary bg-primary/10 shadow-lg scale-[1.01]"
+                    : "border-border hover:border-primary/40 hover:bg-accent/50 hover:shadow-lg",
+                isLastRead && "ring-2 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
             )}
             onContextMenu={onContextMenu}
             onMouseEnter={onMouseEnter}
@@ -105,17 +104,11 @@ export const ChapterCard = React.memo(function ChapterCard({
                     <Checkbox
                         checked={isSelected}
                         onCheckedChange={(checked) => onSelect(!!checked, (window.event as MouseEvent)?.shiftKey)}
-                        className={cn(
-                            "mt-1 rounded-md transition-all",
-                            isRaidenMode ? "border-slate-700 data-[state=checked]:bg-purple-600" : "border-slate-200 data-[state=checked]:bg-blue-600"
-                        )}
+                        className="mt-1 rounded-md transition-all border-border data-[state=checked]:bg-primary"
                     />
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5 group/title">
-                            <span className={cn(
-                                "text-[10px] font-mono px-1.5 py-0.5 rounded-md",
-                                isRaidenMode ? "bg-slate-800 text-slate-500" : "bg-slate-100 text-slate-400"
-                            )}>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
                                 #{order}
                             </span>
                             <h3 className={cn(
@@ -138,10 +131,7 @@ export const ChapterCard = React.memo(function ChapterCard({
                     size="icon"
                     variant="ghost"
                     onClick={onRead}
-                    className={cn(
-                        "h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all",
-                        isRaidenMode ? "hover:bg-purple-500/20 text-purple-400" : "hover:bg-blue-50 text-blue-600"
-                    )}
+                    className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10 text-primary"
                 >
                     <BookOpen className="h-4 w-4" />
                 </Button>
@@ -153,8 +143,8 @@ export const ChapterCard = React.memo(function ChapterCard({
                     <Badge className={cn(
                         "px-2 py-0.5 rounded-full border-0 gap-1.5",
                         isTranslated
-                            ? (isRaidenMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600")
-                            : (isRaidenMode ? "bg-slate-800 text-slate-500" : "bg-slate-100 text-slate-400")
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "bg-muted text-muted-foreground"
                     )}>
                         <div className={cn(
                             "w-1.5 h-1.5 rounded-full",
@@ -164,10 +154,7 @@ export const ChapterCard = React.memo(function ChapterCard({
                     </Badge>
                     <span className="text-muted-foreground/40">{wordCountOriginal?.toLocaleString() || 0} chữ</span>
                 </div>
-                <div className={cn(
-                    "h-1.5 w-full rounded-full overflow-hidden",
-                    isRaidenMode ? "bg-slate-800" : "bg-slate-100"
-                )}>
+                <div className="h-1.5 w-full rounded-full overflow-hidden bg-muted">
                     <div
                         className={cn(
                             "h-full transition-all duration-1000 ease-out",

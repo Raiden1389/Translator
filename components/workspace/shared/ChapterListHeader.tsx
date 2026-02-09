@@ -310,7 +310,7 @@ export function ChapterListHeader({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-slate-500 hover:text-slate-700 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-muted-foreground hover:text-foreground transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onClearCache}
                                     disabled={processing || importing}
                                 >
@@ -326,7 +326,7 @@ export function ChapterListHeader({
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-purple-500 hover:text-purple-600 transition-all active:scale-95 group disabled:opacity-50"
+                                        className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
                                         onClick={onFixTitleCase}
                                         disabled={processing || importing}
                                     >
@@ -342,7 +342,7 @@ export function ChapterListHeader({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-blue-500 hover:text-blue-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onExport}
                                     disabled={processing || importing}
                                 >
@@ -432,7 +432,7 @@ export function ChapterListHeader({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-purple-500 hover:text-purple-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onHistoryOpen}
                                     disabled={processing || importing}
                                 >

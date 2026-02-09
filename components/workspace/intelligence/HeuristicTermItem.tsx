@@ -47,13 +47,13 @@ export function HeuristicTermItem({ term, isScanning, onApprove, onDelete }: Heu
         switch (type) {
             case 'character':
             case 'person':
-                return "bg-amber-100 text-amber-600 border-amber-200/50";
+                return "bg-amber-500/15 text-amber-400 border-amber-500/30";
             case 'skill':
-                return "bg-rose-100 text-rose-600 border-rose-200/50";
+                return "bg-rose-500/15 text-rose-400 border-rose-500/30";
             case 'location':
-                return "bg-emerald-100 text-emerald-600 border-emerald-200/50";
+                return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
             default:
-                return "bg-slate-100 text-slate-600 border-slate-200/50";
+                return "bg-muted text-muted-foreground border-border";
         }
     };
 
@@ -69,8 +69,8 @@ export function HeuristicTermItem({ term, isScanning, onApprove, onDelete }: Heu
         <div className={cn(
             "h-[72px] mb-2 rounded-[18px] flex items-center justify-between px-5 transition-all border group relative overflow-hidden",
             term.isApproved
-                ? "bg-emerald-50/30 border-emerald-100/50"
-                : "bg-white border-border/40 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 shadow-sm"
+                ? "bg-emerald-500/10 border-emerald-500/20"
+                : "bg-card border-border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 shadow-sm"
         )}>
             {/* Background Accent */}
             {!term.isApproved && (

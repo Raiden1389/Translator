@@ -174,7 +174,7 @@ export function ReaderHeader(props: ReaderHeaderProps) {
 
                         {onAIExtract && (
                             <HeaderIconButton
-                                icon={<Sparkles className="w-4 h-4 text-purple-500" />}
+                                icon={<Sparkles className="w-4 h-4 text-primary" />}
                                 title="Quét AI"
                                 onClick={onAIExtract}
                             />

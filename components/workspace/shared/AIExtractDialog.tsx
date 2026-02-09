@@ -44,7 +44,7 @@ export function AIExtractDialog({
                         disabled={isExtracting}
                     >
                         <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 rounded bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20">
+                            <div className="p-2 rounded bg-primary/10 text-primary group-hover:bg-primary/20">
                                 <FileText className="w-5 h-5" />
                             </div>
                             <div>
@@ -60,7 +60,7 @@ export function AIExtractDialog({
                         disabled={isExtracting}
                     >
                         <div className="flex items-center gap-3 text-left">
-                            <div className="p-2 rounded bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20">
+                            <div className="p-2 rounded bg-primary/10 text-primary group-hover:bg-primary/20">
                                 <Sparkles className="w-5 h-5" />
                             </div>
                             <div>

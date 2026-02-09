@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     ArrowLeft,
     Settings, FileText,
-    Database, LayoutDashboard, Swords, Zap,
+    Database, LayoutDashboard, Swords,
     BrainCircuit
 } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +20,7 @@ import { IntelligenceHub } from "./intelligence/IntelligenceHub";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "./hooks/TranslationProvider.v2";
+import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -39,11 +40,11 @@ export default function WorkspaceClient({ id }: { id: string }) {
     const { startBatchTranslate } = useTranslation();
 
     const {
-        workspace, activeTab, progress, isRaidenMode, reviewData
+        workspace, activeTab, progress, reviewData
     } = state;
 
     const {
-        changeTab, toggleRaidenMode, handleDeleteWorkspace, handleReviewSave, setReviewData
+        changeTab, handleDeleteWorkspace, handleReviewSave, setReviewData
     } = actions;
 
     if (workspace === undefined) return <div className="p-10 text-center text-muted-foreground">Loading...</div>;
@@ -59,14 +60,10 @@ export default function WorkspaceClient({ id }: { id: string }) {
     ];
 
     return (
-        <div className={cn("flex h-full w-full overflow-hidden transition-colors duration-500",
-            isRaidenMode ? "bg-[#0F172A] text-slate-300" : "bg-background text-foreground")}>
+        <div className="flex h-full w-full overflow-hidden transition-colors duration-500 bg-background text-foreground">
 
             {/* Desktop Sidebar */}
-            <aside className={cn(
-                "w-64 border-r flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300",
-                isRaidenMode ? "bg-[#0A0F1E] border-slate-800" : "bg-sidebar border-sidebar-border"
-            )}>
+            <aside className="w-64 border-r flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300 bg-sidebar border-sidebar-border">
                 <div className="px-6 mb-6">
                     <Link href="/">
                         <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent -ml-2 gap-2 text-[10px] uppercase font-bold tracking-widest transition-colors group">
@@ -108,21 +105,16 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                 className={cn(
                                     "w-full flex items-center gap-3 px-4 py-3 transition-all group relative rounded-xl",
                                     isActive
-                                        ? (isRaidenMode ? "text-slate-100 bg-slate-400/5 shadow-inner" : "text-primary bg-primary/5")
-                                        : (isRaidenMode ? "text-slate-500 hover:text-slate-300 hover:bg-slate-400/10" : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80")
+                                        ? "text-sidebar-accent-foreground bg-sidebar-accent shadow-inner"
+                                        : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/50"
                                 )}
                             >
                                 {isActive && (
-                                    <div className={cn(
-                                        "absolute left-1 top-1/2 -translate-y-1/2 w-[4px] h-6 rounded-full transition-all duration-300 shadow-xs",
-                                        isRaidenMode ? "bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.6)]" : "bg-primary"
-                                    )} />
+                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-primary" />
                                 )}
                                 <Icon className={cn(
                                     "h-4 w-4 transition-colors",
-                                    isActive
-                                        ? (isRaidenMode ? "text-purple-400" : "text-primary")
-                                        : (isRaidenMode ? "text-slate-600 group-hover:text-slate-400" : "text-slate-400 group-hover:text-slate-600")
+                                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                                 )} />
                                 <span className={cn("tracking-tight text-sm", isActive ? "font-bold" : "font-semibold")}>{tab.label}</span>
                             </button>
@@ -138,34 +130,15 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         <div className="flex flex-col">
                             <span className="text-[11px] font-black opacity-90 tracking-tight">AI Engine v3.0</span>
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={toggleRaidenMode}
-                            className={cn(
-                                "ml-auto w-8 h-8 rounded-xl transition-all duration-300",
-                                isRaidenMode
-                                    ? "bg-[#bc13fe33] text-[#bc13fe] shadow-[0_0_15px_rgba(188,19,254,0.3)]"
-                                    : "text-muted-foreground hover:text-[#bc13fe] hover:bg-[#bc13fe1a]"
-                            )}
-                            title="Toggle Raiden Mode"
-                        >
-                            <Zap className={cn("w-4 h-4", isRaidenMode && "fill-[#bc13fe] animate-pulse")} />
-                        </Button>
+                        <ThemeSwitcher />
                     </div>
                 </div>
             </aside>
 
             {/* Content Area */}
-            <div className={cn(
-                "flex-1 min-w-0 overflow-hidden flex flex-col relative h-full transition-colors duration-500",
-                isRaidenMode ? "bg-background text-foreground" : "bg-muted/40 text-foreground"
-            )}>
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative h-full transition-colors duration-500 bg-muted/40 text-foreground">
                 {activeTab !== "intelligence" && (
-                    <header className={cn(
-                        "h-20 flex items-center justify-between px-8 pt-4 border-b shrink-0 transition-colors duration-500",
-                        isRaidenMode ? "bg-background border-border" : "bg-white/80 backdrop-blur-md border-border"
-                    )}>
+                    <header className="h-20 flex items-center justify-between px-8 pt-4 border-b shrink-0 transition-colors duration-500 bg-background/80 backdrop-blur-md border-border">
                         <h2 className="text-sm font-bold capitalize flex items-center gap-2">
                             {tabs.find(t => t.id === activeTab)?.label}
                             <span className="text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground font-mono font-black">WS_ID: {id.slice(0, 8)}</span>
@@ -204,18 +177,18 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                                 </div>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button variant="destructive" className="bg-red-600 hover:bg-red-700">Delete Workspace</Button>
+                                                        <Button variant="destructive" size="sm" className="bg-destructive hover:bg-destructive/90">Xóa Workspace</Button>
                                                     </AlertDialogTrigger>
-                                                    <AlertDialogContent className="bg-[#1a0b2e] border-white/10 text-white">
+                                                    <AlertDialogContent className="bg-card border-border text-card-foreground">
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle>Bạn có chắc chắn?</AlertDialogTitle>
-                                                            <AlertDialogDescription className="text-white/50">
+                                                            <AlertDialogDescription className="text-muted-foreground">
                                                                 Xóa vĩnh viễn dữ liệu khỏi ổ đĩa.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
-                                                            <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10 text-white font-bold">Hủy</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={handleDeleteWorkspace} className="bg-red-600 hover:bg-red-700 text-white border-none font-bold">Xác nhận xóa</AlertDialogAction>
+                                                            <AlertDialogCancel className="bg-muted border-border hover:bg-accent text-foreground font-bold">Hủy</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={handleDeleteWorkspace} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none font-bold">Xác nhận xóa</AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>

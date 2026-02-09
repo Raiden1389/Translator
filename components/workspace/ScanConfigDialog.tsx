@@ -22,9 +22,9 @@ const SELECTION_ITEMS = [
         label: 'Nhân vật',
         icon: User,
         color: 'blue',
-        bg: 'bg-blue-50/50',
-        border: 'border-blue-200',
-        iconColor: 'text-blue-500',
+        bg: 'bg-primary/10',
+        border: 'border-primary/20',
+        iconColor: 'text-primary',
     },
     {
         id: EntityType.Location,
@@ -49,9 +49,9 @@ const SELECTION_ITEMS = [
         label: 'Tổ chức / Thế lực',
         icon: Users,
         color: 'purple',
-        bg: 'bg-purple-50/50',
-        border: 'border-purple-200',
-        iconColor: 'text-purple-500',
+        bg: 'bg-primary/10',
+        border: 'border-primary/20',
+        iconColor: 'text-primary',
     },
 ] as const;
 
@@ -80,25 +80,25 @@ export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDial
                 <Dialog.Content
                     className={cn(
                         "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[480px]",
-                        "bg-white rounded-3xl shadow-2xl p-8 z-50 outline-none",
+                        "bg-card rounded-3xl shadow-2xl p-8 z-50 outline-none",
                         "animate-in zoom-in-95 fade-in duration-300"
                     )}
                 >
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                            <div className="p-2 bg-primary/10 rounded-lg text-primary">
                                 <Sparkles size={24} />
                             </div>
-                            <Dialog.Title className="text-2xl font-bold text-slate-800">
+                            <Dialog.Title className="text-2xl font-bold text-foreground">
                                 Cấu hình Quét AI
                             </Dialog.Title>
                         </div>
-                        <Dialog.Close className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-full hover:bg-slate-100">
+                        <Dialog.Close className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-full hover:bg-muted">
                             <X size={20} />
                         </Dialog.Close>
                     </div>
 
-                    <Dialog.Description className="text-slate-500 mb-8 ml-11">
+                    <Dialog.Description className="text-muted-foreground mb-8 ml-11">
                         Chọn các loại thực thể mà ông muốn AI tìm kiếm trong văn bản.
                     </Dialog.Description>
 
@@ -113,19 +113,19 @@ export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDial
                                         "w-full flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-200 text-left group",
                                         isActive
                                             ? `${item.bg} ${item.border} border-opacity-100 shadow-sm`
-                                            : "bg-white border-slate-100 hover:border-slate-200"
+                                            : "bg-card border-border hover:border-border"
                                     )}
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className={cn(
                                             "p-3 rounded-xl transition-colors",
-                                            isActive ? item.bg.replace('/50', '') : "bg-slate-50 text-slate-400"
+                                            isActive ? item.bg.replace('/50', '') : "bg-muted text-muted-foreground"
                                         )}>
                                             <item.icon className={cn("transition-colors", isActive ? item.iconColor : "")} size={22} />
                                         </div>
                                         <span className={cn(
                                             "font-semibold text-lg transition-colors",
-                                            isActive ? "text-slate-800" : "text-slate-400"
+                                            isActive ? "text-foreground" : "text-muted-foreground"
                                         )}>
                                             {item.label}
                                         </span>
@@ -133,8 +133,8 @@ export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDial
                                     <div className={cn(
                                         "w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200",
                                         isActive
-                                            ? "bg-blue-600 border-blue-600 text-white"
-                                            : "border-slate-300 group-hover:border-slate-400"
+                                            ? "bg-primary border-primary text-primary-foreground"
+                                            : "border-border group-hover:border-border"
                                     )}>
                                         {isActive && (
                                             <svg
@@ -158,7 +158,7 @@ export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDial
                     <div className="flex items-center justify-end gap-4 mt-4">
                         <button
                             onClick={() => onOpenChange(false)}
-                            className="px-6 py-2.5 text-slate-500 font-semibold hover:bg-slate-50 rounded-xl transition-colors"
+                            className="px-6 py-2.5 text-muted-foreground font-semibold hover:bg-muted rounded-xl transition-colors"
                         >
                             Hủy
                         </button>
@@ -169,10 +169,10 @@ export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDial
                                 onOpenChange(false);
                             }}
                             className={cn(
-                                "flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-white transition-all shadow-lg active:scale-95",
+                                "flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-card-foreground transition-all shadow-lg active:scale-95",
                                 hasSelection
                                     ? "bg-linear-to-r from-purple-600 to-indigo-600 hover:shadow-purple-200"
-                                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                                    : "bg-muted text-muted-foreground cursor-not-allowed shadow-none"
                             )}
                         >
                             <Sparkles size={18} />
