@@ -68,3 +68,24 @@
 .animate-slide-in {
     animation: slideIn 0.3s ease-out;
 }
+
+/* Apple-grade Polish */
+.apple-card {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    box-shadow:
+        0 0 0 1px var(--border),
+        0 8px 24px rgba(0, 0, 0, 0.12);
+    transition: all 0.2s ease;
+}
+
+.dark .apple-card {
+    box-shadow:
+        0 0 0 1px var(--border),
+        0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.apple-sidebar {
+    background-color: var(--sidebar);
+    border-right: 1px solid var(--sidebar-border);
+}
