@@ -113,6 +113,122 @@ export async function withKeyRotation<T = GeminiResponse>(
     // @ts-expect-error - window internals check
     const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 
+    // Check OAuth preference
+    let preferOAuth = false;
+    try {
+        const preferOAuthSetting = await db.settings.get("preferOAuthOverApiKey");
+        preferOAuth = preferOAuthSetting?.value === true || preferOAuthSetting?.value === "true";
+    } catch (error) {
+        console.warn("Failed to check OAuth preference:", error);
+    }
+
+    // Try OAuth first if:
+    // 1. No keys available, OR
+    // 2. User prefers OAuth (toggle enabled)
+    if (keys.length === 0 || preferOAuth) {
+        try {
+            const { getValidAccessToken, getActiveAccount } = await import("./oauth-client");
+            const { getRateLimiter } = await import("./rate-limiter");
+
+            const accessToken = await getValidAccessToken();
+            const activeAccount = await getActiveAccount();
+
+            if (accessToken && activeAccount) {
+                // Get rate limiter for active account
+                const rateLimiter = await getRateLimiter(activeAccount.id);
+
+                // Estimate tokens
+                const estimatedTokens = rateLimiter.estimateTokens(params.prompt + (params.systemInstruction || ""));
+
+                // Check if we can make request
+                const quotaCheck = await rateLimiter.canMakeRequest(estimatedTokens);
+
+                if (!quotaCheck.allowed) {
+                    const waitMinutes = quotaCheck.waitTime ? Math.ceil(quotaCheck.waitTime / 60000) : 0;
+                    throw new Error(`⏸️ Rate limit: ${quotaCheck.reason}. Vui lòng đợi ${waitMinutes} phút.`);
+                }
+
+                // Apply delay (human-like pattern)
+                const delay = rateLimiter.getDelay();
+                if (delay > 0) {
+                    if (onLog) onLog(`⏳ Đợi ${Math.ceil(delay / 1000)}s để tránh abuse detection...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+
+                if (onLog) onLog("🔐 Đang dùng OAuth credentials...");
+
+                let rawResponse: unknown;
+
+                try {
+                    if (isTauri) {
+                        const responseText = await invoke<string>("native_gemini_oauth_request", {
+                            payload,
+                            model: params.model.trim(),
+                            accessToken
+                        });
+                        rawResponse = JSON.parse(responseText);
+                    } else {
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/${params.model.trim()}:generateContent`;
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${accessToken}`
+                            },
+                            body: payload
+                        });
+
+                        if (!res.ok) {
+                            const errData = await res.json().catch(() => ({}));
+
+                            // Check if it's a rate limit error
+                            if (res.status === 429) {
+                                await rateLimiter.recordError(true);
+                                throw new Error("⚠️ Google đã throttle account này. Vui lòng đợi hoặc switch sang account khác.");
+                            }
+
+                            throw new Error(errData.error?.message || res.statusText);
+                        }
+
+                        rawResponse = await res.json();
+                    }
+
+                    // Record successful request
+                    await rateLimiter.recordRequest(estimatedTokens);
+
+                    const validationResult = safeParseGeminiResponse(rawResponse);
+
+                    if (!validationResult.success) {
+                        console.error("[Gemini API] Response validation failed:", validationResult.error);
+                        throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
+                    }
+
+                    const validated = validationResult.data;
+
+                    if (validated.error) {
+                        throw new Error(validated.error.message || "Gemini API Error");
+                    }
+
+                    return validated as T;
+
+                } catch (requestError) {
+                    // Record error
+                    await rateLimiter.recordError(false);
+                    throw requestError;
+                }
+            }
+        } catch (oauthError) {
+            // If user prefers OAuth but it failed, don't fallback silently
+            if (preferOAuth && keys.length > 0) {
+                console.warn("OAuth failed but user prefers OAuth. Falling back to API key:", oauthError);
+                if (onLog) onLog("⚠️ OAuth thất bại, chuyển sang API key...");
+            } else {
+                console.warn("OAuth attempt failed, falling back to API key:", oauthError);
+            }
+            // Continue to API key rotation below
+        }
+    }
+
     for (let i = 0; i < keyQueue.length; i++) {
         const key = keyQueue[i];
         try {
@@ -157,6 +273,9 @@ export async function withKeyRotation<T = GeminiResponse>(
 
                 rawResponse = await res.json();
             }
+
+            // ✅ DEBUG: Log raw response BEFORE validation
+            console.log("[DEBUG] Raw Gemini response:", JSON.stringify(rawResponse, null, 2));
 
             // ✅ Validate response with Zod
             const validationResult = safeParseGeminiResponse(rawResponse);

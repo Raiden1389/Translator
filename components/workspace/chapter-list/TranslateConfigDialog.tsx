@@ -31,6 +31,9 @@ interface TranslationConfig {
     temperature: number; // 🎨 NEW: AI creativity (0.0-1.0)
     enableThinking?: boolean; // 🧠 For Gemini 2.5 Flash
     thinkingLevel: "minimal" | "low" | "medium" | "high"; // 🧠 NEW: For Gemini 3.0
+    enableBatch: boolean; // ⚡ NEW: Batch translation
+    batchSize: number; // ⚡ NEW: Chapters per batch (2-5)
+    maxCharsPerBatch: number; // ⚡ NEW: Max chars per batch
 }
 
 interface TranslationSettingsManual {
@@ -49,7 +52,10 @@ export const DEFAULT_TRANSLATION_CONFIG: TranslationConfig = {
     maxConcurrentChunks: 5,
     chunkSize: 800,
     temperature: 0.1,
-    thinkingLevel: "minimal"
+    thinkingLevel: "minimal",
+    enableBatch: false, // Disabled by default
+    batchSize: 3, // 3 chapters per batch (empirical sweet spot)
+    maxCharsPerBatch: 25000 // 25K chars (empirical sweet spot)
 };
 
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
@@ -65,7 +71,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         maxConcurrentChunks: 3,
         chunkSize: 800,
         temperature: 0.1, // Default: Low creativity for consistency
-        thinkingLevel: "minimal" // Default: Minimal to save cost
+        thinkingLevel: "minimal", // Default: Minimal to save cost
+        enableBatch: false,
+        batchSize: 3,
+        maxCharsPerBatch: 25000
     });
     const [savedPrompts, setSavedPrompts] = useState<{ id?: number, title: string, content: string }[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -94,6 +103,9 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
             const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
             const lastChunkSize = await db.settings.get("chunkSize");
             const lastTemperature = await db.settings.get("temperature");
+            const lastEnableBatch = await db.settings.get("enableBatch");
+            const lastBatchSize = await db.settings.get("batchSize");
+            const lastMaxCharsPerBatch = await db.settings.get("maxCharsPerBatch");
             const prompts = await db.prompts.toArray();
 
             setCurrentSettings({
@@ -110,7 +122,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                 enableTurbo: lastEnableTurbo ? (lastEnableTurbo.value as boolean) : true,
                 maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
                 chunkSize: (lastChunkSize?.value as number) || 800,
-                temperature: (lastTemperature?.value as number) ?? 0.1
+                temperature: (lastTemperature?.value as number) ?? 0.1,
+                enableBatch: (lastEnableBatch?.value as boolean) || false,
+                batchSize: (lastBatchSize?.value as number) || 3,
+                maxCharsPerBatch: (lastMaxCharsPerBatch?.value as number) || 25000
             }));
             setSavedPrompts(prompts);
         };
@@ -157,6 +172,9 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         await db.settings.put({ key: "maxConcurrentChunks", value: translateConfig.maxConcurrentChunks || 3 });
         await db.settings.put({ key: "chunkSize", value: translateConfig.chunkSize || 800 });
         await db.settings.put({ key: "temperature", value: translateConfig.temperature ?? 0.1 });
+        await db.settings.put({ key: "enableBatch", value: translateConfig.enableBatch });
+        await db.settings.put({ key: "batchSize", value: translateConfig.batchSize });
+        await db.settings.put({ key: "maxCharsPerBatch", value: translateConfig.maxCharsPerBatch });
         onStart(translateConfig, currentSettings);
     };
 
@@ -391,6 +409,112 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                     />
                                     <p className="text-xs text-muted-foreground/70 italic font-medium">Lag mạng: Hãy dùng chunk to (2000+). Mạng nhanh: Dùng chunk nhỏ (800-1200).</p>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Batch Translation - NEW */}
+                    <div className="space-y-4 p-4 bg-green-500/10 rounded-xl border border-green-500/30">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-bold flex items-center gap-2">
+                                    ⚡ Batch Translation (Dịch Gộp)
+                                </Label>
+                                <p className="text-xs text-muted-foreground/70 font-medium">Gộp nhiều chapters vào 1 lần dịch - Tiết kiệm 66% chi phí & nhanh hơn 53%</p>
+                            </div>
+                            <Switch
+                                checked={translateConfig.enableBatch}
+                                onCheckedChange={(val: boolean) => {
+                                    // Auto-adjust chunking settings when toggling batch mode
+                                    if (val) {
+                                        // Batch mode ON: Enable chunking with larger chunks
+                                        setTranslateConfig({
+                                            ...translateConfig,
+                                            enableBatch: true,
+                                            enableChunking: true,
+                                            chunkSize: 2500, // Batch preset
+                                            maxConcurrentChunks: 5
+                                        });
+                                    } else {
+                                        // Batch mode OFF: Revert to single-chapter chunking
+                                        setTranslateConfig({
+                                            ...translateConfig,
+                                            enableBatch: false,
+                                            chunkSize: 800 // Single mode preset
+                                        });
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        {translateConfig.enableBatch && (
+                            <div className="space-y-3 pt-2 border-t border-green-500/30">
+                                {/* Batch size with number input (arrows) */}
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-medium text-muted-foreground">Số chương gộp</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            type="number"
+                                            min={2}
+                                            max={5}
+                                            value={translateConfig.batchSize}
+                                            onChange={(e) => {
+                                                const val = Math.max(2, Math.min(5, Number(e.target.value)));
+                                                setTranslateConfig({ ...translateConfig, batchSize: val });
+                                            }}
+                                            className="w-24 text-center font-bold"
+                                        />
+                                        <span className="text-xs text-muted-foreground">chapters/batch (2-5)</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground/70 italic">Recommended: 3 chapters (empirical sweet spot)</p>
+                                </div>
+
+                                {/* Max chars per batch */}
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-medium text-muted-foreground">Giới hạn ký tự/batch</Label>
+                                    <Input
+                                        type="number"
+                                        min={10000}
+                                        max={100000}
+                                        step={5000}
+                                        value={translateConfig.maxCharsPerBatch}
+                                        onChange={(e) => setTranslateConfig({ ...translateConfig, maxCharsPerBatch: Number(e.target.value) })}
+                                        className="w-full"
+                                    />
+                                    <p className="text-xs text-muted-foreground/70 italic">Recommended: 25,000 chars (quality sweet spot)</p>
+                                </div>
+
+                                {/* Savings preview */}
+                                <div className="p-3 bg-green-500/20 rounded-lg border border-green-500/40 space-y-2">
+                                    <div className="text-xs font-bold text-green-600 uppercase tracking-wide">Tiết kiệm dự kiến ({selectedCount} chapters)</div>
+                                    <div className="space-y-1 text-xs">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Cost:</span>
+                                            <span className="font-mono font-bold text-green-600">
+                                                ${(selectedCount * 0.0075).toFixed(2)} → ${(Math.ceil(selectedCount / translateConfig.batchSize) * 0.0025).toFixed(2)} (-66%)
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Time:</span>
+                                            <span className="font-mono font-bold text-green-600">
+                                                {Math.ceil(selectedCount * 10 / 60)}min → {Math.ceil(Math.ceil(selectedCount / translateConfig.batchSize) * 14 / 60)}min (-53%)
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">API calls:</span>
+                                            <span className="font-mono font-bold text-green-600">
+                                                {selectedCount * 5} → {Math.ceil(selectedCount / translateConfig.batchSize) * 5} (-66%)
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Warning if too large */}
+                                {translateConfig.maxCharsPerBatch > 50000 && (
+                                    <div className="p-2 bg-amber-500/20 rounded border border-amber-500/40 text-xs text-amber-600 font-medium">
+                                        ⚠️ Batch quá lớn (\u003e50K chars) có thể giảm chất lượng dịch
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

@@ -44,16 +44,41 @@ export function splitByParagraph(text: string, maxCharsPerChunk: number): string
 
 /**
  * Check if chunking should be enabled based on settings and text length
+ * AUTO-DISABLES chunking when using OAuth to avoid RPH bottleneck
  */
 export async function shouldUseChunking(text: string): Promise<ChunkOptions> {
     const chunkingSetting = await db.settings.get("enableChunking");
     const chunkSizeSetting = await db.settings.get("chunkSize");
     const maxConcurrentSetting = await db.settings.get("maxConcurrentChunks");
 
-    const enabled = chunkingSetting?.value === true || chunkingSetting?.value === "true";
+    let enabled = chunkingSetting?.value === true || chunkingSetting?.value === "true";
 
-    // DEFAULT to 1000 chars per chunk to engage parallel slots efficiently
-    const maxCharsPerChunk = parseInt((chunkSizeSetting?.value as string) || "1000");
+    // AUTO-DISABLE chunking when using OAuth
+    // Reason: OAuth has RPH limit (80 req/hour) → chunking creates bottleneck
+    // With 5 chunks/chapter: only 16 chapters/hour vs 80 chapters/hour without chunking
+    if (enabled) {
+        try {
+            // Check if we're using OAuth (no API keys available)
+            const apiKeySetting = await db.settings.get("geminiApiKey");
+            const apiKeyPoolSetting = await db.settings.get("geminiApiKeyPool");
+
+            const hasApiKey = !!apiKeySetting?.value;
+            const hasKeyPool = apiKeyPoolSetting?.value &&
+                Array.isArray(apiKeyPoolSetting.value) &&
+                apiKeyPoolSetting.value.length > 0;
+
+            // If no API keys → using OAuth → disable chunking
+            if (!hasApiKey && !hasKeyPool) {
+                enabled = false;
+                console.log("🔄 Auto-disabled chunking for OAuth (avoiding RPH bottleneck)");
+            }
+        } catch (error) {
+            console.warn("Failed to check OAuth status for chunking:", error);
+        }
+    }
+
+    // DEFAULT to 1100 chars per chunk (optimized for 2.5k chapters = 3 chunks)
+    const maxCharsPerChunk = parseInt((chunkSizeSetting?.value as string) || "1100");
     const maxConcurrent = parseInt((maxConcurrentSetting?.value as string) || "3");
 
     return {

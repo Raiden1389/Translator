@@ -43,6 +43,8 @@ export interface TranslationProgress {
   currentChunk?: number;
   totalChunks?: number;
   chapterStats?: ChapterStats[];
+  batchMode?: boolean; // NEW: Batch translation mode
+  batchSize?: number; // NEW: Chapters per batch
 }
 
 export interface TranslationProgressOverlayProps {

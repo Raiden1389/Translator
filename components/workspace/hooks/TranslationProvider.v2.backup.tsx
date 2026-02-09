@@ -32,9 +32,6 @@ interface BatchTranslateProps {
         chunkSize?: number;
         enableThinking?: boolean;  // 🧠 For Gemini 2.5 Flash
         thinkingLevel?: "minimal" | "low" | "medium" | "high";  // 🧠 For Gemini 3.0 Flash
-        enableBatch?: boolean;  // 📦 Batch translation
-        batchSize?: number;  // 📦 Chapters per batch (2-5)
-        maxCharsPerBatch?: number;  // 📦 Max chars per batch
     };
     onComplete?: () => void;
 }
@@ -163,101 +160,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
 
         console.log(`[GLOSSARY] Loaded ${dict.length} dict + ${heuristicTerms.length} heuristic = ${sharedGlossary.length} final terms`);
 
-        // 2. Check batch mode
-        if (translateConfig.enableBatch && translateConfig.batchSize && chaptersToTranslate.length > 1) {
-            console.log(`⚡ [BATCH MODE] ${chaptersToTranslate.length} chapters → batches of ${translateConfig.batchSize}`);
-            const { createSmartBatches, buildBatchPrompt } = await import('@/lib/gemini/batch');
-            const batches = createSmartBatches(chaptersToTranslate, {
-                enabled: true,
-                batchSize: translateConfig.batchSize,
-                maxCharsPerBatch: translateConfig.maxCharsPerBatch || 25000
-            });
-            progress.addNotification({
-                message: `⚡ Batch: ${chaptersToTranslate.length} chương → ${batches.length} batches`,
-                type: 'turbo'
-            });
-            for (let i = 0; i < batches.length; i++) {
-                const batch = batches[i];
-                console.log(`📦 [BATCH ${i + 1}/${batches.length}] ${batch.length} chapters`);
-                batch.forEach(ch => queue.updateStatus(ch.id!, 'processing'));
-                const batchPrompt = await buildBatchPrompt(batch, {
-                    customPrompt: translateConfig.customPrompt,
-                    workspaceId
-                });
-                // Call batch API
-                try {
-                    const { translateBatch } = await import('@/lib/gemini/batch-api');
-                    console.log(`📡 [BATCH ${i + 1}/${batches.length}] Calling API for ${batch.length} chapters...`);
-                    progress.addNotification({
-                        message: `📡 Batch ${i + 1}/${batches.length}: Đang dịch ${batch.length} chương...`,
-                        type: 'turbo'
-                    });
-                    const modelSetting = await db.settings.get("aiModel");
-                    const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash-preview-09-2025";
-
-                    const result = await translateBatch(
-                        batchPrompt,
-                        batch,
-                        aiModel,
-                        (msg: string) => console.log(`[BATCH ${i + 1}] ${msg}`),
-                        translateConfig.enableChunking,
-                        translateConfig.chunkSize || 8000,
-                        translateConfig.maxConcurrentChunks || 5,
-                        translateConfig.enableThinking,
-                        translateConfig.thinkingLevel
-                    );
-
-                    console.log(`✅ [BATCH ${i + 1}] API returned ${result.chapters.length} chapters`);
-
-                    // Save translated chapters to DB
-                    for (let j = 0; j < result.chapters.length; j++) {
-                        const translatedChapter = result.chapters[j];
-                        const originalChapter = batch[j];
-
-                        // Calculate per-chapter tokens (evenly distributed)
-                        const perChapterTokens = {
-                            input: Math.floor(result.stats.inputTokens / batch.length),
-                            output: Math.floor(result.stats.outputTokens / batch.length),
-                            total: Math.floor(result.stats.totalTokens / batch.length),
-                            thinking: Math.floor((result.stats.thinkingTokens || 0) / batch.length)
-                        };
-
-                        await db.chapters.update(originalChapter.id!, {
-                            content_translated: translatedChapter.content_translated,
-                            title_translated: translatedChapter.title_translated,
-                            status: 'translated',
-                            lastTranslatedAt: new Date(),
-                            stats: {
-                                tokens: perChapterTokens
-                            }
-                        });
-
-
-
-                        queue.updateStatus(originalChapter.id!, 'done');
-                        progress.updateChapterProgress(originalChapter.id!, {
-                            status: 'done',
-                            tokens: perChapterTokens
-                        });
-                    }
-
-                    console.log(`✅ [BATCH ${i + 1}] Saved ${result.chapters.length} chapters`);
-
-                } catch (error) {
-                    console.error(`❌ [BATCH ${i + 1}] API failed:`, error);
-                    console.log(`⚠️ [BATCH ${i + 1}] Falling back to single-chapter mode`);
-                    // TODO: Implement fallback - for now, just log error
-                    // for (const chapter of batch) {
-                    //     await processChapter(chapter);
-                    // }
-                }
-            }
-            progress.stopTracking();
-            onComplete?.();
-            return;
-        }
-
-        // 3. Process chapters
+        // 2. Process chapters
         const processChapter = async (chapter: Chapter) => {
             const logId = `chap-${chapter.id}`;
 

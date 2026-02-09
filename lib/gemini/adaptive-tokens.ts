@@ -20,29 +20,29 @@ export interface AdaptiveResult<T> {
 /**
  * Calculate dynamic maxOutputTokens based on input length
  * 
- * Formula: (input_chars * 1.5 expansion / 4 chars_per_token) + dynamic_buffer
+ * Formula: (input_chars * expansion_factor / 4 chars_per_token) + dynamic_buffer
  * 
- * Dynamic Buffer Strategy (v2 - Optimized for Gemini 2.5 Flash):
+ * Dynamic Buffer Strategy (v3 - Optimized for Batch Mode):
  * - Base buffer: 2500 tokens (minimum for thinking + output)
- * - Scaling: 2.8x input length (empirically tested)
+ * - Vietnamese expansion: 1.5x (conservative for batch mode)
  * 
  * Examples:
- * - Small chunks (500 chars): Buffer = 2500 tokens (base minimum)
- * - Medium chunks (900 chars): Buffer = 2520 tokens (2.8x scaling)
- * - Large chunks (1500 chars): Buffer = 4200 tokens (auto-scaled)
+ * - Small chunks (800 chars): ~2500 tokens (single mode)
+ * - Medium chunks (1500 chars): ~3000 tokens
+ * - Large chunks (2500 chars): ~4500 tokens (batch mode)
  * 
  * This ensures:
- * - Small chunks: Sufficient buffer (2500 min)
- * - Medium chunks: Avoid retries (~2800 tokens total)
- * - Large chunks: Auto-scale safely
+ * - Single mode (800 chars): Efficient, minimal retries
+ * - Batch mode (2500 chars): Sufficient headroom, avoid MAX_TOKENS
  * - Cost savings: ~50-65% vs fixed 8192
  */
 export function calculateDynamicTokens(config: TokenConfig): number {
     // Input tokens estimation (chars / 4)
     const inputTokens = Math.ceil(config.inputLength / 4);
 
-    // Output tokens = input tokens * 1.3 (Vietnamese expansion - empirically tested)
-    const outputTokens = Math.ceil(inputTokens * 1.3);
+    // Output tokens = input tokens * 3.0 (Vietnamese expansion - batch mode produces longer output)
+    // Observed: Batch mode can produce 4-5x expansion due to formatting and JSON structure
+    const outputTokens = Math.ceil(inputTokens * 3.0);
 
     // Total needed = baseBuffer (thinking tokens) + outputTokens
     const totalNeeded = config.baseBuffer + outputTokens;

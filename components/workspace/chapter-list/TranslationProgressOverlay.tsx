@@ -31,6 +31,8 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
     currentChunk = 0,
     totalChunks = 0,
     chapterStats = [],
+    batchMode = false,
+    batchSize = 3,
   } = progress;
 
   const [showStats, setShowStats] = useState(false);
@@ -72,6 +74,8 @@ export function TranslationProgressOverlay({ isTranslating, progress }: Translat
           eta={eta}
           chunksProcessed={chunksProcessed}
           displayPercent={displayPercent}
+          batchMode={batchMode}
+          batchSize={batchSize}
         />
 
         <div className="space-y-3 relative">

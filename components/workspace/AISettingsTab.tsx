@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useAISettings } from "./hooks/useAISettings";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { GeminiOAuthSettings } from "@/components/settings/GeminiOAuthSettings";
 
 export function AISettingsTab() {
     const { isRaidenMode } = useRaiden();
@@ -210,6 +211,9 @@ export function AISettingsTab() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* SECTION: OAuth Authentication */}
+                <GeminiOAuthSettings />
 
                 {/* Final Save Button */}
                 <div className="flex items-center gap-4 pt-4">

@@ -8,6 +8,8 @@ interface OverlayHeaderProps {
   eta: string;
   chunksProcessed: number;
   displayPercent: number;
+  batchMode?: boolean; // NEW: Batch translation mode
+  batchSize?: number; // NEW: Chapters per batch
 }
 
 export function OverlayHeader({
@@ -15,7 +17,9 @@ export function OverlayHeader({
   elapsedSeconds,
   eta,
   chunksProcessed,
-  displayPercent
+  displayPercent,
+  batchMode = false,
+  batchSize = 3
 }: OverlayHeaderProps) {
   return (
     <div className="flex items-center justify-between relative pr-20">
@@ -28,7 +32,14 @@ export function OverlayHeader({
           )}
         </div>
         <div>
-          <h3 className="text-base font-bold text-foreground leading-none">Max Ping Processing</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-foreground leading-none">Max Ping Processing</h3>
+            {batchMode && (
+              <span className="text-[10px] bg-green-500/20 text-green-600 px-2 py-0.5 rounded-full font-bold border border-green-500/30 flex items-center gap-1">
+                ⚡ BATCH MODE ({batchSize} chương/lần)
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <span className="text-primary font-mono text-[11px] font-bold">{formatTime(elapsedSeconds)}</span>
             <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30" />

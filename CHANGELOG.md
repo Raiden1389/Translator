@@ -1,3 +1,76 @@
+## [2.7.0] - 2026-02-09
+
+### 🎯 Batch Translation Feature
+
+- **New Feature: Batch Translation Mode**
+  - Gộp nhiều chapters vào concurrent API calls để tối ưu cho free API keys
+  - Hỗ trợ key rotation tự động (đã có sẵn trong `withKeyRotation`)
+  - Auto-chunking nếu content quá lớn (2,500 chars/chunk)
+  - Proper stats tracking (tokens, cost) và save vào database
+
+- **Use Cases:**
+  - 💰 **Free API Keys**: Tiết kiệm 70-90% requests khi gộp nhiều chapters
+  - 🔄 **Key Rotation**: Tránh rate limit, kéo dài tuổi thọ keys
+  - 📊 **Batch Processing**: Dịch nhiều chapters cùng lúc với progress tracking
+
+- **Performance Benchmarks (Gemini 2.5 Flash)**:
+  - **Single Mode (2,500 chars/chapter)**:
+    - No chunk: 14s
+    - 2 chunks: 7s (2x faster)
+    - 3 chunks: 6s
+    - 5 chunks: 4s (3.5x faster)
+  - **Batch Mode (5 chapters)**:
+    - No chunk: 56s (slow, had retry)
+    - With chunk: ~14s (parallel)
+
+### 🐛 Bug Fixes
+
+- **Batch Translation Fixes**:
+  - Fixed overview stats not updating after batch translation
+  - Fixed race condition in batch save (sort by order before save)
+  - Fixed field mapping (`content_translated`, `title_translated`)
+  - Fixed chapter numbering in translated titles (preserve 第1章 → Chương 1)
+
+### ⚡ Optimizations
+
+- **Chunk Size Optimization**:
+  - Default chunk size: 1000 → 1100 chars
+  - Optimal for 2.5k chapters: 3 chunks (tiết kiệm 40% API calls vs 5 chunks)
+  - User can adjust via slider for custom workflow
+
+- **Code Cleanup**:
+  - Removed debug console.log statements from batch modules
+  - Cleaned up batch parser and prompt builder
+
+### 📦 Files Modified
+
+**New Batch Module:**
+- `lib/gemini/batch-api.ts` - Batch translation API with chunking
+- `lib/gemini/batch/parser.ts` - Response parser with fallback
+- `lib/gemini/batch/prompt.ts` - Batch prompt builder
+- `lib/gemini/batch/glossary.ts` - Glossary context builder
+- `lib/gemini/batch/batching.ts` - Smart batching logic
+- `lib/gemini/batch/tokens.ts` - Token estimation
+- `lib/gemini/batch/wrapper.ts` - Batch/Single mode wrapper
+
+**Updated:**
+- `components/workspace/hooks/TranslationProvider.v2.tsx` - Save batch stats to DB
+- `lib/gemini/chunking.ts` - Optimized default chunk size to 1100 chars
+
+### 🎓 Key Learnings
+
+**Batch Mode = Nice-to-have for Free Keys:**
+- Not faster than Single mode (both use parallel processing)
+- Main benefit: Reduce number of API requests for free tier rate limits
+- Optimal workflow: Select 10-20 chapters, let it run in background (14s/chapter is fast enough)
+
+**Chunking Strategy:**
+- Smaller chunks (800 chars) = faster but more API calls
+- Larger chunks (1100-1400 chars) = balanced (2 chunks for 2.5k chapter = 7s, tiết kiệm 60% calls)
+- No chunking = slowest (14s) but simplest (1 API call)
+
+---
+
 ## [2.6.1] - 2026-02-08
 
 ### ✨ UX Enhancements
@@ -46,7 +119,7 @@
 - `src-tauri/tauri.conf.json` - Version sync
 
 ## [2.6.0] - 2026-02-07
-
+S
 ### 🎯 Type Safety & Runtime Validation (Zod Integration)
 
 - **Zod Integration - Complete Runtime Type Safety**:

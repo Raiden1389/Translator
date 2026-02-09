@@ -60,6 +60,32 @@ async fn native_gemini_request(
 }
 
 #[tauri::command]
+async fn native_gemini_oauth_request(
+    payload: String,
+    model: String,
+    access_token: String,
+) -> Result<String, String> {
+    let api_version = "v1beta";
+    let url = format!(
+        "https://generativelanguage.googleapis.com/{}/models/{}:generateContent",
+        api_version, model
+    );
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", access_token))
+        .body(payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let text = res.text().await.map_err(|e| e.to_string())?;
+    Ok(text)
+}
+
+#[tauri::command]
 async fn native_list_models(api_key: String) -> Result<String, String> {
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models?key={}",
@@ -260,6 +286,7 @@ pub fn run() {
             tts::edge_tts_speak,
             auth::start_auth_server,
             native_gemini_request,
+            native_gemini_oauth_request,
             native_gemini_create_cache,
             native_gemini_delete_cache,
             native_list_models,
