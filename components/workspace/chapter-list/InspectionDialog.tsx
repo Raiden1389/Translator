@@ -31,10 +31,10 @@ export function InspectionDialog({
 }: InspectionDialogProps) {
     const getTypeIcon = (type: string) => {
         switch (type) {
-            case 'untranslated': return <Languages className="w-4 h-4 text-rose-500" />;
-            case 'pronoun': return <MessageSquareQuote className="w-4 h-4 text-amber-500" />;
+            case 'untranslated': return <Languages className="w-4 h-4 text-destructive" />;
+            case 'pronoun': return <MessageSquareQuote className="w-4 h-4 text-orange-500" />;
             case 'grammar': return <AlertTriangle className="w-4 h-4 text-orange-500" />;
-            default: return <AlertCircle className="w-4 h-4 text-blue-500" />;
+            default: return <AlertCircle className="w-4 h-4 text-primary" />;
         }
     };
 
@@ -64,8 +64,8 @@ export function InspectionDialog({
                         <div className={cn(
                             "px-3 py-1 rounded-full text-xs font-bold border transition-all",
                             issues.length > 0
-                                ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
-                                : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                ? "bg-destructive/10 text-destructive border-destructive/20"
+                                : "bg-green-500/10 text-green-600 border-green-500/20"
                         )}>
                             {issues.length > 0 ? `Phát hiện ${issues.length} vấn đề` : "Bản dịch hoàn hảo!"}
                         </div>
@@ -102,15 +102,15 @@ export function InspectionDialog({
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="space-y-1">
-                                                    <div className="text-[9px] font-bold text-rose-500 uppercase tracking-tighter">Vấn đề</div>
-                                                    <div className="text-sm font-medium p-2 bg-rose-500/5 rounded border border-rose-500/10 line-clamp-3">
-                                                        "{issue.original}"
+                                                    <div className="text-[9px] font-bold text-destructive uppercase tracking-tighter">Vấn đề</div>
+                                                    <div className="text-sm font-medium p-2 bg-destructive/5 rounded border border-destructive/10 line-clamp-3">
+                                                        &quot;{issue.original}&quot;
                                                     </div>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <div className="text-[9px] font-bold text-emerald-500 uppercase tracking-tighter">Gợi ý sửa</div>
-                                                    <div className="text-sm font-bold text-emerald-600 p-2 bg-emerald-500/5 rounded border border-emerald-500/10 line-clamp-3">
-                                                        "{issue.suggestion}"
+                                                    <div className="text-[9px] font-bold text-green-500 uppercase tracking-tighter">Gợi ý sửa</div>
+                                                    <div className="text-sm font-bold text-green-600 p-2 bg-green-500/5 rounded border border-green-500/10 line-clamp-3">
+                                                        &quot;{issue.suggestion}&quot;
                                                     </div>
                                                 </div>
                                             </div>
@@ -127,8 +127,8 @@ export function InspectionDialog({
                             ))
                         ) : (
                             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-                                <div className="p-4 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                    <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+                                <div className="p-4 rounded-full bg-green-500/10 border border-green-500/20">
+                                    <CheckCircle2 className="w-12 h-12 text-green-500" />
                                 </div>
                                 <div className="space-y-1">
                                     <h4 className="text-lg font-bold text-foreground">Không tìm thấy lỗi nào!</h4>

@@ -71,9 +71,9 @@ export const ChapterRow = React.memo(function ChapterRow({
         "grid grid-cols-[50px_60px_1fr_1fr_140px_100px] items-center px-4 py-2 border-b border-border/50 transition-all group cursor-pointer h-fit min-h-[50px] relative overflow-hidden",
         isSelected || isInDrag
             ? "bg-primary/10 border-l-4 border-primary shadow-inner"
-            : (index % 2 === 1 ? "bg-card hover:bg-emerald-500/5 hover:border-l-[6px] hover:border-emerald-500/30" : "bg-muted/20 hover:bg-emerald-500/5 hover:border-l-[6px] hover:border-emerald-500/30"),
+            : (index % 2 === 1 ? "bg-card hover:bg-green-500/5 hover:border-l-[6px] hover:border-green-500/30" : "bg-muted/10 hover:bg-green-500/5 hover:border-l-[6px] hover:border-green-500/30"),
         isDraft && "opacity-70 grayscale-[0.3] hover:opacity-100 hover:grayscale-0",
-        isLastRead && "bg-emerald-500/10 border-l-[6px] border-emerald-500/60"
+        isLastRead && "bg-green-500/10 border-l-[6px] border-green-500/60"
     ), [isSelected, isInDrag, isDraft, isLastRead, index]);
 
     // PERFORMANCE FIX: Memoize event handlers
@@ -141,7 +141,7 @@ export const ChapterRow = React.memo(function ChapterRow({
     const statusBadgeClassName = React.useMemo(() => cn(
         "inline-flex items-center px-3 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-tighter cursor-help gap-1 shadow-xs",
         isRunning ? "bg-primary/10 text-primary border-primary/30 animate-pulse" :
-            isTranslated ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" :
+            isTranslated ? "bg-green-500/10 text-green-600 border-green-500/30" :
                 "bg-muted text-muted-foreground border-border"
     ), [isRunning, isTranslated]);
 

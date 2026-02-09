@@ -1,3 +1,17 @@
+## [2.7.2] - 2026-02-10
+
+### 🌓 macOS Dark Mode Implementation
+- **Full Semantic Token System**: Hoàn tất Phase 3 & 4 của kế hoạch Dark Mode.
+  - Chuyển đổi toàn bộ màu hardcoded sang semantic tokens (`foreground`, `background`, `primary`, `accent`, `destructive`).
+  - Hỗ trợ Dark Mode chuẩn macOS trên toàn bộ 20+ component cốt lõi.
+- **Legacy Cleanup**: 
+  - Xóa bỏ hoàn toàn logic `isRaidenMode` và các CSS overrides dư thừa.
+  - Tối ưu hóa `RaidenProvider` để tự động nhận diện system preference và lưu trạng thái vào localStorage.
+- **UI/UX Polishing**:
+  - Chuẩn hóa màu sắc cho Chapter List, Reader Modal, Sidebar và các Dialog.
+  - Fix các lỗi hiển thị (unreadable text/low contrast) trong chế độ Dark Mode.
+  - Sửa lỗi Lint và thiếu import trong các component cài đặt.
+
 ## [2.7.1] - 2026-02-09
 
 ### 🎨 UI/UX Refinement

@@ -47,37 +47,37 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="overflow-hidden relative transition-all bg-card border-border shadow-sm hover:shadow-md">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-base flex items-center gap-2 text-foreground">
-                                <Zap className="w-4 h-4 text-primary" /> Thống Kê
+                            <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
+                                <Zap className="w-4 h-4 text-primary fill-primary/10" /> Thống Kê
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center text-sm p-3 rounded-xl bg-muted/30 border border-border/50">
+                            <div className="flex justify-between items-center text-sm p-3 rounded-xl bg-muted/20 border border-border/40">
                                 <span className="text-muted-foreground font-medium">Tổng số chương</span>
                                 <span className="font-bold font-mono text-xl text-foreground">{stats.totalChapters.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between items-center text-sm p-3 rounded-xl bg-muted/30 border border-border/50">
+                            <div className="flex justify-between items-center text-sm p-3 rounded-xl bg-muted/20 border border-border/40">
                                 <span className="text-muted-foreground font-medium">Đã dịch</span>
                                 <span className="text-emerald-500 font-bold font-mono text-xl">{stats.translatedChapters.toLocaleString()}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="p-3 rounded-lg bg-background border border-border text-center">
-                                    <div className="text-xs text-muted-foreground mb-1">Thuật ngữ</div>
+                                <div className="p-3 rounded-xl bg-muted/20 border border-border/40 text-center">
+                                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold mb-1">Thuật ngữ</div>
                                     <div className="text-foreground font-bold">{stats.termCount.toLocaleString()}</div>
                                 </div>
-                                <div className="p-3 rounded-lg bg-background border border-border text-center">
-                                    <div className="text-xs text-muted-foreground mb-1">Nhân vật</div>
+                                <div className="p-3 rounded-xl bg-muted/20 border border-border/40 text-center">
+                                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold mb-1">Nhân vật</div>
                                     <div className="text-foreground font-bold">{stats.charCount.toLocaleString()}</div>
                                 </div>
                             </div>
                             <div className="pt-2 border-t border-border mt-2">
                                 <Tooltip>
                                     <TooltipTrigger className="w-full">
-                                        <div className="flex justify-between items-center p-3 rounded-lg cursor-help transition-all hover:bg-muted/50 bg-background border border-border">
-                                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Translation Cost</div>
+                                        <div className="flex justify-between items-center p-3 rounded-xl cursor-help transition-all hover:bg-muted/30 bg-muted/10 border border-border/40">
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Translation Cost</div>
                                             <div className="text-right">
                                                 <div className="font-bold font-mono text-lg leading-tight text-foreground">${stats.totalCostUSD.toFixed(2)}</div>
-                                                <div className="text-[10px] font-medium text-muted-foreground">{stats.translatedChapters} chapters</div>
+                                                <div className="text-[10px] font-medium text-muted-foreground/50">{stats.translatedChapters} chapters</div>
                                             </div>
                                         </div>
                                     </TooltipTrigger>
@@ -156,9 +156,9 @@ export const OverviewTab = ({ workspace }: { workspace: Workspace }) => {
                                     referrerPolicy="no-referrer"
                                     className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110 transition-transform duration-700 group-hover:scale-125"
                                 />
-                                <div className="absolute inset-0 bg-linear-to-t from-background via-transparent to-transparent opacity-80" />
+                                <div className="absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent" />
                                 <div className="absolute inset-0 flex items-center justify-center p-6">
-                                    <img src={workspace.cover} alt="Cover" referrerPolicy="no-referrer" loading="lazy" className="h-full w-auto object-contain rounded-lg shadow-xl z-10 transition-transform duration-500 group-hover:scale-[1.02]" />
+                                    <img src={workspace.cover} alt="Cover" referrerPolicy="no-referrer" loading="lazy" className="h-[200px] w-auto object-contain rounded-lg shadow-2xl z-10 transition-transform duration-500 group-hover:scale-[1.02]" />
                                 </div>
                             </div>
                         ) : (

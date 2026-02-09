@@ -43,13 +43,11 @@ import { useRaiden } from "@/components/theme/RaidenProvider";
 const ParagraphItem = React.memo(({
     para,
     index,
-    isRaidenMode,
     showDialogueLines,
     readerConfig
 }: {
     para: ParagraphData,
     index: number,
-    isRaidenMode: boolean,
     showDialogueLines: boolean,
     readerConfig: ReaderConfig
 }) => {
@@ -73,7 +71,7 @@ const ParagraphItem = React.memo(({
         text = text.replace(/&lt;i&gt;(.*?)&lt;\/i&gt;/gi, "<i>$1</i>");
 
         // ✨ Intelligent Dialogue Highlighting: Only italicize the part INSIDE the quotes if it's a mix
-        if (isDialogue && !isRaidenMode) {
+        if (isDialogue) {
             // Regex to match text inside curly quotes: “...”
             text = text.replace(/(“.*?”)/g, '<i class="not-italic text-[hsl(var(--dialogue-text))] opacity-100">$1</i>');
             // If it starts with - or — (traditional style), we might still want to italicize the whole line if it's short
@@ -100,10 +98,10 @@ const ParagraphItem = React.memo(({
                 // Option: Only indent if narrative OR if user explicitly wants it
                 readerConfig.indentText && !isDialogue && "indent-8",
                 "hover:cursor-text",
-                isDialogue && !isRaidenMode && showDialogueLines && "border-l-2 border-l-[hsl(var(--dialogue-quote-border))]",
+                isDialogue && showDialogueLines && "border-l-2 border-l-[hsl(var(--dialogue-quote-border))]",
                 isHighlighted
-                    ? (isRaidenMode ? "bg-purple-500/10 border-purple-500/20" : "bg-white/10 border-white/10")
-                    : (isRaidenMode ? "hover:bg-slate-800/10" : "hover:bg-white/5")
+                    ? "bg-accent/10 border-accent/20"
+                    : "hover:bg-muted/30"
             )}
             style={{
                 lineHeight: readerConfig.lineHeight,
@@ -126,10 +124,10 @@ export const ReaderContent = React.memo(function ReaderContent({
     handleScroll, handleWheel,
     onNext, hasNext
 }: ReaderContentProps) {
-    const { isRaidenMode } = useRaiden();
+    const { theme } = useRaiden();
 
-    const finalBgColor = isRaidenMode ? "#0F172A" : readerConfig.backgroundColor;
-    const finalTextColor = isRaidenMode ? "#CBD5E1" : readerConfig.textColor;
+    const finalBgColor = theme === "dark" ? "hsl(var(--background))" : readerConfig.backgroundColor;
+    const finalTextColor = theme === "dark" ? "hsl(var(--foreground))" : readerConfig.textColor;
 
     return (
         <div
@@ -142,19 +140,19 @@ export const ReaderContent = React.memo(function ReaderContent({
             <div
                 className={cn(
                     "min-h-full",
-                    isParallel && (isRaidenMode ? "grid grid-cols-2 divide-x divide-slate-800" : "grid grid-cols-2 divide-x divide-border")
+                    isParallel && "grid grid-cols-2 divide-x divide-border"
                 )}
                 style={{ backgroundColor: finalBgColor }}
             >
                 {(activeTab === 'original' || isParallel) && (
                     <div className={cn(
                         "min-h-full p-8 md:p-12 pb-20 border-r flex flex-col items-center",
-                        isRaidenMode ? "border-slate-800/50" : "border-border/50 bg-slate-50/30"
+                        "border-border/50 bg-muted/20"
                     )}>
                         <div className="w-full" style={{ maxWidth: isParallel ? "none" : (readerConfig.maxWidth >= 1400 ? "none" : `${readerConfig.maxWidth}px`) }}>
                             {isParallel && (
                                 <div className="mb-8 text-[10px] font-black opacity-40 uppercase tracking-[0.3em] flex items-center gap-2"
-                                    style={{ color: isRaidenMode ? "#94A3B8" : "hsl(var(--muted-foreground))" }}>
+                                    style={{ color: "hsl(var(--muted-foreground))" }}>
                                     <div className="w-8 h-px bg-current opacity-20" /> Bản gốc (Trung)
                                 </div>
                             )}
@@ -163,7 +161,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     fontFamily: "'Noto Sans SC', sans-serif",
                                     fontSize: `${readerConfig.fontSize}px`,
                                     lineHeight: readerConfig.lineHeight,
-                                    fontWeight: isRaidenMode ? 400 : 500,
+                                    fontWeight: theme === "dark" ? 400 : 500,
                                     textAlign: readerConfig.textAlign,
                                     color: "currentColor",
                                     opacity: isParallel ? 0.4 : 0.8
@@ -183,7 +181,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                         {isParallel && (
                             <div className={cn(
                                 "px-8 md:px-12 pt-8 text-xs font-black uppercase tracking-[0.2em] shrink-0",
-                                isRaidenMode ? "text-purple-400" : "text-primary/50"
+                                "text-accent/50"
                             )}>Translation</div>
                         )}
 
@@ -240,7 +238,6 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     key={para.id}
                                     para={para}
                                     index={index}
-                                    isRaidenMode={isRaidenMode}
                                     showDialogueLines={readerConfig.showDialogueLines}
                                     readerConfig={readerConfig}
                                 />
@@ -265,7 +262,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     onClick={onNext}
                                     className={cn(
                                         "group relative inline-flex items-center justify-center px-8 py-4 font-bold transition-all duration-200 rounded-full hover:scale-105 hover:shadow-lg focus:outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 antialiased",
-                                        isRaidenMode ? "bg-purple-600 text-white hover:bg-purple-500 shadow-purple-900/40" : "bg-primary text-white hover:bg-primary/90"
+                                        "bg-primary text-primary-foreground hover:bg-primary/90"
                                     )}
                                     style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", letterSpacing: "0.01em" }}
                                 >
@@ -273,7 +270,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                                     <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all" />
                                 </button>
                             ) : (
-                                <div className={cn("italic antialiased", isRaidenMode ? "text-slate-600" : "text-muted-foreground/50")} style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Hết chương</div>
+                                <div className={cn("italic antialiased", "text-muted-foreground/50")} style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>Hết chương</div>
                             )}
                         </div>
                     </div>

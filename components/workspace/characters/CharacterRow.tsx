@@ -14,7 +14,6 @@ interface CharacterRowProps {
     isSelected: boolean;
     onSelect: (id: number, checked: boolean) => void;
     onUpdate: (id: number, updates: Partial<DictionaryEntry>) => void;
-    isRaidenMode: boolean;
 }
 
 export function CharacterRow({
@@ -22,38 +21,29 @@ export function CharacterRow({
     index,
     isSelected,
     onSelect,
-    onUpdate,
-    isRaidenMode
+    onUpdate
 }: CharacterRowProps) {
     return (
         <div
             className={cn(
-                "grid grid-cols-[40px_250px_1fr] gap-4 px-4 py-2 items-center transition-all duration-150 group border-b min-h-[64px]",
-                isRaidenMode ? "border-border/40" : "border-border/50",
+                "grid grid-cols-[40px_250px_1fr] gap-4 px-4 py-2 items-center transition-all duration-150 group border-b min-h-[64px] border-border/50",
                 isSelected
-                    ? (isRaidenMode ? "bg-primary/20 hover:bg-primary/25 shadow-inner" : "bg-primary/15 hover:bg-primary/20 shadow-sm")
-                    : (isRaidenMode ? "hover:bg-primary/5" : (index % 2 === 0 ? "bg-card hover:bg-blue-50/80" : "bg-muted/20 hover:bg-blue-50/80"))
+                    ? "bg-primary/10 hover:bg-primary/20 shadow-sm"
+                    : (index % 2 === 0 ? "bg-card hover:bg-muted/50" : "bg-muted/10 hover:bg-muted/50")
             )}
         >
             <div className="flex justify-center items-center">
                 <Checkbox
                     checked={isSelected}
                     onCheckedChange={(checked) => onSelect(char.id!, !!checked)}
-                    className={cn(
-                        isRaidenMode
-                            ? "border-slate-600 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                            : "border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                    )}
+                    className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
             </div>
 
             {/* Stacked Identity Column */}
             <div className="flex flex-col justify-center px-2 py-1 overflow-hidden">
                 <Input
-                    className={cn(
-                        "h-7 w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-lg leading-tight",
-                        isRaidenMode ? "text-primary-foreground/90" : "text-primary"
-                    )}
+                    className="h-7 w-full bg-transparent border-none focus:ring-0 p-0 font-bold text-lg leading-tight text-primary"
                     defaultValue={char.translated}
                     onBlur={(e) => {
                         if (e.target.value !== char.translated) {
@@ -65,7 +55,7 @@ export function CharacterRow({
                         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                     }}
                 />
-                <div className={cn("text-[11px] opacity-40 font-serif truncate mt-0.5", isRaidenMode ? "text-slate-400" : "text-slate-600")}>
+                <div className="text-[11px] opacity-40 font-serif truncate mt-0.5 text-muted-foreground">
                     {char.original}
                 </div>
             </div>
@@ -73,10 +63,7 @@ export function CharacterRow({
             {/* Super-Wide Description Column (1fr) */}
             <div className="px-2 overflow-hidden py-1">
                 <Textarea
-                    className={cn(
-                        "min-h-[32px] w-full bg-transparent border-none focus:ring-0 p-0 text-xs resize-none scrollbar-hide leading-normal transition-all",
-                        isRaidenMode ? "text-slate-400 focus:text-slate-200" : "text-muted-foreground focus:text-foreground"
-                    )}
+                    className="min-h-[32px] w-full bg-transparent border-none focus:ring-0 p-0 text-xs resize-none scrollbar-hide leading-normal transition-all text-muted-foreground focus:text-foreground"
                     defaultValue={char.description || ""}
                     placeholder="Thêm mô tả chi tiết nhẫn vật..."
                     onBlur={(e) => {

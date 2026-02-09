@@ -2,55 +2,50 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-interface RaidenContextType {
-    isRaidenMode: boolean;
-    toggleRaidenMode: () => void;
+interface ThemeContextType {
+    theme: "light" | "dark";
+    setTheme: (theme: "light" | "dark") => void;
 }
 
-const RaidenContext = createContext<RaidenContextType | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function RaidenProvider({ children }: { children: React.ReactNode }) {
-    const [isRaidenMode, setIsRaidenMode] = useState(false);
+    const [theme, setThemeState] = useState<"light" | "dark">("light");
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setTimeout(() => {
-            const saved = localStorage.getItem("raiden-mode");
-            if (saved === "true") {
-                setIsRaidenMode(true);
-                document.documentElement.classList.add("raiden-mode");
-            }
+        const timer = setTimeout(() => {
+            const saved = localStorage.getItem("theme") as "light" | "dark" | null;
+            const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            const initialTheme = saved || (systemPrefersDark ? "dark" : "light");
+
+            setThemeState(initialTheme);
+            document.documentElement.classList.toggle("dark", initialTheme === "dark");
             setMounted(true);
         }, 0);
+        return () => clearTimeout(timer);
     }, []);
 
-    const toggleRaidenMode = () => {
-        setIsRaidenMode((prev) => {
-            const next = !prev;
-            localStorage.setItem("raiden-mode", String(next));
-            if (next) {
-                document.documentElement.classList.add("raiden-mode");
-            } else {
-                document.documentElement.classList.remove("raiden-mode");
-            }
-            return next;
-        });
+    const setTheme = (newTheme: "light" | "dark") => {
+        setThemeState(newTheme);
+        localStorage.setItem("theme", newTheme);
+        document.documentElement.classList.toggle("dark", newTheme === "dark");
     };
 
     return (
-        <RaidenContext.Provider value={{ isRaidenMode, toggleRaidenMode }}>
+        <ThemeContext.Provider value={{ theme, setTheme }}>
             <div
                 className="flex-1 flex flex-col min-h-0"
                 style={{ visibility: mounted ? "visible" : "hidden" }}
             >
                 {children}
             </div>
-        </RaidenContext.Provider>
+        </ThemeContext.Provider>
     );
 }
 
 export const useRaiden = () => {
-    const context = useContext(RaidenContext);
+    const context = useContext(ThemeContext);
     if (!context) {
         throw new Error("useRaiden must be used within a RaidenProvider");
     }

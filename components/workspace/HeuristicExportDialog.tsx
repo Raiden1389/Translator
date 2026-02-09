@@ -83,7 +83,7 @@ export function HeuristicExportDialog({ rawTerms }: HeuristicExportDialogProps) 
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-9 w-9 bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 shadow-sm"
+                            className="h-9 w-9 bg-accent/10 border-accent/20 text-accent hover:bg-accent/20 shadow-sm"
                         >
                             <DownloadCloud className="h-4 w-4" />
                         </Button>
@@ -100,7 +100,7 @@ export function HeuristicExportDialog({ rawTerms }: HeuristicExportDialogProps) 
                 <div className="space-y-6 py-4">
                     {/* Type Selection */}
                     <div className="space-y-3">
-                        <label className="text-sm font-bold text-slate-700">📂 Chọn loại entity:</label>
+                        <label className="text-sm font-bold text-foreground">📂 Chọn loại entity:</label>
                         <div className="grid grid-cols-2 gap-2">
                             {typeOptions.map(({ value, icon: Icon, label }) => (
                                 <Button
@@ -118,9 +118,9 @@ export function HeuristicExportDialog({ rawTerms }: HeuristicExportDialogProps) 
 
                     {/* Format Selection */}
                     <div className="space-y-3">
-                        <label className="text-sm font-bold text-slate-700">📋 Chọn format:</label>
+                        <label className="text-sm font-bold text-foreground">📋 Chọn format:</label>
                         <div className="space-y-2">
-                            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+                            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted">
                                 <input
                                     type="radio"
                                     name="format"
@@ -130,11 +130,11 @@ export function HeuristicExportDialog({ rawTerms }: HeuristicExportDialogProps) 
                                     className="mt-1"
                                 />
                                 <div className="flex-1">
-                                    <div className="font-bold text-slate-800">RAW DROP</div>
-                                    <div className="text-xs text-slate-500">Dev hardcore - Drop reasons + examples</div>
+                                    <div className="font-bold text-foreground">RAW DROP</div>
+                                    <div className="text-xs text-muted-foreground">Dev hardcore - Drop reasons + examples</div>
                                 </div>
                             </label>
-                            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 border-indigo-300 bg-indigo-50/50">
+                            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted border-accent/30 bg-accent/5">
                                 <input
                                     type="radio"
                                     name="format"
@@ -144,14 +144,14 @@ export function HeuristicExportDialog({ rawTerms }: HeuristicExportDialogProps) 
                                     className="mt-1"
                                 />
                                 <div className="flex-1">
-                                    <div className="font-bold text-slate-800 flex items-center gap-2">
+                                    <div className="font-bold text-foreground flex items-center gap-2">
                                         FORENSIC ANALYSIS
-                                        <span className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded">⭐ Recommended</span>
+                                        <span className="text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded-full font-bold border border-accent/20">⭐ Recommended</span>
                                     </div>
-                                    <div className="text-xs text-slate-500">AI Review - Classification + Impact + Fix</div>
+                                    <div className="text-xs text-muted-foreground">AI Review - Classification + Impact + Fix</div>
                                 </div>
                             </label>
-                            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+                            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted">
                                 <input
                                     type="radio"
                                     name="format"
@@ -161,8 +161,8 @@ export function HeuristicExportDialog({ rawTerms }: HeuristicExportDialogProps) 
                                     className="mt-1"
                                 />
                                 <div className="flex-1">
-                                    <div className="font-bold text-slate-800">SUMMARY</div>
-                                    <div className="text-xs text-slate-500">Dashboard - Top problem + Risk level</div>
+                                    <div className="font-bold text-foreground">SUMMARY</div>
+                                    <div className="text-xs text-muted-foreground">Dashboard - Top problem + Risk level</div>
                                 </div>
                             </label>
                         </div>

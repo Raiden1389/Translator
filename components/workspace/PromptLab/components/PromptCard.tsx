@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Save } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRaiden } from "@/components/theme/RaidenProvider";
+
 
 interface PromptCardProps {
   variant: "A" | "B";
@@ -25,40 +25,31 @@ export function PromptCard({
   isFighting,
   onSave
 }: PromptCardProps) {
-  const { isRaidenMode } = useRaiden();
-
   const isVariantA = variant === "A";
-  const borderColor = isVariantA ? "indigo-500" : "primary";
-  const bgColor = isVariantA ? "indigo" : "primary";
   const label = isVariantA ? "PROMPT A (Base)" : "PROMPT B (Variant)";
   const resultLabel = isVariantA ? "KẾT QUẢ DỊCH A" : "KẾT QUẢ DỊCH B";
 
   return (
-    <Card className={cn(
-      "shadow-sm overflow-hidden group border",
-      isRaidenMode
-        ? `bg-card border-${borderColor}/20`
-        : "bg-card border-border"
-    )}>
+    <Card className="shadow-sm overflow-hidden group border bg-card border-border">
       <div className={cn(
         "absolute top-0 w-1 h-full",
-        isVariantA ? "left-0 bg-indigo-500" : "right-0 bg-primary"
+        isVariantA ? "left-0 bg-accent" : "right-0 bg-primary"
       )} />
       <CardHeader className={cn(
         "pb-2 border-b",
         isVariantA
-          ? "border-indigo-200/50" + (!isRaidenMode ? " bg-indigo-50/30" : "")
-          : "border-primary/20" + (!isRaidenMode ? " bg-primary/5" : "")
+          ? "border-accent/20 bg-accent/10"
+          : "border-primary/20 bg-primary/5"
       )}>
         <CardTitle className={cn(
           "text-sm font-black flex items-center justify-between uppercase",
-          isVariantA ? "text-indigo-600" : "text-primary"
+          isVariantA ? "text-accent" : "text-primary"
         )}>
           {label}
           {score && (
             <span className={cn(
               "text-2xl font-black italic",
-              isVariantA ? "text-indigo-500/50" : "text-primary/50"
+              isVariantA ? "text-accent/50" : "text-primary/50"
             )}>
               {score}
             </span>
@@ -82,7 +73,7 @@ export function PromptCard({
             className={cn(
               "h-6 text-[10px] rounded-lg px-3 border",
               isVariantA
-                ? "bg-indigo-100/50 hover:bg-indigo-200/50 text-indigo-700 border-indigo-200/50"
+                ? "bg-accent/10 hover:bg-accent/20 text-accent border-accent/20"
                 : "bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
             )}
           >

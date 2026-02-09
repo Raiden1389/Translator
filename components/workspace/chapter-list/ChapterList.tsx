@@ -183,7 +183,12 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         return filtered.slice(start, start + itemsPerPage);
     }, [filtered, currentPage, itemsPerPage]);
 
-    useEffect(() => { setCurrentPage(1); }, [search, filterStatus]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        const timer = setTimeout(() => setCurrentPage(1), 0);
+        return () => clearTimeout(timer);
+    }, [search, filterStatus]);
 
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
@@ -272,7 +277,6 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
             {/* Selection Dock */}
             <ChapterSelectionDock
                 selectedChapters={selectedChapters}
-                isRaidenMode={false}
                 setSelectedChapters={setSelectedChapters}
                 setTranslateDialogOpen={setTranslateDialogOpen}
                 filtered={filtered}

@@ -40,34 +40,34 @@ export function ExportForm({
                 <Settings className="w-5 h-5 text-primary" />
                 2. Tùy chọn xuất
             </h3>
-            <Card className="bg-white border-slate-200 shadow-sm overflow-hidden">
+            <Card className="bg-card border-border shadow-sm overflow-hidden">
                 <CardContent className="p-6 space-y-6">
                     <div className="space-y-4">
-                        <Label className="text-slate-500 font-medium flex justify-between">
+                        <Label className="text-muted-foreground font-medium flex justify-between">
                             <span>Khoảng chương cần xuất</span>
-                            <span className="text-[10px] text-indigo-600 font-black font-mono">MAX: {totalAvailable}</span>
+                            <span className="text-[10px] text-accent font-black font-mono">MAX: {totalAvailable}</span>
                         </Label>
                         <div className="flex items-center gap-4">
                             <div className="flex-1 space-y-1">
-                                <span className="text-[10px] text-slate-400 uppercase font-black px-1">Từ</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-black px-1">Từ</span>
                                 <Input
                                     type="number"
                                     min="1"
                                     max={totalAvailable}
                                     value={rangeStart}
                                     onChange={(e) => setRangeStart(e.target.value)}
-                                    className="bg-slate-50 border-slate-200 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 h-11 font-mono"
+                                    className="bg-muted/50 border-border text-foreground focus-visible:ring-accent focus-visible:border-accent h-11 font-mono"
                                 />
                             </div>
                             <div className="flex-1 space-y-1">
-                                <span className="text-[10px] text-slate-400 uppercase font-black px-1">Đến</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-black px-1">Đến</span>
                                 <Input
                                     type="number"
                                     min="1"
                                     max={totalAvailable}
                                     value={rangeEnd}
                                     onChange={(e) => setRangeEnd(e.target.value)}
-                                    className="bg-slate-50 border-slate-200 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 h-11 font-mono"
+                                    className="bg-muted/50 border-border text-foreground focus-visible:ring-accent focus-visible:border-accent h-11 font-mono"
                                 />
                             </div>
                         </div>
@@ -78,7 +78,7 @@ export function ExportForm({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="w-full h-10 font-bold text-sm border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 transition-all"
+                        className="w-full h-10 font-bold text-sm border-accent/20 text-accent hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-all"
                         onClick={onAutoSelectTranslated}
                     >
                         <span className="flex items-center gap-2">
@@ -92,8 +92,8 @@ export function ExportForm({
                             className={cn(
                                 "w-full h-14 font-extrabold text-lg shadow-md transition-all active:scale-[0.98] disabled:opacity-50",
                                 useDrive
-                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100"
-                                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100"
+                                    ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/10"
+                                    : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/10"
                             )}
                             onClick={onExport}
                             disabled={isExporting}
@@ -113,13 +113,13 @@ export function ExportForm({
 
                         {isExporting && (
                             <div className="space-y-2">
-                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-indigo-600 transition-all duration-300 ease-out"
+                                        className="h-full bg-primary transition-all duration-300 ease-out"
                                         style={{ width: `${exportProgress}%` }}
                                     />
                                 </div>
-                                <div className="flex justify-between text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                                <div className="flex justify-between text-[10px] text-muted-foreground font-black uppercase tracking-widest">
                                     <span>Đang nén dữ liệu</span>
                                     <span>{exportProgress}%</span>
                                 </div>

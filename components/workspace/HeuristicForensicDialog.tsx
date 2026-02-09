@@ -73,7 +73,7 @@ export function HeuristicForensicDialog({ forensicReport }: HeuristicForensicDia
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-9 w-9 bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100 shadow-sm"
+                            className="h-9 w-9 bg-accent/10 border-accent/20 text-accent hover:bg-accent/20 shadow-sm"
                         >
                             <Microscope className="h-4 w-4" />
                         </Button>
@@ -86,29 +86,29 @@ export function HeuristicForensicDialog({ forensicReport }: HeuristicForensicDia
             <DialogContent className="sm:max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <Microscope className="h-5 w-5 text-purple-500" />
+                        <Microscope className="h-5 w-5 text-accent" />
                         Forensic Analyzer - Phân tích lỗi Heuristic
                     </DialogTitle>
                 </DialogHeader>
                 {forensicReport && (
                     <>
                         {/* Summary */}
-                        <div className="grid grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 shrink-0">
+                        <div className="grid grid-cols-4 gap-3 p-4 bg-muted rounded-xl border border-border shrink-0">
                             <div className="text-center">
-                                <div className="text-2xl font-black text-slate-700">{forensicReport.summary.totalScanned}</div>
-                                <div className="text-xs text-slate-500 font-bold uppercase">Tổng quét</div>
+                                <div className="text-2xl font-black text-foreground">{forensicReport.summary.totalScanned}</div>
+                                <div className="text-xs text-muted-foreground font-bold uppercase">Tổng quét</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-2xl font-black text-emerald-600">{forensicReport.summary.totalApproved}</div>
-                                <div className="text-xs text-slate-500 font-bold uppercase">Đã duyệt</div>
+                                <div className="text-2xl font-black text-green-600">{forensicReport.summary.totalApproved}</div>
+                                <div className="text-xs text-muted-foreground font-bold uppercase">Đã duyệt</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-2xl font-black text-red-600">{forensicReport.summary.totalDropped}</div>
-                                <div className="text-xs text-slate-500 font-bold uppercase">Bị loại</div>
+                                <div className="text-xs text-muted-foreground font-bold uppercase">Bị loại</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-2xl font-black text-orange-600">{forensicReport.summary.overallDropRate.toFixed(1)}%</div>
-                                <div className="text-xs text-slate-500 font-bold uppercase">Tỷ lệ drop</div>
+                                <div className="text-xs text-muted-foreground font-bold uppercase">Tỷ lệ drop</div>
                             </div>
                         </div>
 
@@ -119,7 +119,7 @@ export function HeuristicForensicDialog({ forensicReport }: HeuristicForensicDia
                                     <TabsTrigger key={typeReport.type} value={typeReport.type} className="flex items-center gap-2">
                                         {getTypeIcon(typeReport.type)}
                                         <span className="capitalize">{typeReport.type}</span>
-                                        <span className="text-xs text-slate-500">({typeReport.totalDropped})</span>
+                                        <span className="text-xs text-muted-foreground">({typeReport.totalDropped})</span>
                                     </TabsTrigger>
                                 ))}
                             </TabsList>
@@ -156,22 +156,22 @@ function TypeReportView({ typeReport, onExport }: { typeReport: TypeForensicRepo
     return (
         <div className="space-y-4">
             {/* Type Summary */}
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
                 <div className="flex items-center gap-4">
                     <div>
-                        <span className="text-sm text-slate-500">Detected:</span>
-                        <span className="ml-2 font-bold text-slate-700">{typeReport.totalDetected}</span>
+                        <span className="text-sm text-muted-foreground">Detected:</span>
+                        <span className="ml-2 font-bold text-foreground">{typeReport.totalDetected}</span>
                     </div>
                     <div>
-                        <span className="text-sm text-slate-500">Approved:</span>
-                        <span className="ml-2 font-bold text-emerald-600">{typeReport.totalApproved}</span>
+                        <span className="text-sm text-muted-foreground">Approved:</span>
+                        <span className="ml-2 font-bold text-green-600">{typeReport.totalApproved}</span>
                     </div>
                     <div>
-                        <span className="text-sm text-slate-500">Dropped:</span>
-                        <span className="ml-2 font-bold text-red-600">{typeReport.totalDropped}</span>
+                        <span className="text-sm text-muted-foreground">Dropped:</span>
+                        <span className="ml-2 font-bold text-destructive">{typeReport.totalDropped}</span>
                     </div>
                     <div>
-                        <span className="text-sm text-slate-500">Drop Rate:</span>
+                        <span className="text-sm text-muted-foreground">Drop Rate:</span>
                         <span className="ml-2 font-bold text-orange-600">{typeReport.dropRate.toFixed(1)}%</span>
                     </div>
                 </div>
@@ -183,44 +183,44 @@ function TypeReportView({ typeReport, onExport }: { typeReport: TypeForensicRepo
 
             {/* Drop Reasons */}
             {typeReport.topReasons.length === 0 ? (
-                <div className="text-center text-slate-400 italic py-8">Không có lỗi nào! 🎉</div>
+                <div className="text-center text-muted-foreground italic py-8">Không có lỗi nào! 🎉</div>
             ) : (
                 <div className="space-y-2">
                     {typeReport.topReasons.map((reason, idx) => (
-                        <div key={idx} className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div key={idx} className="border border-border rounded-lg overflow-hidden">
                             {/* Reason Header */}
                             <button
                                 onClick={() => toggleReason(idx)}
-                                className="w-full bg-white hover:bg-slate-50 px-4 py-3 flex items-center justify-between transition-colors"
+                                className="w-full bg-card hover:bg-muted px-4 py-3 flex items-center justify-between transition-colors"
                             >
                                 <div className="flex items-center gap-3 flex-1">
                                     {expandedReasons.has(idx) ?
-                                        <ChevronUp className="h-4 w-4 text-slate-600 shrink-0" /> :
-                                        <ChevronDown className="h-4 w-4 text-slate-600 shrink-0" />
+                                        <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> :
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                                     }
                                     <div className="text-left flex-1">
-                                        <div className="font-bold text-slate-800 text-sm">{reason.reason}</div>
-                                        <div className="text-xs text-slate-500 mt-0.5">
+                                        <div className="font-bold text-foreground text-sm">{reason.reason}</div>
+                                        <div className="text-xs text-muted-foreground mt-0.5">
                                             {reason.count} lần ({reason.percentage.toFixed(1)}%) • {reason.examples.length} examples
                                         </div>
                                     </div>
                                 </div>
-                                <div className="text-xs text-indigo-600 font-medium bg-indigo-50 px-3 py-1 rounded-full">
+                                <div className="text-xs text-accent font-medium bg-accent/10 px-3 py-1 rounded-full">
                                     💡 {reason.suggestedFix}
                                 </div>
                             </button>
 
                             {/* Examples - Expandable */}
                             {expandedReasons.has(idx) && (
-                                <div className="bg-slate-50 p-4 border-t border-slate-200">
+                                <div className="bg-muted p-4 border-t border-border">
                                     <div className="flex flex-wrap gap-2 max-h-64 overflow-auto">
                                         {reason.examples.map((ex, i) => {
                                             const showPhonetic = ex.translated && ex.translated !== ex.original;
                                             return (
-                                                <div key={i} className="px-3 py-2 bg-white border border-slate-200 text-slate-700 text-xs rounded-lg flex flex-col gap-1 shadow-sm">
-                                                    <span className="font-bold font-mono text-slate-900">{ex.original}</span>
+                                                <div key={i} className="px-3 py-2 bg-card border border-border text-foreground text-xs rounded-lg flex flex-col gap-1 shadow-sm">
+                                                    <span className="font-bold font-mono text-foreground">{ex.original}</span>
                                                     {showPhonetic && (
-                                                        <span className="text-xs text-purple-700 font-semibold">({ex.translated})</span>
+                                                        <span className="text-xs text-accent font-semibold">({ex.translated})</span>
                                                     )}
                                                 </div>
                                             );

@@ -6,8 +6,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { deleteWorkspace, clearSessionHistory } from "@/lib/services/workspace.service";
 import { useRaiden } from "@/components/theme/RaidenProvider";
-import { toast } from "sonner";
 import { ReviewData, GlossaryCharacter, GlossaryTerm } from "@/lib/types";
+import { toast } from "sonner";
 
 export function useWorkspace(id: string) {
     const router = useRouter();
@@ -15,7 +15,8 @@ export function useWorkspace(id: string) {
     const activeTabParam = searchParams.get("tab");
 
     const workspace = useLiveQuery(() => db.workspaces.get(id), [id]);
-    const { isRaidenMode, toggleRaidenMode } = useRaiden();
+    const { theme, setTheme } = useRaiden();
+    const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
     // Stats calculation
     const stats = useLiveQuery(async () => {
@@ -87,12 +88,11 @@ export function useWorkspace(id: string) {
             workspace,
             activeTab,
             progress,
-            isRaidenMode,
             reviewData
         },
         actions: {
             changeTab,
-            toggleRaidenMode,
+            toggleTheme,
             handleDeleteWorkspace,
             handleReviewSave,
             setReviewData

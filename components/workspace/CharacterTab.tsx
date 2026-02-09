@@ -6,14 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReviewDialog } from "./shared/ReviewDialog";
-import { cn } from "@/lib/utils";
-import { useRaiden } from "@/components/theme/RaidenProvider";
 import { useCharacterManagement } from "./characters/useCharacterManagement";
 import { CharacterToolbar } from "./characters/CharacterToolbar";
 import { CharacterRow } from "./characters/CharacterRow";
 
 export function CharacterTab({ workspaceId }: { workspaceId: string }) {
-    const { isRaidenMode } = useRaiden();
     const {
         dictionary,
         search,
@@ -50,9 +47,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                 onImportJSON={handleImportJSON}
                 onExportJSON={handleExportJSON}
                 onBulkDelete={handleBulkDelete}
-                onClearSelection={() => setSelectedIds([])}
-                isRaidenMode={isRaidenMode}
-            />
+                onClearSelection={() => setSelectedIds([])} />
 
             {/* Quick Add Form */}
             {isAdding && (
@@ -89,23 +84,13 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
             )}
 
             {/* Table */}
-            <div className={cn(
-                "rounded-xl overflow-hidden border shadow-sm transition-colors duration-500",
-                isRaidenMode ? "bg-card border-border" : "bg-muted/30 border-border"
-            )}>
-                <div className={cn(
-                    "grid grid-cols-[40px_250px_1fr] gap-4 px-4 py-3 border-b-2 text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-colors duration-500",
-                    isRaidenMode ? "bg-card border-border text-muted-foreground" : "bg-muted/50 border-border-strong text-foreground/80"
-                )}>
+            <div className="rounded-xl overflow-hidden border shadow-sm transition-colors duration-500 bg-card border-border">
+                <div className="grid grid-cols-[40px_250px_1fr] gap-4 px-4 py-3 border-b-2 text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-colors duration-500 bg-muted/50 border-border text-foreground/80">
                     <div className="flex justify-center items-center">
                         <Checkbox
                             checked={filteredChars.length > 0 && selectedIds.length === filteredChars.length}
                             onCheckedChange={toggleSelectAll}
-                            className={cn(
-                                isRaidenMode
-                                    ? "border-slate-600 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                    : "border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                            )}
+                            className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
                     </div>
                     <div className="px-2 flex items-center">Nhân vật (Việt / Trung)</div>
@@ -126,7 +111,6 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                 isSelected={selectedIds.includes(char.id!)}
                                 onSelect={handleSelect}
                                 onUpdate={handleUpdate}
-                                isRaidenMode={isRaidenMode}
                             />
                         ))
                     )}

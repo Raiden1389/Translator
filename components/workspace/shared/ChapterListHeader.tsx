@@ -117,9 +117,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div className="text-[10px] font-bold flex items-center gap-2 mt-0.5 cursor-help">
-                                    <span className="text-indigo-500">{tokenStats.total.toLocaleString()}t</span>
+                                    <span className="text-accent">{tokenStats.total.toLocaleString()}t</span>
                                     <span className="text-muted-foreground">•</span>
-                                    <span className="text-emerald-500">${tokenStats.cost.toFixed(4)}</span>
+                                    <span className="text-green-500">${tokenStats.cost.toFixed(4)}</span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-[10px] font-bold font-mono">
@@ -129,7 +129,7 @@ export function ChapterListHeader({
                                     <div>Output: {tokenStats.output.toLocaleString()}t (${tokenStats.costBreakdown.output.toFixed(4)})</div>
                                     <div className="border-t border-border/40 pt-1 mt-1">
                                         <div className="font-bold">Total: {tokenStats.total.toLocaleString()}t</div>
-                                        <div className="text-emerald-400">Cost: ${tokenStats.cost.toFixed(4)}</div>
+                                        <div className="text-green-500">Cost: ${tokenStats.cost.toFixed(4)}</div>
                                     </div>
                                 </div>
                             </TooltipContent>
@@ -148,7 +148,7 @@ export function ChapterListHeader({
 
                     <div className={cn(
                         "flex-1 flex items-center bg-muted/20 border rounded-xl overflow-hidden focus-within:bg-background focus-within:ring-1 transition-all max-w-[380px] min-w-[140px]",
-                        isRangeValid ? "border-border/40 focus-within:ring-primary/20" : "border-rose-500/50 focus-within:ring-rose-500/20"
+                        isRangeValid ? "border-border/40 focus-within:ring-primary/20" : "border-destructive/50 focus-within:ring-destructive/20"
                     )}>
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/30" />

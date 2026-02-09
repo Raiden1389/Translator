@@ -63,15 +63,13 @@ export function StatsPanel({
                 <div className="flex gap-3 text-xs">
                   {currentTermsUsed > 0 && (
                     <span className="flex items-center gap-1">
-                      <span className="text-blue-500">📚</span>
-                      <span className="font-bold tabular-nums">{currentTermsUsed}</span>
+                      <span className="text-primary font-bold tabular-nums">{currentTermsUsed}</span>
                       <span className="text-muted-foreground/60">terms</span>
                     </span>
                   )}
                   {currentCharactersUsed > 0 && (
                     <span className="flex items-center gap-1">
-                      <span className="text-purple-500">👤</span>
-                      <span className="font-bold tabular-nums">{currentCharactersUsed}</span>
+                      <span className="text-accent font-bold tabular-nums">{currentCharactersUsed}</span>
                       <span className="text-muted-foreground/60">chars</span>
                     </span>
                   )}
@@ -111,13 +109,13 @@ export function StatsPanel({
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {stat.termsUsed > 0 && (
-                        <span className="flex items-center gap-0.5 text-blue-500">
+                        <span className="flex items-center gap-0.5 text-primary">
                           <span>📚</span>
                           <span className="font-bold tabular-nums">{stat.termsUsed}</span>
                         </span>
                       )}
                       {stat.charactersUsed > 0 && (
-                        <span className="flex items-center gap-0.5 text-purple-500">
+                        <span className="flex items-center gap-0.5 text-accent">
                           <span>👤</span>
                           <span className="font-bold tabular-nums">{stat.charactersUsed}</span>
                         </span>

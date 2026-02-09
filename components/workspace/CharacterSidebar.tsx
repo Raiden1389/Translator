@@ -4,8 +4,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Search, ChevronRight, User } from "lucide-react";
-import { AnalyzedEntity, analyzeEntities } from "@/lib/gemini";
+import { Users, Search, ChevronRight } from "lucide-react";
+import { analyzeEntities } from "@/lib/gemini";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -21,7 +21,6 @@ interface CharacterSidebarProps {
 
 export function CharacterSidebar({
     workspaceId,
-    chapterId,
     chapterContent,
     onHighlight,
     currentHighlight,
@@ -81,12 +80,12 @@ export function CharacterSidebar({
 
     return (
         <div className={cn(
-            "bg-[#1e1e2e] border-l border-white/10 flex flex-col transition-all duration-300 overflow-hidden",
+            "bg-card border-l border-border flex flex-col transition-all duration-300 overflow-hidden",
             isOpen ? "w-[250px] opacity-100" : "w-0 opacity-0 border-l-0"
         )}>
-            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-[#2b2b40]">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Users className="h-4 w-4 text-purple-400" /> Nhân vật
+            <div className="p-4 border-b border-border flex items-center justify-between bg-muted">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Users className="h-4 w-4 text-accent" /> Nhân vật
                 </h3>
                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onToggle}>
                     <ChevronRight className="h-4 w-4" />
@@ -94,11 +93,11 @@ export function CharacterSidebar({
             </div>
 
             {/* Quick Scan */}
-            <div className="p-4 border-b border-white/10">
+            <div className="p-4 border-b border-border">
                 <Button
                     variant="outline"
                     size="sm"
-                    className="w-full border-purple-500/30 text-purple-300 hover:bg-purple-500/10 text-xs"
+                    className="w-full border-accent/30 text-accent hover:bg-accent/10 text-xs"
                     onClick={handleScan}
                     disabled={analyzing}
                 >
@@ -113,25 +112,25 @@ export function CharacterSidebar({
                         <div
                             key={char.id}
                             className={cn(
-                                "p-2 rounded bg-white/5 border border-white/5 hover:bg-white/10 cursor-pointer transition-colors group",
-                                currentHighlight === char.original && "bg-purple-500/20 border-purple-500/50"
+                                "p-2 rounded bg-muted/50 border border-border hover:bg-muted cursor-pointer transition-colors group",
+                                currentHighlight === char.original && "bg-accent/10 border-accent/20"
                             )}
                             onClick={() => onHighlight(char.original)}
                         >
                             <div className="flex items-center gap-2 mb-1">
-                                <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white">
+                                <div className="h-6 w-6 rounded-full bg-linear-to-br from-accent to-primary flex items-center justify-center text-[10px] font-bold text-white">
                                     {char.translated.charAt(0)}
                                 </div>
-                                <div className="font-bold text-sm text-white/90 truncate">{char.translated}</div>
+                                <div className="font-bold text-sm text-foreground truncate">{char.translated}</div>
                             </div>
-                            <div className="text-xs text-white/50 pl-8 truncate">{char.original}</div>
+                            <div className="text-xs text-muted-foreground pl-8 truncate">{char.original}</div>
                             {char.metadata?.gender && (
-                                <div className="text-[10px] text-white/30 pl-8 mt-1 italic uppercase">{char.metadata.gender as React.ReactNode}</div>
+                                <div className="text-[10px] text-muted-foreground/50 pl-8 mt-1 italic uppercase">{char.metadata.gender as React.ReactNode}</div>
                             )}
                         </div>
                     ))}
                     {characters.length === 0 && (
-                        <div className="text-center text-white/30 text-xs py-10">
+                        <div className="text-center text-muted-foreground/30 text-xs py-10">
                             Chưa có dữ liệu nhân vật.
                             <br />Hãy thử &quot;Quét&quot; chương này!
                         </div>

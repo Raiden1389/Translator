@@ -13,7 +13,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChapterList } from "@/components/workspace/chapter-list/ChapterList";
 import { PromptLab } from "@/components/workspace/PromptLab";
-import { AISettingsTab } from "./AISettingsTab";
+import AISettingsTab from "./AISettingsTab";
 import { ExportTab } from "./ExportTab";
 import { OverviewTab } from "./OverviewTab";
 import { IntelligenceHub } from "./intelligence/IntelligenceHub";
@@ -63,7 +63,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
         <div className="flex h-full w-full overflow-hidden transition-colors duration-500 bg-background text-foreground">
 
             {/* Desktop Sidebar */}
-            <aside className="w-64 border-r flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300 bg-sidebar border-sidebar-border">
+            <aside className="w-64 border-r flex flex-col pt-10 shrink-0 h-full overflow-hidden transition-all duration-300 bg-sidebar/50 backdrop-blur-xl border-border/50">
                 <div className="px-6 mb-6">
                     <Link href="/">
                         <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent -ml-2 gap-2 text-[10px] uppercase font-bold tracking-widest transition-colors group">
@@ -103,20 +103,17 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                 key={tab.id}
                                 onClick={() => changeTab(tab.id)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-4 py-3 transition-all group relative rounded-xl",
+                                    "w-full flex items-center gap-3 px-4 py-2.5 transition-all group relative rounded-lg",
                                     isActive
-                                        ? "text-sidebar-accent-foreground bg-sidebar-accent shadow-inner"
-                                        : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/50"
+                                        ? "text-primary bg-primary/10 shadow-[inset_0_0_0_1px_rgba(0,122,255,0.1)]"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                                 )}
                             >
-                                {isActive && (
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-primary" />
-                                )}
                                 <Icon className={cn(
                                     "h-4 w-4 transition-colors",
                                     isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                                 )} />
-                                <span className={cn("tracking-tight text-sm", isActive ? "font-bold" : "font-semibold")}>{tab.label}</span>
+                                <span className={cn("tracking-tight text-sm", isActive ? "font-bold" : "font-medium")}>{tab.label}</span>
                             </button>
                         )
                     })}
@@ -130,13 +127,15 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         <div className="flex flex-col">
                             <span className="text-[11px] font-black opacity-90 tracking-tight">AI Engine v3.0</span>
                         </div>
-                        <ThemeSwitcher />
+                        <div className="ml-auto">
+                            <ThemeSwitcher />
+                        </div>
                     </div>
                 </div>
             </aside>
 
             {/* Content Area */}
-            <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative h-full transition-colors duration-500 bg-muted/40 text-foreground">
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative h-full transition-colors duration-500 bg-background text-foreground">
                 {activeTab !== "intelligence" && (
                     <header className="h-20 flex items-center justify-between px-8 pt-4 border-b shrink-0 transition-colors duration-500 bg-background/80 backdrop-blur-md border-border">
                         <h2 className="text-sm font-bold capitalize flex items-center gap-2">

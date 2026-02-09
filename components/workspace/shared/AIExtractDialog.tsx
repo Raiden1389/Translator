@@ -10,7 +10,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { FileText, Sparkles, MoreHorizontal } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface AIExtractDialogProps {
     open: boolean;
@@ -77,7 +76,7 @@ export function AIExtractDialog({
                             disabled={isExtracting}
                         >
                             <div className="flex items-center gap-3 text-left">
-                                <div className="p-2 rounded bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20">
+                                <div className="p-2 rounded bg-accent/10 text-accent group-hover:bg-accent/20">
                                     <MoreHorizontal className="w-5 h-5" />
                                 </div>
                                 <div>

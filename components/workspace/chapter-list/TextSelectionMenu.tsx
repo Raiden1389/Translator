@@ -28,7 +28,7 @@ export function TextSelectionMenu({ position, selectedText, onAction, onClose }:
     return (
         <div
             ref={menuRef}
-            className="fixed z-[9999] bg-popover border border-border shadow-2xl rounded-lg p-1 flex gap-1 animate-in fade-in zoom-in-95 duration-200"
+            className="fixed z-9999 bg-popover border border-border shadow-2xl rounded-lg p-1 flex gap-1 animate-in fade-in zoom-in-95 duration-200"
             style={{
                 top: position.y - 50, // Display above selection
                 left: position.x,

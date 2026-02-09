@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { useRaiden } from "@/components/theme/RaidenProvider";
+
 
 // Inline Badge component
 const Badge = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -45,7 +45,6 @@ interface ChapterCardProps {
 }
 
 export const ChapterCard = React.memo(function ChapterCard({
-    id,
     order,
     title,
     title_translated,
@@ -65,7 +64,7 @@ export const ChapterCard = React.memo(function ChapterCard({
     onContextMenu,
     onMouseEnter
 }: ChapterCardProps) {
-    const { isRaidenMode } = useRaiden();
+
 
     const isTranslated = status === 'translated' || hasContent || hasTitle;
 
@@ -76,7 +75,7 @@ export const ChapterCard = React.memo(function ChapterCard({
                 isSelected
                     ? "border-primary bg-primary/10 shadow-lg scale-[1.01]"
                     : "border-border hover:border-primary/40 hover:bg-accent/50 hover:shadow-lg",
-                isLastRead && "ring-2 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                isLastRead && "ring-2 ring-green-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
             )}
             onContextMenu={onContextMenu}
             onMouseEnter={onMouseEnter}
@@ -93,8 +92,8 @@ export const ChapterCard = React.memo(function ChapterCard({
             {isLastRead && (
                 <div className="absolute -top-1.5 -right-1.5 z-10 flex">
                     <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                     </span>
                 </div>
             )}
@@ -111,17 +110,11 @@ export const ChapterCard = React.memo(function ChapterCard({
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
                                 #{order}
                             </span>
-                            <h3 className={cn(
-                                "font-bold text-sm truncate font-serif transition-colors",
-                                isRaidenMode ? "text-slate-200 group-hover/title:text-purple-400" : "text-slate-900 group-hover/title:text-blue-600"
-                            )}>
+                            <h3 className="font-bold text-sm truncate font-serif transition-colors text-foreground group-hover/title:text-primary">
                                 {title.replace(/<br\s*\/?>/gi, " ")}
                             </h3>
                         </div>
-                        <p className={cn(
-                            "text-xs truncate italic",
-                            isRaidenMode ? "text-slate-500" : "text-slate-500"
-                        )}>
+                        <p className="text-xs truncate italic text-muted-foreground">
                             {(title_translated || "Chưa dịch tiêu đề...").replace(/<br\s*\/?>/gi, " ")}
                         </p>
                     </div>
@@ -143,12 +136,12 @@ export const ChapterCard = React.memo(function ChapterCard({
                     <Badge className={cn(
                         "px-2 py-0.5 rounded-full border-0 gap-1.5",
                         isTranslated
-                            ? "bg-emerald-500/10 text-emerald-400"
+                            ? "bg-green-500/10 text-green-600"
                             : "bg-muted text-muted-foreground"
                     )}>
                         <div className={cn(
                             "w-1.5 h-1.5 rounded-full",
-                            isTranslated ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                            isTranslated ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"
                         )} />
                         {isTranslated ? "Đã hoàn thành" : "Bản thảo"}
                     </Badge>

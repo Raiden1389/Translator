@@ -26,12 +26,12 @@ import {
 
 const DIC_TYPES = [
     { value: "general", label: "Chung", color: "bg-slate-500" },
-    { value: "name", label: "Tên riêng", color: "bg-blue-500" },
-    { value: "location", label: "Vị trí", color: "bg-amber-600" },
-    { value: "item", label: "Vật phẩm", color: "bg-purple-600" },
-    { value: "beast", label: "Yêu thú", color: "bg-orange-600" },
+    { value: "name", label: "Tên riêng", color: "bg-primary" },
+    { value: "location", label: "Vị trí", color: "bg-orange-600" },
+    { value: "item", label: "Vật phẩm", color: "bg-accent" },
+    { value: "beast", label: "Yêu thú", color: "bg-orange-500" },
     { value: "plant", label: "Dược thảo", color: "bg-green-600" },
-    { value: "skill", label: "Kỹ năng", color: "bg-rose-600" },
+    { value: "skill", label: "Kỹ năng", color: "bg-destructive" },
     { value: "cultivation", label: "Cấp bậc", color: "bg-cyan-600" },
     { value: "organization", label: "Tổ chức", color: "bg-indigo-600" },
     { value: "correction", label: "Sửa lỗi", color: "bg-red-500" },

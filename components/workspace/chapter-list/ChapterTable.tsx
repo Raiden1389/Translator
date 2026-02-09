@@ -91,7 +91,7 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
                                 <Button variant="ghost" size="sm" className="justify-start font-normal text-xs" onClick={onSelectPage}>Chọn trang này</Button>
                                 <Button variant="ghost" size="sm" className="justify-start font-normal text-xs" onClick={onSelectGlobal}>Chọn TẤT CẢ</Button>
                                 <div className="h-px bg-border my-1" />
-                                <Button variant="ghost" size="sm" className="justify-start font-normal text-xs text-blue-400" onClick={onApplyCorrections}>
+                                <Button variant="ghost" size="sm" className="justify-start font-normal text-xs text-primary" onClick={onApplyCorrections}>
                                     <Book className="mr-2 h-3 w-3" /> Áp dụng Cải chính
                                 </Button>
                                 <Button variant="ghost" size="sm" className="justify-start font-normal text-xs text-destructive" onClick={onDeselectAll}>Bỏ chọn tất cả</Button>
@@ -167,18 +167,18 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
             </div>
 
             <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-                <AlertDialogContent className="max-w-[400px] rounded-3xl border-rose-100 shadow-2xl">
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-destructive/20 shadow-2xl">
                     <AlertDialogHeader className="items-center text-center">
-                        <div className="h-16 w-16 rounded-full bg-rose-50 flex items-center justify-center mb-2">
-                            <AlertTriangle className="h-8 w-8 text-rose-500 animate-bounce" />
+                        <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-2">
+                            <AlertTriangle className="h-8 w-8 text-destructive animate-bounce" />
                         </div>
-                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Xác nhận xóa chương?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-slate-500">
+                        <AlertDialogTitle className="text-xl font-bold text-foreground">Xác nhận xóa chương?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground">
                             Bạn sắp xóa vĩnh viễn chương truyện này khỏi thư viện. Hành động này không thể hoàn tác.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
-                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogCancel className="rounded-2xl border-border text-muted-foreground hover:bg-muted px-8">Hủy</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={async () => {
                                 if (deleteId) {
@@ -186,7 +186,7 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
                                     setDeleteId(null);
                                 }
                             }}
-                            className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white border-0 px-8 shadow-lg shadow-rose-200"
+                            className="rounded-2xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0 px-8 shadow-lg shadow-destructive/20"
                         >
                             Xác nhận Xóa
                         </AlertDialogAction>

@@ -8,7 +8,7 @@ import { CorrectionForm } from "../../corrections/CorrectionForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useRaiden } from "@/components/theme/RaidenProvider";
+
 
 interface CorrectionsViewProps {
     workspaceId: string;
@@ -29,7 +29,6 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
         handleDeleteCorrection,
         handleApplyCorrections,
     } = useCorrections(workspaceId);
-    const { isRaidenMode } = useRaiden();
 
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const hasData = filteredCorrections.length > 0;
@@ -84,10 +83,7 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
             </div>
 
             {/* Corrections List - FLEX GROW */}
-            <div className={cn(
-                "flex-1 min-h-0 rounded-xl border border-border overflow-hidden flex flex-col shadow-sm mb-6",
-                isRaidenMode ? "bg-card" : "bg-muted/30"
-            )}>
+            <div className="flex-1 min-h-0 rounded-xl border border-border overflow-hidden flex flex-col shadow-sm mb-6 bg-card">
                 <div className="flex-1 overflow-y-auto divide-y divide-border scrollbar-hide">
                     {filteredCorrections.length > 0 ? (
                         filteredCorrections.map((c, index) => {
@@ -108,10 +104,8 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
 
                             return (
                                 <div key={c.id} className={cn(
-                                    "grid grid-cols-12 gap-4 p-4 items-center transition-all duration-150 group",
-                                    isRaidenMode
-                                        ? "border-b border-border/40 hover:bg-muted/30"
-                                        : (index % 2 === 0 ? "bg-card hover:bg-blue-50/80" : "bg-muted/20 hover:bg-blue-50/80")
+                                    "grid grid-cols-12 gap-4 p-4 items-center transition-all duration-150 group border-b border-border/40 hover:bg-muted/30",
+                                    index % 2 === 0 ? "bg-card" : "bg-muted/20"
                                 )}>
                                     <div className="col-span-1 flex justify-center">
                                         <span className={cn(

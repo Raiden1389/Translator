@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Book, ShieldBan, Wand2, Copy } from "lucide-react";
 
@@ -9,14 +9,10 @@ interface ReaderContextMenuProps {
     onClose: () => void;
 }
 
-export function ReaderContextMenu({ position, selectedText, onAction, onClose }: ReaderContextMenuProps) {
+export function ReaderContextMenu({ position, onAction, onClose }: ReaderContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null);
-    const [mounted, setMounted] = useState(false);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
+    // Close menu on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -39,12 +35,12 @@ export function ReaderContextMenu({ position, selectedText, onAction, onClose }:
         };
     }, [position, onClose]);
 
-    if (!mounted || !position) return null;
+    if (!position) return null;
 
     return createPortal(
         <div
             ref={menuRef}
-            className="fixed z-[9999] bg-popover border border-border shadow-2xl rounded-lg overflow-hidden min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
+            className="fixed z-9999 bg-popover border border-border shadow-2xl rounded-lg overflow-hidden min-w-[200px] animate-in fade-in zoom-in-95 duration-100"
             style={{
                 top: position.y,
                 left: position.x,

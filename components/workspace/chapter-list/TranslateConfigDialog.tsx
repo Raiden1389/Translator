@@ -278,10 +278,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                     {/* Thinking Controls - Conditional based on model */}
                     {currentSettings.model.includes('gemini-3') ? (
                         // Gemini 3.0: Thinking Level Selector
-                        <div className="space-y-3 p-4 bg-purple-500/10 rounded-xl border border-purple-500/30">
+                        <div className="space-y-3 p-4 bg-primary/10 rounded-xl border border-primary/20">
                             <div className="space-y-1">
                                 <Label className="text-sm font-bold flex items-center gap-2">
-                                    🧠 Thinking Level <span className="text-xs font-normal text-purple-600">(Gemini 3.0)</span>
+                                    🧠 Thinking Level <span className="text-xs font-normal text-primary">(Gemini 3.0)</span>
                                 </Label>
                                 <p className="text-xs text-muted-foreground/70 font-medium">
                                     Control AI reasoning depth - Higher = Smarter but slower & more expensive
@@ -300,13 +300,13 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                         </div>
                     ) : (
                         // Gemini 2.5: Thinking Toggle
-                        <div className="flex items-center justify-between p-4 bg-amber-500/10 rounded-xl border border-amber-500/30">
+                        <div className="flex items-center justify-between p-4 bg-accent/10 rounded-xl border border-accent/20">
                             <div className="space-y-0.5">
                                 <Label className="text-sm font-bold flex items-center gap-2">
-                                    🧠 Thinking Mode <span className="text-xs font-normal text-amber-600">(Gemini 2.5)</span>
+                                    🧠 Thinking Mode <span className="text-xs font-normal text-accent">(Gemini 2.5)</span>
                                 </Label>
                                 <p className="text-xs text-muted-foreground/70 font-medium">
-                                    Deep reasoning mode - <span className="font-bold text-amber-600">costs 5.8x more</span> ($3.50 vs $0.60 per 1M tokens)
+                                    Deep reasoning mode - <span className="font-bold text-accent">costs 5.8x more</span> ($3.50 vs $0.60 per 1M tokens)
                                 </p>
                             </div>
                             <Switch
@@ -414,7 +414,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                     </div>
 
                     {/* Batch Translation - NEW */}
-                    <div className="space-y-4 p-4 bg-green-500/10 rounded-xl border border-green-500/30">
+                    <div className="space-y-4 p-4 bg-primary/10 rounded-xl border border-primary/20">
                         <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
                                 <Label className="text-sm font-bold flex items-center gap-2">
@@ -448,7 +448,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                         </div>
 
                         {translateConfig.enableBatch && (
-                            <div className="space-y-3 pt-2 border-t border-green-500/30">
+                            <div className="space-y-3 pt-2 border-t border-primary/20">
                                 {/* Batch size with number input (arrows) */}
                                 <div className="space-y-2">
                                     <Label className="text-xs font-medium text-muted-foreground">Số chương gộp</Label>
@@ -485,24 +485,24 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                 </div>
 
                                 {/* Savings preview */}
-                                <div className="p-3 bg-green-500/20 rounded-lg border border-green-500/40 space-y-2">
-                                    <div className="text-xs font-bold text-green-600 uppercase tracking-wide">Tiết kiệm dự kiến ({selectedCount} chapters)</div>
+                                <div className="p-3 bg-secondary/30 rounded-lg border border-primary/20 space-y-2">
+                                    <div className="text-xs font-bold text-primary uppercase tracking-wide">Tiết kiệm dự kiến ({selectedCount} chapters)</div>
                                     <div className="space-y-1 text-xs">
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Cost:</span>
-                                            <span className="font-mono font-bold text-green-600">
+                                            <span className="font-mono font-bold text-primary">
                                                 ${(selectedCount * 0.0075).toFixed(2)} → ${(Math.ceil(selectedCount / translateConfig.batchSize) * 0.0025).toFixed(2)} (-66%)
                                             </span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Time:</span>
-                                            <span className="font-mono font-bold text-green-600">
+                                            <span className="font-mono font-bold text-primary">
                                                 {Math.ceil(selectedCount * 10 / 60)}min → {Math.ceil(Math.ceil(selectedCount / translateConfig.batchSize) * 14 / 60)}min (-53%)
                                             </span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">API calls:</span>
-                                            <span className="font-mono font-bold text-green-600">
+                                            <span className="font-mono font-bold text-primary">
                                                 {selectedCount * 5} → {Math.ceil(selectedCount / translateConfig.batchSize) * 5} (-66%)
                                             </span>
                                         </div>

@@ -27,7 +27,6 @@ interface CharacterToolbarProps {
     onExportJSON: () => void;
     onBulkDelete: () => void;
     onClearSelection: () => void;
-    isRaidenMode: boolean;
 }
 
 export function CharacterToolbar({
@@ -40,8 +39,7 @@ export function CharacterToolbar({
     onImportJSON,
     onExportJSON,
     onBulkDelete,
-    onClearSelection,
-    isRaidenMode
+    onClearSelection
 }: CharacterToolbarProps) {
     const hasData = totalCount > 0;
 
@@ -70,10 +68,7 @@ export function CharacterToolbar({
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className={cn(
-                                            "h-10 w-10 rounded-xl border border-transparent hover:border-border transition-all",
-                                            isRaidenMode ? "text-slate-400 hover:text-white" : "text-muted-foreground hover:text-foreground"
-                                        )}
+                                        className="h-10 w-10 rounded-xl border border-transparent hover:border-border transition-all text-muted-foreground hover:text-foreground"
                                     >
                                         <MoreVertical className="h-5 w-5" />
                                     </Button>
@@ -125,12 +120,7 @@ export function CharacterToolbar({
             </div>
 
             {selectedCount > 0 && (
-                <div className={cn(
-                    "flex items-center justify-between p-3 px-6 rounded-xl border-2 animate-in slide-in-from-top-4 duration-300 shadow-xl relative overflow-hidden",
-                    isRaidenMode
-                        ? "bg-primary border-primary/50 text-white"
-                        : "bg-primary border-primary text-white"
-                )}>
+                <div className="flex items-center justify-between p-3 px-6 rounded-xl border-2 animate-in slide-in-from-top-4 duration-300 shadow-xl relative overflow-hidden bg-primary border-primary text-white">
                     {/* Glowing background effect */}
                     <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent animate-pulse" />
 

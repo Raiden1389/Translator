@@ -12,13 +12,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAISettings } from "./hooks/useAISettings";
-import { useRaiden } from "@/components/theme/RaidenProvider";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GeminiOAuthSettings } from "@/components/settings/GeminiOAuthSettings";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 
-export function AISettingsTab() {
-    const { isRaidenMode } = useRaiden();
+export default function AISettingsTab() {
+
     const { state, actions } = useAISettings();
     const {
         primaryKey, poolKeys, model, availableModels,
@@ -36,7 +36,7 @@ export function AISettingsTab() {
         <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="mb-8 space-y-1 px-1">
                 <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
-                    <Sparkles className={cn("h-6 w-6", isRaidenMode ? "text-purple-400" : "text-primary")} />
+                    <Sparkles className="h-6 w-6 text-primary" />
                     Cấu hình Trí tuệ nhân tạo
                 </h2>
                 <p className="text-muted-foreground text-sm">Quản lý các kết nối AI, mô hình ngôn ngữ và kho khóa dự phòng.</p>
@@ -44,10 +44,7 @@ export function AISettingsTab() {
 
             <div className="grid gap-6">
                 {/* SECTION: Connection & Primary Key */}
-                <Card className={cn(
-                    "border-none shadow-xl overflow-hidden",
-                    isRaidenMode ? "bg-slate-900/40 backdrop-blur-xl ring-1 ring-purple-500/20" : "bg-card shadow-slate-200/50"
-                )}>
+                <Card className="border-none shadow-xl overflow-hidden bg-card">
                     <CardHeader className="pb-4">
                         <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
                             <Key className="h-4 w-4" />
@@ -58,7 +55,7 @@ export function AISettingsTab() {
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <Label className="text-xs font-bold text-foreground/70 uppercase">Google Gemini API Key</Label>
-                                <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-bold">Encrypted</span>
+                                <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-bold">Encrypted</span>
                             </div>
                             <div className="flex gap-2">
                                 <div className="relative flex-1 group">
@@ -71,7 +68,7 @@ export function AISettingsTab() {
                                     />
                                     {!primaryKey && (
                                         <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                                            <span className="text-[10px] text-rose-500 font-bold animate-pulse">Chưa có key</span>
+                                            <span className="text-[10px] text-destructive font-bold animate-pulse">Chưa có key</span>
                                         </div>
                                     )}
                                 </div>
@@ -121,10 +118,7 @@ export function AISettingsTab() {
                 </Card>
 
                 {/* SECTION: Key Pool */}
-                <Card className={cn(
-                    "border-none shadow-xl overflow-hidden",
-                    isRaidenMode ? "bg-slate-900/40 backdrop-blur-xl ring-1 ring-purple-500/20" : "bg-card shadow-slate-200/50"
-                )}>
+                <Card className="border-none shadow-xl overflow-hidden bg-card">
                     <CardHeader className="pb-4">
                         <div className="flex items-center justify-between">
                             <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">

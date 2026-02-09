@@ -2,7 +2,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRaiden } from "@/components/theme/RaidenProvider";
+
 
 interface WinnerCardProps {
   winner: string;
@@ -10,16 +10,9 @@ interface WinnerCardProps {
 }
 
 export function WinnerCard({ winner, reason }: WinnerCardProps) {
-  const { isRaidenMode } = useRaiden();
-
   return (
     <div className="animate-in zoom-in-95 duration-500">
-      <Card className={cn(
-        "shadow-lg relative overflow-hidden border",
-        isRaidenMode
-          ? "bg-gradient-to-br from-primary/10 to-transparent border-primary/20"
-          : "bg-card border-primary/20"
-      )}>
+      <Card className="shadow-lg relative overflow-hidden border bg-card border-primary/20">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 p-2 bg-primary text-white font-black text-[10px] rounded-b-xl shadow-lg uppercase tracking-widest">
           WINNER
         </div>

@@ -158,21 +158,21 @@ export function ChapterListDialogs({
 
             {/* 7. Clear Cache Confirmation */}
             <AlertDialog open={clearCacheConfirmOpen} onOpenChange={setClearCacheConfirmOpen}>
-                <AlertDialogContent className="max-w-[400px] rounded-3xl border-blue-100 shadow-2xl">
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-primary/20 shadow-2xl">
                     <AlertDialogHeader className="items-center text-center">
-                        <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center mb-2">
-                            <Eraser className="h-8 w-8 text-blue-500" />
+                        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                            <Eraser className="h-8 w-8 text-primary" />
                         </div>
-                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Dọn dẹp Cache AI?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-slate-500">
+                        <AlertDialogTitle className="text-xl font-bold text-foreground">Dọn dẹp Cache AI?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground">
                             Việc này sẽ buộc AI dịch mới hoàn toàn cho các yêu cầu sau. Hữu ích khi bạn thay đổi prompt hoặc muốn kết quả khác đi.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
-                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogCancel className="rounded-2xl border-border text-muted-foreground hover:bg-muted px-8">Hủy</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={async () => toast.success("Cache đã được tối ưu hóa tự động.")}
-                            className="rounded-2xl bg-blue-600 hover:bg-blue-700 text-white border-0 px-8 shadow-lg shadow-blue-200"
+                            className="rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground border-0 px-8 shadow-lg shadow-primary/20"
                         >
                             Xác nhận Dọn
                         </AlertDialogAction>
@@ -182,21 +182,21 @@ export function ChapterListDialogs({
 
             {/* 8. Bulk Delete Confirmation */}
             <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
-                <AlertDialogContent className="max-w-[400px] rounded-3xl border-rose-100 shadow-2xl">
+                <AlertDialogContent className="max-w-[400px] rounded-3xl border-destructive/20 shadow-2xl">
                     <AlertDialogHeader className="items-center text-center">
-                        <div className="h-16 w-16 rounded-full bg-rose-50 flex items-center justify-center mb-2">
-                            <AlertTriangle className="h-8 w-8 text-rose-500 animate-bounce" />
+                        <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-2">
+                            <AlertTriangle className="h-8 w-8 text-destructive animate-bounce" />
                         </div>
-                        <AlertDialogTitle className="text-xl font-bold text-slate-900">Xóa vĩnh viễn {selectedChapters.length} chương?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-slate-500">
+                        <AlertDialogTitle className="text-xl font-bold text-foreground">Xóa vĩnh viễn {selectedChapters.length} chương?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-muted-foreground">
                             Bạn không thể hoàn tác hành động này. Mọi dữ liệu bản gốc và bản dịch của các chương đã chọn sẽ biến mất.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="sm:justify-center gap-2 pt-4">
-                        <AlertDialogCancel className="rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 px-8">Hủy</AlertDialogCancel>
+                        <AlertDialogCancel className="rounded-2xl border-border text-muted-foreground hover:bg-muted px-8">Hủy</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleBulkDelete}
-                            className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white border-0 px-8 shadow-lg shadow-rose-200"
+                            className="rounded-2xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0 px-8 shadow-lg shadow-destructive/20"
                         >
                             Xác nhận Xóa
                         </AlertDialogAction>

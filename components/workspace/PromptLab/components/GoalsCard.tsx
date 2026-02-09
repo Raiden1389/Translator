@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Zap, Wand2, SparklesIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRaiden } from "@/components/theme/RaidenProvider";
+
 
 interface GoalsCardProps {
   promptGoals: string;
@@ -21,11 +21,9 @@ export function GoalsCard({
   onExtractSpirit,
   onGeneratePrompts
 }: GoalsCardProps) {
-  const { isRaidenMode } = useRaiden();
-
   return (
-    <Card className={cn("border-border shadow-sm", isRaidenMode ? "bg-card border-transparent" : "bg-card")}>
-      <CardHeader className={cn("pb-3 border-b border-l-4 border-l-primary", !isRaidenMode && "bg-muted/30")}>
+    <Card className="border-border shadow-sm bg-card">
+      <CardHeader className="pb-3 border-b border-l-4 border-l-primary bg-muted/30">
         <CardTitle className="text-foreground text-sm font-bold flex items-center gap-2">
           <Zap className="w-4 h-4 text-primary" />
           MỤC TIÊU CẦN ĐẠT

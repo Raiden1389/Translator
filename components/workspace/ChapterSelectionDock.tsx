@@ -4,12 +4,10 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, Eraser, Sparkles, X, Loader2, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { Chapter } from "@/lib/db";
 
 interface ChapterSelectionDockProps {
     selectedChapters: number[];
-    isRaidenMode: boolean;
     setSelectedChapters: (ids: number[]) => void;
     setTranslateDialogOpen: (open: boolean) => void;
     filtered: Chapter[];
@@ -22,7 +20,6 @@ interface ChapterSelectionDockProps {
 
 export function ChapterSelectionDock({
     selectedChapters,
-    isRaidenMode,
     setSelectedChapters,
     setTranslateDialogOpen,
     filtered,
@@ -41,10 +38,7 @@ export function ChapterSelectionDock({
             <div className="relative px-8 py-3 flex items-center justify-between gap-4 max-w-7xl mx-auto">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
-                        <div className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all",
-                            isRaidenMode ? "bg-purple-950/30 border-purple-500/20 text-purple-400" : "bg-blue-50 border-blue-100 text-blue-600"
-                        )}>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all bg-primary/10 border-primary/20 text-primary">
                             <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Đã chọn</span>
                             <span className="text-sm font-black">{selectedChapters.length}</span>
                             <span className="text-[10px] opacity-60">chương</span>
@@ -83,10 +77,7 @@ export function ChapterSelectionDock({
                                 setScanConfigOpen(true);
                             }}
                             disabled={isAIExtracting}
-                            className={cn(
-                                "font-bold h-9 px-4 rounded-lg gap-2 transition-colors",
-                                isRaidenMode ? "text-purple-400 hover:bg-purple-500/10" : "text-slate-600 hover:bg-slate-100"
-                            )}
+                            className="font-bold h-9 px-4 rounded-lg gap-2 transition-colors text-muted-foreground hover:bg-muted/80"
                         >
                             {isAIExtracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                             <span className="hidden sm:inline">Quét Thuật Ngữ</span>
@@ -102,7 +93,7 @@ export function ChapterSelectionDock({
                                     size="icon"
                                     variant="ghost"
                                     onClick={handleBulkClearTranslation}
-                                    className="h-9 w-9 text-amber-500 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                                    className="h-9 w-9 text-orange-500 hover:text-orange-600 hover:bg-orange-500/10 rounded-lg transition-colors"
                                 >
                                     <Eraser className="h-4 w-4" />
                                 </Button>
@@ -116,7 +107,7 @@ export function ChapterSelectionDock({
                                     size="icon"
                                     variant="ghost"
                                     onClick={() => setBulkDeleteConfirmOpen(true)}
-                                    className="h-9 w-9 text-rose-500 hover:text-rose-600 hover:bg-rose-100 rounded-lg transition-colors"
+                                    className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>

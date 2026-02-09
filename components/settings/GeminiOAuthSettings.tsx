@@ -25,6 +25,7 @@ import { CheckCircle2, XCircle, Loader2, ExternalLink, User, Trash2, Check, Chev
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useOAuthPreference } from "@/lib/gemini/useOAuthPreference";
+import { toast } from "sonner";
 
 export function GeminiOAuthSettings() {
   const [accounts, setAccounts] = useState<OAuthAccount[]>([]);
@@ -54,7 +55,7 @@ export function GeminiOAuthSettings() {
     try {
       await togglePreference(checked);
       setSuccess(checked ? "✅ Đã bật OAuth mode" : "✅ Đã tắt OAuth mode");
-    } catch (err) {
+    } catch {
       setError("Lỗi khi thay đổi cài đặt");
     }
   };
@@ -131,8 +132,8 @@ export function GeminiOAuthSettings() {
       await removeAccount(accountId);
       await loadAccounts();
       setSuccess("Đã xóa tài khoản");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Lỗi xóa tài khoản");
+    } catch {
+      toast.error("Không thể kết nối với Antigravity Manager. Vui lòng kiểm tra lại service.");
     } finally {
       setLoading(false);
     }
@@ -173,7 +174,7 @@ export function GeminiOAuthSettings() {
               checked={preferOAuth}
               onCheckedChange={handleTogglePreference}
               disabled={prefLoading || loading}
-              className="data-[state=checked]:bg-purple-600"
+              className="data-[state=checked]:bg-primary"
             />
           </div>
 
@@ -209,14 +210,14 @@ export function GeminiOAuthSettings() {
           {/* Accounts List */}
           {accounts.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-bold text-gray-300">Danh sách tài khoản:</h3>
+              <h3 className="text-sm font-bold text-foreground/80">Danh sách tài khoản:</h3>
               <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
                 {accounts.map((account) => (
                   <div
                     key={account.id}
                     className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${activeAccount?.id === account.id
-                      ? "bg-purple-500/20 border-purple-500/50"
-                      : "bg-black/20 border-gray-700 hover:bg-black/30"
+                      ? "bg-primary/10 border-primary/30 shadow-sm"
+                      : "bg-muted/30 border-border hover:bg-muted/50"
                       }`}
                   >
                     {/* Avatar */}
@@ -227,8 +228,8 @@ export function GeminiOAuthSettings() {
                         className="w-10 h-10 rounded-full"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center">
-                        <User className="w-5 h-5 text-purple-300" />
+                      <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center border border-accent/20">
+                        <User className="w-5 h-5 text-accent" />
                       </div>
                     )}
 
@@ -239,7 +240,7 @@ export function GeminiOAuthSettings() {
                           {account.name || account.email}
                         </p>
                         {activeAccount?.id === account.id && (
-                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold">
+                          <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-bold border border-green-500/20">
                             Active
                           </span>
                         )}
@@ -255,7 +256,7 @@ export function GeminiOAuthSettings() {
                           variant="outline"
                           onClick={() => handleSwitchAccount(account.id)}
                           disabled={loading}
-                          className="h-8 px-3 text-xs border-purple-500/50 hover:bg-purple-500/20"
+                          className="h-8 px-3 text-xs border-accent/20 hover:bg-accent/10 hover:text-accent"
                         >
                           <Check className="w-3 h-3 mr-1" />
                           Chọn
@@ -266,7 +267,7 @@ export function GeminiOAuthSettings() {
                         variant="outline"
                         onClick={() => handleRemoveAccount(account.id)}
                         disabled={loading}
-                        className="h-8 px-3 text-xs border-red-500/50 hover:bg-red-500/20 text-red-400"
+                        className="h-8 px-3 text-xs border-destructive/20 hover:bg-destructive/10 text-destructive"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>

@@ -12,10 +12,9 @@ interface UsageData {
 interface UsageChartProps {
     data: UsageData[];
     className?: string;
-    isRaidenMode?: boolean;
 }
 
-export const UsageChart = ({ data, className, isRaidenMode }: UsageChartProps) => {
+export const UsageChart = ({ data, className }: UsageChartProps) => {
     const points = useMemo(() => {
         if (!data || data.length === 0) return [];
 
@@ -54,8 +53,8 @@ export const UsageChart = ({ data, className, isRaidenMode }: UsageChartProps) =
             >
                 <defs>
                     <linearGradient id="usageGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isRaidenMode ? "#a855f7" : "#6366f1"} stopOpacity="0.4" />
-                        <stop offset="100%" stopColor={isRaidenMode ? "#a855f7" : "#6366f1"} stopOpacity="0" />
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
                     </linearGradient>
                 </defs>
 
@@ -70,7 +69,7 @@ export const UsageChart = ({ data, className, isRaidenMode }: UsageChartProps) =
                 <path
                     d={linePath}
                     fill="none"
-                    stroke={isRaidenMode ? "#a855f7" : "#6366f1"}
+                    stroke="hsl(var(--primary))"
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -84,7 +83,7 @@ export const UsageChart = ({ data, className, isRaidenMode }: UsageChartProps) =
                         cx={p.x}
                         cy={p.y}
                         r="1.5"
-                        fill={isRaidenMode ? "#e879f9" : "#4f46e5"}
+                        fill="hsl(var(--primary))"
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
                     />
                 ))}

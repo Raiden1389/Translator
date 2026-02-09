@@ -42,7 +42,7 @@ export function FormatCard({ label, description, icon: Icon, isActive, onClick }
             </div>
             {isActive && (
                 <div className="absolute top-3 right-3">
-                    <Check className="w-4 h-4 text-indigo-600" />
+                    <Check className="w-4 h-4 text-primary" />
                 </div>
             )}
         </button>

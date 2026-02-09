@@ -1,12 +1,12 @@
 /* ========================================
-   THEME SYSTEM - macOS Default + 3 Alternatives
+   RAIDEN MACOS THEME SYSTEM
    ======================================== */
 
-/* 1. MACOS THEME - DEFAULT (GPT Specs) */
+/* DEFAULT: macOS Light Mode */
 :root {
     color-scheme: light;
 
-    /* 1️⃣ NỀN TỔNG - Colder grays */
+    /* Backgrounds */
     --background: #F5F5F7;
     --foreground: #1C1C1E;
     --card: #FFFFFF;
@@ -24,7 +24,7 @@
     --muted: #F2F2F7;
     --muted-foreground: #6E6E73;
 
-    /* 8️⃣ ACCENT PURPLE - macOS purple */
+    /* Accent Purple */
     --accent: #5856D6;
     --accent-foreground: #FFFFFF;
 
@@ -32,13 +32,13 @@
     --destructive: #FF3B30;
     --destructive-foreground: #FFFFFF;
 
-    /* 2️⃣ BORDERS - E5E5EA */
+    /* Borders */
     --border: #E5E5EA;
     --border-strong: #D1D1D6;
     --input: #E5E5EA;
     --ring: #007AFF;
 
-    /* Radius - 12px for panels */
+    /* Radius */
     --radius: 0.75rem;
 
     /* Sidebar */
@@ -65,7 +65,7 @@
     --reader-bg-sepia: #F2F2F7;
     --reader-bg-gray: #F5F5F7;
 
-    /* macOS-specific extras - GPT text hierarchy */
+    /* macOS Text Hierarchy */
     --macos-text-primary: #1C1C1E;
     --macos-text-secondary: #6E6E73;
     --macos-text-muted: #8E8E93;
@@ -82,146 +82,55 @@
     }
 }
 
-/* 2. RAIDEN GRAY THEME - Medium gray, neutral, balanced */
-.raiden-gray {
-    color-scheme: light;
-    --background: hsl(0 0% 92%);
-    --foreground: hsl(0 0% 10%);
-    --card: hsl(0 0% 96%);
-    --card-foreground: hsl(0 0% 10%);
-    --popover: hsl(0 0% 96%);
-    --popover-foreground: hsl(0 0% 10%);
-    --primary: hsl(0 0% 30%);
-    --primary-foreground: hsl(0 0% 98%);
-    --secondary: hsl(0 0% 88%);
-    --secondary-foreground: hsl(0 0% 10%);
-    --muted: hsl(0 0% 88%);
-    --muted-foreground: hsl(0 0% 40%);
-    --accent: hsl(0 0% 88%);
-    --accent-foreground: hsl(0 0% 10%);
-    --destructive: hsl(0 72% 50%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 82%);
-    --border-strong: hsl(0 0% 75%);
-    --input: hsl(0 0% 82%);
-    --ring: hsl(0 0% 30%);
-    --radius: 0.5rem;
-    --sidebar: hsl(0 0% 90%);
-    --sidebar-foreground: hsl(0 0% 25%);
-    --sidebar-primary: hsl(0 0% 30%);
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(0 0% 85%);
-    --sidebar-accent-foreground: hsl(0 0% 10%);
-    --sidebar-border: hsl(0 0% 82%);
-    --sidebar-ring: hsl(0 0% 30%);
-    --reader-max-width: 720px;
-    --reader-font-size: 16px;
-    --reader-line-height: 1.6;
-    --reader-paragraph-spacing: 0.75rem;
-    --chinese-font-size: 17px;
-    --chinese-font-weight: 400;
-    --dialogue-text: hsl(0 0% 25%);
-    --dialogue-quote-border: hsl(0 0% 25%);
-    --reader-bg-white: hsl(0 0% 98%);
-    --reader-bg-cream: hsl(40 20% 96%);
-    --reader-bg-sepia: hsl(30 15% 94%);
-    --reader-bg-gray: hsl(0 0% 92%);
-}
-
-/* 3. DARK THEME - Professional, vibrant, depth */
+/* DARK MODE - macOS Dark */
 .dark {
     color-scheme: dark;
-    --background: hsl(222 47% 11%);
-    --foreground: hsl(210 40% 98%);
-    --card: hsl(222 47% 14%);
-    --card-foreground: hsl(210 40% 98%);
-    --popover: hsl(222 47% 14%);
-    --popover-foreground: hsl(210 40% 98%);
-    --primary: hsl(217 91% 60%);
-    --primary-foreground: hsl(222 47% 11%);
-    --secondary: hsl(222 47% 18%);
-    --secondary-foreground: hsl(210 40% 98%);
-    --muted: hsl(217 33% 17%);
-    --muted-foreground: hsl(215 20% 65%);
-    --accent: hsl(217 91% 60%);
-    --accent-foreground: hsl(222 47% 11%);
-    --destructive: hsl(0 84% 60%);
-    --destructive-foreground: hsl(210 40% 98%);
-    --border: hsl(217 33% 21%);
-    --border-strong: hsl(217 33% 28%);
-    --input: hsl(217 33% 21%);
-    --ring: hsl(217 91% 60%);
-    --radius: 0.5rem;
-    --sidebar: hsl(222 47% 9%);
-    --sidebar-foreground: hsl(215 20% 75%);
-    --sidebar-primary: hsl(217 91% 60%);
-    --sidebar-primary-foreground: hsl(222 47% 11%);
-    --sidebar-accent: hsl(217 33% 17%);
-    --sidebar-accent-foreground: hsl(210 40% 98%);
-    --sidebar-border: hsl(217 33% 17%);
-    --sidebar-ring: hsl(217 91% 60%);
-    --reader-max-width: 720px;
-    --reader-font-size: 16px;
-    --reader-line-height: 1.6;
-    --reader-paragraph-spacing: 0.75rem;
-    --chinese-font-size: 17px;
-    --chinese-font-weight: 400;
-    --dialogue-text: hsl(217 91% 65%);
-    --dialogue-quote-border: hsl(217 91% 65%);
-    --reader-bg-white: hsl(222 47% 14%);
-    --reader-bg-cream: hsl(222 40% 16%);
-    --reader-bg-sepia: hsl(222 35% 18%);
-    --reader-bg-gray: hsl(222 30% 20%);
-}
 
-/* 4. MACOS THEME - GPT Specs (Ventura/Sonoma) */
-.macos {
-    color-scheme: light;
+    /* Backgrounds - macOS Dark Deep */
+    --background: #131314;
+    --foreground: #FFFFFF;
+    --card: #1E1E1F;
+    --card-foreground: #FFFFFF;
+    --popover: #1E1E1F;
+    --popover-foreground: #FFFFFF;
 
-    /* 1️⃣ NỀN TỔNG - Colder grays */
-    --background: #F5F5F7;
-    --foreground: #1C1C1E;
-    --card: #FFFFFF;
-    --card-foreground: #1C1C1E;
-    --popover: #FFFFFF;
-    --popover-foreground: #1C1C1E;
-
-    /* Primary - System Blue */
+    /* Primary - System Blue (Vibrant Dark) */
     --primary: #007AFF;
     --primary-foreground: #FFFFFF;
 
     /* Secondary & Muted */
-    --secondary: #F5F5F7;
-    --secondary-foreground: #1C1C1E;
-    --muted: #F2F2F7;
-    --muted-foreground: #6E6E73;
+    --secondary: #1E1E1F;
+    --secondary-foreground: #FFFFFF;
+    --muted: #282829;
+    --muted-foreground: #A1A1A6;
 
-    /* 8️⃣ ACCENT PURPLE - macOS purple */
-    --accent: #5856D6;
+    /* Accent Purple (Vibrant) */
+    --accent: #5E5CE6;
     --accent-foreground: #FFFFFF;
 
-    /* Destructive - macOS Red */
-    --destructive: #FF3B30;
+    /* Destructive - macOS Red (Vibrant) */
+    --destructive: #FF453A;
     --destructive-foreground: #FFFFFF;
 
-    /* 2️⃣ BORDERS - E5E5EA */
-    --border: #E5E5EA;
-    --border-strong: #D1D1D6;
-    --input: #E5E5EA;
+    /* Borders */
+    --border: #2A2A2B;
+    --border-strong: #3A3A3C;
+    --input: #232324;
     --ring: #007AFF;
 
-    /* Radius - 12px for panels */
+    /* Radius */
     --radius: 0.75rem;
 
-    /* Sidebar */
-    --sidebar: #F3F3F6;
-    --sidebar-foreground: #1C1C1E;
-    --sidebar-primary: #5856D6;
+    /* Sidebar macOS Blur */
+    --sidebar: #131314;
+    --sidebar-foreground: #FFFFFF;
+    --sidebar-primary: #007AFF;
     --sidebar-primary-foreground: #FFFFFF;
-    --sidebar-accent: #EDEDF3;
-    --sidebar-accent-foreground: #1C1C1E;
-    --sidebar-border: #E5E5EA;
-    --sidebar-ring: #5856D6;
+    --sidebar-accent: #282829;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: #232324;
+    --sidebar-ring: #007AFF;
+    ;
 
     /* Reader */
     --reader-max-width: 720px;
@@ -230,19 +139,19 @@
     --reader-paragraph-spacing: 0.75rem;
     --chinese-font-size: 17px;
     --chinese-font-weight: 400;
-    --dialogue-text: #007AFF;
-    --dialogue-quote-border: #007AFF;
-    --reader-bg-white: #FFFFFF;
-    --reader-bg-cream: #F5F5F7;
-    --reader-bg-sepia: #F2F2F7;
-    --reader-bg-gray: #F5F5F7;
+    --dialogue-text: #0A84FF;
+    --dialogue-quote-border: #0A84FF;
+    --reader-bg-white: #2C2C2E;
+    --reader-bg-cream: #2C2C2E;
+    --reader-bg-sepia: #3A3A3C;
+    --reader-bg-gray: #1E1E1E;
 
-    /* macOS-specific extras - GPT text hierarchy */
-    --macos-text-primary: #1C1C1E;
-    --macos-text-secondary: #6E6E73;
-    --macos-text-muted: #8E8E93;
-    --macos-text-disabled: #AEAEB2;
-    --macos-accent-green: #34C759;
-    --macos-accent-orange: #FF9500;
-    --macos-accent-purple: #5856D6;
+    /* macOS Text Hierarchy (Dark) */
+    --macos-text-primary: #FFFFFF;
+    --macos-text-secondary: #98989D;
+    --macos-text-muted: #636366;
+    --macos-text-disabled: #48484A;
+    --macos-accent-green: #32D74B;
+    --macos-accent-orange: #FF9F0A;
+    --macos-accent-purple: #5E5CE6;
 }

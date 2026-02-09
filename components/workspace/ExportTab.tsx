@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useExport } from "./hooks/useExport";
-import { useRaiden } from "@/components/theme/RaidenProvider";
 
 /* ===================== SMALL COMPONENTS ===================== */
 
@@ -51,7 +50,7 @@ function LanguageSelector({ lang, setLang, options }: LanguageSelectorProps) {
                         )}
                     >
                         <div className="flex items-center gap-3">
-                            <div className={cn("w-2 h-2 rounded-full", lang === opt.id ? "bg-primary shadow-[0_0_8px_rgba(37,99,235,0.4)]" : "bg-muted-foreground/30")} />
+                            <div className={cn("w-2 h-2 rounded-full", lang === opt.id ? "bg-primary shadow-lg shadow-primary/40" : "bg-muted-foreground/30")} />
                             <div>
                                 <div className={cn("font-bold text-sm", lang === opt.id ? "text-primary" : "text-foreground")}>{opt.label}</div>
                                 <div className="text-[10px] text-muted-foreground font-medium">{opt.desc}</div>
@@ -186,7 +185,7 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
         return items.sort((a, b) => a.order - b.order);
     }, [workspaceId]) || [];
 
-    const { isRaidenMode } = useRaiden();
+
     const { state, actions } = useExport({ workspace, chapters });
 
     const {
@@ -265,15 +264,12 @@ export function ExportTab({ workspaceId }: { workspaceId: string }) {
                             toast.success(`✨ Đã chọn ${translatedChapters.length} chương đã dịch (${firstTranslated}-${lastTranslated})`);
                         }}
                     />
-                    <div className={cn(
-                        "p-5 rounded-2xl flex items-start gap-4 border transition-all shadow-sm",
-                        isRaidenMode ? "bg-purple-900/10 border-purple-500/20" : "bg-primary/5 border-primary/20"
-                    )}>
-                        <div className={cn("mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center", isRaidenMode ? "bg-purple-500/20 text-purple-400" : "bg-primary/20 text-primary")}>
+                    <div className="p-5 rounded-2xl flex items-start gap-4 border transition-all shadow-sm bg-primary/5 border-primary/20">
+                        <div className="mt-1 shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-primary/20 text-primary">
                             <ImageIcon className="w-4 h-4" />
                         </div>
                         <div className="space-y-1">
-                            <h4 className={cn("text-xs font-bold", isRaidenMode ? "text-purple-300" : "text-primary/80")}>Lưu ý quan trọng</h4>
+                            <h4 className="text-xs font-bold text-primary/80">Lưu ý quan trọng</h4>
                             <p className="text-[11px] text-muted-foreground leading-relaxed">
                                 Kiểm tra ảnh bìa ở tab Tổng quan để EPUB có giao diện tốt nhất trên các thiết bị đọc sách.
                             </p>

@@ -9,8 +9,6 @@ import { useDictionary } from "../hooks/useDictionary";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { DictionaryRow } from "../DictionaryRow";
-import { useRaiden } from "@/components/theme/RaidenProvider";
-import { cn } from "@/lib/utils";
 
 interface DictionaryViewProps {
     workspaceId: string;
@@ -50,7 +48,6 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
         handleAIExtract,
         handleBulkAICategorize,
     } = useDictionary(workspaceId);
-    const { isRaidenMode } = useRaiden();
 
     // Virtual scrolling setup
     const parentRef = useRef<HTMLDivElement>(null);
@@ -111,24 +108,14 @@ export function DictionaryView({ workspaceId, onChangeTab }: DictionaryViewProps
             />
 
             {/* Virtual Scrolling Table */}
-            <div className={cn(
-                "rounded-xl overflow-hidden shadow-sm border transition-all duration-500",
-                isRaidenMode ? "bg-card border-border shadow-2xl" : "bg-muted/30 border-border shadow-sm"
-            )}>
+            <div className="rounded-xl overflow-hidden shadow-sm border transition-all duration-500 bg-card border-border">
                 {/* Header */}
-                <div className={cn(
-                    "grid grid-cols-[40px_1fr_1fr_120px_110px] gap-4 px-4 py-3 border-b-2 text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-all duration-500",
-                    isRaidenMode ? "bg-card border-border text-muted-foreground" : "bg-muted/50 border-border-strong text-foreground/80"
-                )}>
+                <div className="grid grid-cols-[40px_1fr_1fr_120px_110px] gap-4 px-4 py-3 border-b-2 text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-all duration-500 bg-muted/50 border-border text-foreground/80">
                     <div className="flex justify-center items-center">
                         <Checkbox
                             checked={filteredDic.length > 0 && selectedEntries.length === filteredDic.length}
                             onCheckedChange={toggleSelectAll}
-                            className={cn(
-                                isRaidenMode
-                                    ? "border-slate-600 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                    : "border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                            )}
+                            className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
                     </div>
                     <div className="px-2 flex items-center">Thuật ngữ gốc</div>

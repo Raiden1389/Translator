@@ -83,7 +83,7 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
                         <Button
                             variant="outline"
                             size="icon"
-                            className="h-9 w-9 bg-red-50 border-red-200 text-red-600 hover:bg-red-100 shadow-sm"
+                            className="h-9 w-9 bg-destructive/10 border-destructive/20 text-destructive hover:bg-destructive/10 shadow-sm"
                         >
                             <Ban className="h-4 w-4" />
                         </Button>
@@ -97,7 +97,7 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
                 <DialogHeader>
                     <DialogTitle className="flex items-center justify-between">
                         <span className="flex items-center gap-2">
-                            <Ban className="h-5 w-5 text-red-500" />
+                            <Ban className="h-5 w-5 text-destructive" />
                             Blacklist ({blacklist.length} từ)
                         </span>
                         <div className="flex gap-2">
@@ -115,7 +115,7 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
                                         toast.error("❌ Lỗi xóa: " + String(err));
                                     }
                                 }}
-                                className="gap-2 text-red-600 hover:text-red-700"
+                                className="gap-2 text-destructive hover:text-destructive/80"
                             >
                                 <X className="h-4 w-4" />
                                 Xóa tất cả
@@ -151,7 +151,7 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
                     {/* Blacklist items */}
                     <div className="flex flex-wrap gap-2">
                         {blacklist.length === 0 ? (
-                            <div className="text-center text-slate-400 italic py-8 w-full">
+                            <div className="text-center text-muted-foreground italic py-8 w-full">
                                 Blacklist đang trống
                             </div>
                         ) : (
@@ -163,12 +163,12 @@ export function HeuristicBlacklistDialog({ workspaceId, blacklist }: HeuristicBl
                                     <Badge
                                         key={item.id}
                                         variant="secondary"
-                                        className="gap-2 px-3 py-1.5 text-sm bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                                        className="gap-2 px-3 py-1.5 text-sm bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
                                     >
                                         {item.word}
                                         <button
                                             onClick={() => handleRemoveBlacklist(item.id!)}
-                                            className="hover:text-red-900"
+                                            className="hover:text-destructive/80"
                                         >
                                             <X className="h-3 w-3" />
                                         </button>
