@@ -64,24 +64,27 @@ export function IntelligenceHub({ workspaceId, onClose, initialModule = "discove
                                 key={item.id}
                                 onClick={() => setActiveModule(item.id as ModuleType)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative",
+                                    "w-full flex items-center gap-3 px-3 py-2 rounded-[10px] transition-all duration-200 group relative",
                                     isActive
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
+                                        ? "bg-[#EDEDF3] text-foreground"
                                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >
-                                <Icon className={cn("w-4.5 h-4.5 shrink-0", isActive ? "opacity-100" : "opacity-40 group-hover:opacity-70")} />
+                                <Icon className={cn(
+                                    "w-4.5 h-4.5 shrink-0 transition-colors",
+                                    isActive ? "text-accent" : "opacity-40 group-hover:opacity-70"
+                                )} />
                                 <div className="flex flex-col items-start truncate overflow-hidden">
                                     <span className="text-xs font-bold leading-tight tracking-tight">{item.label}</span>
                                     <span className={cn(
                                         "text-[9px] font-medium leading-none mt-0.5",
-                                        isActive ? "text-primary-foreground/60" : "text-muted-foreground/30"
+                                        isActive ? "text-muted-foreground" : "text-muted-foreground/30"
                                     )}>
                                         {item.sub}
                                     </span>
                                 </div>
                                 {isActive && (
-                                    <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-foreground/30" />
+                                    <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-accent" />
                                 )}
                             </button>
                         );

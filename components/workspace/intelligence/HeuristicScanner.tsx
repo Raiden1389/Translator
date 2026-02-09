@@ -113,18 +113,18 @@ export function HeuristicScanner({
                             "h-9 px-6 text-[10px] font-black uppercase tracking-[0.15em] rounded-xl shadow-lg transition-all active:scale-95 border-none",
                             isScanning
                                 ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                : "bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-indigo-500/20"
+                                : "bg-accent hover:bg-[#4F4CD9] text-white shadow-accent/20"
                         )}
                     >
                         {isScanning ? (
                             <>
                                 <RotateCw className="w-3.5 h-3.5 mr-2 animate-spin" />
-                                Đang tinh lọc...
+                                Đang xử lý...
                             </>
                         ) : (
                             <>
                                 <Sparkles className="w-3.5 h-3.5 mr-2" />
-                                AI NER REFINE ✨
+                                AI Quét
                             </>
                         )}
                     </Button>

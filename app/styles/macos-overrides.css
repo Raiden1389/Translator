@@ -1,0 +1,199 @@
+/* ========================================
+   macOS THEME OVERRIDES
+   ======================================== */
+
+/* Typography - macOS San Francisco */
+.macos h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1C1C1E !important;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+}
+
+.macos h2 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1C1C1E !important;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+}
+
+.macos h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1C1C1E !important;
+}
+
+.macos p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #1C1C1E !important;
+}
+
+/* GPT Text Hierarchy - Force readable colors */
+.macos [class*="text-muted"],
+.macos .text-muted-foreground,
+.macos span[class*="text-muted"],
+.macos div[class*="text-muted"] {
+    color: #8E8E93 !important;
+}
+
+.macos [class*="text-gray"],
+.macos [class*="text-slate"],
+.macos span[class*="text-gray"],
+.macos div[class*="text-gray"] {
+    color: #6E6E73 !important;
+}
+
+/* ALL text should be readable by default */
+.macos span,
+.macos div,
+.macos li {
+    color: #1C1C1E;
+}
+
+/* CRITICAL: Override opacity classes */
+.macos [class*="/60"],
+.macos [class*="/70"],
+.macos [class*="/80"],
+.macos [class*="/90"] {
+    opacity: 1 !important;
+}
+
+/* Force foreground color without opacity */
+.macos [class*="text-foreground/"],
+.macos [class*="text-muted-foreground/"] {
+    color: #6E6E73 !important;
+    opacity: 1 !important;
+}
+
+/* Specific overrides for common patterns */
+.macos [class*="text-purple"],
+.macos [class*="text-violet"],
+.macos [class*="text-indigo"] {
+    color: #5856D6 !important;
+}
+
+/* Override dark theme colors for light macOS */
+.macos .text-gray-300,
+.macos .text-gray-400,
+.macos [class*="text-gray-3"],
+.macos [class*="text-gray-4"] {
+    color: #6E6E73 !important;
+}
+
+.macos .text-blue-200,
+.macos .text-blue-300,
+.macos [class*="text-blue-2"],
+.macos [class*="text-blue-3"] {
+    color: #007AFF !important;
+}
+
+/* CRITICAL: Override gradient backgrounds to solid white */
+.macos [class*="from-purple"],
+.macos [class*="from-pink"],
+.macos [class*="from-blue"],
+.macos [class*="to-purple"],
+.macos [class*="to-pink"],
+.macos [class*="bg-linear"] {
+    background: #FFFFFF !important;
+    background-image: none !important;
+}
+
+/* Override semi-transparent backgrounds */
+.macos [class*="bg-purple-500/"],
+.macos [class*="bg-blue-500/"],
+.macos [class*="bg-black/"] {
+    background-color: #F5F5F7 !important;
+}
+
+.macos small,
+.macos [class*="text-xs"] {
+    font-size: 11px;
+    color: #8E8E93 !important;
+}
+
+/* Labels should be readable */
+.macos label {
+    color: #1C1C1E !important;
+    font-weight: 500;
+}
+
+/* 5️⃣ TAGS/BADGES - GPT Specs */
+.macos [class*="bg-yellow"],
+.macos [class*="bg-amber"] {
+    background-color: #FFF4D6 !important;
+    color: #9A6A00 !important;
+    border: none !important;
+}
+
+/* % MATCH text - Orange/Green */
+.macos [class*="text-orange"] {
+    color: #FF9500 !important;
+}
+
+.macos [class*="text-green"] {
+    color: #34C759 !important;
+}
+
+/* 6️⃣ BUTTONS - macOS style */
+.macos button[class*="bg-purple"],
+.macos button[class*="bg-violet"],
+.macos [class*="bg-purple-"] {
+    background-color: #5856D6 !important;
+    color: #FFFFFF !important;
+}
+
+.macos button[class*="bg-purple"]:hover,
+.macos button[class*="bg-violet"]:hover {
+    background-color: #4F4CD9 !important;
+}
+
+/* Dark buttons (CHỐT) */
+.macos button[class*="bg-black"],
+.macos button[class*="bg-gray-900"] {
+    background-color: #1C1C1E !important;
+    color: #FFFFFF !important;
+}
+
+.macos button[class*="bg-black"]:hover,
+.macos button[class*="bg-gray-900"]:hover {
+    background-color: #2C2C2E !important;
+}
+
+/* Hover States - Subtle macOS animation */
+.macos button:hover:not(:disabled) {
+    transform: translateY(-0.5px);
+}
+
+/* Frosted Glass & Shadows */
+@layer utilities {
+    .macos-blur {
+        backdrop-filter: blur(20px) saturate(180%);
+        background-color: rgba(255, 255, 255, 0.8);
+    }
+
+    .macos-blur-heavy {
+        backdrop-filter: blur(40px) saturate(180%);
+        background-color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* 9️⃣ SHADOW - Very light (GPT Specs) */
+    .macos-shadow-sm {
+        box-shadow:
+            0 1px 1px rgba(0, 0, 0, 0.04),
+            0 4px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .macos-shadow-md {
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .macos-shadow-lg {
+        box-shadow:
+            0 4px 8px rgba(0, 0, 0, 0.08),
+            0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+}

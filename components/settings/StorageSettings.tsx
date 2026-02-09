@@ -3,42 +3,39 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FolderOpen, HardDrive, AlertTriangle } from "lucide-react";
+import { FolderOpen, HardDrive, AlertTriangle, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { appDataDir } from "@tauri-apps/api/path";
+import { cn } from "@/lib/utils";
 
 export function StorageSettings() {
     const [currentPath, setCurrentPath] = useState<string>("");
     const [isMoving, setIsMoving] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
 
-    useEffect(() => {
-        const loadCurrentPath = async () => {
-            try {
-                const path = await appDataDir();
-                setCurrentPath(path);
-            } catch (e) {
-                console.error("Failed to get app data dir:", e);
-            }
-        };
-        loadCurrentPath();
-    }, []);
+    useEffect(() => { loadCurrentPath(); }, []);
+
+    const loadCurrentPath = async () => {
+        try {
+            const path = await appDataDir();
+            setCurrentPath(path);
+        } catch (e) {
+            console.error("Failed to get app data dir:", e);
+        }
+    };
 
     const handleChangeLocation = async () => {
         try {
-            // 1. Open folder picker
             const selected = await open({
                 directory: true,
                 multiple: false,
                 title: "Chọn thư mục lưu dữ liệu mới"
             });
 
-            if (!selected || typeof selected !== 'string') {
-                return; // User cancelled
-            }
+            if (!selected || typeof selected !== 'string') return;
 
-            // 2. Confirm
             const confirm = window.confirm(
                 `Bạn muốn chuyển dữ liệu sang:\n${selected}\n\n` +
                 `⚠️ Lưu ý:\n` +
@@ -50,7 +47,6 @@ export function StorageSettings() {
 
             if (!confirm) return;
 
-            // 3. Move storage
             setIsMoving(true);
             const toastId = "storage-move";
             toast.loading("Đang di chuyển dữ liệu...", { id: toastId });
@@ -63,30 +59,17 @@ export function StorageSettings() {
                 toast.success(result, { id: toastId, duration: 5000 });
                 setCurrentPath(selected);
 
-                // 4. Ask to restart
                 const restart = window.confirm(
                     "Di chuyển thành công!\n\n" +
                     "Bạn cần khởi động lại app để áp dụng thay đổi.\n" +
                     "Khởi động lại ngay?"
                 );
 
-                if (restart) {
-                    window.location.reload();
-                }
+                if (restart) window.location.reload();
             } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : String(err);
-
-                // Check if it's permission error
                 if (msg.includes("Administrator")) {
-                    toast.error(
-                        "Cần quyền Administrator!\n\n" +
-                        "Hãy:\n" +
-                        "1. Đóng app\n" +
-                        "2. Click phải vào app\n" +
-                        "3. Chọn 'Run as Administrator'\n" +
-                        "4. Thử lại",
-                        { id: toastId, duration: 10000 }
-                    );
+                    toast.error("Cần quyền Administrator! Thử lại bằng cách Run as Administrator.", { id: toastId, duration: 10000 });
                 } else {
                     toast.error(`Lỗi: ${msg}`, { id: toastId });
                 }
@@ -109,61 +92,71 @@ export function StorageSettings() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <HardDrive className="w-5 h-5" />
-                    Vị trí lưu trữ
-                </CardTitle>
-                <CardDescription>
-                    Quản lý nơi lưu trữ dữ liệu của app
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {/* Current Location */}
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Thư mục hiện tại:</label>
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 px-3 py-2 bg-muted rounded-md text-sm font-mono truncate">
-                            {currentPath || "Đang tải..."}
+        <div className="bg-transparent">
+            {/* Header: Click to Toggle */}
+            <div
+                className="flex items-center justify-between px-4 py-3 cursor-pointer group hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-all"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shadow-sm">
+                        <HardDrive className="w-4.5 h-4.5 text-white" />
+                    </div>
+                    <div className="flex flex-col">
+                        <h3 className="text-[13px] font-semibold text-foreground leading-none">Vị trí lưu trữ</h3>
+                        <p className="text-[11px] text-muted-foreground mt-1.5 font-medium">Quản lý nơi lưu trữ dữ liệu của app</p>
+                    </div>
+                </div>
+                <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform duration-300", isOpen ? "rotate-180" : "")} />
+            </div>
+
+            {isOpen && (
+                <div className="px-4 pb-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 border-t border-black/[0.05] dark:border-white/[0.05] pt-4 bg-black/[0.01] dark:bg-white/[0.01]">
+                    {/* Current Location */}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-col gap-1.5 flex-1">
+                            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 ml-0.5">Thư mục hiện tại</label>
+                            <div className="px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-[11px] font-mono truncate text-foreground/70 lowercase">
+                                {currentPath || "Đang tải..."}
+                            </div>
                         </div>
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={handleOpenCurrent}
                             disabled={!currentPath}
+                            className="h-8 px-4 rounded-md border-black/[0.1] dark:border-white/[0.1] bg-white dark:bg-black/20 text-[12px] mt-4"
                         >
-                            <FolderOpen className="w-4 h-4 mr-2" />
+                            <FolderOpen className="w-3.5 h-3.5 mr-2 opacity-60" />
                             Mở
                         </Button>
                     </div>
-                </div>
 
-                {/* Change Location */}
-                <div className="space-y-2">
-                    <Button
-                        onClick={handleChangeLocation}
-                        disabled={isMoving || !currentPath}
-                        className="w-full"
-                    >
-                        {isMoving ? "Đang di chuyển..." : "Đổi thư mục lưu trữ"}
-                    </Button>
-                </div>
+                    {/* Change Action Row */}
+                    <div className="flex items-center justify-between py-3 border-t border-black/[0.03] dark:border-white/[0.03]">
+                        <div className="flex-1">
+                            <p className="text-[12px] font-semibold text-foreground">Di chuyển dữ liệu</p>
+                            <p className="text-[11px] text-muted-foreground">Copy database và file sang ổ đĩa khác</p>
+                        </div>
+                        <Button
+                            onClick={handleChangeLocation}
+                            disabled={isMoving || !currentPath}
+                            className="bg-[#007AFF] hover:bg-[#007AFF]/90 text-white shadow-sm rounded-md px-4 h-7 text-[11px] font-medium"
+                        >
+                            {isMoving ? "Đang di chuyển..." : "Thay đổi..."}
+                        </Button>
+                    </div>
 
-                {/* Warning */}
-                <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                    <div className="text-xs text-amber-800 dark:text-amber-200">
-                        <p className="font-semibold mb-1">Lưu ý quan trọng:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                            <li>Trên Windows cần quyền Administrator để tạo symlink</li>
-                            <li>Dữ liệu sẽ được copy sang thư mục mới (có thể mất vài phút)</li>
-                            <li>Sau khi di chuyển, nên khởi động lại app</li>
-                            <li>Không xóa thư mục mới sau khi đã di chuyển</li>
-                        </ul>
+                    {/* Warning Box (macOS Style Info) */}
+                    <div className="flex items-start gap-3 p-3 bg-red-500/5 border border-red-500/10 rounded-lg">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-600 mt-0.5 shrink-0" />
+                        <div className="text-[10px] leading-relaxed text-red-900/70 dark:text-red-400/70">
+                            <p className="font-bold uppercase tracking-tight mb-0.5 text-red-600">⚠️ Administrator Required</p>
+                            <p>Tauri cần quyền admin để tạo **Symlink**. Nếu lỗi, hãy chạy app bằng quyền Admin và thử lại.</p>
+                        </div>
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+            )}
+        </div>
     );
 }

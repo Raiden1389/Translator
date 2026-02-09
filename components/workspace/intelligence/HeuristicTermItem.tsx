@@ -47,11 +47,11 @@ export function HeuristicTermItem({ term, isScanning, onApprove, onDelete }: Heu
         switch (type) {
             case 'character':
             case 'person':
-                return "bg-amber-500/15 text-amber-400 border-amber-500/30";
+                return "bg-[#FFF4D6] text-[#9A6A00] border-[#FFF4D6]";
             case 'skill':
-                return "bg-rose-500/15 text-rose-400 border-rose-500/30";
+                return "bg-red-500/15 text-[#FF3B30] border-red-500/30";
             case 'location':
-                return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+                return "bg-green-500/15 text-[#34C759] border-green-500/30";
             default:
                 return "bg-muted text-muted-foreground border-border";
         }
@@ -132,7 +132,7 @@ export function HeuristicTermItem({ term, isScanning, onApprove, onDelete }: Heu
                 <div className="hidden lg:flex flex-col items-end gap-0.5 text-[11px] font-black uppercase tracking-tighter">
                     <span className={cn(
                         "px-1.5 rounded",
-                        term.confidence > 80 ? "text-emerald-500 bg-emerald-500/5" : "text-amber-500 bg-amber-500/5"
+                        term.confidence > 80 ? "text-[#34C759] bg-green-500/5" : "text-[#FF9500] bg-orange-500/5"
                     )}>
                         {term.confidence}% Match
                     </span>
@@ -157,7 +157,7 @@ export function HeuristicTermItem({ term, isScanning, onApprove, onDelete }: Heu
                             variant="default"
                             size="sm"
                             disabled={isScanning}
-                            className="h-10 px-6 text-xs font-black uppercase tracking-widest bg-foreground hover:bg-primary text-background hover:text-primary-foreground rounded-2xl shadow-lg shadow-black/10 transition-all active:scale-95 group/btn"
+                            className="h-10 px-6 text-xs font-black uppercase tracking-widest bg-foreground hover:bg-[#2C2C2E] text-background rounded-2xl shadow-lg shadow-black/10 transition-all active:scale-95 group/btn"
                             onClick={() => onApprove(term.id!)}
                         >
                             <CheckCircle2 className="w-4 h-4 mr-2 group-hover/btn:animate-pulse" />

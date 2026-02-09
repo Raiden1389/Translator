@@ -1,4 +1,25 @@
+## [2.7.1] - 2026-02-09
+
+### 🎨 UI/UX Refinement
+- **macOS Native Settings**: Refactored the AI Settings tab to strictly follow macOS System Settings aesthetics.
+  - Reduced button sizes to 32px with 8px rounding.
+  - Implemented grouped-list thiết kế cho các section cài đặt.
+  - Sử dụng màu sắc native (Accent Blue #007AFF) và border mảnh.
+- **Collapsible Sections**: Thêm tính năng thu gọn/mở rộng cho `GeminiOAuthSettings` và `StorageSettings` giúp giao diện gọn gàng hơn.
+- **Storage Management Integration**: Tích hợp cài đặt vị trí lưu trữ trực tiếp vào tab AI với giao diện cảnh báo cải tiến và truy cập thư mục trực tiếp.
+- **Bug Fixes**:
+  - Sửa lỗi chữ bị trắng xóa khi di chuột vào các nút trong phần cài đặt.
+  - Loại bỏ các nút 'Nạp từ .env' dư thừa để đơn giản hóa quy trình.
+  - Fix các lỗi cú pháp và lint trong các component settings.
+
+### 📦 Files Modified
+- `components/workspace/AISettingsTab.tsx`
+- `components/settings/StorageSettings.tsx`
+- `components/settings/GeminiOAuthSettings.tsx`
+- `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
+
 ## [2.7.0] - 2026-02-09
+
 
 ### 🎯 Batch Translation Feature
 

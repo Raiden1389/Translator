@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Key, Database, Sparkles, Loader2, RefreshCw, Settings, XCircle } from "lucide-react"
+import { StorageSettings } from "@/components/settings/StorageSettings"
 import { AI_MODELS } from "@/lib/ai-models"
 import { cn } from "@/lib/utils"
 import {
@@ -292,6 +293,11 @@ export function AISettingsTab() {
                 <Button onClick={handleSave} className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-10 shadow-lg shadow-primary/20">
                     Lưu Cấu Hình AI
                 </Button>
+            </div>
+
+            {/* Storage Settings */}
+            <div className="pt-6 border-t border-white/5 mt-6">
+                <StorageSettings />
             </div>
         </div>
     )

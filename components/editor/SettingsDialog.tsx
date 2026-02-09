@@ -18,7 +18,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 // Sub-components
 import { AISettingsTab } from "./settings/AISettingsTab"
 import { DictionaryTab } from "./settings/DictionaryTab"
-import { StorageSettings } from "../settings/StorageSettings"
 
 interface SettingsDialogProps {
     workspaceId?: string;
@@ -58,7 +57,7 @@ export function SettingsDialog({ workspaceId, defaultTab = "ai", trigger }: Sett
                 </DialogHeader>
 
                 <Tabs defaultValue={defaultTab} className="w-full mt-2">
-                    <TabsList className="grid w-full grid-cols-3 bg-[#2b2b40]/50 p-1 border border-white/5 rounded-xl">
+                    <TabsList className="grid w-full grid-cols-2 bg-[#2b2b40]/50 p-1 border border-white/5 rounded-xl">
                         <TabsTrigger
                             value="ai"
                             className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
@@ -71,12 +70,6 @@ export function SettingsDialog({ workspaceId, defaultTab = "ai", trigger }: Sett
                         >
                             Từ điển ({dicCount})
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="general"
-                            className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-                        >
-                            Cấu hình chung
-                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="ai">
@@ -85,10 +78,6 @@ export function SettingsDialog({ workspaceId, defaultTab = "ai", trigger }: Sett
 
                     <TabsContent value="dic">
                         <DictionaryTab workspaceId={workspaceId} />
-                    </TabsContent>
-
-                    <TabsContent value="general" className="py-4">
-                        <StorageSettings />
                     </TabsContent>
                 </Tabs>
 

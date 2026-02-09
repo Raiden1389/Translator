@@ -15,6 +15,7 @@ import { useAISettings } from "./hooks/useAISettings";
 import { useRaiden } from "@/components/theme/RaidenProvider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GeminiOAuthSettings } from "@/components/settings/GeminiOAuthSettings";
+import { StorageSettings } from "@/components/settings/StorageSettings";
 
 export function AISettingsTab() {
     const { isRaidenMode } = useRaiden();
@@ -74,20 +75,6 @@ export function AISettingsTab() {
                                         </div>
                                     )}
                                 </div>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleLoadFromBackend}
-                                            disabled={isBackendKeyLoading}
-                                            className="h-10 px-4 border-border/50 hover:bg-primary hover:text-primary-foreground transition-all gap-2 font-bold"
-                                        >
-                                            {isBackendKeyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                                            <span className="hidden sm:inline">Nạp từ .env</span>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Nạp Key từ file .env (Backend)</TooltipContent>
-                                </Tooltip>
                             </div>
                             <p className="text-[10px] text-muted-foreground italic">Phím tắt: Bấm Refresh bên dưới để cập nhật danh sách model sau khi dán key.</p>
                         </div>
@@ -215,21 +202,31 @@ export function AISettingsTab() {
                 {/* SECTION: OAuth Authentication */}
                 <GeminiOAuthSettings />
 
-                {/* Final Save Button */}
-                <div className="flex items-center gap-4 pt-4">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                onClick={handleSaveAll}
-                                disabled={isSaving}
-                                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-11 rounded-xl shadow-lg transition-all gap-2 text-sm"
-                            >
-                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                Lưu cài đặt
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Lưu các cài đặt API Key và Model xuống bộ nhớ máy</TooltipContent>
-                    </Tooltip>
+                {/* SECTION: Storage Settings Group */}
+                <div className="bg-white/40 dark:bg-black/20 border border-black/[0.05] dark:border-white/[0.05] rounded-xl overflow-hidden shadow-xs">
+                    <StorageSettings />
+                </div>
+
+                {/* Native macOS Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4 mt-2">
+                    <Button
+                        onClick={handleLoadFromBackend}
+                        disabled={isBackendKeyLoading}
+                        variant="outline"
+                        className="h-8 px-4 rounded-md border-black/10 bg-white/50 hover:bg-white text-black hover:text-black dark:text-white dark:hover:text-white transition-all text-[13px] font-medium"
+                    >
+                        <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isBackendKeyLoading && "animate-spin")} />
+                        Nạp từ .env
+                    </Button>
+
+                    <Button
+                        onClick={handleSaveAll}
+                        disabled={isSaving}
+                        className="h-8 px-6 rounded-md bg-[#007AFF] hover:bg-[#007AFF]/90 text-white text-[13px] font-medium shadow-sm transition-all shadow-[#007AFF]/20"
+                    >
+                        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Save className="h-3.5 w-3.5 mr-2" />}
+                        Lưu cài đặt
+                    </Button>
                 </div>
             </div>
         </div>
