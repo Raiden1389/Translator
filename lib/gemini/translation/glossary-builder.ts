@@ -65,18 +65,25 @@ export async function buildGlossary(
         const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
         // Filter glossary: 
-        // 1. Terms: ONLY if they appear in text (to save space)
-        // 2. Characters: ALWAYS keep (to maintain pronoun consistency across chunks)
-        const terms = combined.filter(d => d.type === 'term' && !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original));
-        const characters = combined.filter(d => d.type === 'character' && !blockedWords.has(d.original.toLowerCase()));
-
-        relevantDict = [...characters, ...terms]
-            .sort((a, b) => b.original.length - a.original.length)
+        // ONLY include terms and characters that actually appear in the text
+        // This prevents "Ghost Characters" from confusing the AI
+        relevantDict = combined
+            .filter(d => !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original))
+            .sort((a, b) => {
+                // Priority 1: Characters always above terms
+                if (a.type === 'character' && b.type !== 'character') return -1;
+                if (a.type !== 'character' && b.type === 'character') return 1;
+                // Priority 2: Standard length sorting to avoid substring mismatch
+                return b.original.length - a.original.length;
+            })
             .slice(0, 50);
     }
 
     const glossaryContext = relevantDict.length > 0
-        ? `\nGlossary: ${relevantDict.map(d => `${d.original}=${d.translated}`).join(', ')}`
+        ? `\nGlossary: ${relevantDict.map((d, i) => {
+            const label = (d.type === 'character' && i === 0) ? `${d.translated} (Main)` : d.translated;
+            return `${d.original}=${label}`;
+        }).join(', ')}`
         : '';
 
     return { relevantDict, glossaryContext };

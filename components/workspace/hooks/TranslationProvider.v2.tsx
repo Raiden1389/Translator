@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useCallback } from "react";
-import { db } from "@/lib/db";
+import { db, DictionaryEntry } from "@/lib/db";
 import { TranslationSettings } from "@/lib/types";
 import {
     translateChapter,
@@ -142,25 +142,45 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
         const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
-        // Convert heuristicTerms to DictionaryEntry format
+        // Convert heuristicTerms to DictionaryEntry format (preserve occurrences for sorting)
         const heuristicAsDict = heuristicTerms.map(h => ({
             id: h.id,
             workspaceId: h.workspaceId,
             original: h.original,
             translated: h.translated,
             type: h.type === 'character' ? 'character' : 'term',
+            occurrences: h.occurrences || 0, // 🔥 CRITICAL: Keep frequency metadata
             createdAt: h.createdAt
         }));
 
+        // Load manual dict and cast to include occurrences for type safety in sort
+        const manualAsDict = dict.map(d => ({
+            ...d,
+            occurrences: 999999 // Manual entries always have highest priority
+        }));
+
         // Merge both sources (deduplicate by original)
-        const mergedDict = [...dict, ...heuristicAsDict];
+        const mergedDict = [...manualAsDict, ...heuristicAsDict];
         const uniqueDict = Array.from(
             new Map(mergedDict.map(item => [item.original.toLowerCase(), item])).values()
         );
 
         const sharedGlossary = uniqueDict
             .filter(d => !blockedWords.has(d.original.toLowerCase()) && allOriginalText.includes(d.original))
-            .sort((a, b) => b.original.length - a.original.length)
+            .sort((a: DictionaryEntry & { occurrences?: number }, b: DictionaryEntry & { occurrences?: number }) => {
+                // Priority 1: Characters always above terms
+                if (a.type === 'character' && b.type !== 'character') return -1;
+                if (a.type !== 'character' && b.type === 'character') return 1;
+
+                // Priority 2: Character with more occurrences (frequency) is higher
+                // This puts Bùi Khiêm (890) above Hoàng Tư Bác (51)
+                if (a.type === 'character' && b.type === 'character') {
+                    return (b.occurrences || 0) - (a.occurrences || 0);
+                }
+
+                // Priority 3: Longest original text first (standard matching)
+                return b.original.length - a.original.length;
+            })
             .slice(0, 100);
 
         // 🔒 FREEZE to prevent accidental mutations (defense in depth)

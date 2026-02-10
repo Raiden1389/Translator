@@ -15,6 +15,9 @@ export const CORE_RULES = `
   + CẤM VIẾT HOA TOÀN BỘ (VD: "CHUYỂN ĐỔI TƯ DUY").
   + ĐÚNG: "Chuyển đổi tư duy".
 - [HARD LIMIT]: Mỗi đoạn văn CHỈ ĐƯỢC xuất hiện tên riêng nhân vật chính TỐI ĐA 1 lần (thường ở đầu đoạn để neo POV).
+- [PHÂN VAI]: Trong từ điển (Glossary), các thuật ngữ (character) xuất hiện ở đầu danh sách là nhân vật quan trọng nhất. 
+  + TUYỆT ĐỐI không được dùng tên các nhân vật phụ khác để thay thế cho tên nhân vật chính.
+  + Nếu Glossary cung cấp nhiều tên, hãy ưu tiên tên đứng trước.
 - [HÁN TỰ]: TUYỆT ĐỐI CẤM giữ nguyên chữ Hán trong bản dịch.
   + SAI: "vô以为 báo", "之类", "而已"
   + ĐÚNG: "không thể đền đáp" hoặc "vô dĩ vi báo", "chi loại", "nhi dĩ"
@@ -72,10 +75,10 @@ export function buildSystemInstruction(
   isBatch = false
 ): string {
   return [
-    glossaryContext,
     customInstruction || "Dịch giả tiểu thuyết cao cấp. Thoát ý, mượt mà.",
     CORE_RULES,
     !isBatch && "- FORMAT: Dòng 1 là Tiêu đề, sau đó xuống dòng, các dòng sau là Nội dung. CẤM JSON/Giải thích.",
-    ...ALL_RULES
-  ].filter(Boolean).join('\n');
+    ...ALL_RULES,
+    glossaryContext, // 🔥 DEEP STRUCTURE CHANGE: Move glossary closer to the end for higher saliency
+  ].filter(Boolean).join('\n').trim();
 }
