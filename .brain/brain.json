@@ -2,12 +2,12 @@
     "meta": {
         "schema_version": "1.1.0",
         "awf_version": "4.0.0",
-        "last_updated": "2026-02-07T14:00:00Z"
+        "last_updated": "2026-02-10T12:55:00Z"
     },
     "project": {
         "name": "Raiden AI Translator",
         "type": "Desktop Application (Tauri + Next.js)",
-        "status": "Type Safety & Validation Enhancement - v2.5.4+ (Zod Integration)"
+        "status": "Establishing Tàng Kinh Các - Bát Hộ Pháp"
     },
     "tech_stack": {
         "frontend": {
@@ -34,110 +34,60 @@
         }
     },
     "features": [
-        "Raiden Intelligence Hub: Trung tâm điều khiển tập trung cho Discovery, Glossary, Persona, Tuning và Sanitizer với giao diện sidebar hiện đại.",
-        "Dịch truyện chữ đa ngôn ngữ (Trung, Anh, Hàn, Nhật -> Việt)",
-        "Architecture Refactor: Phân rã hook 'ChapterList' khổng lồ thành các sub-hooks chuyên biệt (UI, Dialogs) và presenter component tinh gọn.",
-        "Token Optimization: Dynamic maxOutputTokens (giảm ~25% chi phí) và Compact Glossary format.",
-        "Realtime Workspace Tokens: Theo dõi số lượng token và chi phí USD thời gian thực cho từng bộ truyện.",
-        "Smart Title Fixer: Nút ✨ tự động sửa lỗi Hán tự trong tiêu đề dịch với chi phí cực thấp và cơ chế retry.",
-        "Heuristic Engine 2.0 (The Context Purge): Hệ thống nhận diện thực thể siêu nhanh với triết lý 'Strict Opt-in'.",
-        "Action Hub 2.0: Hệ thống công cụ nhanh 2 hàng (Cache, JSON Import/Export, AI Scan, History)",
-        "AI NER v3.0: Hệ thống bóc tách thực thể thông minh, tự động tạo mô tả và đồng bộ Hán Việt",
-        "AI Correction Engine v2.0: Hệ thống sửa lỗi thông minh (Case-preserving) và Cải chính trực tiếp vào Reader",
-        "Raiden Mode: Giao diện tối giản, tập trung vào việc đọc và dịch",
-        "Type Safety Enhancement: Loại bỏ 'any' types, tích hợp Zod validation cho external data"
+        "Raiden Intelligence Hub: Trung tâm điều khiển tập trung",
+        "Dịch truyện chữ đa ngôn ngữ",
+        "Architecture Refactor: Atomic sub-hooks pattern",
+        "Token Optimization: Dynamic maxOutputTokens",
+        "Full-Sect Orchestration: Bát Hộ Pháp Management"
     ],
-    "database_schema": {
-        "summary": "Dữ liệu lưu local qua IndexedDB, chia thành Workspace và các Chapter.",
-        "tables": [
+    "orchestration": {
+        "structure": "The 8-Pillar Sect Hierarchy (Bát Hộ Pháp)",
+        "roles": [
             {
-                "name": "workspaces",
-                "desc": "Thông tin bộ truyện (tên, tác giả, ngôn ngữ)"
+                "id": "sect-leader",
+                "name": "Tông chủ (Sếp/USER)",
+                "responsibility": "Supreme Leader."
             },
             {
-                "name": "chapters",
-                "desc": "Nội dung chương (gốc, dịch) và thống kê token/cost"
+                "id": "librarian-elder",
+                "name": "Trưởng lão Tàng Kinh Các",
+                "responsibility": "Knowns MCP Power-user, Documentation Sage, Brain Master."
             },
             {
-                "name": "apiUsage",
-                "desc": "Lưu lịch sử sử dụng API và chi phí theo model"
+                "id": "architect-elder",
+                "name": "Trưởng lão Architect",
+                "responsibility": "Structure, DB, Performance."
             },
             {
-                "name": "dictionary",
-                "desc": "Từ điển thuật ngữ/nhân vật"
+                "id": "logic-alchemist",
+                "name": "Dược sư Logic",
+                "responsibility": "AI Prompting & Algorithm Alchemist."
             },
             {
-                "name": "corrections",
-                "desc": "Quy tắc sửa lỗi văn bản"
+                "id": "ux-saintess",
+                "name": "Thánh nữ UX",
+                "responsibility": "UX/Trải nghiệm."
             },
             {
-                "name": "blacklist",
-                "desc": "Các từ không muốn dịch hoặc bỏ qua"
+                "id": "ui-holy-son",
+                "name": "Thánh tử UI",
+                "responsibility": "Aesthetics/Mỹ thuật."
             },
             {
-                "name": "settings",
-                "desc": "Cài đặt API, model, theme"
+                "id": "auditor-elder",
+                "name": "Trưởng lão Hình pháp",
+                "responsibility": "Audit, Security, Quality."
             },
             {
-                "name": "heuristicTerms",
-                "desc": "Thực thể được phát hiện bởi Heuristic Scanner"
-            }
-        ]
-    },
-    "knowledge_items": {
-        "patterns": [
-            {
-                "name": "Boundary Pattern",
-                "description": "Validate external data (JSON, API) at entry points using Zod, keep internal logic strictly typed",
-                "files": [
-                    "lib/schemas/*.ts"
-                ]
-            },
-            {
-                "name": "Shadow File Refactoring",
-                "description": "Create components separately, assemble in new file, atomic swap for safe refactoring",
-                "reference": "knowns://patterns/shadow-file-refactoring-strategy"
-            },
-            {
-                "name": "Type Guards for Error Handling",
-                "description": "Use 'error instanceof Error' instead of 'any' in catch blocks",
-                "example": "catch (error) { const msg = error instanceof Error ? error.message : String(error); }"
+                "id": "shadow-guard",
+                "name": "Ám vệ DevOps",
+                "responsibility": "Build & Deployment."
             }
         ],
-        "gotchas": [
-            {
-                "issue": "ZodError.errors property",
-                "solution": "Use 'error.issues' instead of 'error.errors' in Zod v3+",
-                "severity": "low"
-            },
-            {
-                "issue": "TypeScript 'any' types",
-                "solution": "Replace with 'unknown' or specific types, use type guards",
-                "severity": "medium"
-            }
-        ],
-        "conventions": [
-            {
-                "rule": "Schema files location",
-                "standard": "All Zod schemas in lib/schemas/ with .schema.ts suffix"
-            },
-            {
-                "rule": "Safe parse pattern",
-                "standard": "Export both parse() and safeParse() functions from schema files"
-            }
+        "protocols": [
+            "Hierarchy Communication (Sếp/Em)",
+            "Khai hội Tàng Kinh (Persistent Knowledge updates)",
+            "Diệt rác tận gốc (Clean Sweep)"
         ]
-    },
-    "recent_improvements": {
-        "type_safety": {
-            "any_types_eliminated": 50,
-            "files_refactored": 20,
-            "lint_errors_reduced": 55,
-            "validation_coverage": "JSON imports (100%), API responses (0%), DB data (0%)"
-        },
-        "code_quality": {
-            "total_problems": "238 -> 180 (-58)",
-            "errors": "132 -> 77 (-55)",
-            "warnings": "106 -> 103 (-3)"
-        }
     }
 }

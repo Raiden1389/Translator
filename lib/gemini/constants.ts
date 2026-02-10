@@ -3,32 +3,72 @@ import { IDIOM_SYSTEM_RULE } from "./idioms";
 export const SYSTEM_VERSION = "v3.3";
 
 // 🔥 CRITICAL: Title Translation Rule (HIGHEST PRIORITY)
-export const TITLE_RULE = `[TIÊU ĐỀ]: Dòng 1 = Tiêu đề dịch (第10章 -> Chương 10). CẤM Hán tự, dùng Âm Hán Việt nếu cần. Chỉ viết hoa chữ đầu.`;
+export const TITLE_RULE = `[TIÊU ĐỀ]: Dòng 1 = Tiêu đề dịch. Format: "Chương [Số]: [Tên chương]" (Nếu có tên). CẤM xuống dòng, CẤM Hán tự.`;
 
-// Optimized System Instruction (Minimalistic & Powerful)
+// [ABSOLUTE STYLE CONTRACT] - v12.0 Heuristic Mechanics
 export const CORE_RULES = `
-- DỊCH: Trung-Việt tiểu thuyết, thoát ý, thuần Việt. 1 dòng gốc = 1 dòng dịch.
-- VIẾT HOA: Tên riêng/đầu câu. Các đại từ (hắn/nàng/tướng quân/môn chủ) VIẾT THƯỜNG.
-- ĐẠI TỪ: 我-Ta, 你-Ngươi, 他/she-Hắn/Nàng. (Hắn/Nàng viết thường).
-- FORMAT: Dòng 1 là Tiêu đề, sau đó xuống dòng, các dòng sau là Nội dung. CẤM JSON/Giải thích.
+[ABSOLUTE STYLE CONTRACT]
+- [TIÊU ĐỀ]: Dòng 1 là Tiêu đề dịch ("Chương [Số]: [Tên chương]"). CẤM xuống dòng.
+- [HARD LIMIT]: Mỗi đoạn văn CHỈ ĐƯỢC xuất hiện tên riêng nhân vật chính TỐI ĐA 1 lần (thường ở đầu đoạn để neo POV).
+
+- [HEURISTIC CHỦ NGỮ]:
+  + ĐƯỢC gọi tên nhân vật chính CHỈ khi:
+    1) Câu đầu đoạn
+    2) Chuyển cảnh / chuyển hành động lớn
+    3) Đối thoại cần phân biệt người nói
+  + CẤM gọi tên khi:
+    - Câu suy nghĩ, tổng kết, cảm thán
+    - Câu nối logic: nhưng, vì vậy, do đó, cuối cùng
+    - Câu liệt kê hành động liên tiếp
+  + Khi phân vân → ƯU TIÊN ẨN CHỦ NGỮ.
+
+- [TỰ PHẢN CHIẾU 自己/我]:
+  + Nếu 自己/我 đi với danh từ trừu tượng (tiền đồ, năng lực, suy nghĩ, lựa chọn):
+    → BẮT BUỘC ẨN sở hữu.
+    Ví dụ: 自己的前途 → tiền đồ, 自己的能力 → năng lực
+  + CHỈ dùng "của hắn" khi:
+    - So sánh với người khác
+    - Tránh hiểu nhầm logic
+  + TUYỆT ĐỐI tránh "của mình" trong trần thuật ngôi 3.
+
+- [CÂU MỞ ĐẦU]:
+  + ĐƯỢC PHÉP vô chủ ngữ nếu:
+    - Là cảm nhận, đánh giá, suy nghĩ
+    - Chủ thể đã rõ từ ngữ cảnh chương
+  + KHÔNG được tự ý thêm tên nhân vật chỉ để làm rõ chủ ngữ.
+
+- [XƯNG HÔ]: Trong thoại (我=Ta, 你=Ngươi). Độc thoại nội tâm dùng "Ta". CẤM: tôi, anh, em, mình (trong trần thuật).
+- [DẤU PHẨY]: CẤM dấu phẩy sau từ nối đầu câu: Nhưng, Tuy nhiên, Vì vậy...
+
+- STYLE: Dịch giả cao cấp. Thoát ý, mượt mà. VIẾT THƯỜNG (hắn/nàng/ta/ngươi) trừ đầu câu.
 `;
 
-export const VOICE_TONE_RULE = `- GIỌNG: Sát nhân vật. Thô ráp trong thoại, mượt mà khi tả.`;
-export const STRUCTURE_RULE = `- CẤU TRÚC: Phá câu Tàu. Dịch câu ngắn, dồn dập khi chiến đấu.`;
-export const IDIOM_RULE = `- THÀNH NGỮ 4 CHỮ: Phổ biến (Tam Quốc, võ học) → GIỮ Âm Hán Việt (VD: Nhân trung Lữ Bố mã trung Xích Thố, Thiên hạ vô song). Hiếm/ít người biết → DỊCH thoát ý. Khi nghi ngờ → DỊCH.`;
-export const TOP_BLACKLIST = `- CẤM: hít hơi lạnh, mặt không đỏ tim không đập, vấn đề không lớn, trong lòng không khỏi, thanh âm vang lên, dường như, tựa hồ, bất giác, lúc này, ngay lúc đó.`;
+export const VOICE_RULE = `- NGỮ KHÍ: Thoại phải tự nhiên như đời thực, tả phải giàu hình ảnh. Đúng vai nhân vật.`;
+export const FLOW_RULE = `- MẠCH VĂN: Trôi chảy, có vần điệu. Nếu 2-3 câu liên tiếp cùng chủ ngữ, hãy ẩn chủ ngữ hoặc dùng đại từ thay thế. Tuyệt đối không để 1 đoạn văn có 2 câu bắt đầu bằng cùng một tên riêng.`;
+export const IDIOM_RULE = `- THÀNH NGỮ 4 CHỮ: Giữ Âm Hán Việt nếu phổ biến, dịch thoát ý nếu hiếm. Khi nghi ngờ -> DỊCH.`;
+
+export const TOP_BLACKLIST = `- BLACKLIST (CẤM): hít hơi lạnh, mặt không đỏ tim không đập, vấn đề không lớn, trong lòng không khỏi, thanh âm vang lên, tựa hồ, dường như, bất giác.`;
 export const BATTLE_RULE = `- CHIẾN ĐẤU: Câu ngắn, dồn dập. "Ngã xuống đất" → "Đập mạnh xuống đất". Tạo cảm giác đau, không ước lệ.`;
 export const EMOTION_RULE = `- CẢM XÚC: Thể hiện qua ánh mắt, hơi thở, động tác. KHÔNG gọi tên trực tiếp (tức giận, sợ hãi, vui mừng).`;
 export const DIALOGUE_RULE = `- HỘI THOẠI: Giống người NÓI, không giống người KỂ. Không mở đầu "nói rằng", "lên tiếng". Đối thoại nhanh → bỏ chủ ngữ.`;
-export const CURRENCY_RULE = `- TIỀN TỆ: Chuyển đổi sang đơn vị Việt. 万-vạn (10k) → nghìn, 十万 (100k) → trăm nghìn, 百万 (1M) → triệu, 千万 (10M) → chục triệu, 亿 (100M) → trăm triệu/tỷ. VD: "一万两" → "mười nghìn lạng", "百万金币" → "một triệu kim tệ".`;
-export const CONSISTENCY_RULE = `- NHẤT QUÁN: Giữ nguyên thuật ngữ, đại từ (hắn/nàng), tên riêng đã dịch. KHÔNG đổi giữa chừng.`;
-export const CAPITALIZATION_RULE = "";
+export const CURRENCY_RULE = `- TIỀN TỆ: Thống nhất dùng đơn vị "tệ" (nghìn tệ, vạn tệ). Không dùng "đồng". Chuyển đổi: 万 -> nghìn tệ, 十万 -> trăm nghìn tệ, 百万 -> triệu tệ.`;
+export const CONSISTENCY_RULE = `- NHẤT QUÁN: Giữ nguyên thuật ngữ, tên riêng, và ĐẶC BIỆT là nội dung trong ngoặc 《 》, 「 」, "". BẮT BUỘC dịch đồng nhất 100% tên game/tác phẩm xuyên suốt, KHÔNG được thêm thắt hay thay đổi từ ngữ (Ví dụ: Đã dùng "Đường Sa Mạc" thì cấm đổi thành "Đường Cao Tốc").`;
+export const ALL_RULES = [
+    TOP_BLACKLIST, BATTLE_RULE, EMOTION_RULE, DIALOGUE_RULE,
+    VOICE_RULE, IDIOM_SYSTEM_RULE, CURRENCY_RULE,
+    CONSISTENCY_RULE, FLOW_RULE
+];
 
 export function buildSystemInstruction(
     customInstruction?: string,
-    glossaryContext?: string
+    glossaryContext?: string,
+    isBatch = false
 ): string {
-    const base = customInstruction || "Dịch giả tiểu thuyết cao cấp.";
-    // Priority order: Base → Title Rule (CRITICAL!) → Glossary → Core → Voice → Idioms → Currency → Consistency → Structure
-    return `${base}\n${TITLE_RULE}\n${glossaryContext || ""}\n${CORE_RULES}\n${VOICE_TONE_RULE}\n${IDIOM_SYSTEM_RULE}\n${CURRENCY_RULE}\n${CONSISTENCY_RULE}\n${STRUCTURE_RULE}`;
+    return [
+        glossaryContext,
+        customInstruction || "Dịch giả tiểu thuyết cao cấp. Thoát ý, mượt mà.",
+        CORE_RULES,
+        !isBatch && "- FORMAT: Dòng 1 là Tiêu đề, sau đó xuống dòng, các dòng sau là Nội dung. CẤM JSON/Giải thích.",
+        ...ALL_RULES
+    ].filter(Boolean).join('\n');
 }

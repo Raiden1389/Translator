@@ -27,6 +27,8 @@ import { ChapterListDialogs } from "./components/ChapterListDialogs";
 import { ChapterListContent } from "./components/ChapterListContent";
 import { useWorkspaceShortcuts } from "../hooks/useWorkspaceShortcuts";
 import { DEFAULT_TRANSLATION_CONFIG } from "./TranslateConfigDialog";
+import { AuditResultDialog } from "./AuditResultDialog";
+import { auditTranslation, type AuditResult } from "@/lib/gemini/translation/audit";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -102,6 +104,9 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
 
     // NEW: Dialog states first (needed by other hooks)
     const { translateDialogOpen, setTranslateDialogOpen, historyOpen, setHistoryOpen } = useDialogStates();
+    const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+    const [auditResults, setAuditResults] = useState<AuditResult[]>([]);
+    const [auditChapterNames, setAuditChapterNames] = useState<string[]>([]);
 
     // NEW: Use all extracted hooks
     const {
@@ -190,6 +195,42 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         return () => clearTimeout(timer);
     }, [search, filterStatus]);
 
+    const handleAuditQuality = async () => {
+        if (selectedChapters.length === 0) {
+            toast.error("Vui lòng chọn ít nhất 1 chương để audit");
+            return;
+        }
+
+        if (!chapters) return;
+
+        const selectedChapterData = chapters.filter(c => selectedChapters.includes(c.id));
+        const results: AuditResult[] = [];
+        const names: string[] = [];
+
+        for (const chapter of selectedChapterData) {
+            if (!chapter.content_translated) {
+                toast.warning(`Chương ${chapter.order} chưa được dịch, bỏ qua`);
+                continue;
+            }
+
+            const result = auditTranslation(
+                chapter.content_translated,
+                "Bùi Khiêm" // TODO: Make this configurable
+            );
+            results.push(result);
+            names.push(`Chương ${chapter.order}`);
+        }
+
+        if (results.length === 0) {
+            toast.error("Không có chương nào đã dịch để audit");
+            return;
+        }
+
+        setAuditResults(results);
+        setAuditChapterNames(names);
+        setAuditDialogOpen(true);
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -226,6 +267,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onClearCache={handleSanitizeDatabase}
                 onFixTitles={() => toast.info("Tính năng đang phát triển")}
                 onFixTitleCase={handleFixTitleCase}
+                onAuditQuality={handleAuditQuality}
             />
 
             {/* Main Content */}
@@ -285,6 +327,13 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 isAIExtracting={false}
                 handleBulkClearTranslation={handleBulkClearTranslation}
                 setBulkDeleteConfirmOpen={() => handleBulkDelete()}
+            />
+
+            <AuditResultDialog
+                open={auditDialogOpen}
+                onOpenChange={setAuditDialogOpen}
+                results={auditResults}
+                chapterNames={auditChapterNames}
             />
         </div>
     );

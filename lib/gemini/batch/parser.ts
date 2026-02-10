@@ -12,13 +12,18 @@ import type { Chapter } from "@/lib/db";
  * Parse batch response from AI
  * Tries JSON first, falls back to lenient extraction
  */
+export interface ParsedBatch {
+  chapters: Chapter[];
+}
+
 export function parseBatchResponse(
   response: string,
   originalChapters: Chapter[]
-): Chapter[] {
+): ParsedBatch {
   try {
-    // Strip markdown code fences if present
     let cleanResponse = response.trim();
+
+    // Strip markdown code fences
     if (cleanResponse.startsWith('```json')) {
       cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
     } else if (cleanResponse.startsWith('```')) {
@@ -32,7 +37,7 @@ export function parseBatchResponse(
       throw new Error("Invalid JSON structure: missing 'chapters' array");
     }
 
-    return parsed.chapters.map((ch: { title?: string; content?: string }, i: number) => {
+    const chapters = parsed.chapters.map((ch: { title?: string; content?: string }, i: number) => {
       const original = originalChapters[i];
       const translatedContent = ch.content || "";
       return {
@@ -42,6 +47,10 @@ export function parseBatchResponse(
         translatedAt: Date.now()
       };
     });
+
+    return {
+      chapters
+    };
   } catch (error) {
     console.warn(`⚠️ [PARSE] JSON parse failed, trying lenient fallback:`, error);
     return fallbackParseBatch(response, originalChapters);
@@ -54,30 +63,27 @@ export function parseBatchResponse(
 function fallbackParseBatch(
   response: string,
   originalChapters: Chapter[]
-): Chapter[] {
+): ParsedBatch {
   console.log(`🔄 [FALLBACK PARSE] Lenient structure extraction`);
 
   try {
     // Strip markdown wrapper
-    let cleanResponse = response.trim();
-    if (cleanResponse.startsWith('```json')) {
-      cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleanResponse.startsWith('```')) {
-      cleanResponse = cleanResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
+    const cleanResponse = response.replace(/```json|```/g, "").trim();
 
-    // Find chapters array
+    // Find chapters array block "chapters": [...]
     const chaptersMatch = cleanResponse.match(/"chapters"\s*:\s*\[/);
     if (!chaptersMatch) {
-      console.error(`❌ [FALLBACK] Could not find chapters array`);
-      return originalChapters.map(ch => ({ ...ch, translatedAt: Date.now() }));
+      console.warn("⚠️ [FALLBACK] Could not find chapters array");
+      return {
+        chapters: originalChapters.map(ch => ({ ...ch, translatedAt: Date.now() }))
+      };
     }
 
     const startIdx = chaptersMatch.index! + chaptersMatch[0].length;
-    const chapters = extractChaptersRaw(cleanResponse, startIdx);
+    const chaptersRaw = extractChaptersRaw(cleanResponse, startIdx);
 
-    return originalChapters.map((ch, i) => {
-      const parsed = chapters[i];
+    const chapters: Chapter[] = originalChapters.map((ch, i) => {
+      const parsed = chaptersRaw[i];
       if (!parsed) {
         console.warn(`⚠️ [FALLBACK] No data for chapter ${i + 1}`);
         return { ...ch, translatedAt: Date.now() };
@@ -92,9 +98,15 @@ function fallbackParseBatch(
         translatedAt: Date.now()
       };
     });
+
+    return {
+      chapters
+    };
   } catch (error) {
     console.error(`❌ [FALLBACK] Complete failure:`, error);
-    return originalChapters.map(ch => ({ ...ch, translatedAt: Date.now() }));
+    return {
+      chapters: originalChapters.map(ch => ({ ...ch, translatedAt: Date.now() }))
+    };
   }
 }
 
@@ -104,7 +116,7 @@ function fallbackParseBatch(
 function extractChaptersRaw(text: string, startIdx: number): Array<{ title: string; content: string }> {
   const chapters: Array<{ title: string; content: string }> = [];
   let i = startIdx;
-  const depth = 0;
+  let depth = 0;
 
   while (i < text.length) {
     const ch = text[i];
@@ -120,208 +132,55 @@ function extractChaptersRaw(text: string, startIdx: number): Array<{ title: stri
       break;
     }
 
-    // Start of chapter object
     if (ch === '{') {
-      const chapterData = extractObjectRaw(text, i);
-      if (chapterData) {
-        chapters.push(chapterData.data);
-        i = chapterData.endIdx;
-      } else {
-        i++;
+      const objEnd = findClosingBrace(text, i);
+      if (objEnd !== -1) {
+        const objRaw = text.substring(i, objEnd + 1);
+        chapters.push({
+          title: extractValue(objRaw, "title"),
+          content: extractValue(objRaw, "content")
+        });
+        i = objEnd + 1;
+        continue;
       }
-    } else {
-      i++;
     }
+
+    if (ch === '[') depth++;
+    if (ch === ']') depth--;
+
+    i++;
   }
 
   return chapters;
 }
 
 /**
- * Extract a single object's fields as raw strings
+ * Find matching closing brace
  */
-function extractObjectRaw(text: string, startIdx: number): { data: { title: string; content: string }; endIdx: number } | null {
-  let i = startIdx + 1; // skip opening {
-  let depth = 1;
-  const fields: Record<string, string> = {};
-
-  while (i < text.length && depth > 0) {
-    const ch = text[i];
-
-    if (/\s/.test(ch) || ch === ',') {
-      i++;
-      continue;
-    }
-
-    if (ch === '}') {
+function findClosingBrace(text: string, start: number): number {
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === '{') depth++;
+    if (text[i] === '}') {
       depth--;
-      if (depth === 0) {
-        i++;
-        break;
-      }
-      i++;
-      continue;
-    }
-
-    if (ch === '{') {
-      depth++;
-      i++;
-      continue;
-    }
-
-    // Extract key
-    if (ch === '"') {
-      const keyResult = extractString(text, i);
-      if (!keyResult) {
-        i++;
-        continue;
-      }
-
-      const key = keyResult.value;
-      i = keyResult.endIdx;
-
-      // Skip colon
-      while (i < text.length && (text[i] === ':' || /\s/.test(text[i]))) {
-        i++;
-      }
-
-      // Extract value (only care about strings)
-      if (text[i] === '"') {
-        const valueResult = extractString(text, i);
-        if (valueResult) {
-          // LAYER 3: Decode with lenient string decoder
-          fields[key] = decodeLenientString(valueResult.value);
-          i = valueResult.endIdx;
-        }
-      } else {
-        // Skip non-string values (numbers, booleans, etc)
-        while (i < text.length && text[i] !== ',' && text[i] !== '}') {
-          i++;
-        }
-      }
-    } else {
-      i++;
+      if (depth === 0) return i;
     }
   }
-
-  return {
-    data: {
-      title: fields.title || '',
-      content: fields.content || ''
-    },
-    endIdx: i
-  };
+  return -1;
 }
 
 /**
- * Extract raw string content (including escape sequences)
+ * Extract value for a key from a raw JSON-like string
  */
-function extractString(text: string, startIdx: number): { value: string; endIdx: number } | null {
-  if (text[startIdx] !== '"') return null;
-
-  let i = startIdx + 1;
-  let raw = '';
-  let escapeNext = false;
-
-  while (i < text.length) {
-    const ch = text[i];
-
-    if (escapeNext) {
-      raw += ch;
-      escapeNext = false;
-      i++;
-      continue;
-    }
-
-    if (ch === '\\') {
-      raw += ch;
-      escapeNext = true;
-      i++;
-      continue;
-    }
-
-    if (ch === '"') {
-      return { value: raw, endIdx: i + 1 };
-    }
-
-    raw += ch;
-    i++;
+function extractValue(raw: string, key: string): string {
+  const regex = new RegExp(`"${key}"\\s*:\\s*"(.*?[^\\\\])"`, "s");
+  const match = raw.match(regex);
+  if (match) {
+    // Basic unescape
+    return match[1]
+      .replace(/\\n/g, "\n")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\");
   }
-
-  return null;
-}
-
-/**
- * LAYER 3: Lenient string decoder - handle invalid escape sequences
- * Treats AI output as "semi-structured text", not strict JSON
- */
-function decodeLenientString(raw: string): string {
-  let out = '';
-  let i = 0;
-
-  while (i < raw.length) {
-    const ch = raw[i];
-
-    if (ch === '\\' && i + 1 < raw.length) {
-      const next = raw[i + 1];
-
-      switch (next) {
-        case 'n':
-          out += '\n';
-          i += 2;
-          break;
-        case 't':
-          out += '\t';
-          i += 2;
-          break;
-        case 'r':
-          out += '\r';
-          i += 2;
-          break;
-        case '"':
-          out += '"';
-          i += 2;
-          break;
-        case '\\':
-          out += '\\';
-          i += 2;
-          break;
-        case '/':
-          out += '/';
-          i += 2;
-          break;
-        case 'b':
-          out += '\b';
-          i += 2;
-          break;
-        case 'f':
-          out += '\f';
-          i += 2;
-          break;
-        case 'u':
-          // Try parse \uXXXX
-          if (i + 5 < raw.length) {
-            const hex = raw.slice(i + 2, i + 6);
-            if (/^[0-9a-fA-F]{4}$/.test(hex)) {
-              out += String.fromCharCode(parseInt(hex, 16));
-              i += 6;
-              break;
-            }
-          }
-          // Invalid \u escape - keep literal
-          out += next;
-          i += 2;
-          break;
-        default:
-          // Invalid escape (\x, \q, etc) - keep literal character
-          out += next;
-          i += 2;
-      }
-    } else {
-      out += ch;
-      i++;
-    }
-  }
-
-  return out;
+  return "";
 }

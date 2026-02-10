@@ -19,7 +19,7 @@ export function HeuristicTermList({ terms, isScanning, onApprove, onDelete }: He
     const rowVirtualizer = useVirtualizer({
         count: terms.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 80, // Height of HeuristicTermItem + margin
+        estimateSize: () => 88, // Height of HeuristicTermItem + margin
         overscan: 10,
     });
 

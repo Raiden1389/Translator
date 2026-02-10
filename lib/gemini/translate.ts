@@ -35,7 +35,7 @@ export const translateChapter = async (
     customInstruction?: string,
     sharedGlossary?: DictionaryEntry[],
     enableThinking?: boolean,  // 🧠 For Gemini 2.5 Flash
-    thinkingLevel?: "minimal" | "low" | "medium" | "high",  // 🧠 For Gemini 3.0 Flash
+    thinkingLevel?: "minimal" | "low" | "medium" | "high"  // 🧠 For Gemini 3.0 Flash
 ) => {
     const modelSetting = await db.settings.get("aiModel");
     const aiModel = modelSetting?.value || DEFAULT_MODEL;

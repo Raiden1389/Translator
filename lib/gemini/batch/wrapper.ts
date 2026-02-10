@@ -53,6 +53,6 @@ export async function buildPromptForBatch(
     customPrompt?: string;
     workspaceId: string;
   }
-): Promise<string> {
+): Promise<{ systemInstruction: string; userPrompt: string }> {
   return await buildBatchPrompt(batch, config);
 }

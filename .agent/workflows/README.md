@@ -41,6 +41,7 @@
 | Lệnh | Mô tả | Điểm mù được xử lý |
 |------|-------|-------------------|
 | `/cloudflare-tunnel` | Expose app ra internet | Tunnel management |
+| `/orchestrate` | Triệu hồi Hội đồng Trưởng lão | Hệ thống Multi-Agent, phối hợp nhiều góc nhìn |
 
 ---
 

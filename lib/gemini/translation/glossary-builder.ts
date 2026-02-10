@@ -61,9 +61,13 @@ export async function buildGlossary(
         const blacklist = await db.blacklist.where('workspaceId').equals(workspaceId).toArray();
         const blockedWords = new Set(blacklist.map(b => b.word.toLowerCase()));
 
-        // Filter glossary: Remove blacklisted, only keep terms that appear, LIMIT 50 terms
-        relevantDict = combined
-            .filter(d => !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original))
+        // Filter glossary: 
+        // 1. Terms: ONLY if they appear in text (to save space)
+        // 2. Characters: ALWAYS keep (to maintain pronoun consistency across chunks)
+        const terms = combined.filter(d => d.type === 'term' && !blockedWords.has(d.original.toLowerCase()) && text.includes(d.original));
+        const characters = combined.filter(d => d.type === 'character' && !blockedWords.has(d.original.toLowerCase()));
+
+        relevantDict = [...characters, ...terms]
             .sort((a, b) => b.original.length - a.original.length)
             .slice(0, 50);
     }

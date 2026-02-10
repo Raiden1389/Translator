@@ -42,7 +42,7 @@ export function useBatchTranslation() {
       customPrompt?: string;
       workspaceId: string;
     }
-  ): Promise<string> => {
+  ): Promise<{ systemInstruction: string; userPrompt: string }> => {
     return await buildPromptForBatch(batch, config);
   }, []);
 

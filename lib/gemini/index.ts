@@ -16,8 +16,6 @@ export {
 
 // Re-export constants
 export {
-    VOICE_TONE_RULE,
-    STRUCTURE_RULE,
     CORE_RULES
 } from "./constants";
 

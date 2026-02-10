@@ -105,7 +105,7 @@ export default function WorkspaceClient({ id }: { id: string }) {
                                 className={cn(
                                     "w-full flex items-center gap-3 px-4 py-2.5 transition-all group relative rounded-lg",
                                     isActive
-                                        ? "text-primary bg-primary/10 shadow-[inset_0_0_0_1px_hsl(from_var(--primary)_h_s_l_/_0.1)]"
+                                        ? "text-primary bg-primary/10 shadow-[inset_0_0_0_1px_hsl(from_var(--primary)_h_s_l/0.1)]"
                                         : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                                 )}
                             >

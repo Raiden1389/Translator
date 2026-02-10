@@ -4,7 +4,7 @@ import { GlossaryCharacter, GlossaryTerm } from "../types";
 export interface TranslationResult {
     translatedText: string;
     translatedTitle?: string;
-    wasChunked?: boolean; // 🚀 New: Flag if chapter was split
+    wasChunked?: boolean;
     stats?: {
         terms: number;
         characters: number;
@@ -12,8 +12,8 @@ export interface TranslationResult {
             input: number;
             output: number;
             total: number;
-            system?: number;  // System instruction overhead
-            content?: number; // Actual story content
+            system?: number;
+            content?: number;
         };
     };
 }

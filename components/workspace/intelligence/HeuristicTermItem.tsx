@@ -67,7 +67,7 @@ export function HeuristicTermItem({ term, isScanning, onApprove, onDelete }: Heu
 
     return (
         <div className={cn(
-            "h-[72px] mb-2 rounded-[18px] flex items-center justify-between px-5 transition-all border group relative overflow-hidden",
+            "min-h-[80px] mb-2 rounded-[22px] flex items-center justify-between px-5 py-3 transition-all border group relative overflow-hidden",
             term.isApproved
                 ? "bg-emerald-500/10 border-emerald-500/20"
                 : "bg-card border-border hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 shadow-sm"
@@ -120,9 +120,18 @@ export function HeuristicTermItem({ term, isScanning, onApprove, onDelete }: Heu
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground/80 truncate italic">
-                        <span>{term.translated || "Chưa dịch..."}</span>
-                        <span className="text-[10px] opacity-30 not-italic">({term.pinyin || "..."})</span>
+                    <div className="flex flex-col text-sm font-bold text-muted-foreground/80 truncate italic">
+                        <div className="flex items-center gap-2">
+                            <span>{term.translated || "Chưa dịch..."}</span>
+                            {term.pinyin && term.pinyin.trim() !== "" && term.pinyin.trim() !== "..." && (
+                                <span className="text-[10px] opacity-30 not-italic">({term.pinyin.trim()})</span>
+                            )}
+                        </div>
+                        {term.description && (
+                            <p className="text-[11px] not-italic text-muted-foreground/50 font-medium mt-0.5 line-clamp-1 group-hover:line-clamp-none transition-all">
+                                {term.description}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>

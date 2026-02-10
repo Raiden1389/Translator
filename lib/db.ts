@@ -155,6 +155,8 @@ export interface HeuristicTerm {
     type: 'skill' | 'character' | 'location' | 'title' | 'unknown';
     confidence: number; // 0-100
     pinyin: string;
+    description?: string; // AI generated description/context
+    snippets?: string[];  // JSON array of context sentences
     isApproved: boolean;
     isGarbage?: boolean; // Added: Skip these terms in future scans
     occurrences: number;
@@ -241,6 +243,10 @@ db.version(104).stores({
 db.version(105).stores({
     uiPreferences: 'key' // Simple key-value store for UI preferences
 });
+
+// RAIDEN v2.0 - RELATIONSHIPS & HONORIFICS (v106)
+// (Table 'relationships' removed in v2.7.2)
+// ----------------------------------------------------------------------
 
 
 // ----------------------------------------------------------------------

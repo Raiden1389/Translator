@@ -4,7 +4,7 @@
  */
 
 import { HARD_BLACKLIST, BATTLE_FEEDBACK_MAP, STYLE_PRESSURE_MAP, MODERN_SLANG_MAP } from "../idioms";
-import { TITLE_RULE, CORE_RULES, VOICE_TONE_RULE, STRUCTURE_RULE } from "../constants";
+import { TITLE_RULE, CORE_RULES } from "../constants";
 
 export function buildExpandedCacheInstruction(
    customPrompt?: string,
@@ -23,10 +23,6 @@ Văn phong tiểu thuyết, không hiện đại hóa giọng.
 ${TITLE_RULE}
 
 ${CORE_RULES}
-
-${VOICE_TONE_RULE}
-
-${STRUCTURE_RULE}
 
 ## PRONOUN RULES (RAIDEN MODE - Fixed)
 **BẮT BUỘC:** 我→ta, 你→ngươi, 他→hắn, 她→nàng

@@ -1,4 +1,30 @@
+## [2.7.3] - 2026-02-10
+
+### 🎯 Translation Quality & Audit System
+- **v12.0 Heuristic Mechanics Rules**: Replaced abstract rules (POV LOCK) with concrete heuristic mechanics for Gemini 2.5 Flash.
+  - `SUBJECT_HEURISTIC_RULE`: Explicit conditions for calling main character's name (ĐƯỢC/CẤM).
+  - `ANTI_REFLEXIVE_RULE`: Forced substitution for abstract nouns, strict limits on "mình" usage.
+  - `OPENING_RULE`: Allows grammatically correct subject-less opening sentences.
+- **Audit Quality Feature**: Implemented automated translation quality audit system.
+  - Created `lib/gemini/translation/audit.ts` with 4-criteria checking (POV drop, name repetition, "mình" usage, subject ratio).
+  - Added purple "Audit Quality" button to Action Hub in ChapterListHeader.
+  - Created `AuditResultDialog` component for displaying detailed audit results.
+- **Quality Report**: Generated comprehensive markdown report (`docs/TRANSLATION_QUALITY_REPORT_v12.md`) documenting v12.0 effectiveness.
+  - Tested on Chapters 10, 11, 12 - all successful.
+  - Reduced "Bùi Khiêm" to 13-24 mentions/chapter (target: 20-22).
+  - Reduced "mình" to 2-10 mentions/chapter (excellent improvement).
+
+### 📦 Files Modified
+- `lib/gemini/constants.ts` - Updated CORE_RULES to v12.0
+- `lib/gemini/index.ts` - Removed obsolete VOICE_TONE_RULE and STRUCTURE_RULE exports
+- `lib/gemini/translation/audit.ts` - NEW: Audit script implementation
+- `components/workspace/shared/ChapterListHeader.tsx` - Added Audit Quality button
+- `components/workspace/chapter-list/ChapterList.tsx` - Added audit logic and handler
+- `components/workspace/chapter-list/AuditResultDialog.tsx` - NEW: Audit results dialog
+- `docs/TRANSLATION_QUALITY_REPORT_v12.md` - NEW: Comprehensive quality report
+
 ## [2.7.2] - 2026-02-10
+
 
 ### 🌓 macOS Dark Mode Implementation
 - **Full Semantic Token System**: Hoàn tất Phase 3 & 4 của kế hoạch Dark Mode.

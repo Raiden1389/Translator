@@ -7,7 +7,7 @@ import {
     Search, ChevronLeft, ChevronRight,
     FileText, LayoutGrid, LayoutList, Zap,
     Clock, ShieldCheck, Eraser, CaseSensitive,
-    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles
+    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles, ClipboardCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -61,6 +61,7 @@ interface ChapterListHeaderProps {
     onSelectRange?: (start: number, end: number) => void;
     onFixTitles?: () => void; // New: Fix Chinese characters in titles
     onFixTitleCase?: () => void; // NEW: Fix ALL CAPS titles
+    onAuditQuality?: () => void; // NEW: Audit translation quality
 }
 
 export function ChapterListHeader({
@@ -92,7 +93,8 @@ export function ChapterListHeader({
     processing,
     onSelectRange,
     onFixTitles,
-    onFixTitleCase
+    onFixTitleCase,
+    onAuditQuality
 }: ChapterListHeaderProps) {
     const [rangeValue, setRangeValue] = React.useState("");
     const tokenStats = useWorkspaceTokens(workspaceId);
@@ -411,6 +413,23 @@ export function ChapterListHeader({
                             </TooltipTrigger>
                             <TooltipContent side="bottom" className="text-[10px] font-bold">Sửa Title (Hán tự)</TooltipContent>
                         </Tooltip>
+
+                        {onAuditQuality && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-purple-500 hover:text-purple-600 transition-all active:scale-95 group disabled:opacity-50"
+                                        onClick={onAuditQuality}
+                                        disabled={processing || importing}
+                                    >
+                                        <ClipboardCheck className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-[10px] font-bold">Audit Quality</TooltipContent>
+                            </Tooltip>
+                        )}
 
                         <Tooltip>
                             <TooltipTrigger asChild>

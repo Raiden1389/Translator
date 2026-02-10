@@ -180,7 +180,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                 const batch = batches[i];
                 console.log(`📦 [BATCH ${i + 1}/${batches.length}] ${batch.length} chapters`);
                 batch.forEach(ch => queue.updateStatus(ch.id!, 'processing'));
-                const batchPrompt = await buildBatchPrompt(batch, {
+                const { systemInstruction, userPrompt } = await buildBatchPrompt(batch, {
                     customPrompt: translateConfig.customPrompt,
                     workspaceId
                 });
@@ -196,15 +196,18 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash-preview-09-2025";
 
                     const result = await translateBatch(
-                        batchPrompt,
+                        userPrompt,
                         batch,
                         aiModel,
+                        workspaceId,
                         (msg: string) => console.log(`[BATCH ${i + 1}] ${msg}`),
                         translateConfig.enableChunking,
                         translateConfig.chunkSize || 8000,
                         translateConfig.maxConcurrentChunks || 5,
                         translateConfig.enableThinking,
-                        translateConfig.thinkingLevel
+                        translateConfig.thinkingLevel,
+                        systemInstruction,
+                        translateConfig.customPrompt
                     );
 
                     console.log(`✅ [BATCH ${i + 1}] API returned ${result.chapters.length} chapters`);
@@ -222,9 +225,38 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                             thinking: Math.floor((result.stats.thinkingTokens || 0) / batch.length)
                         };
 
+                        // --- Title Normalization (Sync with Single Mode) ---
+                        let finalTitle = translatedChapter.title_translated || originalChapter.title || "";
+
+                        // Clean AI tags and markers
+                        finalTitle = finalTitle
+                            .replace(/^\[?TIÊU ĐỀ\]?:?\s*/i, "")
+                            .replace(/^Tiêu đề:?\s*/i, "")
+                            .replace(/^Title:?\s*/i, "")
+                            .replace(/[#*]/g, "")
+                            .trim();
+
+                        const chapterMatch = (originalChapter.title || "").match(/(?:第|Chapter|Chương|Episode|Tiết|Quyển)\s*(\d+)/i);
+
+                        if (chapterMatch) {
+                            const chapterNum = chapterMatch[1];
+                            const chapterPrefix = `Chương ${chapterNum}`;
+
+                            // Clean redundancy
+                            const cleanTitleBody = finalTitle
+                                .replace(new RegExp(`^${chapterPrefix}[:\\s-]*`, 'i'), "")
+                                .replace(new RegExp(`^Chapter\\s*${chapterNum}[:\\s-]*`, 'i'), "")
+                                .replace(new RegExp(`^第\\s*${chapterNum}\\s*章[:\\s-]*`, 'i'), "")
+                                .trim();
+
+                            finalTitle = cleanTitleBody
+                                ? `${chapterPrefix}: ${cleanTitleBody.charAt(0).toUpperCase() + cleanTitleBody.slice(1)}`
+                                : chapterPrefix;
+                        }
+
                         await db.chapters.update(originalChapter.id!, {
                             content_translated: translatedChapter.content_translated,
-                            title_translated: translatedChapter.title_translated,
+                            title_translated: finalTitle, // Use normalized title
                             status: 'translated',
                             lastTranslatedAt: new Date(),
                             stats: {
@@ -337,9 +369,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                         translateChapter,
                         onLog,
                         {
-                            enabled: true,
-                            maxConcurrent: translateConfig.maxConcurrentChunks || 3,
-                            maxCharsPerChunk: translateConfig.chunkSize || 1000,
+                            enabled: translateConfig.enableChunking, // 🛡️ ÉP CHÚ: Phải truyền biến này vào!
+                            maxCharsPerChunk: translateConfig.chunkSize || 8000,
+                            maxConcurrent: translateConfig.maxConcurrentChunks || 5,
                             onProgress: (current, total) => {
                                 // Update progress state with chunk info
                                 progress.updateChapterProgress(chapter.id!, {
@@ -354,7 +386,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                                     message: `📦 Đang dịch chunk ${current}/${total}...`,
                                     type: 'info'
                                 });
-                            }
+                            },
+                            enableThinking: translateConfig.enableThinking,
+                            thinkingLevel: translateConfig.thinkingLevel,
                         },
                         finalPrompt,
                         sharedGlossary
@@ -369,8 +403,8 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                             (res) => resolve(res as TranslationResult),
                             finalPrompt,
                             sharedGlossary,
-                            undefined,  // enableThinking (legacy, deprecated)
-                            translateConfig.thinkingLevel  // 🧠 Pass thinking level for Gemini 3.0
+                            translateConfig.enableThinking,
+                            translateConfig.thinkingLevel
                         ).catch(reject);
                     });
                 }

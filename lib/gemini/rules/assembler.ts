@@ -1,8 +1,8 @@
 /**
  * DYNAMIC PROMPT ASSEMBLER v2.2 (Enhanced Quality Rules)
  */
-import { CORE_RULES, TITLE_RULE, IDIOM_RULE, TOP_BLACKLIST, BATTLE_RULE, EMOTION_RULE, DIALOGUE_RULE } from "../constants";
-import { IDIOM_SYSTEM_RULE, STYLE_PRESSURE_MAP, BATTLE_FEEDBACK_MAP } from "../idioms";
+import { buildSystemInstruction } from "../constants";
+import { STYLE_PRESSURE_MAP, BATTLE_FEEDBACK_MAP } from "../idioms";
 
 export interface HeuristicAnalysis {
     isCombat: boolean;
@@ -70,13 +70,11 @@ export function assembleSystemInstruction(
     customInstruction?: string,
     originalText?: string // New optional param for smart filtering
 ): string {
-    // Use custom instruction if provided, otherwise use default base style
-    const baseStyle = customInstruction || "Dịch giả tiểu thuyết Trung-Việt. Thoát ý, mượt mà.";
+    // 🛡️ SYNC: Use the central builder to ensure Title and Format rules are applied
+    const baseInstruction = buildSystemInstruction(customInstruction, glossaryContext, false);
 
     // Smart Idioms injection
     const relevantIdioms = originalText ? getRelevantIdioms(originalText) : "";
 
-    // Priority: Title Rule (#1) -> Glossary -> Base Style -> Core Rules -> Quality Rules -> Idioms
-    // Quality Rules: Blacklist, Battle, Emotion, Dialogue, Idiom handling
-    return `${TITLE_RULE}\n${glossaryContext}\n${baseStyle}\n${CORE_RULES}\n${TOP_BLACKLIST}\n${BATTLE_RULE}\n${EMOTION_RULE}\n${DIALOGUE_RULE}\n${IDIOM_RULE}\n${IDIOM_SYSTEM_RULE}${relevantIdioms}`;
+    return `${baseInstruction}\n${relevantIdioms}`;
 }

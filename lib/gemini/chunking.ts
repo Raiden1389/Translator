@@ -7,7 +7,7 @@ import pLimit from "p-limit";
  * Split text into BALANCED chunks by paragraph boundaries
  */
 export function splitByParagraph(text: string, maxCharsPerChunk: number): string[] {
-    if (text.length <= maxCharsPerChunk * 1.1) return [text];
+    if (text.length <= maxCharsPerChunk) return [text];
 
     // 1. Identify all possible break points (single or double newlines)
     const paragraphs = text.split(/\n+/).filter(p => p.trim().length > 0);
@@ -51,31 +51,10 @@ export async function shouldUseChunking(text: string): Promise<ChunkOptions> {
     const chunkSizeSetting = await db.settings.get("chunkSize");
     const maxConcurrentSetting = await db.settings.get("maxConcurrentChunks");
 
-    let enabled = chunkingSetting?.value === true || chunkingSetting?.value === "true";
+    const enabled = chunkingSetting?.value === true || chunkingSetting?.value === "true";
 
-    // AUTO-DISABLE chunking when using OAuth
-    // Reason: OAuth has RPH limit (80 req/hour) → chunking creates bottleneck
-    // With 5 chunks/chapter: only 16 chapters/hour vs 80 chapters/hour without chunking
-    if (enabled) {
-        try {
-            // Check if we're using OAuth (no API keys available)
-            const apiKeySetting = await db.settings.get("geminiApiKey");
-            const apiKeyPoolSetting = await db.settings.get("geminiApiKeyPool");
-
-            const hasApiKey = !!apiKeySetting?.value;
-            const hasKeyPool = apiKeyPoolSetting?.value &&
-                Array.isArray(apiKeyPoolSetting.value) &&
-                apiKeyPoolSetting.value.length > 0;
-
-            // If no API keys → using OAuth → disable chunking
-            if (!hasApiKey && !hasKeyPool) {
-                enabled = false;
-                console.log("🔄 Auto-disabled chunking for OAuth (avoiding RPH bottleneck)");
-            }
-        } catch (error) {
-            console.warn("Failed to check OAuth status for chunking:", error);
-        }
-    }
+    // 🛡️ OAUTH BYPASS: Đã xóa bỏ logic tự động disable theo lệnh Tông chủ.
+    // Chunking sẽ luôn hoạt động theo ý muốn của Sếp.
 
     // DEFAULT to 1100 chars per chunk (optimized for 2.5k chapters = 3 chunks)
     const maxCharsPerChunk = parseInt((chunkSizeSetting?.value as string) || "1100");
@@ -94,9 +73,20 @@ export async function shouldUseChunking(text: string): Promise<ChunkOptions> {
 export async function translateSingleChunk(
     workspaceId: string,
     chunk: string,
-    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[]) => Promise<void>,
+    translateFn: (
+        workspaceId: string,
+        text: string,
+        onLog: (log: TranslationLog) => void,
+        onSuccess: (result: TranslationResult) => void,
+        customInstruction?: string,
+        sharedGlossary?: DictionaryEntry[],
+        enableThinking?: boolean,
+        thinkingLevel?: "minimal" | "low" | "medium" | "high"
+    ) => Promise<void>,
     customInstruction?: string,
-    sharedGlossary?: DictionaryEntry[]
+    sharedGlossary?: DictionaryEntry[],
+    enableThinking?: boolean,
+    thinkingLevel?: "minimal" | "low" | "medium" | "high"
 ): Promise<TranslationResult> {
     // Direct translation without cache
     return new Promise((resolve, reject) => {
@@ -106,7 +96,9 @@ export async function translateSingleChunk(
             () => { },  // Ignore logs for individual chunks
             (result) => resolve(result),
             customInstruction,
-            sharedGlossary
+            sharedGlossary,
+            enableThinking,
+            thinkingLevel
         ).catch(reject);
     });
 }
@@ -117,25 +109,64 @@ export async function translateSingleChunk(
 export async function translateWithChunking(
     workspaceId: string,
     text: string,
-    translateFn: (workspaceId: string, text: string, onLog: (log: TranslationLog) => void, onSuccess: (result: TranslationResult) => void, customInstruction?: string, sharedGlossary?: DictionaryEntry[]) => Promise<void>,
+    translateFn: (
+        workspaceId: string,
+        text: string,
+        onLog: (log: TranslationLog) => void,
+        onSuccess: (result: TranslationResult) => void,
+        customInstruction?: string,
+        sharedGlossary?: DictionaryEntry[],
+        enableThinking?: boolean,
+        thinkingLevel?: "minimal" | "low" | "medium" | "high"
+    ) => Promise<void>,
     onLog: (log: TranslationLog) => void,
-    options?: Partial<ChunkOptions> & { onProgress?: (current: number, total: number) => void },
+    options?: Partial<ChunkOptions> & {
+        onProgress?: (current: number, total: number) => void,
+        enableThinking?: boolean,
+        thinkingLevel?: "minimal" | "low" | "medium" | "high"
+    },
     customInstruction?: string,
     sharedGlossary?: DictionaryEntry[]
 ): Promise<TranslationResult> {
     const dbOptions = await shouldUseChunking(text);
-    const finalOptions = { ...dbOptions, ...options };
+
+    // 🛡️ CRITICAL: Ưu tiên settings từ Dialog (Sếp chỉnh) lên hàng đầu
+    const finalOptions = {
+        ...dbOptions,
+        ...options,
+        enabled: options?.enabled !== undefined ? options.enabled : dbOptions.enabled
+    };
+
+    // Nếu Sếp đã bật và text vượt quá giới hạn -> BẮT BUỘC chẻ!
+    if (finalOptions.enabled && text.length > (finalOptions.maxCharsPerChunk || 8000)) {
+        finalOptions.enabled = true;
+    }
+
+    // Force enable if text is longer than size and UI explicitly requested it
+    const threshold = finalOptions.maxCharsPerChunk || 8000;
+    if (options?.enabled && text.length > threshold) {
+        finalOptions.enabled = true;
+    }
 
     // If chunking disabled or text too short, use normal translation
     if (!finalOptions.enabled) {
         return new Promise((resolve, reject) => {
-            translateFn(workspaceId, text, onLog, (res) => {
-                // ABSOLUTE FINAL SWEEP: Quét cửa lúc đi ra
-                res.translatedText = finalSweep(res.translatedText);
-                if (res.translatedTitle) res.translatedTitle = finalSweep(res.translatedTitle);
-                res.wasChunked = false; // No chunking happened
-                resolve(res);
-            }, customInstruction, sharedGlossary).catch(reject);
+            translateFn(
+                workspaceId,
+                text,
+                onLog,
+                (res) => {
+                    // ABSOLUTE FINAL SWEEP: Quét cửa lúc đi ra
+                    res.translatedText = finalSweep(res.translatedText);
+                    if (res.translatedTitle) res.translatedTitle = finalSweep(res.translatedTitle);
+                    res.wasChunked = false; // No chunking happened
+                    resolve(res);
+                },
+                customInstruction,
+                sharedGlossary,
+                finalOptions.enableThinking,
+                finalOptions.thinkingLevel
+            ).catch(reject);
         });
     }
 
@@ -161,7 +192,22 @@ export async function translateWithChunking(
                 finalOptions.onProgress?.(index + 1, chunks.length);
 
                 try {
-                    const res = await translateSingleChunk(workspaceId, chunk, translateFn, customInstruction, sharedGlossary);
+                    // 🛡️ CONTINUITY: Only the first chunk should handle the title
+                    let chunkInstruction = customInstruction;
+                    if (index > 0) {
+                        const continuityNote = "\n[CHÚ Ý: Đây là đoạn nối tiếp, KHÔNG dịch lại tiêu đề, KHÔNG thêm giải thích, chỉ dịch tiếp nội dung].";
+                        chunkInstruction = (customInstruction || "") + continuityNote;
+                    }
+
+                    const res = await translateSingleChunk(
+                        workspaceId,
+                        chunk,
+                        translateFn,
+                        chunkInstruction,
+                        sharedGlossary,
+                        finalOptions.enableThinking,
+                        finalOptions.thinkingLevel
+                    );
                     return res;
                 } catch (err) {
                     console.error(`❌ [${batchId}] Chunk ${index + 1} thất bại:`, err);

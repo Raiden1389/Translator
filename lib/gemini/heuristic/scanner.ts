@@ -115,6 +115,7 @@ export async function scanWorkspaceHeuristics(
             occurrences: number;
             reason: string;
             hasVerbContext: boolean;
+            snippets: string[];
         }> = new Map();
 
         let processed = 0;
@@ -139,13 +140,40 @@ export async function scanWorkspaceHeuristics(
                     if (existing) {
                         existing.occurrences += c.occurrences;
                         if (c.metadata?.flags?.hasVerbContext) existing.hasVerbContext = true;
+
+                        // ✅ Collect up to 3 snippets for character-context (v2.0)
+                        if (existing.snippets.length < 3 && existing.type === 'character') {
+                            const index = chapter.content_original.indexOf(c.original);
+                            if (index !== -1) {
+                                const start = Math.max(0, index - 80);
+                                const end = Math.min(chapter.content_original.length, index + c.original.length + 80);
+                                const snippet = chapter.content_original.substring(start, end)
+                                    .replace(/\r?\n|\r/g, ' ') // Flatten newlines
+                                    .trim();
+                                existing.snippets.push(`...${snippet}...`);
+                            }
+                        }
                     } else {
+                        const snippets: string[] = [];
+                        if (c.type === 'character') {
+                            const index = chapter.content_original.indexOf(c.original);
+                            if (index !== -1) {
+                                const start = Math.max(0, index - 80);
+                                const end = Math.min(chapter.content_original.length, index + c.original.length + 80);
+                                const snippet = chapter.content_original.substring(start, end)
+                                    .replace(/\r?\n|\r/g, ' ')
+                                    .trim();
+                                snippets.push(`...${snippet}...`);
+                            }
+                        }
+
                         rawMap.set(c.original, {
                             original: c.original,
                             type: c.type as string,
                             occurrences: c.occurrences,
                             reason: c.reason,
-                            hasVerbContext: c.metadata?.flags?.hasVerbContext || false
+                            hasVerbContext: c.metadata?.flags?.hasVerbContext || false,
+                            snippets: snippets
                         });
                     }
                 });
@@ -292,6 +320,8 @@ export async function scanWorkspaceHeuristics(
                 type: raw.type as 'character' | 'skill' | 'location' | 'title' | 'unknown',
                 confidence: resolution.score,
                 pinyin: '',
+                description: '',
+                snippets: raw.snippets, // ✅ Preserving snippets for Refiner (v2.0)
                 isApproved: false,
                 isGarbage: false,
                 occurrences: raw.occurrences,

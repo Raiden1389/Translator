@@ -27,12 +27,15 @@ export async function translateBatch(
   batchPrompt: string,
   originalChapters: Chapter[],
   aiModel: string,
+  workspaceId: string,
   onLog: (msg: string) => void,
   enableChunking: boolean = false,
   maxCharsPerChunk: number = 8000,
   maxConcurrentChunks: number = 5,
   enableThinking?: boolean,
-  thinkingLevel?: "minimal" | "low" | "medium" | "high"
+  thinkingLevel?: "minimal" | "low" | "medium" | "high",
+  systemInstruction?: string,
+  customPrompt?: string // NEW: Pass customPrompt through
 ): Promise<BatchTranslationResult> {
 
   // 🎯 BATCH MODE PRESET: Auto-adjust chunking for batch translation
@@ -90,15 +93,15 @@ export async function translateBatch(
 
       // Rebuild batch prompt for this chunk
       const { buildBatchPrompt } = await import('./batch');
-      const chunkPrompt = await buildBatchPrompt(chunk, {
-        customPrompt: '', // Extract from original prompt if needed
-        workspaceId: '' // Not needed for rebuild
+      const { systemInstruction: chunkSI, userPrompt } = await buildBatchPrompt(chunk, {
+        customPrompt: customPrompt || '', // FIX: Use original customPrompt
+        workspaceId,
       });
 
-      onLog(`📦 Chunk ${i + 1} prompt size: ${chunkPrompt.length} chars`);
+      onLog(`📦 Chunk ${i + 1} prompt size: ${userPrompt.length} chars`);
 
       // Call API for this chunk
-      return await translateBatchSingle(chunkPrompt, chunk, aiModel, onLog, enableThinking, thinkingLevel);
+      return await translateBatchSingle(userPrompt, chunk, aiModel, onLog, enableThinking, thinkingLevel, chunkSI);
     });
 
     // Wait for all chunks to complete
@@ -136,7 +139,20 @@ export async function translateBatch(
   }
 
   // Single batch call (no chunking)
-  return await translateBatchSingle(batchPrompt, originalChapters, aiModel, onLog, enableThinking, thinkingLevel);
+  // If systemInstruction not provided, build it (fallback)
+  if (systemInstruction) {
+    return await translateBatchSingle(batchPrompt, originalChapters, aiModel, onLog, enableThinking, thinkingLevel, systemInstruction);
+  }
+
+  const { systemInstruction: builtSystem, userPrompt } = await (async () => {
+    const { buildBatchPrompt } = await import('./batch');
+    return await buildBatchPrompt(originalChapters, {
+      workspaceId,
+      customPrompt: customPrompt // Ensure customPrompt is used
+    });
+  })();
+
+  return await translateBatchSingle(userPrompt, originalChapters, aiModel, onLog, enableThinking, thinkingLevel, builtSystem);
 }
 
 async function translateBatchSingle(
@@ -145,7 +161,8 @@ async function translateBatchSingle(
   aiModel: string,
   onLog: (msg: string) => void,
   enableThinking?: boolean,
-  thinkingLevel?: "minimal" | "low" | "medium" | "high"
+  thinkingLevel?: "minimal" | "low" | "medium" | "high",
+  systemInstruction: string = ""
 ): Promise<BatchTranslationResult> {
   // Call API with adaptive tokens
   const adaptiveResult = await withAdaptiveTokens(
@@ -155,7 +172,7 @@ async function translateBatchSingle(
       return await withKeyRotation<GeminiResponse>(
         {
           model: aiModel.trim(),
-          systemInstruction: "", // Already in prompt
+          systemInstruction: systemInstruction, // Using the dedicated systemInstruction field!
           prompt: batchPrompt,
           generationConfig: {
             temperature: 0.1,
@@ -203,7 +220,7 @@ async function translateBatchSingle(
 
   // Parse batch response
   onLog(`📝 Parsing batch response...`);
-  const translatedChapters = parseBatchResponse(rawText, originalChapters);
+  const parsed = parseBatchResponse(rawText, originalChapters);
 
   // Calculate stats
   const metadata = rawResult.usageMetadata || {};
@@ -218,7 +235,7 @@ async function translateBatchSingle(
   onLog(`✅ Batch translation complete! [${stats.inputTokens}i + ${stats.outputTokens}o = ${stats.totalTokens}t]`);
 
   return {
-    chapters: translatedChapters,
+    chapters: parsed.chapters,
     stats
   };
 }

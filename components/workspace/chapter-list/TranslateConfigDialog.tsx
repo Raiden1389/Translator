@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Edit, X, Save, ChevronDown, Zap, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
@@ -55,7 +54,7 @@ export const DEFAULT_TRANSLATION_CONFIG: TranslationConfig = {
     thinkingLevel: "minimal",
     enableBatch: false, // Disabled by default
     batchSize: 3, // 3 chapters per batch (empirical sweet spot)
-    maxCharsPerBatch: 25000 // 25K chars (empirical sweet spot)
+    maxCharsPerBatch: 25000, // 25K chars (empirical sweet spot)
 };
 
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
@@ -74,7 +73,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         thinkingLevel: "minimal", // Default: Minimal to save cost
         enableBatch: false,
         batchSize: 3,
-        maxCharsPerBatch: 25000
+        maxCharsPerBatch: 25000,
     });
     const [savedPrompts, setSavedPrompts] = useState<{ id?: number, title: string, content: string }[]>([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -125,7 +124,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                 temperature: (lastTemperature?.value as number) ?? 0.1,
                 enableBatch: (lastEnableBatch?.value as boolean) || false,
                 batchSize: (lastBatchSize?.value as number) || 3,
-                maxCharsPerBatch: (lastMaxCharsPerBatch?.value as number) || 25000
+                maxCharsPerBatch: (lastMaxCharsPerBatch?.value as number) || 25000,
             }));
             setSavedPrompts(prompts);
         };
@@ -315,6 +314,7 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                             />
                         </div>
                     )}
+
 
                     {/* Custom Prompt - Collapsible */}
                     <div className="space-y-3 p-4 bg-muted/20 rounded-xl border border-border">

@@ -6,7 +6,6 @@ import {
     UserCircle2,
     Wrench,
     ShieldAlert,
-    Settings2,
     ArrowLeft,
     Compass,
     BrainCircuit
