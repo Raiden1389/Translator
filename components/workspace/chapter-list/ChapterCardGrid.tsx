@@ -26,6 +26,7 @@ interface ChapterCardGridProps {
     onSelect: (id: number, shiftKey?: boolean) => void;
     onRead: (id: number) => void;
     onInspect: (id: number) => void;
+    onRetranslate: (id: number) => void;
     onClearTranslation: (id: number) => void;
     onImport?: () => void;
     lastReadChapterId?: number;
@@ -37,6 +38,7 @@ export const ChapterCardGrid = React.memo(function ChapterCardGrid({
     onSelect,
     onRead,
     onInspect,
+    onRetranslate,
     onClearTranslation,
     onImport,
     lastReadChapterId

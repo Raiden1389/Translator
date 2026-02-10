@@ -29,6 +29,7 @@ import { useWorkspaceShortcuts } from "../hooks/useWorkspaceShortcuts";
 import { DEFAULT_TRANSLATION_CONFIG } from "./TranslateConfigDialog";
 import { AuditResultDialog } from "./AuditResultDialog";
 import { auditTranslation, type AuditResult } from "@/lib/gemini/translation/audit";
+import { migrateModelId, DEFAULT_MODEL } from "@/lib/ai-models";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -112,6 +113,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const {
         handleExport,
         handleInspect,
+        handleRetranslate,
         handleClearTranslation,
         handleBulkClearTranslation,
         handleBulkDelete,
@@ -281,6 +283,70 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 handleSelect={handleSelect}
                 handleRead={handleRead}
                 handleInspect={handleInspect}
+                handleRetranslate={async (id) => {
+                    console.log('[ChapterList] handleRetranslate called for ID:', id);
+                    if (!workspace) {
+                        console.error('[ChapterList] No workspace found!');
+                        return;
+                    }
+                    await handleRetranslate(id, async (ids) => {
+                        console.log('[ChapterList] translateFn called with IDs:', ids);
+                        // Load current settings from IndexedDB (same as TranslateConfigDialog)
+                        const key = await db.settings.get("apiKey");
+                        const model = await db.settings.get("model");
+                        const lastPrompt = await db.settings.get("customPrompt");
+                        const lastConcurrency = await db.settings.get("maxConcurrency");
+                        const lastFixPunctuation = await db.settings.get("fixPunctuation");
+                        const lastEnableChunking = await db.settings.get("enableChunking");
+                        const lastEnableTurbo = await db.settings.get("enableTurbo");
+                        const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
+                        const lastChunkSize = await db.settings.get("chunkSize");
+                        const lastTemperature = await db.settings.get("temperature");
+                        const lastEnableBatch = await db.settings.get("enableBatch");
+                        const lastBatchSize = await db.settings.get("batchSize");
+                        const lastMaxCharsPerBatch = await db.settings.get("maxCharsPerBatch");
+
+                        const currentSettings: TranslationSettings = {
+                            apiKey: (key?.value as string) || '',
+                            model: migrateModelId((model?.value as string) || DEFAULT_MODEL),
+                            temperature: (lastTemperature?.value as number) ?? 0.1,
+                        };
+
+                        const translateConfig = {
+                            customPrompt: (lastPrompt?.value as string) || "",
+                            autoExtract: false,
+                            maxConcurrency: (lastConcurrency?.value as number) || 5,
+                            fixPunctuation: (lastFixPunctuation?.value as boolean) || false,
+                            enableChunking: (lastEnableChunking?.value as boolean) || false,
+                            enableTurbo: lastEnableTurbo ? (lastEnableTurbo.value as boolean) : true,
+                            maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
+                            chunkSize: (lastChunkSize?.value as number) || 800,
+                            temperature: (lastTemperature?.value as number) ?? 0.1,
+                            enableBatch: (lastEnableBatch?.value as boolean) || false,
+                            batchSize: (lastBatchSize?.value as number) || 3,
+                            maxCharsPerBatch: (lastMaxCharsPerBatch?.value as number) || 25000,
+                        };
+
+                        // 🔥 CRITICAL: Reload chapters from DB to get fresh data after clear
+                        // Without reload, `filtered` still has old content_translated
+                        // → TranslationProvider filters it out → No translation happens
+                        const freshChapters = await db.chapters
+                            .where('workspaceId')
+                            .equals(workspaceId)
+                            .toArray();
+
+                        console.log('[ChapterList] Calling onTranslate with settings:', currentSettings, translateConfig);
+                        onTranslate({
+                            workspaceId,
+                            chapters: freshChapters, // Use fresh data from DB
+                            selectedChapters: ids,
+                            currentSettings,
+                            translateConfig,
+                            onReviewNeeded: (chars, terms) => onShowScanResults({ chars, terms }),
+                        });
+                        console.log('[ChapterList] onTranslate called successfully');
+                    });
+                }}
                 handleClearTranslation={handleClearTranslation}
                 handleApplyCorrections={handleApplyCorrections}
                 fileInputRef={fileInputRef}

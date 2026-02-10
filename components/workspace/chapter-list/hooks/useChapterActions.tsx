@@ -124,9 +124,38 @@ export function useChapterActions({ workspaceId, selectedChapters, filtered, set
     }
   };
 
+  // NEW: Retranslate chapter (clear + translate)
+  const handleRetranslate = async (id: number, translateFn?: (ids: number[]) => Promise<void>) => {
+    const chapter = await db.chapters.get(id);
+    if (!chapter) {
+      return toast.error("Chương không tồn tại.");
+    }
+
+    if (!chapter.content_translated) {
+      return toast.error("Chương này chưa dịch. Hãy dịch lần đầu trước.");
+    }
+
+    if (!translateFn) {
+      return toast.error("Chức năng dịch chưa sẵn sàng.");
+    }
+
+    try {
+      // Clear translation first
+      await clearChapterTranslation(id);
+
+      // Then trigger translation
+      toast.success(`Đang dịch lại: ${chapter.title}...`);
+      await translateFn([id]);
+    } catch (error) {
+      console.error("Retranslate error:", error);
+      toast.error("Lỗi khi dịch lại chương.");
+    }
+  };
+
   return {
     handleExport,
     handleInspect,
+    handleRetranslate,
     handleClearTranslation,
     handleBulkClearTranslation,
     handleBulkDelete,

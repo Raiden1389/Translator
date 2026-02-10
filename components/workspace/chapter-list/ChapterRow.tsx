@@ -3,7 +3,7 @@
 import React from "react";
 import { CheckboxNative } from "@/components/ui/checkbox-native";
 import { Button } from "@/components/ui/button";
-import { Trash2, Book, Zap, Clock, CheckCircle2, Loader2, Eraser } from "lucide-react";
+import { Trash2, Book, Zap, Clock, CheckCircle2, Loader2, Eraser, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EditableTitle } from "./EditableTitle";
@@ -32,6 +32,7 @@ interface ChapterRowProps {
     onRead: (id: number) => void;
     onDelete: (id: number) => void;
     onInspect: (id: number) => void;
+    onRetranslate: (id: number) => void;
     onClearTranslation: (id: number) => void;
     index: number;
 }
@@ -57,6 +58,7 @@ export const ChapterRow = React.memo(function ChapterRow({
     onRead,
     onDelete,
     onInspect,
+    onRetranslate,
     onClearTranslation,
     queueStatus,
     index
@@ -104,6 +106,12 @@ export const ChapterRow = React.memo(function ChapterRow({
         e.stopPropagation();
         onInspect(id);
     }, [id, onInspect]);
+
+    const handleRetranslateClick = React.useCallback((e: React.MouseEvent) => {
+        console.log('[ChapterRow] Retranslate clicked for ID:', id);
+        e.stopPropagation();
+        onRetranslate(id);
+    }, [id, onRetranslate]);
 
     const handleClearClick = React.useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -233,6 +241,23 @@ export const ChapterRow = React.memo(function ChapterRow({
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent>Soi lỗi logic/dịch thuật bằng AI</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                "h-7 w-7 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10",
+                                !isTranslated && "opacity-30 cursor-not-allowed"
+                            )}
+                            onClick={handleRetranslateClick}
+                            disabled={!isTranslated}
+                        >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Dịch lại chương này</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>

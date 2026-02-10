@@ -12,6 +12,8 @@ import {
 import { aiQueue } from "@/lib/services/ai-queue";
 import type { Chapter } from "@/lib/db";
 import { cleanHtmlContent, sanitizeTranslatedContent } from "@/lib/utils/text-sanitizer";
+import { normalizeTitleCase } from "@/lib/utils/title-normalizer";
+
 
 // Import new hooks
 import { useTranslationQueue } from "./useTranslationQueue";
@@ -161,6 +163,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
             .sort((a, b) => b.original.length - a.original.length)
             .slice(0, 100);
 
+        // 🔒 FREEZE to prevent accidental mutations (defense in depth)
+        Object.freeze(sharedGlossary);
+
         console.log(`[GLOSSARY] Loaded ${dict.length} dict + ${heuristicTerms.length} heuristic = ${sharedGlossary.length} final terms`);
 
         // 2. Check batch mode
@@ -253,6 +258,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                                 ? `${chapterPrefix}: ${cleanTitleBody.charAt(0).toUpperCase() + cleanTitleBody.slice(1)}`
                                 : chapterPrefix;
                         }
+
+                        // 🔥 CRITICAL: Normalize title case (fix ALL CAPS / Title Case from AI)
+                        finalTitle = normalizeTitleCase(finalTitle);
 
                         await db.chapters.update(originalChapter.id!, {
                             content_translated: translatedChapter.content_translated,

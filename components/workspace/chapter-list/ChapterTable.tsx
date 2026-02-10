@@ -37,6 +37,7 @@ interface ChapterTableProps {
     // Actions
     onRead: (id: number) => void;
     onInspect: (id: number) => void;
+    onRetranslate: (id: number) => void;
     onClearTranslation: (id: number) => void;
     onApplyCorrections: () => void;
     lastReadChapterId?: number;
@@ -46,7 +47,7 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
     const {
         chapters, selectedChapters, queueState, setSelectedChapters, onSelect,
         onSelectPage, onSelectGlobal, onDeselectAll,
-        onRead, onInspect, onClearTranslation, onApplyCorrections,
+        onRead, onInspect, onRetranslate, onClearTranslation, onApplyCorrections,
         lastReadChapterId
     } = props;
 
@@ -158,6 +159,7 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
                                     onRead={onRead}
                                     onDelete={(id) => setDeleteId(id)}
                                     onInspect={onInspect}
+                                    onRetranslate={onRetranslate}
                                     onClearTranslation={onClearTranslation}
                                 />
                             </div>

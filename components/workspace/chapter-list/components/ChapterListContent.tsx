@@ -17,6 +17,7 @@ interface ChapterListContentProps {
   handleSelect: (id: number) => void;
   handleRead: (id: number) => void;
   handleInspect: (id: number) => void;
+  handleRetranslate: (id: number) => void;
   handleClearTranslation: (id: number) => void;
   handleApplyCorrections: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -32,6 +33,7 @@ export function ChapterListContent({
   handleSelect,
   handleRead,
   handleInspect,
+  handleRetranslate,
   handleClearTranslation,
   handleApplyCorrections,
   fileInputRef
@@ -46,6 +48,7 @@ export function ChapterListContent({
           onSelect={handleSelect}
           onRead={handleRead}
           onInspect={handleInspect}
+          onRetranslate={handleRetranslate}
           onClearTranslation={handleClearTranslation}
           onImport={() => fileInputRef.current?.click()}
         />
@@ -65,6 +68,7 @@ export function ChapterListContent({
           onDeselectAll={() => setSelectedChapters([])}
           onRead={handleRead}
           onInspect={handleInspect}
+          onRetranslate={handleRetranslate}
           onClearTranslation={handleClearTranslation}
           onApplyCorrections={handleApplyCorrections}
         />

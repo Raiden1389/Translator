@@ -28,8 +28,11 @@ export async function buildGlossary(
     let relevantDict: DictionaryEntry[] = [];
 
     if (sharedGlossary && sharedGlossary.length > 0) {
-        // Use shared glossary (for batch translation)
-        relevantDict = sharedGlossary;
+        // 🔥 CRITICAL: DEEP CLONE to prevent race condition in concurrent requests
+        // Without clone, all 10 concurrent requests share the SAME array reference
+        // → Mutation in one request affects all others → POV contamination
+        // structuredClone ensures complete immutability (nested objects too)
+        relevantDict = structuredClone(sharedGlossary);
     } else {
         // 🔥 2-LAYER DICTIONARY SYSTEM
         // Layer 1: Manual Dictionary (Highest priority - user control)
