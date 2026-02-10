@@ -1,3 +1,13 @@
+## [2.7.5] - 2026-02-11
+
+### 👺 The C³ Purge (Cross-Chunk Character Contamination)
+- **Eliminated Character Hijacking**: Fixed deterministic bug where AI substituted POV with minor characters during concurrent translation.
+  - **Double-Layer Isolation**: Added mandatory secondary filtering of glossary against specific chapter text to prevent "Ghost Characters" leakage.
+  - **Saliency Priority Sorting**: Updated glossary sorting to prioritize **Character Type > Mention Frequency (Occurrences) > String Length**.
+  - **Main Character Semantic Tagging**: Automatically adds `(Main)` label to the top protagonist in the prompt context.
+  - **Prompt Structure Optimization**: Moved Glossary to the very end of System Instruction for maximum saliency and model focus.
+- **Rules v12.1**: Added explicit `[PHÂN VAI]` protocol to CORE_RULES to enforce character hierarchy.
+
 ## [2.7.4] - 2026-02-11
 
 ### 🐛 Critical Bug Fixes
