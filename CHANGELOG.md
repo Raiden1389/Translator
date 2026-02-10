@@ -1,4 +1,32 @@
+## [2.7.4] - 2026-02-11
+
+### 🐛 Critical Bug Fixes
+- **Race Condition in Concurrent Translation**: Fixed critical bug causing POV character contamination when translating ≥15 chapters.
+  - Root cause: `sharedGlossary` array was shared by reference across concurrent requests
+  - Solution: Added `structuredClone()` for deep copy per request + `Object.freeze()` to prevent mutations
+  - Impact: Prevents AI from incorrectly substituting main character names (e.g., "Bùi Khiêm" → "Hoàng Tư Bác")
+- **Title Normalization**: Auto-fix ALL CAPS and Title Case issues in chapter titles.
+  - Created `lib/utils/title-normalizer.ts` with smart detection
+  - Only normalizes body after colon to preserve proper nouns
+  - Avoids false positives on valid sentence case
+- **Retranslate Button**: Fixed bug where retranslate didn't work due to stale chapter data.
+  - Now reloads fresh chapters from DB after clearing translation
+
+### 🎨 Translation Quality
+- **Enhanced CORE_RULES**: Added explicit prohibition of Title Case and ALL CAPS in titles.
+  - "CẤM Title Case" - Forbids multiple capitalized words
+  - "CẤM VIẾT HOA TOÀN BỘ" - Forbids all-caps titles
+  - Enforces sentence case: "Chuyển đổi tư duy" (not "Chuyển Đổi Tư Duy")
+
+### 📦 Files Modified
+- `lib/gemini/translation/glossary-builder.ts` - Added structuredClone for race condition fix
+- `lib/utils/title-normalizer.ts` - NEW: Title normalization utility
+- `components/workspace/hooks/TranslationProvider.v2.tsx` - Apply normalization + Object.freeze
+- `lib/gemini/constants.ts` - Enhanced title rules
+- `components/workspace/chapter-list/ChapterList.tsx` - Reload fresh chapters for retranslate
+
 ## [2.7.3] - 2026-02-10
+
 
 ### 🎯 Translation Quality & Audit System
 - **v12.0 Heuristic Mechanics Rules**: Replaced abstract rules (POV LOCK) with concrete heuristic mechanics for Gemini 2.5 Flash.
