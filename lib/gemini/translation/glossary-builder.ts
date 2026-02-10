@@ -28,11 +28,12 @@ export async function buildGlossary(
     let relevantDict: DictionaryEntry[] = [];
 
     if (sharedGlossary && sharedGlossary.length > 0) {
-        // 🔥 CRITICAL: DEEP CLONE to prevent race condition in concurrent requests
-        // Without clone, all 10 concurrent requests share the SAME array reference
-        // → Mutation in one request affects all others → POV contamination
-        // structuredClone ensures complete immutability (nested objects too)
-        relevantDict = structuredClone(sharedGlossary);
+        // 🔥 CRITICAL FIX: Re-filter shared glossary against the SPECIFIC chapter text
+        // This prevents "Ghost Characters" from later chapters (in a batch)
+        // from leaking into the prompt of earlier chapters where they don't appear.
+        relevantDict = sharedGlossary
+            .filter(d => text.includes(d.original))
+            .map(d => structuredClone(d)); // Still clone to prevent mutation
     } else {
         // 🔥 2-LAYER DICTIONARY SYSTEM
         // Layer 1: Manual Dictionary (Highest priority - user control)
