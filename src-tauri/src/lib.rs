@@ -1,5 +1,6 @@
 mod tts;
 mod auth;
+mod sync_server;
 
 use std::env;
 use jieba_rs::Jieba;
@@ -275,7 +276,19 @@ fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::
     Ok(())
 }
 
+#[tauri::command]
+async fn start_sync_server(sync_data: String) -> Result<serde_json::Value, String> {
+    sync_server::SyncServer::start(8888, sync_data)
+}
+
+#[tauri::command]
+fn stop_sync_server() -> Result<(), String> {
+    sync_server::SyncServer::stop();
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -293,8 +306,11 @@ pub fn run() {
             segment_chinese,
             get_gemini_key,
             open_folder,
-            create_storage_symlink
+            create_storage_symlink,
+            start_sync_server,
+            stop_sync_server
         ])
+
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

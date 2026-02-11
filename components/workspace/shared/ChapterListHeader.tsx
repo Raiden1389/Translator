@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/tooltip";
 
 import { useWorkspaceTokens } from "../hooks/useWorkspaceTokens";
+import { SyncMobileButton } from "./SyncMobileButton";
+
 
 interface ChapterListHeaderProps {
     workspaceId: string; // Added for token tracking
@@ -306,7 +308,7 @@ export function ChapterListHeader({
 
                     {/* Suggestion #4: Action Hub - Add Glow effect and 8th slot Refresh button */}
                     {/* Add Issue #1: Spam Click Protection & #5: Visual Feedback */}
-                    <div className="grid grid-cols-4 gap-1 bg-muted/40 p-1 rounded-2xl border border-border/40 overflow-hidden shadow-inner w-fit shrink-0">
+                    <div className="grid grid-cols-5 gap-1 bg-muted/40 p-1 rounded-2xl border border-border/40 overflow-hidden shadow-inner w-fit shrink-0">
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
@@ -338,6 +340,14 @@ export function ChapterListHeader({
                                 <TooltipContent side="top" className="text-[10px] font-bold">Fix Title Case</TooltipContent>
                             </Tooltip>
                         )}
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div><SyncMobileButton workspaceId={workspaceId} /></div>
+                            </TooltipTrigger>
+
+                            <TooltipContent side="top" className="text-[10px] font-bold">Sync Mobile</TooltipContent>
+                        </Tooltip>
 
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -436,22 +446,23 @@ export function ChapterListHeader({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-indigo-500 hover:text-indigo-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-sky-600 hover:text-sky-700 transition-all active:scale-95 group disabled:opacity-50 underline decoration-2 underline-offset-4"
                                     onClick={onScan}
                                     disabled={processing || importing}
                                 >
                                     <ScanLine className="h-4 w-4 group-hover:scale-110 transition-transform" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" className="text-[10px] font-bold">Quét AI</TooltipContent>
+                            <TooltipContent side="bottom" className="text-[10px] font-bold">Quét AI (Cải tiến)</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
                             <TooltipTrigger asChild>
+
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-muted-foreground hover:text-foreground transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onHistoryOpen}
                                     disabled={processing || importing}
                                 >
