@@ -3,6 +3,7 @@ mod auth;
 mod sync_server;
 
 use std::env;
+use std::sync::Mutex;
 use jieba_rs::Jieba;
 use once_cell::sync::Lazy;
 use serde::Serialize;
@@ -287,6 +288,78 @@ fn stop_sync_server() -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn poll_mobile_corrections() -> Vec<serde_json::Value> {
+    sync_server::SyncServer::take_corrections()
+}
+
+static TUNNEL_PROCESS: Lazy<Mutex<Option<std::process::Child>>> = Lazy::new(|| Mutex::new(None));
+
+#[tauri::command]
+async fn start_tunnel(port: u16) -> Result<String, String> {
+    // Kill any existing tunnel
+    stop_tunnel().ok();
+
+    let cloudflared_path = r"C:\Program Files (x86)\cloudflared\cloudflared.exe";
+    if !std::path::Path::new(cloudflared_path).exists() {
+        return Err("cloudflared chưa được cài. Chạy: winget install Cloudflare.cloudflared".to_string());
+    }
+
+    let mut child = std::process::Command::new(cloudflared_path)
+        .args(&["tunnel", "--url", &format!("http://localhost:{}", port)])
+        .stderr(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Không thể khởi động cloudflared: {}", e))?;
+
+    // Read stderr to find the tunnel URL (cloudflared outputs info to stderr)
+    let stderr = child.stderr.take().ok_or("Cannot read cloudflared output")?;
+    use std::io::BufRead;
+    let reader = std::io::BufReader::new(stderr);
+    
+    let mut tunnel_url = String::new();
+    let start = std::time::Instant::now();
+    
+    for line in reader.lines() {
+        if start.elapsed() > std::time::Duration::from_secs(15) {
+            break;
+        }
+        if let Ok(line) = line {
+            if line.contains("trycloudflare.com") {
+                // Extract URL from the line
+                if let Some(start_idx) = line.find("https://") {
+                    let url_part = &line[start_idx..];
+                    // URL ends at whitespace or end of line
+                    let end_idx = url_part.find(|c: char| c.is_whitespace()).unwrap_or(url_part.len());
+                    tunnel_url = url_part[..end_idx].to_string();
+                    break;
+                }
+            }
+        }
+    }
+
+    if tunnel_url.is_empty() {
+        let _ = child.kill();
+        return Err("Không thể lấy URL tunnel. Kiểm tra kết nối internet.".to_string());
+    }
+
+    // Store child process for cleanup
+    *TUNNEL_PROCESS.lock().unwrap() = Some(child);
+
+    Ok(tunnel_url)
+}
+
+#[tauri::command]
+fn stop_tunnel() -> Result<(), String> {
+    let mut guard = TUNNEL_PROCESS.lock().unwrap();
+    if let Some(ref mut child) = *guard {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    *guard = None;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 
 pub fn run() {
@@ -308,7 +381,10 @@ pub fn run() {
             open_folder,
             create_storage_symlink,
             start_sync_server,
-            stop_sync_server
+            stop_sync_server,
+            poll_mobile_corrections,
+            start_tunnel,
+            stop_tunnel
         ])
 
         .run(tauri::generate_context!())

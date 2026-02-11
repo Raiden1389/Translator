@@ -1,3 +1,28 @@
+## [2.7.6] - 2026-02-11
+
+### 📱 PWA & Mobile Sync Fixes
+- **Fixed Cloudflare Tunnel Sync**: Mobile PWA was appending `:8888` to tunnel domain, causing connection failure.
+  - Root cause: `SyncDialog.tsx` used `http://${hostname}:8888` for tunnel URLs where port is already proxied.
+  - Fix: Detect HTTPS/tunnel mode and use `window.location.origin` directly.
+- **Fixed PWA Install Prompt**: Chrome never fired `beforeinstallprompt` event.
+  - Root cause: `manifest.webmanifest` served with wrong MIME type (`application/octet-stream`) by Rust sync server.
+  - Fix: Changed manifest filename to `manifest.json` via Vite PWA config + added `.webmanifest` MIME type in Rust.
+- **Fixed PWA Icon**: Mobile app showed generic letter icon instead of custom logo.
+  - Root cause: `icon-192.png` and `icon-512.png` were missing from `raiden-mobile/public/`.
+  - Fix: Copied lightning bolt icon to correct location.
+- **Fixed Static Export**: Added `export const dynamic = 'force-static'` to `app/manifest.ts` for Next.js static export.
+- **Disabled Sync Server Auto-shutdown**: Server no longer kills itself after 5 minutes idle.
+- **Enhanced CORS**: Added `Allow-Methods` and `Allow-Headers` to all sync server responses.
+
+### 📦 Files Modified
+- `raiden-mobile/src/components/SyncDialog.tsx` - Tunnel URL detection
+- `raiden-mobile/src/components/InstallPrompt.tsx` - Removed 7-day cooldown
+- `raiden-mobile/vite.config.ts` - manifest.json filename
+- `raiden-mobile/public/icon-192.png` - NEW: PWA icon
+- `raiden-mobile/public/icon-512.png` - NEW: PWA icon
+- `ai-translator/app/manifest.ts` - force-static export
+- `ai-translator/src-tauri/src/sync_server.rs` - CORS, MIME type, auto-shutdown
+
 ## [2.7.5] - 2026-02-11
 
 ### 👺 The C³ Purge (Cross-Chunk Character Contamination)
