@@ -12,7 +12,7 @@ export function scrubAIChatter(text: string): string {
         // 2. Common postscripts
         .replace(/\s*(Of course!|Here is the response|Strictly in JSON|Just kidding|I know you said|Here it it|Enjoy!|Hope this helps)[\s\S]*$/i, "")
         // 3. Trailing artifacts
-        .replace(/["'\}\s\n]+$/g, "")
+        .replace(/[\}\s\n]+$/g, "")
         .trim();
 }
 

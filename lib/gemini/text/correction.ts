@@ -20,6 +20,33 @@ export function repairSentenceStructure(text: string): string {
     return text.replace(regex, '. $1');
 }
 
+/**
+ * Repair unmatched quotes in dialogue lines.
+ * AI sometimes outputs opening " but forgets closing ".
+ * Scans each paragraph — if odd number of quotes, append closing " at the end.
+ */
+export function repairUnmatchedQuotes(text: string): string {
+    if (!text) return "";
+
+    return text.split('\n').map(line => {
+        // Count straight quotes
+        const straightCount = (line.match(/"/g) || []).length;
+        if (straightCount % 2 === 1) {
+            // Odd number of " → missing a closing quote, append one
+            line = line.trimEnd() + '"';
+        }
+
+        // Count curly quotes (left " vs right ")
+        const leftCurly = (line.match(/\u201C/g) || []).length;
+        const rightCurly = (line.match(/\u201D/g) || []).length;
+        if (leftCurly > rightCurly) {
+            line = line.trimEnd() + '\u201D';
+        }
+
+        return line;
+    }).join('\n');
+}
+
 export async function generateCacheKey(
     text: string,
     model: string,

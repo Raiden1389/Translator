@@ -48,28 +48,77 @@ export function SyncMobileButton({ workspaceId }: { workspaceId: string }) {
     });
   }, [tunnelUrl]);
 
+  const isServerRunning = status === "waiting" || status === "connected";
+
+  // Ctrl+M shortcut to toggle sync
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'm') {
+        e.preventDefault();
+        if (isServerRunning) {
+          setIsOpen(prev => !prev);
+        } else {
+          startSyncRef.current?.();
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isServerRunning]);
+
+  const startSyncRef = React.useRef<(() => void) | null>(null);
+
   const startSync = async () => {
+    // If server already running, just reopen dialog
+    if (isServerRunning) {
+      setIsOpen(true);
+      return;
+    }
+
     setStatus("starting");
     setIsOpen(true);
     setTunnelUrl(null);
     setTunnelStatus("idle");
     try {
-      const workspace = await db.workspaces.get(workspaceId);
-      if (!workspace) throw new Error("Workspace không tồn tại");
+      // Load ALL workspaces with translated chapters
+      const allWorkspaces = await db.workspaces.toArray();
 
-      const allChapters = await db.chapters
-        .where('workspaceId').equals(workspaceId)
-        .sortBy('order');
+      const workspacesData: typeof allWorkspaces = [];
+      const chaptersData: Record<string, unknown[]> = {};
+      const dictionaryData: Record<string, unknown[]> = {};
 
-      const chapters = allChapters.filter(c =>
-        c.status === 'translated' || c.content_translated
-      );
+      for (const ws of allWorkspaces) {
+        const chapters = await db.chapters
+          .where('workspaceId').equals(ws.id!)
+          .filter(c => c.status === 'translated' || !!c.content_translated)
+          .sortBy('order');
 
-      const dictionary = await db.dictionary
-        .where('workspaceId').equals(workspaceId)
-        .toArray();
+        if (chapters.length === 0) continue;
 
-      const syncData = JSON.stringify({ workspace, chapters, dictionary });
+        const dictionary = await db.dictionary
+          .where('workspaceId').equals(ws.id!)
+          .toArray();
+
+        workspacesData.push(ws);
+        chaptersData[ws.id!] = chapters;
+        dictionaryData[ws.id!] = dictionary;
+      }
+
+      if (workspacesData.length === 0) {
+        toast.error("Không có truyện nào đã dịch để sync");
+        setStatus("idle");
+        setIsOpen(false);
+        return;
+      }
+
+      const totalCh = Object.values(chaptersData).reduce((s, a) => s + a.length, 0);
+      console.log(`[Sync] Library: ${workspacesData.length} workspaces, ${totalCh} chapters`);
+
+      const syncData = JSON.stringify({
+        workspaces: workspacesData,
+        chapters: chaptersData,
+        dictionary: dictionaryData,
+      });
 
       let info: SyncInfo;
       try {
@@ -108,6 +157,9 @@ export function SyncMobileButton({ workspaceId }: { workspaceId: string }) {
     }
   };
 
+  // Wire ref for keyboard shortcut
+  startSyncRef.current = startSync;
+
   const stopSync = async () => {
     try {
       await invoke("stop_tunnel").catch(() => { });
@@ -128,17 +180,20 @@ export function SyncMobileButton({ workspaceId }: { workspaceId: string }) {
 
     const interval = setInterval(async () => {
       try {
-        const corrections = await invoke<{ oldText: string; newText: string; scope: string; fromChapterOrder: number; dirtyChapters?: { order: number; content_translated: string }[] }[]>("poll_mobile_corrections");
+        const corrections = await invoke<{ workspaceId?: string; oldText: string; newText: string; scope: string; fromChapterOrder: number; dirtyChapters?: { order: number; content_translated: string }[] }[]>("poll_mobile_corrections");
         if (corrections.length === 0) return;
 
         setStatus("connected");
 
         let totalApplied = 0;
         for (const c of corrections) {
+          // Use correction's own workspaceId (from mobile) — critical for multi-workspace sync
+          const wsId = c.workspaceId || workspaceId;
+
           if (c.dirtyChapters && c.dirtyChapters.length > 0) {
             for (const dc of c.dirtyChapters) {
               const chapters = await db.chapters
-                .where({ workspaceId, order: dc.order })
+                .where({ workspaceId: wsId, order: dc.order })
                 .toArray();
               for (const ch of chapters) {
                 await db.chapters.update(ch.id!, {
@@ -149,8 +204,8 @@ export function SyncMobileButton({ workspaceId }: { workspaceId: string }) {
             totalApplied += c.dirtyChapters.length;
           } else {
             const allChapters = c.scope === 'all'
-              ? await db.chapters.where('workspaceId').equals(workspaceId).toArray()
-              : await db.chapters.where({ workspaceId, order: c.fromChapterOrder }).toArray();
+              ? await db.chapters.where('workspaceId').equals(wsId).toArray()
+              : await db.chapters.where({ workspaceId: wsId, order: c.fromChapterOrder }).toArray();
 
             for (const ch of allChapters) {
               if (ch.content_translated?.includes(c.oldText)) {
@@ -169,14 +224,15 @@ export function SyncMobileButton({ workspaceId }: { workspaceId: string }) {
         console.log(`[SyncMobile] Applied ${corrections.length} corrections to ${totalApplied} chapters`);
 
         for (const c of corrections) {
+          const wsId = c.workspaceId || workspaceId;
           const existing = await db.corrections
-            .where({ workspaceId })
+            .where({ workspaceId: wsId })
             .filter(e => e.type === 'replace' && e.from === c.oldText && e.to === c.newText)
             .first();
 
           if (!existing) {
             await db.corrections.add({
-              workspaceId,
+              workspaceId: wsId,
               type: 'replace',
               from: c.oldText,
               to: c.newText,
@@ -199,13 +255,16 @@ export function SyncMobileButton({ workspaceId }: { workspaceId: string }) {
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-indigo-400 hover:text-indigo-500 transition-all active:scale-95 group"
+        className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-indigo-400 hover:text-indigo-500 transition-all active:scale-95 group relative"
         onClick={startSync}
       >
         <Smartphone className="h-4 w-4 group-hover:scale-110 transition-transform" />
+        {isServerRunning && (
+          <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+        )}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={(open) => !open && stopSync()}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) setIsOpen(false); }}>
         <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-xl border-border/40 shadow-2xl rounded-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold">

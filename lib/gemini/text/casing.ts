@@ -1,7 +1,7 @@
 import { DictionaryEntry } from "../../db";
 import { normalizeVietnameseContent } from "./normalize";
 import { scrubAIChatter, cleanIdiomExplanations } from "./scrub";
-import { repairSentenceStructure, applyAllCorrections } from "./correction";
+import { repairSentenceStructure, repairUnmatchedQuotes, applyAllCorrections } from "./correction";
 
 /**
  * Casing & Final Sweep Module
@@ -87,6 +87,7 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
 
     // 4. Structure Repair & Idiom Cleaning
     cleaned = repairSentenceStructure(cleaned);
+    cleaned = repairUnmatchedQuotes(cleaned);
     cleaned = cleanIdiomExplanations(cleaned);
 
     return cleaned

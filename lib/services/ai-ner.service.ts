@@ -100,7 +100,7 @@ Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text kh�
 
         try {
             const response = await withKeyRotation<GeminiResponse>({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash-lite',
                 prompt,
                 generationConfig: {
                     temperature: 0.1,
@@ -110,7 +110,7 @@ Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text kh�
 
             // Record usage
             if (response.usageMetadata) {
-                await recordUsage('gemini-2.0-flash', response.usageMetadata);
+                await recordUsage('gemini-2.5-flash-lite', response.usageMetadata);
             }
 
             const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -133,6 +133,7 @@ Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text kh�
             }
 
             const entities = validationResult.data as ExtractedEntity[];
+            console.log(`[AI NER] Chunk ${i + 1} raw entities:`, entities.map(e => `${e.chinese}→${e.original} (${e.type})`));
 
             // Filter by allowed types
             const filtered = entities.filter(e =>
@@ -156,6 +157,7 @@ Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text kh�
     });
 
     const deduplicated = Array.from(uniqueMap.values());
+    console.log(`[AI NER] Total after dedup: ${deduplicated.length}`, deduplicated.map(e => `${e.chinese}→${e.original}`));
 
     // Filter out entities already in dictionary
     const { db } = await import('../db');
@@ -173,12 +175,16 @@ Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text kh�
         heuristicTerms.filter(h => h.isApproved).map(h => h.original)
     );
 
-    const newEntities = deduplicated.filter(e =>
-        !existingChinese.has(e.chinese) && // Check Dictionary Chinese
-        !existingVietnamese.has(e.original) && // Check Dictionary Vietnamese
-        !blacklistedChinese.has(e.chinese) && // Check Blacklist
-        !approvedHeuristic.has(e.chinese) // Check Heuristic Approved
-    );
+    const newEntities = deduplicated.filter(e => {
+        const inDict = existingChinese.has(e.chinese);
+        const inDictVi = existingVietnamese.has(e.original);
+        const inBlacklist = blacklistedChinese.has(e.chinese);
+        const inHeuristic = approvedHeuristic.has(e.chinese);
+        if (inDict || inDictVi || inBlacklist || inHeuristic) {
+            console.log(`[AI NER] FILTERED OUT: ${e.chinese}→${e.original} (dict:${inDict}, dictVi:${inDictVi}, bl:${inBlacklist}, heu:${inHeuristic})`);
+        }
+        return !inDict && !inDictVi && !inBlacklist && !inHeuristic;
+    });
 
     const filteredCount = deduplicated.length - newEntities.length;
     if (filteredCount > 0) {

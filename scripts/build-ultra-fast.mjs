@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 
@@ -7,7 +7,7 @@ const t0 = Date.now();
 const now = () => Date.now();
 function logStep(name, start) {
     const ms = now() - start;
-    console.log(`⏱️ ${name}: ${(ms / 1000).toFixed(2)}s`);
+    console.log(`⏱️ ${name}: ${(ms / 1000).toFixed(1)}s`);
 }
 
 const MARKER_DIR = ".agent/knowledge";
@@ -47,7 +47,7 @@ function needsWebBuild() {
         for (const file of files) {
             if (extensions.some(ext => file.endsWith(ext))) {
                 if (fs.statSync(file).mtimeMs > lastBuildTime) {
-                    console.log(`🔍 Change detected in Frontend: ${file}`);
+                    console.log(`🔍 Change detected: ${file}`);
                     return true;
                 }
             }
@@ -57,29 +57,32 @@ function needsWebBuild() {
 }
 
 // ===== 0. START =====
+const FORCE = process.argv.includes("--force");
 console.log("\n" + "=".repeat(40));
-console.log("⚡ ULTRA-FAST SMART BUILD ACTIVATED (v2.0)");
+console.log("⚡ ULTRA-FAST SMART BUILD (v3.1)");
 console.log("=".repeat(40) + "\n");
 
 // ===== 1. SMART UI SCAN =====
-if (needsWebBuild()) {
+if (FORCE || needsWebBuild()) {
     const tUI = now();
-    console.log("🎨 UI Changes Detected -> Starting Next.js Build...");
+    console.log(FORCE ? "🔨 Force rebuild frontend..." : "🎨 UI changes detected -> Next.js build...");
     run("npm run build");
     logStep("Frontend build", tUI);
 
-    // Update marker
     if (!fs.existsSync(MARKER_DIR)) fs.mkdirSync(MARKER_DIR, { recursive: true });
     fs.writeFileSync(MARKER_FILE, Date.now().toString());
 } else {
-    console.log("✨ UI is up-to-date. Using pre-bundled frontend assets.");
+    console.log("✨ UI is up-to-date. Skipping frontend build.");
 }
 
-// ===== 2. TAURI RUST BUILD (FORCE BYPASS BEFOREBUILDCOMMAND) =====
-const tTauri = now();
-console.log("🦀 Building Rust Binary (Config: FAST)...");
-run("npx tauri build -c src-tauri/tauri.fast.conf.json");
-logStep("Tauri build", tTauri);
+// ===== 2. TAURI BUILD (bundle: false — exe only, no msi/nsis) =====
+const tRust = now();
+console.log("🦀 Building Rust Binary (exe only, no installer)...");
+
+// tauri.fast.conf.json has bundle.active = false — skips msi/nsis
+// tauri build automatically enables custom-protocol feature to embed frontend
+run("node_modules\\.bin\\tauri.cmd build -c src-tauri/tauri.fast.conf.json");
+logStep("Tauri build", tRust);
 
 // ===== 3. COPY TO OUTPUT =====
 const tCopy = now();
@@ -96,15 +99,18 @@ const finalExe = path.join(OUT_DIR, `Raiden-v${pkg.version}.exe`);
 fs.copyFileSync(sourceExe, finalExe);
 logStep("Copy EXE", tCopy);
 
-console.log("\n✅ EXE READY: " + finalExe);
-
 // ===== 4. SUMMARY =====
+const exeSize = (fs.statSync(finalExe).size / 1024 / 1024).toFixed(1);
+console.log(`\n✅ EXE READY: ${finalExe} (${exeSize} MB)`);
 console.log("=".repeat(40));
 logStep("TOTAL BUILD TIME", t0);
 console.log("=".repeat(40) + "\n");
 
-// ===== 5. OPEN OUTPUT FOLDER (ONLY IF SUCCESS) =====
-console.log("📂 Build succeeded. Opening output folder...");
-execSync(`explorer "${OUT_DIR.replace(/\//g, "\\")}"`);
+// ===== 5. OPEN OUTPUT FOLDER (non-blocking, won't crash) =====
+try {
+    spawn("explorer", [OUT_DIR.replace(/\//g, "\\")], { detached: true, stdio: "ignore" }).unref();
+} catch (_) {
+    // ignore explorer errors
+}
 
 process.exit(0);

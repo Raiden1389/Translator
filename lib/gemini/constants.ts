@@ -15,9 +15,9 @@ export const CORE_RULES = `
   + CẤM VIẾT HOA TOÀN BỘ (VD: "CHUYỂN ĐỔI TƯ DUY").
   + ĐÚNG: "Chuyển đổi tư duy".
 - [HARD LIMIT]: Mỗi đoạn văn CHỈ ĐƯỢC xuất hiện tên riêng nhân vật chính TỐI ĐA 1 lần (thường ở đầu đoạn để neo POV).
-- [PHÂN VAI]: Trong từ điển (Glossary), các thuật ngữ (character) xuất hiện ở đầu danh sách là nhân vật quan trọng nhất. 
-  + TUYỆT ĐỐI không được dùng tên các nhân vật phụ khác để thay thế cho tên nhân vật chính.
-  + Nếu Glossary cung cấp nhiều tên, hãy ưu tiên tên đứng trước.
+- [PHÂN VAI]: Glossary chỉ là HƯỚNG DẪN dịch tên, KHÔNG phải danh sách đầy đủ mọi nhân vật trong chương.
+  + Nếu gặp tên nhân vật KHÔNG CÓ trong Glossary → Phiên âm Hán Việt (VD: 阮光建 → Nguyễn Quang Kiến).
+  + TUYỆT ĐỐI CẤM thay thế nhân vật không có trong Glossary bằng nhân vật khác có trong Glossary.
 - [HÁN TỰ]: TUYỆT ĐỐI CẤM giữ nguyên chữ Hán trong bản dịch.
   + SAI: "vô以为 báo", "之类", "而已"
   + ĐÚNG: "không thể đền đáp" hoặc "vô dĩ vi báo", "chi loại", "nhi dĩ"

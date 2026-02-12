@@ -1,3 +1,43 @@
+## [2.7.7] - 2026-02-12
+
+### 📱 Library Sync & Corrections Fix
+- **Multi-Workspace Sync Protocol**: Sync server giờ phục vụ ALL workspaces cùng lúc. Endpoints mới: `/manifest`, `/workspace?id=`, `/dictionary?workspaceId=`, `/chapters?workspaceId=`
+- **Home Page Sync Button**: Di chuyển nút Sync Mobile từ trong workspace ra Home header, cạnh "My Library" — sync toàn bộ thư viện 1 lần
+- **Corrections Routing Fix**: Fix bug sửa lỗi từ mobile bị áp sai workspace. Giờ dùng `c.workspaceId` từ correction data thay vì component prop
+
+### 🌐 Named Tunnel (raidenhub.xyz)
+- **Fixed Domain**: Chuyển từ quick tunnel (random `xxx.trycloudflare.com`) sang named tunnel `raiden-reader` với domain cố định `https://raidenhub.xyz`
+- **Faster Startup**: Không cần chờ 15s parse URL — return ngay sau 2s
+- **PWA Installable**: Domain ổn định cho phép cài PWA lên home screen vĩnh viễn
+
+### 📱 Mobile PWA Updates
+- **Update Button**: Thêm nút "Kiểm tra cập nhật" / "Cập nhật mới!" trong menu ⋮ với badge xanh lá NEW
+- **Overscroll Fix**: Thêm `overscroll-behavior: none` cho Reader — chặn Chrome native pull-to-refresh icon ("x")
+
+### 🔧 Rust Refactor
+- **Module Extraction**: `lib.rs` 375 → 58 LOC. Tách ra `gemini.rs`, `storage.rs`, `tunnel.rs`
+- **Dead Code Removal**: Xóa `jieba-rs` (segment_chinese), `tauri-plugin-log` — không còn dùng
+- **Dependency Trim**: `tokio` full → 3 features, `reqwest` bỏ blocking
+
+### ⚡ Build Optimization (167s → 32s)
+- **Profile Release**: `lto=false`, `incremental=true`, `codegen-units=16`
+- **Build Script v3.1**: Bỏ `npx` overhead, fix explorer crash, thêm `--force` flag
+- **Sync `tauri.fast.conf.json`**: Đồng bộ CSP + window config với main config
+
+### 📦 Files Modified
+- `src-tauri/src/lib.rs` — Orchestrator 58 LOC, named tunnel
+- `src-tauri/src/gemini.rs` — NEW: 6 Gemini API commands
+- `src-tauri/src/storage.rs` — NEW: filesystem commands
+- `src-tauri/src/tunnel.rs` — NEW: Cloudflare tunnel management
+- `src-tauri/Cargo.toml` — Trimmed deps + fast release profile
+- `src-tauri/capabilities/default.json` — Removed log:default
+- `scripts/build-ultra-fast.mjs` — v3.1 with direct bin + --force
+- `src-tauri/src/sync_server.rs` — Multi-workspace endpoints
+- `components/workspace/shared/SyncMobileButton.tsx` — Load all workspaces + corrections routing fix
+- `app/page.tsx` — Added SyncMobileButton to Home header
+- `raiden-mobile/src/components/LibraryHeader.tsx` — Update button in menu
+- `raiden-mobile/src/pages/Reader.tsx` — overscroll-behavior fix
+
 ## [2.7.6] - 2026-02-11
 
 ### 📱 PWA & Mobile Sync Fixes

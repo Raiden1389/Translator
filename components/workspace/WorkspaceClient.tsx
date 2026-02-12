@@ -21,6 +21,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "./hooks/TranslationProvider.v2";
 import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
+import { SyncMobileButton } from "./shared/SyncMobileButton";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -127,7 +128,8 @@ export default function WorkspaceClient({ id }: { id: string }) {
                         <div className="flex flex-col">
                             <span className="text-[11px] font-black opacity-90 tracking-tight">AI Engine v3.0</span>
                         </div>
-                        <div className="ml-auto">
+                        <div className="ml-auto flex items-center gap-1">
+                            <SyncMobileButton workspaceId={id} />
                             <ThemeSwitcher />
                         </div>
                     </div>

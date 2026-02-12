@@ -81,10 +81,7 @@ export async function buildGlossary(
     }
 
     const glossaryContext = relevantDict.length > 0
-        ? `\nGlossary: ${relevantDict.map((d, i) => {
-            const label = (d.type === 'character' && i === 0) ? `${d.translated} (Main)` : d.translated;
-            return `${d.original}=${label}`;
-        }).join(', ')}`
+        ? `\nGlossary: ${relevantDict.map(d => `${d.original}=${d.translated}`).join(', ')}`
         : '';
 
     return { relevantDict, glossaryContext };

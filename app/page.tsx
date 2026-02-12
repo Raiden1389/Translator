@@ -1,6 +1,8 @@
+"use client";
+
 import { WorkspaceList } from "@/components/dashboard/WorkspaceList";
 import { Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SyncMobileButton } from "@/components/workspace/shared/SyncMobileButton";
 
 export default function Home() {
   return (
@@ -20,7 +22,10 @@ export default function Home() {
           </header>
 
           <div className="mb-10 selectable">
-            <h2 className="text-4xl font-black text-foreground mb-3 tracking-tight">My Library</h2>
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="text-4xl font-black text-foreground tracking-tight">My Library</h2>
+              <SyncMobileButton workspaceId="" />
+            </div>
             <div className="h-1 w-20 bg-primary/40 rounded-full mb-4"></div>
             <p className="text-muted-foreground text-sm max-w-md leading-relaxed">
               Manage your localized translations with Raiden's advanced neural engine.

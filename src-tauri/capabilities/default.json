@@ -16,7 +16,6 @@
     "core:window:allow-close",
     "fs:default",
     "dialog:default",
-    "log:default",
     "shell:default",
     "http:default",
     {

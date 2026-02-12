@@ -322,47 +322,54 @@ fn handle_get_request(
     method: &Method,
     params: &std::collections::HashMap<String, String>,
 ) -> Result<Response<std::io::Cursor<Vec<u8>>>, String> {
-    // Lock sync data only for GET requests
     let data_guard = SYNC_DATA.lock().unwrap();
     let sync_data = data_guard.as_ref().ok_or("No sync data available")?;
 
-    let workspace = &sync_data["workspace"];
-    let chapters = sync_data["chapters"].as_array().ok_or("chapters is not an array")?;
-    let dictionary = &sync_data["dictionary"];
+    // Library sync: { workspaces: [...], chapters: { wsId: [...] }, dictionary: { wsId: [...] } }
+    let workspaces = sync_data["workspaces"].as_array()
+        .ok_or("workspaces is not an array")?;
+    let chapters_map = &sync_data["chapters"];
+    let dictionary_map = &sync_data["dictionary"];
+
+    let json_header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
 
     match (path, method) {
         ("/manifest", &Method::Get) => {
-            let chapters_meta: Vec<serde_json::Value> = chapters.iter().map(|c| {
-                json!({
-                    "id": c["id"],
-                    "order": c["order"],
-                    "updatedAt": c["updatedAt"]
-                })
+            let ws_list: Vec<serde_json::Value> = workspaces.iter().map(|ws| {
+                let ws_id = ws["id"].as_str().unwrap_or("");
+                let ch_count = chapters_map[ws_id].as_array().map(|a| a.len()).unwrap_or(0);
+                json!({ "id": ws_id, "title": ws["title"], "chapterCount": ch_count })
             }).collect();
-
-            let data = json!({
-                "totalChapters": chapters.len(),
-                "chapters": chapters_meta
-            });
-            Ok(Response::from_string(data.to_string()))
+            let total: usize = ws_list.iter()
+                .map(|ws| ws["chapterCount"].as_u64().unwrap_or(0) as usize).sum();
+            Ok(Response::from_string(json!({
+                "workspaces": ws_list, "totalChapters": total, "totalWorkspaces": ws_list.len()
+            }).to_string()).with_header(json_header))
         },
         ("/workspace", &Method::Get) => {
-            Ok(Response::from_string(workspace.to_string()))
+            let ws_id = params.get("id").ok_or("Missing 'id' parameter")?;
+            let ws = workspaces.iter()
+                .find(|w| w["id"].as_str() == Some(ws_id.as_str()))
+                .ok_or(format!("Workspace '{}' not found", ws_id))?;
+            Ok(Response::from_string(ws.to_string()).with_header(json_header))
         },
         ("/dictionary", &Method::Get) => {
-            Ok(Response::from_string(dictionary.to_string()))
+            let ws_id = params.get("workspaceId").map(|s| s.as_str()).unwrap_or("");
+            let dict = &dictionary_map[ws_id];
+            let result = if dict.is_null() { json!([]) } else { dict.clone() };
+            Ok(Response::from_string(result.to_string()).with_header(json_header))
         },
         ("/chapters", &Method::Get) => {
+            let ws_id = params.get("workspaceId").map(|s| s.as_str()).unwrap_or("");
             let offset: usize = params.get("offset").and_then(|s| s.parse().ok()).unwrap_or(0);
             let limit: usize = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(50);
-
-            let chunk: Vec<&serde_json::Value> = chapters.iter()
-                .skip(offset)
-                .take(limit)
-                .collect();
-
-            Ok(Response::from_string(json!(chunk).to_string()))
+            let chunk: Vec<&serde_json::Value> = match chapters_map[ws_id].as_array() {
+                Some(arr) => arr.iter().skip(offset).take(limit).collect(),
+                None => vec![],
+            };
+            Ok(Response::from_string(json!(chunk).to_string()).with_header(json_header))
         },
-        _ => Ok(Response::from_string(json!({"error": "Not Found"}).to_string()).with_status_code(404)),
+        _ => Ok(Response::from_string(json!({"error": "Not Found"}).to_string())
+            .with_status_code(404).with_header(json_header)),
     }
 }
