@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::io::Read;
+
 use tiny_http::{Server, Response, Header, Method};
 use serde_json::json;
 use std::time::{Duration, Instant};
@@ -99,12 +99,12 @@ impl SyncServer {
 
         let ip = local_ip_address::local_ip().map_err(|e| e.to_string())?.to_string();
         let running_clone = running.clone();
-        let token_clone = token.clone();
+        let _token_clone = token.clone();
 
         // Spawn server thread — port is ALREADY bound, so server is ready immediately
         thread::spawn(move || {
             println!("Sync server listening on 0.0.0.0:{}", port);
-            let mut last_request = Instant::now();
+            let mut _last_request = Instant::now();
 
             loop {
                 // Check if stopped
@@ -124,7 +124,7 @@ impl SyncServer {
 
                 match server.recv_timeout(Duration::from_millis(500)) {
                     Ok(Some(mut request)) => {
-                        last_request = Instant::now();
+                        _last_request = Instant::now();
 
                         // Handle CORS Preflight
                         if *request.method() == Method::Options {
@@ -226,6 +226,30 @@ fn handle_request(url: &str, method: &Method, body: Option<String>) -> Result<Re
             let data = json!({ "app": "raiden", "version": "1.0", "status": "ok" });
             Ok(Response::from_string(data.to_string())
                 .with_header(Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()))
+        },
+
+        // GET /api/version — returns hash of sw.js so mobile can detect new builds
+        ("/api/version", _) => {
+            let dist_path = MOBILE_DIST_PATH.lock().unwrap();
+            let hash = if let Some(ref dist_dir) = *dist_path {
+                let sw_path = dist_dir.join("sw.js");
+                match std::fs::read(&sw_path) {
+                    Ok(content) => {
+                        // Simple hash: length + first/last bytes
+                        let len = content.len();
+                        let first = content.first().copied().unwrap_or(0) as u64;
+                        let last = content.last().copied().unwrap_or(0) as u64;
+                        format!("{:x}", len as u64 * 31 + first * 997 + last * 7919)
+                    },
+                    Err(_) => "unknown".to_string(),
+                }
+            } else {
+                "no-dist".to_string()
+            };
+            let data = json!({ "hash": hash });
+            Ok(Response::from_string(data.to_string())
+                .with_header(Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap())
+                .with_header(Header::from_bytes(&b"Cache-Control"[..], &b"no-cache, no-store"[..]).unwrap()))
         },
 
         // POST /corrections — receive corrections from mobile
