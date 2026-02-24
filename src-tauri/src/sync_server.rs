@@ -332,9 +332,15 @@ fn serve_static_file(path: &str) -> Result<Response<std::io::Cursor<Vec<u8>>>, S
                 Some("webp") => "image/webp",
                 _ => "application/octet-stream",
             };
+            // sw.js and index.html must never be cached (PWA update detection)
+            let cache_control = if clean_path.ends_with("sw.js") || clean_path.ends_with("index.html") || clean_path == "/index.html" {
+                "no-cache, no-store, must-revalidate"
+            } else {
+                "public, max-age=31536000" // Hashed assets can cache forever
+            };
             Ok(Response::from_data(content)
                 .with_header(Header::from_bytes(&b"Content-Type"[..], mime.as_bytes()).unwrap())
-                .with_header(Header::from_bytes(&b"Cache-Control"[..], &b"public, max-age=3600"[..]).unwrap()))
+                .with_header(Header::from_bytes(&b"Cache-Control"[..], cache_control.as_bytes()).unwrap()))
         },
         Err(_) => Ok(Response::from_string("Not Found").with_status_code(404)
             .with_header(Header::from_bytes(&b"Content-Type"[..], &b"text/plain"[..]).unwrap())),

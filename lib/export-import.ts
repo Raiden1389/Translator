@@ -107,6 +107,76 @@ export async function importWorkspace(file: File): Promise<void> {
     }
 }
 
+/**
+ * Append new chapters from a Crawler JSON export into an existing workspace.
+ * Only inserts chapters whose `order` doesn't already exist in DB.
+ * Does NOT overwrite existing translations.
+ * Returns { added, skipped } counts.
+ */
+export async function appendChaptersFromJSON(
+    workspaceId: string,
+    file: File
+): Promise<{ added: number; skipped: number }> {
+    const text = await file.text();
+    const rawData = JSON.parse(text);
+
+    // Support both crawler JSON format and translator backup format
+    const chapters: { title: string; content: string; content_original?: string; order?: number }[] =
+        rawData.chapters || [];
+
+    if (chapters.length === 0) {
+        throw new Error('File JSON không có chapters nào');
+    }
+
+    // Get existing orders in this workspace
+    const existingChapters = await db.chapters
+        .where('workspaceId').equals(workspaceId)
+        .toArray();
+    const existingOrders = new Set(existingChapters.map(c => c.order));
+
+    const currentMax = existingChapters.length > 0
+        ? Math.max(...existingChapters.map(c => c.order))
+        : 0;
+
+    let added = 0;
+    let skipped = 0;
+    const toAdd: Omit<Chapter, 'id'>[] = [];
+
+    chapters.forEach((ch, index) => {
+        const order = ch.order ?? (index + 1);
+        if (existingOrders.has(order)) {
+            skipped++;
+            return;
+        }
+
+        const rawContent = ch.content || ch.content_original || '';
+        const normalizedContent = rawContent
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+            .replace(/\\n/g, '\n');
+
+        toAdd.push({
+            workspaceId,
+            title: ch.title,
+            content_original: normalizedContent,
+            content_translated: undefined,
+            order,
+            status: 'draft' as const,
+            updatedAt: new Date(),
+        });
+        added++;
+    });
+
+    if (toAdd.length > 0) {
+        await db.chapters.bulkAdd(toAdd as Chapter[]);
+        // Update workspace.updatedAt
+        await db.workspaces.update(workspaceId, { updatedAt: new Date() });
+    }
+
+    return { added, skipped };
+}
+
+
 // Auto-backup to localStorage (last 5 chapters)
 export async function autoBackup(workspaceId: string): Promise<void> {
     try {

@@ -1,4 +1,26 @@
-## [2.7.7] - 2026-02-12
+## [2.7.8] - 2026-02-24
+
+### 🔗 Crawler JSON Import Compatibility
+- **JSON Import Schema Update**: Hỗ trợ thêm format export từ Crawler app (`{ metadata, chapters }`) ngoài format backup cũ (`{ book, chapters }`).
+  - `ChapterDataSchema` giờ dùng `z.preprocess` để normalize: crawler dùng `content` → tự map sang `content_original`.
+  - `JSONImportSchema` thêm format thứ 3 với key `metadata` thay vì `book`.
+  - `parseJSONImport()` handle cả `metadata` và `book` keys (backward compatible).
+- **Append Chapters from JSON**: Function mới `appendChaptersFromJSON()` trong `export-import.ts`:
+  - Append chapters từ crawler JSON vào workspace **đã tồn tại** (không ghi đè translation cũ).
+  - Auto-skip chapters đã có (by `order`).
+  - Normalize `<br>`, `&lt;br&gt;`, `\n` trong content.
+  - Returns `{ added, skipped }` counts.
+- **Update from JSON Card**: Component mới `UpdateFromJSONCard` trong Settings tab:
+  - Upload crawler JSON → auto-append chapters mới vào workspace hiện tại.
+  - Hiển thị kết quả: bao nhiêu added, bao nhiêu skipped.
+
+### 📦 Files Modified
+- `lib/schemas/json-import.schema.ts` — Schema update + preprocess
+- `lib/export-import.ts` — New `appendChaptersFromJSON()` function
+- `components/workspace/WorkspaceClient.tsx` — Added UpdateFromJSONCard to Settings tab
+- `components/workspace/UpdateFromJSONCard.tsx` — NEW: UI component
+
+
 
 ### 📱 Library Sync & Corrections Fix
 - **Multi-Workspace Sync Protocol**: Sync server giờ phục vụ ALL workspaces cùng lúc. Endpoints mới: `/manifest`, `/workspace?id=`, `/dictionary?workspaceId=`, `/chapters?workspaceId=`

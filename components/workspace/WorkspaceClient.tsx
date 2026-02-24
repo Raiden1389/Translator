@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { ReviewDialog } from "./shared/ReviewDialog";
+import { UpdateFromJSONCard } from "./UpdateFromJSONCard";
 
 export default function WorkspaceClient({ id }: { id: string }) {
     const { state, actions } = useWorkspace(id);
@@ -166,6 +167,10 @@ export default function WorkspaceClient({ id }: { id: string }) {
                             {activeTab === "settings" && (
                                 <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-2">
                                     <AISettingsTab />
+
+                                    {/* Update from new crawler JSON */}
+                                    <UpdateFromJSONCard workspaceId={id} />
+
                                     <Card className="border-red-900/30 bg-red-900/5 shadow-xl">
                                         <CardHeader>
                                             <CardTitle className="text-red-400">Vùng Nguy Hiểm</CardTitle>

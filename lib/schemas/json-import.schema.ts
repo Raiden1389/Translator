@@ -18,25 +18,44 @@ export const BookInfoSchema = z.object({
 export type BookInfo = z.infer<typeof BookInfoSchema>;
 
 // Chapter data schema
-export const ChapterDataSchema = z.object({
-  id: z.number().optional(), // Will be removed before DB insert
-  title: z.string().default("Chương mới"),
-  content: z.string().optional(),
-  content_original: z.string().min(1, "Nội dung chương không được để trống"),
-  content_translated: z.string().default(""),
-  status: z.enum(['draft', 'translated', 'reviewing']).default('draft'),
-  order: z.number().positive().optional(),
-  lastTranslatedAt: z.coerce.date().optional(),
-  createdAt: z.coerce.date().optional(),
-}).passthrough(); // Allow extra fields for flexibility
+// z.preprocess normalizes 'content' → 'content_original' before validation
+// so crawler JSON (which uses 'content') works without changes
+export const ChapterDataSchema = z.preprocess(
+  (ch) => {
+    if (typeof ch !== 'object' || ch === null) return ch;
+    const c = ch as Record<string, unknown>;
+    return {
+      ...c,
+      // Crawler uses 'content', translator uses 'content_original' — unify
+      content_original: c.content_original || c.content || '',
+    };
+  },
+  z.object({
+    id: z.number().optional(),
+    title: z.string().default("Chương mới"),
+    content: z.string().optional(),
+    content_original: z.string().default(''),
+    content_translated: z.string().optional().default(""),
+    status: z.enum(['draft', 'translated', 'reviewing']).default('draft'),
+    order: z.number().positive().optional(),
+    lastTranslatedAt: z.coerce.date().optional(),
+    createdAt: z.coerce.date().optional(),
+  }).passthrough()
+);
 
 export type ChapterData = z.infer<typeof ChapterDataSchema>;
 
-// Main JSON import schema - supports two formats:
-// 1. { book: {...}, chapters: [...] }
+// Main JSON import schema - supports three formats:
+// 1. { book: {...}, chapters: [...] }       ← translator backup
 // 2. [...] (array of chapters only)
+// 3. { metadata: {...}, chapters: [...] }   ← crawler export format
 export const JSONImportSchema = z.union([
-  // Format 1: Full workspace data
+  // Format 3: Crawler export { metadata, chapters }
+  z.object({
+    metadata: BookInfoSchema.optional(),
+    chapters: z.array(ChapterDataSchema).min(1, "Phải có ít nhất 1 chương"),
+  }),
+  // Format 1: Full workspace data { book, chapters }
   z.object({
     book: BookInfoSchema.optional(),
     chapters: z.array(ChapterDataSchema).min(1, "Phải có ít nhất 1 chương"),
@@ -67,8 +86,13 @@ export function parseJSONImport(rawData: unknown): {
     };
   }
 
+  // Handle both 'book' and 'metadata' keys (backward compat + crawler format)
+  const bookSource = ('metadata' in validated ? validated.metadata : null)
+    || ('book' in validated ? validated.book : null)
+    || {};
+
   return {
-    book: validated.book || BookInfoSchema.parse({}),
+    book: BookInfoSchema.parse(bookSource),
     chapters: validated.chapters,
   };
 }
