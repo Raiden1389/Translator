@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { InspectionIssue, getErrorMessage } from "@/lib/types";
-import { db, Chapter } from "@/lib/db";
+import { db, Chapter, GLOBAL_WORKSPACE_ID } from "@/lib/db";
 import { inspectChapter } from "@/lib/gemini";
 import { toast } from "sonner";
 
@@ -51,7 +51,7 @@ export function useReaderInspection(chapterId: number, chapter: Chapter | undefi
         // 1. Save to corrections if requested
         if (saveToCorrections) {
             await db.corrections.add({
-                workspaceId: chapter.workspaceId,
+                workspaceId: GLOBAL_WORKSPACE_ID,
                 type: 'replace',
                 from: issue.original,
                 to: issue.suggestion,

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type Chapter } from "@/lib/db";
+import { db, type Chapter, GLOBAL_WORKSPACE_ID } from "@/lib/db";
 import { toast } from "sonner";
 
 // Components
@@ -62,7 +62,7 @@ export function ReaderModal({
     // 1. DATA LAYER
     const chapter = useLiveQuery(() => db.chapters.get(chapterId), [chapterId]);
     const dictEntries = useLiveQuery(() => db.dictionary.where("workspaceId").equals(chapter?.workspaceId || "").toArray(), [chapter?.workspaceId]);
-    const corrections = useLiveQuery(() => db.corrections.where("workspaceId").equals(chapter?.workspaceId || "").toArray(), [chapter?.workspaceId]);
+    const corrections = useLiveQuery(() => db.corrections.where("workspaceId").equals(GLOBAL_WORKSPACE_ID).toArray(), []);
 
     // 2. CORE UI STATE
     const [activeTab, setActiveTab] = useState<"translated" | "original">("translated");

@@ -14,6 +14,8 @@ interface ChapterListContentProps {
   queueState: AiQueueStats;
   setSelectedChapters: (ids: number[]) => void;
   filtered: Chapter[];
+  sortOrder: "asc" | "desc";
+  onToggleSortOrder: () => void;
   handleSelect: (id: number) => void;
   handleRead: (id: number) => void;
   handleInspect: (id: number) => void;
@@ -30,6 +32,8 @@ export function ChapterListContent({
   queueState,
   setSelectedChapters,
   filtered,
+  sortOrder,
+  onToggleSortOrder,
   handleSelect,
   handleRead,
   handleInspect,
@@ -58,6 +62,8 @@ export function ChapterListContent({
           selectedChapters={selectedChapters}
           queueState={queueState}
           setSelectedChapters={setSelectedChapters}
+          sortOrder={sortOrder}
+          onToggleSortOrder={onToggleSortOrder}
           onSelect={handleSelect}
           onSelectPage={() => {
             const pageIds = currentChapters.map(c => c.id!);

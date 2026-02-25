@@ -13,6 +13,8 @@ import { aiQueue } from "@/lib/services/ai-queue";
 import type { Chapter } from "@/lib/db";
 import { cleanHtmlContent, sanitizeTranslatedContent } from "@/lib/utils/text-sanitizer";
 import { normalizeTitleCase } from "@/lib/utils/title-normalizer";
+import { applyCorrectionsToChapter, loadGlobalRules } from "@/lib/services/corrections.service";
+import type { CorrectionEntry } from "@/lib/db";
 
 
 // Import new hooks
@@ -188,6 +190,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
 
         console.log(`[GLOSSARY] Loaded ${dict.length} dict + ${heuristicTerms.length} heuristic = ${sharedGlossary.length} final terms`);
 
+        // 🔥 Luyện Văn: Preload correction rules ONCE for entire batch
+        const globalRules: CorrectionEntry[] = await loadGlobalRules();
+
         // 2. Check batch mode
         if (translateConfig.enableBatch && translateConfig.batchSize && chaptersToTranslate.length > 1) {
             console.log(`⚡ [BATCH MODE] ${chaptersToTranslate.length} chapters → batches of ${translateConfig.batchSize}`);
@@ -218,7 +223,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                         type: 'turbo'
                     });
                     const modelSetting = await db.settings.get("aiModel");
-                    const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash-preview-09-2025";
+                    const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash";
 
                     const result = await translateBatch(
                         userPrompt,
@@ -293,6 +298,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                         });
 
 
+
+                        // 🔥 Luyện Văn: Auto-apply corrections (silent)
+                        await applyCorrectionsToChapter(originalChapter.id!, globalRules);
 
                         queue.updateStatus(originalChapter.id!, 'done');
                         progress.updateChapterProgress(originalChapter.id!, {
@@ -502,6 +510,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     charactersUsed,
                     sampleGlossary: sharedGlossary.slice(0, 3).map(g => ({ original: g.original, type: g.type }))
                 });
+
+                // 🔥 Luyện Văn: Auto-apply corrections (silent)
+                await applyCorrectionsToChapter(chapter.id!, globalRules);
 
                 // Success notification in logs
                 onLog({

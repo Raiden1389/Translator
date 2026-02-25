@@ -1,7 +1,8 @@
-// COPIED imports from ChapterList.tsx
+// Chapter List — Corrections & Title Fix hook
+// Thin UI adapter: delegates to corrections.service.ts
 import { db } from "@/lib/db";
 import { toast } from "sonner";
-import { applyCorrectionRule } from "@/lib/gemini/text/correction";
+import { loadGlobalRules, applyCorrectionsText } from "@/lib/services/corrections.service";
 
 interface UseCorrectionsProps {
   workspaceId: string;
@@ -10,24 +11,24 @@ interface UseCorrectionsProps {
 }
 
 export function useCorrections({ workspaceId, selectedChapters, setHistoryOpen }: UseCorrectionsProps) {
-  // COPIED from line 185-272
+
   const handleApplyCorrections = async () => {
     if (selectedChapters.length === 0) return toast.error("Vui lòng chọn chương cần sửa.");
 
-    const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
-    if (corrections.length === 0) return toast.error("Chưa có dữ liệu Cải chính (Corrections).");
+    const rules = await loadGlobalRules();
+    if (rules.length === 0) return toast.error("Chưa có dữ liệu Cải chính (Corrections).");
 
-    toast.loading(`Đang áp dụng cải chính cho ${selectedChapters.length} chương...`, { id: "applying-corrections" });
+    toast.loading(`Đang áp dụng ${rules.length} quy tắc cho ${selectedChapters.length} chương...`, { id: "applying-corrections" });
 
     try {
       const chaptersToFix = await db.chapters.where("id").anyOf(selectedChapters).toArray();
       let updatedCount = 0;
 
-      const snapshotStr = JSON.stringify(chaptersToFix.map(c => ({
+      // Snapshot for undo
+      const snapshot = chaptersToFix.map(c => ({
         chapterId: c.id,
         before: { title: c.title_translated || "", content: c.content_translated || "" }
-      })));
-      const snapshot = JSON.parse(snapshotStr);
+      }));
 
       await db.transaction('rw', db.chapters, db.history, async () => {
         let anyChange = false;
@@ -35,28 +36,15 @@ export function useCorrections({ workspaceId, selectedChapters, setHistoryOpen }
         for (const chapter of chaptersToFix) {
           if (!chapter.content_translated) continue;
 
-          let newContent = chapter.content_translated;
-          let newTitle = chapter.title_translated || "";
-          let hasChanges = false;
+          const newContent = applyCorrectionsText(chapter.content_translated, rules);
+          const newTitle = chapter.title_translated
+            ? applyCorrectionsText(chapter.title_translated, rules)
+            : "";
 
-          for (const correction of corrections) {
-            const originalContent = newContent;
-            const originalTitle = newTitle;
-
-            newContent = applyCorrectionRule(newContent, correction);
-            if (newTitle) {
-              newTitle = applyCorrectionRule(newTitle, correction);
-            }
-
-            if (newContent !== originalContent || newTitle !== originalTitle) {
-              hasChanges = true;
-            }
-          }
-
-          if (hasChanges) {
+          if (newContent !== chapter.content_translated || newTitle !== (chapter.title_translated || "")) {
             await db.chapters.update(chapter.id!, {
               content_translated: newContent,
-              title_translated: newTitle,
+              title_translated: newTitle || chapter.title_translated,
               updatedAt: new Date()
             });
             updatedCount++;
@@ -72,16 +60,16 @@ export function useCorrections({ workspaceId, selectedChapters, setHistoryOpen }
             summary: `Áp dụng cải chính (${updatedCount} chương)`,
             timestamp: new Date(),
             affectedCount: updatedCount,
-            snapshot: snapshot
+            snapshot
           });
         }
       });
 
       if (updatedCount > 0) {
-        toast.success(`Đã cập nhật ${updatedCount} chương!`, {
+        toast.success(`🔥 Luyện Văn: ${updatedCount} chương đã cập nhật`, {
           id: "applying-corrections",
           action: {
-            label: "Lịch sử / Undo",
+            label: "Undo",
             onClick: () => setHistoryOpen(true)
           }
         });
@@ -95,7 +83,6 @@ export function useCorrections({ workspaceId, selectedChapters, setHistoryOpen }
     }
   };
 
-  // COPIED from line 338-361
   const handleFixTitleCase = async () => {
     toast.loading("🔧 Đang sửa Title Case...", { id: "fixing-titles" });
 

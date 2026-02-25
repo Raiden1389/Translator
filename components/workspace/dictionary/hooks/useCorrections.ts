@@ -2,16 +2,17 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, CorrectionEntry } from "@/lib/db";
+import { db, CorrectionEntry, GLOBAL_WORKSPACE_ID } from "@/lib/db";
 import { toast } from "sonner";
 import { applyAllCorrections, finalSweep } from "@/lib/gemini/contentProcessor";
+import { sweepSingleRule } from "@/lib/services/corrections.service";
 
 
 
 export function useCorrections(workspaceId: string) {
     const liveCorrections = useLiveQuery(
-        () => db.corrections.where('workspaceId').equals(workspaceId).toArray(),
-        [workspaceId]
+        () => db.corrections.where('workspaceId').equals(GLOBAL_WORKSPACE_ID).toArray(),
+        []  // No dependency on workspaceId — global pool
     );
 
     const corrections = useMemo(() => liveCorrections || [], [liveCorrections]);
@@ -40,7 +41,7 @@ export function useCorrections(workspaceId: string) {
 
     const handleAddCorrection = useCallback(async () => {
         const entry: Partial<CorrectionEntry> = {
-            workspaceId,
+            workspaceId: GLOBAL_WORKSPACE_ID,  // All corrections are global (Luyện Văn)
             type: ruleType,
             createdAt: new Date()
         };
@@ -110,8 +111,19 @@ export function useCorrections(workspaceId: string) {
         setField1("");
         setField2("");
         setField3("");
-        toast.success("Đã thêm quy tắc sửa lỗi!");
-    }, [ruleType, field1, field2, field3, workspaceId, corrections]);
+
+        // 🔥 Luyện Văn: Silent auto-apply to ALL chapters
+        sweepSingleRule(entry).then(affected => {
+            if (affected > 0) {
+                toast.success(`🔥 Đã thêm & áp dụng — ${affected} chương cập nhật`);
+            } else {
+                toast.success("Đã thêm quy tắc.");
+            }
+        }).catch(err => {
+            console.error("[Luyện Văn] sweep error:", err);
+            toast.success("Đã thêm quy tắc.");
+        });
+    }, [ruleType, field1, field2, field3, corrections]);
 
     const handleDeleteCorrection = useCallback(async (id: number) => {
         await db.corrections.delete(id);

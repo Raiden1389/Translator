@@ -244,6 +244,34 @@ db.version(105).stores({
     uiPreferences: 'key' // Simple key-value store for UI preferences
 });
 
+// v106: Global Corrections (Luyện Văn) — uses workspaceId='__global__' sentinel
+// No schema change needed, corrections table already has workspaceId index
+db.version(106).stores({}).upgrade(async tx => {
+    // Migrate all workspace-scoped corrections → __global__
+    const corrections = await tx.table('corrections').toArray();
+    const seen = new Set<string>();
+    for (const c of corrections) {
+        if (c.workspaceId === '__global__') {
+            // Already global — track for dedup
+            const key = `${c.type}|${c.from || c.original || c.pattern || ''}|${c.to || c.replacement || c.replace || ''}`;
+            seen.add(key);
+            continue;
+        }
+        const key = `${c.type}|${c.from || c.original || c.pattern || ''}|${c.to || c.replacement || c.replace || ''}`;
+        if (seen.has(key)) {
+            // Duplicate — delete the workspace-scoped one
+            await tx.table('corrections').delete(c.id);
+        } else {
+            // Migrate to global
+            await tx.table('corrections').update(c.id, { workspaceId: '__global__' });
+            seen.add(key);
+        }
+    }
+    console.log(`🔄 Migrated ${corrections.length} corrections to global pool (Luyện Văn)`);
+});
+
+export const GLOBAL_WORKSPACE_ID = '__global__';
+
 // RAIDEN v2.0 - RELATIONSHIPS & HONORIFICS (v106)
 // (Table 'relationships' removed in v2.7.2)
 // ----------------------------------------------------------------------

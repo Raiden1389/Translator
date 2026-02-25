@@ -35,7 +35,7 @@ export function IntelligenceHub({ workspaceId, onClose, initialModule = "discove
         { id: "discovery", label: "Discovery", icon: Compass, sub: "Radar & Scan" },
         { id: "glossary", label: "Glossary", icon: Book, sub: "Thuật ngữ" },
         { id: "persona", label: "Persona", icon: UserCircle2, sub: "Nhân vật" },
-        { id: "tuning", label: "Tuning", icon: Wrench, sub: "Cải chính" },
+        { id: "tuning", label: "Luyện Văn", icon: Wrench, sub: "Global Corrections" },
         { id: "sanitizer", label: "Sanitizer", icon: ShieldAlert, sub: "Blacklist" },
     ];
 
@@ -65,7 +65,7 @@ export function IntelligenceHub({ workspaceId, onClose, initialModule = "discove
                                 className={cn(
                                     "w-full flex items-center gap-3 px-3 py-2 rounded-[10px] transition-all duration-200 group relative",
                                     isActive
-                                        ? "bg-[#EDEDF3] text-foreground"
+                                        ? "bg-accent/15 text-foreground"
                                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )}
                             >

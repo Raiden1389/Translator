@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { db, CorrectionEntry, Chapter } from "@/lib/db";
+import { db, CorrectionEntry, Chapter, GLOBAL_WORKSPACE_ID } from "@/lib/db";
 import { toast } from "sonner";
+import { sweepSingleRule } from "@/lib/services/corrections.service";
 
 interface UseCorrectionsProps {
     chapterId: number;
@@ -48,7 +49,7 @@ export function useCorrections({
 
         // 1. Save to database
         const entry: CorrectionEntry = {
-            workspaceId: chapter.workspaceId,
+            workspaceId: GLOBAL_WORKSPACE_ID,
             type: correctionType,
             createdAt: new Date(),
             from: correctionOriginal,
@@ -69,7 +70,7 @@ export function useCorrections({
 
         await db.corrections.add(entry);
 
-        // 2. Apply to current text
+        // 2. Apply to current text (instant feedback)
         let newContent = editContent;
         if (correctionType === 'replace') {
             newContent = editContent.split(correctionOriginal).join(correctionReplacement);
@@ -83,17 +84,21 @@ export function useCorrections({
             }
         }
 
-        // 3. Update DB & Local state
+        // 3. Update current chapter immediately
         if (newContent !== editContent) {
             setEditContent(newContent);
             await db.chapters.update(chapterId, {
                 content_translated: newContent,
                 updatedAt: new Date()
             });
-            toast.success(`Đã cải chính: "${correctionOriginal}" -> "${correctionReplacement}"`);
-        } else {
-            toast.info("Không tìm thấy cụm từ này trong chương để áp dụng.");
         }
+
+        // 4. 🔥 Luyện Văn: Silent auto-sweep ALL other chapters
+        sweepSingleRule(entry, chapterId).catch(err =>
+            console.error("[Luyện Văn] sweep error:", err)
+        );
+
+        toast.success(`Đã cải chính: "${correctionOriginal}" → "${correctionReplacement}"`);
 
         // Reset
         setCorrectionOriginal("");

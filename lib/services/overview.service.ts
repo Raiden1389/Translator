@@ -71,7 +71,7 @@ export async function getWorkspaceStats(workspaceId: string) {
             totalThinkingTokens += c.stats.tokens.thinking || 0;
 
             // Calculate cost based on the model used for this chapter
-            const modelId = c.translationModel || "gemini-2.1-flash-preview-09-2025";
+            const modelId = c.translationModel || "gemini-2.5-flash";
             const modelInfo = AI_MODELS.find(m => m.value === modelId) || AI_MODELS[0];
 
             const costInput = ((c.stats.tokens.input || 0) / 1_000_000) * (modelInfo.inputPrice || 0);
@@ -122,7 +122,7 @@ export async function getUsageHistory(workspaceId: string) {
                 // Include thinking tokens in total
                 const totalTokens = (c.stats.tokens.input || 0) + (c.stats.tokens.output || 0) + (c.stats.tokens.thinking || 0);
 
-                const modelId = c.translationModel || "gemini-2.5-flash-preview";
+                const modelId = c.translationModel || "gemini-2.5-flash";
                 const modelInfo = AI_MODELS.find(m => m.value === modelId) || AI_MODELS[0];
                 // Thinking tokens are billed as output tokens
                 const cost = ((c.stats.tokens.input || 0) / 1_000_000) * (modelInfo.inputPrice || 0) +
@@ -172,7 +172,7 @@ export async function generateAiSummary(workspace: Workspace): Promise<string> {
     }
 
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash-preview-09-2025";
+    const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash";
 
     return await generateBookSummary(contextText, aiModel);
 }

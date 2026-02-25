@@ -63,16 +63,18 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const [filterStatus, setFilterStatus] = usePersistedState<"all" | "draft" | "translated">(`workspace-${workspaceId}-filter`, "all");
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
+    const [sortOrder, setSortOrder] = usePersistedState<"asc" | "desc">(`workspace-${workspaceId}-sortOrder`, "asc");
     const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(`workspace-${workspaceId}-viewMode`, "grid");
 
     const filtered = useMemo(() => {
         if (!chapters) return [];
-        return chapters.filter(c => {
+        const list = chapters.filter(c => {
             const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());
             const matchesStatus = filterStatus === "all" || c.status === filterStatus;
             return matchesSearch && matchesStatus;
         });
-    }, [chapters, search, filterStatus]);
+        return sortOrder === "desc" ? [...list].reverse() : list;
+    }, [chapters, search, filterStatus, sortOrder]);
 
     const allChapterIds = useMemo(() => filtered.map(c => c.id!), [filtered]);
 
@@ -280,6 +282,8 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 queueState={queueState}
                 setSelectedChapters={setSelectedChapters}
                 filtered={filtered}
+                sortOrder={sortOrder}
+                onToggleSortOrder={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
                 handleSelect={handleSelect}
                 handleRead={handleRead}
                 handleInspect={handleInspect}

@@ -391,7 +391,7 @@ export function ChapterListHeader({
                                     <ShieldCheck className={cn("h-4 w-4 group-hover:scale-110 transition-transform", (importing || processing) && "animate-pulse")} />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-[10px] font-bold">Cải chính</TooltipContent>
+                            <TooltipContent side="top" className="text-[10px] font-bold">Luyện Văn</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>

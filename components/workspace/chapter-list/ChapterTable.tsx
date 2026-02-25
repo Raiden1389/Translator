@@ -3,7 +3,7 @@
 import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, Book } from "lucide-react";
+import { ChevronDown, Book, ArrowUp, ArrowDown } from "lucide-react";
 import { type Chapter } from "@/lib/db";
 import { type AiQueueState } from "@/lib/services/ai-queue";
 import { ChapterRow } from "./ChapterRow";
@@ -40,6 +40,8 @@ interface ChapterTableProps {
     onRetranslate: (id: number) => void;
     onClearTranslation: (id: number) => void;
     onApplyCorrections: () => void;
+    sortOrder: "asc" | "desc";
+    onToggleSortOrder: () => void;
     lastReadChapterId?: number;
 }
 
@@ -48,7 +50,7 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
         chapters, selectedChapters, queueState, setSelectedChapters, onSelect,
         onSelectPage, onSelectGlobal, onDeselectAll,
         onRead, onInspect, onRetranslate, onClearTranslation, onApplyCorrections,
-        lastReadChapterId
+        sortOrder, onToggleSortOrder, lastReadChapterId
     } = props;
 
     const parentRef = useRef<HTMLDivElement>(null);
@@ -100,7 +102,16 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
                         </PopoverContent>
                     </Popover>
                 </div>
-                <div className="text-center">C.#</div>
+                <div className="flex items-center justify-center gap-1">
+                    <button
+                        onClick={onToggleSortOrder}
+                        className="flex items-center gap-0.5 hover:text-foreground transition-colors"
+                        title={sortOrder === "asc" ? "Đang: 1 → mới nhất. Bấm để đảo" : "Đang: mới nhất → 1. Bấm để đảo"}
+                    >
+                        <span>C.#</span>
+                        {sortOrder === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                    </button>
+                </div>
                 <div>Tiêu đề</div>
                 <div>Tiêu đề dịch</div>
                 <div className="text-center">Trạng thái</div>

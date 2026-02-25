@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Smartphone, Loader2, CheckCircle2, AlertCircle, Globe } from "lucide-react";
 
 import { invoke } from "@tauri-apps/api/core";
-import { db } from "@/lib/db";
+import { db, GLOBAL_WORKSPACE_ID } from "@/lib/db";
 import {
   Dialog,
   DialogContent,
@@ -226,13 +226,13 @@ export function SyncMobileButton({ workspaceId }: { workspaceId: string }) {
         for (const c of corrections) {
           const wsId = c.workspaceId || workspaceId;
           const existing = await db.corrections
-            .where({ workspaceId: wsId })
+            .where({ workspaceId: GLOBAL_WORKSPACE_ID })
             .filter(e => e.type === 'replace' && e.from === c.oldText && e.to === c.newText)
             .first();
 
           if (!existing) {
             await db.corrections.add({
-              workspaceId: wsId,
+              workspaceId: GLOBAL_WORKSPACE_ID,
               type: 'replace',
               from: c.oldText,
               to: c.newText,

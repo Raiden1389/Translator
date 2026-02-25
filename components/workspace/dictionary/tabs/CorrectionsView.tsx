@@ -155,7 +155,7 @@ export function CorrectionsView({ workspaceId }: CorrectionsViewProps) {
                     disabled={isApplyingCorrections || filteredCorrections.length === 0}
                 >
                     <Save className={cn("mr-2 h-5 w-5 transition-transform group-hover:scale-110", isApplyingCorrections && "animate-spin")} />
-                    {isApplyingCorrections ? "Đang áp dụng..." : `Áp dụng ${filteredCorrections.length} quy tắc cho toàn bộ truyện`}
+                    {isApplyingCorrections ? "Đang áp dụng..." : `🔥 Luyện Văn — Áp dụng ${filteredCorrections.length} quy tắc`}
                 </Button>
             </div>
         </div>
