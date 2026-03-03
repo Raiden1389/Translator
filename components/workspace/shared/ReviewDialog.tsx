@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { GlossaryCharacter, GlossaryTerm } from "@/lib/types";
 import {
     Dialog,
@@ -41,15 +39,22 @@ export function ReviewDialog({
 }: ReviewDialogProps) {
     const [pendingCharacters, setPendingCharacters] = useState<GlossaryCharacter[]>([]);
     const [pendingTerms, setPendingTerms] = useState<GlossaryTerm[]>([]);
+    const wasOpenRef = useRef(false);
 
+    // Only sync initial data when dialog OPENS (false → true transition)
+    // NOT on every parent re-render — that would reset user edits!
     useEffect(() => {
-        if (open) {
-            // Defer to avoid cascading renders warning from React Compiler
+        if (open && !wasOpenRef.current) {
+            // Dialog just opened — initialize pending data
             const timer = setTimeout(() => {
                 setPendingCharacters(initialCharacters.map(c => ({ ...c, status: 'save' })));
                 setPendingTerms(initialTerms.map(t => ({ ...t, status: 'save' })));
             }, 0);
+            wasOpenRef.current = true;
             return () => clearTimeout(timer);
+        }
+        if (!open) {
+            wasOpenRef.current = false;
         }
     }, [open, initialCharacters, initialTerms]);
 

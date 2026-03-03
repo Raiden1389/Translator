@@ -206,7 +206,7 @@ export const ReaderContent = React.memo(function ReaderContent({
                             contentEditable={isEditing}
                             suppressContentEditableWarning
                             onInput={(e) => setEditContent(e.currentTarget.innerText)}
-                            onSelect={handleTextSelection}
+                            onMouseUp={handleTextSelection}
                             onContextMenu={handleContextMenu}
                             className={cn(
                                 "w-full flex-1 bg-transparent focus:outline-none outline-none",

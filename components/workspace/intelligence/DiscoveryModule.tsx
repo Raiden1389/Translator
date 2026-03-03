@@ -31,14 +31,19 @@ export function DiscoveryModule({ workspaceId }: DiscoveryModuleProps) {
         abortController: null,
     });
 
+    // Only abort scan if workspace CHANGES (not on tab switch/unmount)
+    const prevWorkspaceRef = useRef(workspaceId);
     useEffect(() => {
-        const currentAbortController = scanStateRef.current.abortController;
-        const currentScanTimeout = scanTimeout;
+        if (prevWorkspaceRef.current !== workspaceId) {
+            // Workspace changed — abort any running scan from OLD workspace
+            scanStateRef.current.abortController?.abort();
+            scanStateRef.current.isActive = false;
+            prevWorkspaceRef.current = workspaceId;
+        }
         return () => {
-            if (currentAbortController) {
-                currentAbortController.abort();
-            }
-            if (currentScanTimeout) clearTimeout(currentScanTimeout);
+            // Cleanup timeout only — DO NOT abort scan on unmount
+            // This allows scan to continue running in background when user switches tabs
+            if (scanTimeout) clearTimeout(scanTimeout);
         };
     }, [workspaceId, scanTimeout]);
 

@@ -10,20 +10,24 @@ export function useReaderSelection() {
     const editorRef = useRef<HTMLDivElement>(null);
 
     const handleTextSelection = () => {
-        const selection = window.getSelection();
-        if (selection && selection.toString().trim().length > 0 && editorRef.current?.contains(selection.anchorNode)) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            // Show menu centered above selection
-            setMenuPosition({
-                x: rect.left + rect.width / 2,
-                y: rect.top
-            });
-            setSelectedText(selection.toString().trim());
-        } else {
-            setMenuPosition(null);
-            setSelectedText("");
-        }
+        // Delay to let browser finalize selection before reading it
+        // Without this, getSelection() may return incomplete text
+        setTimeout(() => {
+            const selection = window.getSelection();
+            if (selection && selection.toString().trim().length > 0 && editorRef.current?.contains(selection.anchorNode)) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                // Show menu centered above selection
+                setMenuPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top
+                });
+                setSelectedText(selection.toString().trim());
+            } else {
+                setMenuPosition(null);
+                setSelectedText("");
+            }
+        }, 10);
     };
 
     const handleContextMenu = (e: React.MouseEvent) => {

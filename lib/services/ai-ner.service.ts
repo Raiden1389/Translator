@@ -76,7 +76,7 @@ export async function extractEntities(
             onProgress?.(`Đang quét chunk ${i + 1}/${chunks.length}...`);
         }
 
-        const prompt = `Bạn là chuyên gia dịch truyện Trung-Việt. Trích xuất các thực thể sau từ văn bản tiếng Trung và DỊCH SANG TIẾNG VIỆT:
+        const prompt = `Bạn là chuyên gia dịch truyện Trung-Việt. Trích xuất các thực thể (Tên người, Địa danh, Tổ chức, Công pháp/Kỹ năng) từ văn bản tiếng Trung và PHẢI DỊCH/PHIÊN ÂM SANG TIẾNG VIỆT:
 
 Loại cần trích: ${typesList}
 
@@ -85,18 +85,20 @@ Văn bản tiếng Trung:
 ${chunks[i]}
 """
 
-YÊU CẦU QUAN TRỌNG:
-1. "original" phải là TÊN TIẾNG VIỆT (dịch từ tiếng Trung)
-2. "chinese" là tên gốc tiếng Trung
-3. "context" mô tả ngắn bằng tiếng Việt
+YÊU CẦU BẮT BUỘC:
+1. "original": Phải là TÊN TIẾNG VIỆT (Hán Việt hoặc phiên âm Latin). TUYỆT ĐỐI KHÔNG ĐỂ NGUYÊN CHỮ HÁN.
+   - Ví dụ: 埃克西利昂 -> Ecxilion, 卡缪 -> Camille, 帕特里克 -> Patrick.
+2. "chinese": Tên gốc tiếng Trung (chữ Hán).
+3. "context": Mô tả ngắn bằng tiếng Việt về thực thể này trong cốt truyện.
 
 VÍ DỤ ĐÚNG:
 [
-  {"original":"Trương Tam Phong","chinese":"张三丰","type":"Person","context":"Cao thủ võ lâm"},
-  {"original":"Võ Đang Sơn","chinese":"武当山","type":"Location","context":"Núi thiêng"}
+  {"original":"Trương Tam Phong","chinese":"张三丰","type":"Person","context":"Cao thủ võ lâm của phái Võ Đang"},
+  {"original":"Võ Đang Sơn","chinese":"武当山","type":"Location","context":"Địa điểm tu luyện chính"},
+  {"original":"Arthur","chinese":"亚瑟","type":"Person","context":"Kỵ sĩ vương"}
 ]
 
-Trả về JSON array theo format trên. CHỈ trả JSON, không thêm text khác.`;
+Trả về JSON array. CHỈ trả JSON, không thêm text giải thích.`;
 
         try {
             const response = await withKeyRotation<GeminiResponse>({

@@ -97,9 +97,9 @@ export function applyAllCorrections(text: string, rules: Partial<CorrectionEntry
             sorted
                 .map(r => {
                     const cleanFrom = (r.from || r.original || "").trim().normalize('NFC').replace(/\s+/g, ' ');
-                    return escapeRegExp(cleanFrom);
+                    return `\\b${escapeRegExp(cleanFrom)}\\b`;
                 })
-                .filter(p => p.length > 0)
+                .filter(p => p.length > 2  /* more than just \b\b */)
                 .join('|'),
             'gi'
         );
