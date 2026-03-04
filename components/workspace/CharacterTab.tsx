@@ -29,6 +29,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
         handleBulkDelete,
         handleConfirmSave,
         handleAdd,
+        handleDelete,
         handleUpdate,
         handleExportJSON,
         handleImportJSON
@@ -85,7 +86,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
 
             {/* Table */}
             <div className="rounded-xl overflow-hidden border shadow-sm transition-colors duration-500 bg-card border-border">
-                <div className="grid grid-cols-[40px_250px_1fr] gap-4 px-4 py-3 border-b-2 text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-colors duration-500 bg-muted/50 border-border text-foreground/80">
+                <div className="grid grid-cols-[40px_250px_1fr_36px] gap-4 px-4 py-3 border-b-2 text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-colors duration-500 bg-muted/50 border-border text-foreground/80">
                     <div className="flex justify-center items-center">
                         <Checkbox
                             checked={filteredChars.length > 0 && selectedIds.length === filteredChars.length}
@@ -95,6 +96,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                     </div>
                     <div className="px-2 flex items-center">Nhân vật (Việt / Trung)</div>
                     <div className="px-2 flex items-center">Mô tả đặc điểm / Tiểu sử</div>
+                    <div />
                 </div>
 
                 <div className="divide-y divide-border max-h-[600px] overflow-y-auto custom-scrollbar">
@@ -111,6 +113,7 @@ export function CharacterTab({ workspaceId }: { workspaceId: string }) {
                                 isSelected={selectedIds.includes(char.id!)}
                                 onSelect={handleSelect}
                                 onUpdate={handleUpdate}
+                                onDelete={handleDelete}
                             />
                         ))
                     )}

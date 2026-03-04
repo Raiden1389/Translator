@@ -1,41 +1,33 @@
-## [2.7.12] - 2026-03-04 00:10
-
-### Bug Fixes
-- **[AI NER]** Fix bug sửa tên trong ReviewDialog bị reset về giá trị cũ khi save. Root cause: `useEffect` deps `[open, initialCharacters, initialTerms]` re-sync data mỗi khi parent re-render → mất hết chỉnh sửa. Fix: dùng `wasOpenRef` chỉ sync data khi dialog lần đầu mở (false→true transition).
-
-## [2.7.11] - 2026-03-03 23:24
-
-### Refactored
-- **[Translator]** Refactor `TranslationProvider.v2.tsx` — **628 LOC → 195 LOC**. Extracted 5 new modules:
-  - `chapter-title-normalizer.ts` — Title normalization (xóa duplicate prefix)
-  - `prepare-chapter-payload.ts` — Clean HTML + prepend title
-  - `glossary.service.ts` — Build shared glossary từ DB
-  - `useBatchOrchestrator.ts` — Batch translation orchestration
-  - `useSingleOrchestrator.ts` — Single chapter translation
-
-### Bug Fixes
-- **[Translator]** Fix "OOuroboros" double-letter bug — Thêm `\b` word boundary vào correction regex để tránh match substring bên trong từ đã sửa
-- **[Translator]** Fix Heuristic scan bị cancel khi chuyển tab — Không abort scan on unmount nữa, scan chạy background, toast progress vẫn cập nhật
-- **[Reader]** Fix text selection bị thiếu chữ khi bôi đen — Đổi `onSelect` → `onMouseUp` + thêm 10ms delay cho browser finalize selection
-
-## [2.7.10] - 2026-02-25
+## [2.7.13] - 2026-03-04
 
 ### Top Impact
-- **[Translator]** Auto-apply corrections on new translations — every chapter gets global corrections applied silently after translation completes.
-- **[Translator]** `corrections.service.ts` — dedicated service layer with `applyCorrectionsText()`, `sweepSingleRule()`, `applyCorrectionsToChapter()`.
-- **[UI]** "Tuning / Cải chính" tab → "Luyện Văn / Global Corrections" with better dark mode contrast.
-- **[UI]** Apply button → "🔥 Luyện Văn — Áp dụng X quy tắc" (clearer global scope).
-- **[Translator]** Add correction rule → auto-sweep ALL chapters silently (no toast spam).
+- **[NER]** ReviewDialog `onSave` ignored edited data — renaming/deleting characters in review was discarded on save.
+- **[Build]** `Cannot access 'J' before initialization` — top-level `import { invoke }` from `@tauri-apps/api/core` crashed Next.js SSR prerender. Reverted to lazy `await import()` inside `isTauri()` blocks.
+- **[UI]** Delete button on Character Tab rows — trash icon appears on hover for quick character removal.
+- **[UI]** "Dịch lại" (Retranslate) button in ChapterSelectionDock — bulk retranslate selected chapters with one click.
+- **[Translator]** `post-cleanup.ts` module — deduplicateConsecutiveParagraphs, normalizeQuoteStyles, scrubVietnameseAIChatter.
 
 ### Added
+- **[UI]** Delete button on Character Tab rows — trash icon appears on hover for quick character removal.
+- **[UI]** "Dịch lại" (Retranslate) button in ChapterSelectionDock — bulk retranslate selected chapters with one click.
+- **[Translator]** `post-cleanup.ts` module — deduplicateConsecutiveParagraphs, normalizeQuoteStyles, scrubVietnameseAIChatter.
+- **[Test]** `vitest.config.ts` + `__tests__/title-normalizer.test.ts` unit tests.
 - **[Translator]** Auto-apply corrections on new translations — every chapter gets global corrections applied silently after translation completes.
 - **[Translator]** `corrections.service.ts` — dedicated service layer with `applyCorrectionsText()`, `sweepSingleRule()`, `applyCorrectionsToChapter()`.
 
 ### Changed
-- **[UI]** "Tuning / Cải chính" tab → "Luyện Văn / Global Corrections" with better dark mode contrast.
-- **[UI]** Apply button → "🔥 Luyện Văn — Áp dụng X quy tắc" (clearer global scope).
-- **[Translator]** Add correction rule → auto-sweep ALL chapters silently (no toast spam).
-- **[Translator]** 3 correction hooks refactored to thin UI adapters — zero inline correction logic.
+- **[Translator]** `finalSweep()` now integrates post-cleanup functions for cleaner output.
+- **[Cleanup]** Removed stale lint-report files, TranslationProvider backup, cleaned .gitignore.
+- `components/workspace/characters/CharacterRow.tsx` — delete button
+- `components/workspace/CharacterTab.tsx` — pass handleDelete
+- `components/workspace/ChapterSelectionDock.tsx` — retranslate button
+- `components/workspace/chapter-list/ChapterList.tsx` — bulk retranslate handler
+
+### Fixed
+- **[NER]** ReviewDialog `onSave` ignored edited data — renaming/deleting characters in review was discarded on save.
+- **[Build]** `Cannot access 'J' before initialization` — top-level `import { invoke }` from `@tauri-apps/api/core` crashed Next.js SSR prerender. Reverted to lazy `await import()` inside `isTauri()` blocks.
+- **[NER]** ReviewDialog reset edits on parent re-render — `useRef` + `initialData` pattern to prevent data loss.
+- **[NER]** AI NER service edge cases in character extraction.
 
 ## [2.7.9] - 2026-02-25
 

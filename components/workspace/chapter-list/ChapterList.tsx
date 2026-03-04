@@ -397,6 +397,50 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 isAIExtracting={false}
                 handleBulkClearTranslation={handleBulkClearTranslation}
                 setBulkDeleteConfirmOpen={() => handleBulkDelete()}
+                onRetranslate={async () => {
+                    if (!workspace || selectedChapters.length === 0) return;
+                    const count = selectedChapters.length;
+                    if (!confirm(`Dịch lại ${count} chương đã chọn? Bản dịch cũ sẽ bị xoá.`)) return;
+
+                    // Clear translations for selected chapters
+                    await Promise.all(
+                        selectedChapters.map(id =>
+                            db.chapters.update(id, { content_translated: '', status: 'draft' as const })
+                        )
+                    );
+
+                    // Load settings and trigger translate (same as single retranslate)
+                    const key = await db.settings.get("apiKey");
+                    const model = await db.settings.get("model");
+                    const lastPrompt = await db.settings.get("customPrompt");
+                    const lastFixPunctuation = await db.settings.get("fixPunctuation");
+                    const lastEnableChunking = await db.settings.get("enableChunking");
+                    const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
+                    const lastChunkSize = await db.settings.get("chunkSize");
+                    const lastTemperature = await db.settings.get("temperature");
+
+                    const freshChapters = await db.chapters.where('workspaceId').equals(workspaceId).toArray();
+
+                    onTranslate({
+                        workspaceId,
+                        chapters: freshChapters,
+                        selectedChapters,
+                        currentSettings: {
+                            apiKey: (key?.value as string) || '',
+                            model: migrateModelId((model?.value as string) || DEFAULT_MODEL),
+                            temperature: (lastTemperature?.value as number) ?? 0.1,
+                        },
+                        translateConfig: {
+                            customPrompt: (lastPrompt?.value as string) || "",
+                            autoExtract: false,
+                            fixPunctuation: (lastFixPunctuation?.value as boolean) || false,
+                            enableChunking: (lastEnableChunking?.value as boolean) || false,
+                            maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
+                            chunkSize: (lastChunkSize?.value as number) || 800,
+                        },
+                        onReviewNeeded: (chars, terms) => onShowScanResults({ chars, terms }),
+                    });
+                }}
             />
 
             <AuditResultDialog

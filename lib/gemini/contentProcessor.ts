@@ -9,3 +9,4 @@ export * from "./text/normalize";
 export * from "./text/scrub";
 export * from "./text/correction";
 export * from "./text/casing";
+export * from "./text/post-cleanup";

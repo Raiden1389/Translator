@@ -1,6 +1,6 @@
 {
   "name": "raiden-ai-translator",
-  "version": "2.7.12",
+  "version": "2.7.13",
   "private": true,
   "scripts": {
     "//": "=========================",
@@ -39,7 +39,9 @@
     "meta:clean": "rimraf .next src-tauri/target",
     "meta:info": "node scripts/system-info.mjs",
     "meta:version-sync": "node scripts/sync-version.mjs",
-    "changelog:trim": "node scripts/changelog-trim.mjs"
+    "changelog:trim": "node scripts/changelog-trim.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",

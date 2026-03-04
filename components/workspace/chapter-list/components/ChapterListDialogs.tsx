@@ -163,7 +163,7 @@ export function ChapterListDialogs({
         onOpenChange={setIsReviewOpen}
         characters={pendingCharacters}
         terms={pendingTerms}
-        onSave={() => handleConfirmSaveAI(pendingCharacters, pendingTerms)}
+        onSave={handleConfirmSaveAI}
       />
     </>
   );

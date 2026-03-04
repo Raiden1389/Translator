@@ -7,6 +7,14 @@
  * - Preserves proper nouns by only normalizing body after colon
  */
 
+// Complete Vietnamese uppercase & lowercase character classes
+const VN_UPPER = 'A-ZĐÁÀẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ';
+const VN_LOWER = 'a-zđáàảãạăằắẳẵặâầấẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ';
+
+// Pre-compiled regexes using complete Vietnamese char classes
+const ALL_CAPS_RE = new RegExp(`^Chương\\s+\\d+:\\s+[${VN_UPPER}\\s!,.]+$`);
+const TITLE_CASE_RE = new RegExp(`:\\s*(?:[${VN_UPPER}][${VN_LOWER}]+\\s+){2,}`);
+
 /**
  * Normalize title to sentence case
  * Example: "CHƯƠNG 15: PHẢN HƯỚNG TRẢ GIÁ" -> "Chương 15: Phản hướng trả giá"
@@ -15,15 +23,8 @@
 export function normalizeTitleCase(title: string): string {
   if (!title?.trim()) return title;
 
-  // Detect ALL CAPS in body (after "Chương X:")
-  const hasAllCaps =
-    /^Chương\s+\d+:\s+[A-ZĐÁÀẢÃẠÊẾỀỂỄỆÔỐỒỔỖỘƠỚỜỞỠỢƯỨỪỬỮỰ\s!,.]+$/.test(title);
-
-  // Detect Title Case: multiple capitalized words AFTER colon
-  // This avoids false positives on valid sentence case like "Chương 12: Chính là người..."
-  const hasTitleCase =
-    /:\s*(?:[A-ZĐÁÀẢÃẠÊẾỀỂỄỆÔỐỒỔỖỘƠỚỜỞỠỢƯỨỪỬỮỰ][a-zđáàảãạêếềểễệôốồổỗộơớờởỡợưứừửữự]+\s+){2,}/
-      .test(title);
+  const hasAllCaps = ALL_CAPS_RE.test(title);
+  const hasTitleCase = TITLE_CASE_RE.test(title);
 
   if (!hasAllCaps && !hasTitleCase) return title;
 
@@ -44,12 +45,5 @@ export function normalizeTitleCase(title: string): string {
 export function hasTitleCaseIssue(title: string): boolean {
   if (!title?.trim()) return false;
 
-  const hasAllCaps =
-    /^Chương\s+\d+:\s+[A-ZĐÁÀẢÃẠÊẾỀỂỄỆÔỐỒỔỖỘƠỚỜỞỠỢƯỨỪỬỮỰ\s!,.]+$/.test(title);
-
-  const hasTitleCase =
-    /:\s*(?:[A-ZĐÁÀẢÃẠÊẾỀỂỄỆÔỐỒỔỖỘƠỚỜỞỠỢƯỨỪỬỮỰ][a-zđáàảãạêếềểễệôốồổỗộơớờởỡợưứừửữự]+\s+){2,}/
-      .test(title);
-
-  return hasAllCaps || hasTitleCase;
+  return ALL_CAPS_RE.test(title) || TITLE_CASE_RE.test(title);
 }

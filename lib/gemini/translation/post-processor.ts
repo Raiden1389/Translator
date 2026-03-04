@@ -6,6 +6,7 @@
 import { db, DictionaryEntry } from "../../db";
 import { TranslationResult } from "../types";
 import { finalSweep } from "../contentProcessor";
+import { normalizeTitleCase } from "../../utils/title-normalizer";
 
 /**
  * Apply post-processing to translation result
@@ -44,22 +45,10 @@ export async function applyPostProcessing(
         }
     }
 
-    // 🔧 NORMALIZE: Fix ALL CAPS titles (e.g., "KHAI TIẾC" → "Khai Tiếc")
+    // 🔧 NORMALIZE: Fix ALL CAPS / Title Case titles
+    // Uses normalizeTitleCase() — single source of truth with complete Vietnamese char class
     if (parsed.translatedTitle) {
-        const title = parsed.translatedTitle;
-        const letters = title.replace(/[^a-zA-ZÀ-ỹ]/g, ''); // Only letters
-        const uppercaseCount = (title.match(/[A-ZÀ-Ý]/g) || []).length;
-        const isAllCaps = letters.length > 0 && uppercaseCount / letters.length > 0.5;
-
-        if (isAllCaps) {
-            // Convert to Title Case
-            parsed.translatedTitle = title
-                .toLowerCase()
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-            console.log(`🔧 [POST-PROCESSOR] Title normalized from ALL CAPS: "${title}" → "${parsed.translatedTitle}"`);
-        }
+        parsed.translatedTitle = normalizeTitleCase(parsed.translatedTitle);
     }
 
 
@@ -73,15 +62,25 @@ export async function applyPostProcessing(
         }
     }
 
-    // Final Sweep (Clean up brackets, explanations, and structure)
+    // Final Sweep — ONLY for body content (heavy: glossary enforce, capitalization, structure repair)
     parsed.translatedText = finalSweep(parsed.translatedText, relevantDict);
     if (parsed.translatedTitle) {
-        parsed.translatedTitle = finalSweep(parsed.translatedTitle, relevantDict);
+        // Title: light cleanup only — no glossary enforce, no structure repair, no idiom strip
+        const { normalizeVietnameseContent } = await import("../contentProcessor");
+        const { scrubAIChatter } = await import("../contentProcessor");
+        parsed.translatedTitle = scrubAIChatter(normalizeVietnameseContent(parsed.translatedTitle));
     }
 
     // 🛡️ FALLBACK: Nếu mọi nỗ lực parse đều thất bại, không để trống title
     if (!parsed.translatedTitle || parsed.translatedTitle.trim() === "") {
         parsed.translatedTitle = "Chương: (Tiêu đề chưa xác định)";
+    }
+
+    // 🔍 QUALITY CHECK: Detect leftover Chinese in body (common with non-thinking mode)
+    const { detectChineseLeftover } = await import("../text/post-cleanup");
+    const chineseCheck = detectChineseLeftover(parsed.translatedText);
+    if (chineseCheck.hasChinese) {
+        console.warn(`⚠️ [POST-PROCESSOR] Body contains ${chineseCheck.count} Chinese chars (${(chineseCheck.ratio * 100).toFixed(1)}%) — may need re-translation`);
     }
 
     return parsed;

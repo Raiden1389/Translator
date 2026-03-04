@@ -5,7 +5,36 @@
 
 ---
 
-## [2.7.10] - 2026-02-25
+## [2.7.13] - 2026-03-04
+
+**Top Impact**: Fix NER save bug • Character delete button • Bulk retranslate • Build crash fix
+
+### Fixed
+- **[NER]** ReviewDialog `onSave` ignored edited data — renaming/deleting characters in review was discarded on save.
+- **[Build]** `Cannot access 'J' before initialization` — top-level `import { invoke }` from `@tauri-apps/api/core` crashed Next.js SSR prerender. Reverted to lazy `await import()` inside `isTauri()` blocks.
+
+### Added
+- **[UI]** Delete button on Character Tab rows — trash icon appears on hover for quick character removal.
+- **[UI]** "Dịch lại" (Retranslate) button in ChapterSelectionDock — bulk retranslate selected chapters with one click.
+- **[Translator]** `post-cleanup.ts` module — deduplicateConsecutiveParagraphs, normalizeQuoteStyles, scrubVietnameseAIChatter.
+- **[Test]** `vitest.config.ts` + `__tests__/title-normalizer.test.ts` unit tests.
+
+### Changed
+- **[Translator]** `finalSweep()` now integrates post-cleanup functions for cleaner output.
+- **[Cleanup]** Removed stale lint-report files, TranslationProvider backup, cleaned .gitignore.
+
+### Files Modified
+- `components/workspace/characters/CharacterRow.tsx` — delete button
+- `components/workspace/CharacterTab.tsx` — pass handleDelete
+- `components/workspace/ChapterSelectionDock.tsx` — retranslate button
+- `components/workspace/chapter-list/ChapterList.tsx` — bulk retranslate handler
+- `components/workspace/chapter-list/components/ChapterListDialogs.tsx` — fix onSave
+- `lib/gemini/contentProcessor.ts` — export post-cleanup
+- `lib/gemini/text/casing.ts` — integrate post-cleanup in finalSweep
+- `lib/gemini/text/post-cleanup.ts` — NEW module
+- `lib/gemini/translation/post-processor.ts` — integrate post-cleanup
+
+---
 
 **Top Impact**: Luyện Văn auto-apply pipeline • Corrections service refactor (1 engine → 1 service → 3 thin hooks)
 
@@ -18,6 +47,28 @@
 - **[UI]** Apply button → "🔥 Luyện Văn — Áp dụng X quy tắc" (clearer global scope).
 - **[Translator]** Add correction rule → auto-sweep ALL chapters silently (no toast spam).
 - **[Translator]** 3 correction hooks refactored to thin UI adapters — zero inline correction logic.
+
+### Fixed
+- **[NER]** ReviewDialog reset edits on parent re-render — `useRef` + `initialData` pattern to prevent data loss.
+- **[NER]** AI NER service edge cases in character extraction.
+
+### Changed
+- **[Translator]** TranslationProvider V3 — extracted into orchestrator-only pattern:
+  - `useBatchOrchestrator.ts` — batch translation logic
+  - `useSingleOrchestrator.ts` — single chapter translation  
+  - `glossary.service.ts` — shared glossary building
+  - `chapter-title-normalizer.ts` — title normalization
+  - `prepare-chapter-payload.ts` — content preparation
+- **[Cleanup]** Purged 200+ unused skills from `.agent/skills/`.
+
+### Files Modified
+- `components/workspace/hooks/TranslationProvider.v2.tsx` — 526→~230 LOC
+- `components/workspace/hooks/useBatchOrchestrator.ts` — NEW
+- `components/workspace/hooks/useSingleOrchestrator.ts` — NEW
+- `components/workspace/shared/ReviewDialog.tsx` — re-render fix
+- `lib/services/glossary.service.ts` — NEW
+- `lib/utils/chapter-title-normalizer.ts` — NEW
+- `lib/utils/prepare-chapter-payload.ts` — NEW
 
 ---
 

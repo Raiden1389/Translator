@@ -61,3 +61,6 @@ session.json
 brain.json
 system_overview.md
 CHANGELOG.md.bak
+
+# Lint reports (generated artifacts)
+lint-*.json

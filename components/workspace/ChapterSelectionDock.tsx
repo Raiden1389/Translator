@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, Eraser, Sparkles, X, Loader2, FileText } from "lucide-react";
+import { Trash2, Eraser, Sparkles, X, Loader2, FileText, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Chapter } from "@/lib/db";
 
@@ -16,6 +16,7 @@ interface ChapterSelectionDockProps {
     isAIExtracting: boolean;
     handleBulkClearTranslation: () => void;
     setBulkDeleteConfirmOpen: (open: boolean) => void;
+    onRetranslate?: () => void;
 }
 
 export function ChapterSelectionDock({
@@ -27,7 +28,8 @@ export function ChapterSelectionDock({
     setScanConfigOpen,
     isAIExtracting,
     handleBulkClearTranslation,
-    setBulkDeleteConfirmOpen
+    setBulkDeleteConfirmOpen,
+    onRetranslate
 }: ChapterSelectionDockProps) {
     if (selectedChapters.length === 0) return null;
 
@@ -66,6 +68,18 @@ export function ChapterSelectionDock({
                             <FileText className="h-4 w-4" />
                             <span>{selectedChapters.length > 1 ? "Dịch hàng loạt" : "Dịch chương"}</span>
                         </Button>
+
+                        {onRetranslate && (
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={onRetranslate}
+                                className="font-bold h-9 px-4 rounded-lg gap-2 transition-colors text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                            >
+                                <RefreshCw className="h-4 w-4" />
+                                <span className="hidden sm:inline">Dịch lại</span>
+                            </Button>
+                        )}
 
                         <Button
                             size="sm"

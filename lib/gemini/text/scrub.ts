@@ -98,7 +98,7 @@ export function scrubSourceRags(text: string): string {
         .replace(/请收藏本站：/g, "")
         .replace(/最新章节/g, "")
         .replace(/手机用户请浏览/g, "")
-        .replace(/阅读/g, "")
+        // NOTE: 阅读 removed — too generic, appears in actual novel content
         .replace(/&nbsp;/g, " ")
         // 3. Spacing normalization
         .replace(/\n{3,}/g, "\n\n")

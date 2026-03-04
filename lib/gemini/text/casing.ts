@@ -2,6 +2,7 @@ import { DictionaryEntry } from "../../db";
 import { normalizeVietnameseContent } from "./normalize";
 import { scrubAIChatter, cleanIdiomExplanations } from "./scrub";
 import { repairSentenceStructure, repairUnmatchedQuotes, applyAllCorrections } from "./correction";
+import { deduplicateConsecutiveParagraphs, normalizeQuoteStyles, scrubVietnameseAIChatter } from "./post-cleanup";
 
 /**
  * Casing & Final Sweep Module
@@ -10,8 +11,14 @@ import { repairSentenceStructure, repairUnmatchedQuotes, applyAllCorrections } f
 export function finalSweep(text: string, glossary: DictionaryEntry[] = []): string {
     if (!text) return "";
 
-    // 1. Clean up AI chatter and standard formatting first
-    let cleaned = scrubAIChatter(normalizeVietnameseContent(text));
+    // 1. Clean up AI chatter (English + Vietnamese) and standard formatting
+    let cleaned = scrubVietnameseAIChatter(scrubAIChatter(normalizeVietnameseContent(text)));
+
+    // 1.5. Remove consecutive duplicate paragraphs (AI stuttering)
+    cleaned = deduplicateConsecutiveParagraphs(cleaned);
+
+    // 1.6. Normalize quote styles to Vietnamese standard
+    cleaned = normalizeQuoteStyles(cleaned);
 
     // 2. Recursive cleanup to ensure no double brackets survive
     let prev = "";

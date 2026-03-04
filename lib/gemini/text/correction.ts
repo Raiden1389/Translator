@@ -17,7 +17,20 @@ export function repairSentenceStructure(text: string): string {
     const safeWords = `${pronouns}|${conjunctions}|${prepositions}|${verbs}|${others}`;
     const regex = new RegExp(`, (${safeWords})`, 'g');
 
-    return text.replace(regex, '. $1');
+    // Smart replacement: only break run-on sentences (clause > 50 chars)
+    // Short clauses with comma are valid Vietnamese compound sentences
+    return text.replace(regex, (match, word, offset) => {
+        const before = text.substring(0, offset);
+        const lastBoundary = Math.max(
+            before.lastIndexOf('. '),
+            before.lastIndexOf('! '),
+            before.lastIndexOf('? '),
+            before.lastIndexOf('\n'),
+            0
+        );
+        const clauseLength = offset - lastBoundary;
+        return clauseLength > 50 ? `. ${word}` : match;
+    });
 }
 
 /**
