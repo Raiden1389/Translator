@@ -91,16 +91,16 @@ export async function pushWorkspace(workspaceId: string): Promise<{ chapterCount
 
   const rawSizeKB = Math.round(new Blob([payload]).size / 1024);
 
-  // Gzip compress payload
+  // Gzip compress payload → ArrayBuffer for reliable Content-Length
   let body: BodyInit = payload;
   let contentEncoding = "";
   try {
     const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream("gzip"));
-    body = await new Response(stream).blob();
+    body = await new Response(stream).arrayBuffer();
     contentEncoding = "gzip";
   } catch { body = payload; /* fallback: send uncompressed */ }
 
-  const sizeKB = Math.round((body instanceof Blob ? body.size : new Blob([body as string]).size) / 1024);
+  const sizeKB = Math.round((body instanceof ArrayBuffer ? body.byteLength : new Blob([body as string]).size) / 1024);
   const url = `${HUB_URL}/${encodeURIComponent(workspaceId)}`;
   console.log(`[CloudSync] PUT "${ws.title}" → ${url} (${chapters.length} ch, ${rawSizeKB} KB → ${sizeKB} KB gzip)`);
 
@@ -181,16 +181,16 @@ export async function pushDelta(workspaceId: string): Promise<{ chapterCount: nu
     dictionary: [],
   });
 
-  // Gzip compress
+  // Gzip compress → ArrayBuffer for reliable Content-Length
   let body: BodyInit = payload;
   let contentEncoding = "";
   try {
     const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream("gzip"));
-    body = await new Response(stream).blob();
+    body = await new Response(stream).arrayBuffer();
     contentEncoding = "gzip";
   } catch { body = payload; }
 
-  const sizeKB = Math.round((body instanceof Blob ? body.size : payload.length) / 1024);
+  const sizeKB = Math.round((body instanceof ArrayBuffer ? body.byteLength : payload.length) / 1024);
   console.log(`[CloudSync] DELTA "${ws.title}": ${changedChapters.length} changed chapters (${sizeKB} KB gzip)`);
 
   const res = await fetch(`${HUB_URL}/${encodeURIComponent(workspaceId)}`, {

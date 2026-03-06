@@ -25,10 +25,13 @@
 ### Fixed
 - **[Translator]** "Ta ở đây" opening — Fixed common AI filler opening when no actual location is implied.
 - **[Translator]** Incorrect "Nhất" usage — Limited "nhất" to actual comparative contexts only.
+- **[Sync]** Cloud push 500 for new novels — R2 rejected `DecompressionStream` output (unknown length). Worker now buffers decompressed body as string before `R2.put()`. Also fixed client-side gzip: `Blob` → `ArrayBuffer` for reliable `Content-Length`.
 
 ### Files Modified
 - `.agent/workflows/dich.md` — Rule set v3 expansion
 - `bridge/out_*.json` — Applied new rules to Chapter 42-44 deliveries
+- `lib/sync/cloud-sync.ts` — Gzip body: Blob → ArrayBuffer
+- `raiden-sync/src/index.ts` — Buffer decompressed body before R2.put (deployed)
 
 ---
 
