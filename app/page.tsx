@@ -3,6 +3,7 @@
 import { WorkspaceList } from "@/components/dashboard/WorkspaceList";
 import { Zap } from "lucide-react";
 import { SyncMobileButton } from "@/components/workspace/shared/SyncMobileButton";
+import { CloudSyncButton } from "@/components/workspace/shared/CloudSyncButton";
 
 export default function Home() {
   return (
@@ -25,6 +26,7 @@ export default function Home() {
             <div className="flex items-center gap-3 mb-3">
               <h2 className="text-4xl font-black text-foreground tracking-tight">My Library</h2>
               <SyncMobileButton workspaceId="" />
+              <CloudSyncButton />
             </div>
             <div className="h-1 w-20 bg-primary/40 rounded-full mb-4"></div>
             <p className="text-muted-foreground text-sm max-w-md leading-relaxed">

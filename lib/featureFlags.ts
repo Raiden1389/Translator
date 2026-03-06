@@ -52,6 +52,13 @@ export const featureFlags = {
    * Depends on: uiPreferences
    */
   zeroConfirm: false, // OFF until Phase 4 complete
+
+  /**
+   * Antigravity Bridge (Experimental)
+   * Fallback translation via Agent chat when API key runs out.
+   * Uses file-based inbox/outbox at ~/.raiden/bridge/
+   */
+  antigravityBridge: true, // ON for testing
 } as const;
 
 /**

@@ -2,7 +2,42 @@
 
 ---
 
+
+## [2.9.0] - 2026-03-06
+
+**Session**: Workflow-Embedded Translation Engine + Continuous Task Mode
+**Objective**: Hardcode translation rules into `/dich` workflow for maximum adherence and fix truncation issues.
+
+### Added
+- Workflow-Embedded Rules — 10+ critical rules now live directly in `.agent/workflows/dich.md`.
+- Continuous Task Mode — Batch chapters treated as one task to maintain stylistic consistency.
+- Quality Gate Checklist — Mandatory pre-save validation for pronouns, blacklist, and formatting.
+
+### Fixed
+- Large Chapter Truncation — Fix "Expect double quote" JSON errors by optimizing `write_to_file`.
+- Rule Adherence — Prioritize workflow-embedded rules over AI internal reasoning.
+
+### Changed
+- Refactored `/dich` command to be completely silent and batch-optimized.
+- Simplified internal prompts to prevent segment-by-segment style re-analysis.
+
+### Technical Notes
+- **Root cause (truncation)**: `write_to_file` call was failing on very large chapter contents, causing incomplete JSON outputs.
+- **Root cause (rule failure)**: Flash model sometimes ignored rules in `constants.ts` or `config.prompt` if context window was cluttered or prompt was too long.
+
+### Files
+| File | Change |
+|------|--------|
+| `.agent/workflows/dich.md` | Core translation logic overhaul |
+| `package.json` | v2.8.0 -> v2.9.0 |
+| `src-tauri/Cargo.toml` | v2.8.0 -> v2.9.0 |
+| `src-tauri/tauri.conf.json` | v2.8.0 -> v2.9.0 |
+| `CHANGELOG.full.md` | Session notes |
+
+---
+
 ## [2.7.13] - 2026-03-04
+
 
 **Session**: Fix NER save bug + Character delete + Bulk retranslate
 **Objective**: Fix critical bugs and add UX improvements

@@ -5,6 +5,9 @@ import { ReaderModal } from "../ReaderModal";
 import { HistoryDialog } from "../../shared/HistoryDialog";
 import { ScanConfigDialog } from "../../ScanConfigDialog";
 import { ReviewDialog } from "../../shared/ReviewDialog";
+import { AgBridgeDialog } from "../bridge/AgBridgeDialog";
+import { featureFlags } from "@/lib/featureFlags";
+import { useTranslation } from "../../hooks/TranslationProvider.v2";
 import type { Chapter } from "@/lib/db";
 import type { GlossaryCharacter, GlossaryTerm, TranslationSettings } from "@/lib/types";
 import type { EntityType } from "../../ScanConfigDialog";
@@ -95,6 +98,8 @@ export function ChapterListDialogs({
   pendingTerms,
   handleConfirmSaveAI
 }: ChapterListDialogsProps) {
+  const { bridge } = useTranslation();
+
   return (
     <>
       <TranslateConfigDialog
@@ -165,6 +170,19 @@ export function ChapterListDialogs({
         terms={pendingTerms}
         onSave={handleConfirmSaveAI}
       />
+
+      {/* Antigravity Bridge Dialog */}
+      {featureFlags.antigravityBridge && (
+        <AgBridgeDialog
+          open={bridge.dialogOpen}
+          onOpenChange={bridge.closeDialog}
+          exportedCount={bridge.exportedCount}
+          jobId={bridge.lastJobId}
+          exportPath={bridge.lastExportPath}
+          isImporting={bridge.isImporting}
+          onImport={() => bridge.importFromBridge(workspaceId)}
+        />
+      )}
     </>
   );
 }

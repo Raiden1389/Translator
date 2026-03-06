@@ -188,10 +188,15 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
 
                 <div className="space-y-6 py-4 relative max-h-[60vh] overflow-y-auto pr-2">
                     {/* Active Config Display */}
-                    <div className="p-3 rounded-xl bg-muted/30 border border-border flex justify-between items-center text-sm">
+                    <div className={`p-3 rounded-xl border flex justify-between items-center text-sm transition-colors ${currentSettings.model === 'antigravity-bridge' ? 'bg-primary/10 border-primary/30' : 'bg-muted/30 border-border'}`}>
                         <div>
                             <div className="text-[10px] text-muted-foreground uppercase font-black tracking-wider mb-1">Active AI Model</div>
-                            <div className="font-mono font-bold text-primary">{currentSettings.model}</div>
+                            <div className={`font-mono font-bold ${currentSettings.model === 'antigravity-bridge' ? 'text-primary animate-pulse' : 'text-primary'}`}>
+                                {currentSettings.model === 'antigravity-bridge' ? '🤖 Antigravity Bridge' : currentSettings.model}
+                            </div>
+                            {currentSettings.model === 'antigravity-bridge' && (
+                                <div className="text-[10px] text-primary/70 font-medium italic mt-1">Sử dụng Quota của Antigravity Agent. Không tốn API Key.</div>
+                            )}
                         </div>
                         <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => setSettingsOpen(true)}>
                             <Edit className="h-3 w-3 mr-2" /> Thay đổi

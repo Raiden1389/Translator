@@ -2,15 +2,18 @@
 
 import React, { createContext, useContext, useCallback } from "react";
 import { TranslationSettings } from "@/lib/types";
-import type { Chapter, CorrectionEntry } from "@/lib/db";
+import type { Chapter, CorrectionEntry, DictionaryEntry } from "@/lib/db";
 import { buildSharedGlossary } from "@/lib/services/glossary.service";
 import { loadGlobalRules } from "@/lib/services/corrections.service";
+import { featureFlags } from "@/lib/featureFlags";
+import { buildSystemInstruction } from "@/lib/gemini/constants";
 
 // Hooks
 import { useTranslationQueue } from "./useTranslationQueue";
 import { useTranslationProgress } from "./useTranslationProgress";
 import { useBatchOrchestrator } from "./useBatchOrchestrator";
 import { useSingleOrchestrator } from "./useSingleOrchestrator";
+import { useAntigravityOrchestrator } from "./useAntigravityOrchestrator";
 
 interface BatchTranslateProps {
     workspaceId: string;
@@ -41,6 +44,9 @@ interface TranslationContextType {
 
     // Progress state
     progress: ReturnType<typeof useTranslationProgress>;
+
+    // Antigravity Bridge state
+    bridge: ReturnType<typeof useAntigravityOrchestrator>;
 
     // Backward compatibility
     batchProgress: {
@@ -98,6 +104,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     const progress = useTranslationProgress();
     const { translateBatches } = useBatchOrchestrator(queue, progress);
     const { processAllChapters } = useSingleOrchestrator(queue, progress);
+    const bridge = useAntigravityOrchestrator();
 
     const startBatchTranslate = useCallback(async ({
         workspaceId,
@@ -132,6 +139,35 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         // 3. Build shared resources (once for entire batch)
         const sharedGlossary = await buildSharedGlossary(workspaceId, chaptersToTranslate);
         const globalRules: CorrectionEntry[] = await loadGlobalRules();
+
+        // 3.5 Route: Antigravity Bridge (file-based fallback)
+        if (featureFlags.antigravityBridge && currentSettings.model === 'antigravity-bridge') {
+            try {
+                const { exportInbox } = await import('@/lib/bridge/antigravity-bridge');
+
+                // Build full system prompt with ALL translation rules from constants.ts
+                const glossaryText = (sharedGlossary as DictionaryEntry[]).map(g => `${g.original}=${g.translated}`).join(', ');
+                const fullPrompt = buildSystemInstruction(
+                    translateConfig.customPrompt || undefined,
+                    glossaryText ? `[GLOSSARY]: ${glossaryText}` : undefined,
+                );
+
+                const { jobId, path, chapterCount } = await exportInbox(
+                    workspaceId,
+                    chaptersToTranslate,
+                    sharedGlossary as DictionaryEntry[],
+                    globalRules,
+                    fullPrompt,
+                    0.1,
+                );
+                bridge.setBridgeResult(jobId, path, chapterCount);
+            } catch (err) {
+                progress.addNotification({ type: 'error', message: `Bridge export failed: ${err instanceof Error ? err.message : String(err)}` });
+            }
+            progress.stopTracking();
+            onComplete?.();
+            return;
+        }
 
         // 4. Route: batch mode or single mode
         if (translateConfig.enableBatch && translateConfig.batchSize && chaptersToTranslate.length > 1) {
@@ -174,13 +210,27 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         // 5. Cleanup
         progress.stopTracking();
         onComplete?.();
-    }, [queue, progress, translateBatches, processAllChapters]);
+
+        // 6. Auto-push to cloud (background, delta — only new chapters)
+        import("@/lib/sync/cloud-sync").then(({ hasToken, pushDelta }) => {
+            if (!hasToken()) return;
+            pushDelta(workspaceId).then(result => {
+                if (result.sizeKB === 0) return; // already up to date
+                import("sonner").then(({ toast }) => {
+                    toast.success(`☁️ Đã sync ${result.delta ? "+" + (result.chapterCount) : result.chapterCount} chương lên cloud`);
+                });
+            }).catch(err => {
+                console.warn("[CloudSync] Auto-push failed:", err);
+            });
+        }).catch(() => { /* cloud-sync module not available */ });
+    }, [queue, progress, bridge, translateBatches, processAllChapters]);
 
     // Context value (backward compat mapping)
     const value: TranslationContextType = {
         isTranslating: queue.isProcessing,
         queue,
         progress,
+        bridge,
         batchProgress: {
             current: progress.aggregateStats.completedChapters,
             total: progress.aggregateStats.totalChapters,

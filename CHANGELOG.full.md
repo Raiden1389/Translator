@@ -5,7 +5,32 @@
 
 ---
 
+
+## [2.9.0] - 2026-03-06
+
+**Top Impact**: New Workflow-Embedded Translation Engine • Continuous Task Context • Massive Rule Enforcement
+
+### Added
+- **[Translator]** Workflow-Embedded Rules — 10+ critical translation rules (pronouns, subjects, blacklist) now live directly in `.agent/workflows/dich.md` for zero-hallucination enforcement.
+- **[Translator]** Continuous Task Mode — All chapters in a batch are treated as a single task, preventing style/terminology reset per chapter.
+- **[Translator]** Quality Gate Checklist — Mandatory pre-save validation for pronouns, blacklist, and formatting.
+
+### Fixed
+- **[Translator]** Large Chapter Truncation — fixed "Expect double quote" JSON errors by optimizing the `write_to_file` pipeline for large chapter contents.
+- **[Translator]** Rule Adherence — eliminated AI "over-thinking" by prioritizing embedded workflow rules over internal reasoning.
+
+### Changed
+- **[Workflow]** Refactored `/dich` command to be completely silent and batch-optimized.
+- **[Prompt]** Simplified internal prompts to prevent AI from re-analyzing style per segment.
+
+### Files Modified
+- `.agent/workflows/dich.md` — Core translation logic overhaul
+- `bridge/out_*.json` — Fixed truncation/formatting issues
+
+---
+
 ## [2.7.13] - 2026-03-04
+
 
 **Top Impact**: Fix NER save bug • Character delete button • Bulk retranslate • Build crash fix
 
