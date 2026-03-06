@@ -79,6 +79,8 @@ Rules định hướng nhẹ:
 - Nếu câu đã rõ nghĩa và tự nhiên, không sửa thêm chỉ để "hay hơn".
 - Có thể ẩn chủ ngữ hoặc thay bằng đại từ nếu nghĩa vẫn rõ.
 - Ưu tiên câu tiếng Việt tự nhiên, không bám cấu trúc Hán văn một cách máy móc.
+- Tránh dịch literal làm câu Việt gượng. Nếu có 2 cách đều đúng nghĩa, ưu tiên cách đọc tự nhiên hơn trong tiếng Việt.
+- Trước khi output, tự rà các lỗi bề mặt rõ ràng như lặp từ, thừa từ, cụm vô nghĩa, hoặc typo dễ thấy. Chỉ sửa các lỗi chắc chắn, không rewrite lớn.
 
 ### 2c. Context Bridge
 
@@ -128,6 +130,7 @@ Checklist:
 - Xưng hô và viết thường đúng rule.
 - Dòng hệ thống/game vẫn giữ format ổn định.
 - Không có meta talk, ghi chú, hay output ngoài nội dung chương.
+- Không còn lỗi bề mặt rõ ràng như lặp từ, thừa từ, typo dễ thấy, hoặc câu vô nghĩa do dịch literal.
 
 Nếu fail:
 - Sửa tối thiểu đúng chỗ lỗi.
