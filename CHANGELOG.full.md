@@ -5,6 +5,32 @@
 
 ---
 
+## [2.9.1] - 2026-03-06
+
+**Top Impact**: Ultra-lean Translation Rules v2/v3 • Anti-Literal & Logic Guardrails • Translation Quality Polish
+
+### Added
+- **[Translator]** Ultra-lean Rules v3 — Added 10+ specific guardrails to combat typical translation engine hallucinations:
+  - Anti-Literal: "chia một chén canh" → natural Vietnamese "kiếm một phần/nhúng tay vào".
+  - Han-Structure Ban: Replaced machine-like "danh từ + độ khó cao" with natural "việc này khó".
+  - Logic Guardrail: Prevented spatially impossible phrases like "đậu ở bên trong và ngoài doanh trại".
+  - POV Consistency: Banned "mình/của mình" in 3rd person narration/thoughts.
+  - Collocation Fixer: Auto-corrected machine terms like "bàn chông" (bẫy chông), "trạng thái cơ thể" (thể chất/thể trạng).
+- **[Translator]** Silent Word Purge — Automated removal of redundant/repetitive words ("ngoài ra ngoài", "thầm lẩm bẩm").
+
+### Changed
+- **[Workflow]** Refined `/dich` workflow to be even more aggressive in enforcing natural phrasing over literal conversion.
+- **[Prompt]** Updated embedded translation rules with clear "SAI / ĐÚNG" examples for the AI.
+
+### Fixed
+- **[Translator]** "Ta ở đây" opening — Fixed common AI filler opening when no actual location is implied.
+- **[Translator]** Incorrect "Nhất" usage — Limited "nhất" to actual comparative contexts only.
+
+### Files Modified
+- `.agent/workflows/dich.md` — Rule set v3 expansion
+- `bridge/out_*.json` — Applied new rules to Chapter 42-44 deliveries
+
+---
 
 ## [2.9.0] - 2026-03-06
 

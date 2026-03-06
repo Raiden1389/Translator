@@ -1,3 +1,26 @@
+## [2.9.1] - 2026-03-06
+
+### Top Impact
+- **[Translator]** Ultra-lean Rules v3 — Added 10+ specific guardrails to combat typical translation engine hallucinations:
+- **[Translator]** Silent Word Purge — Automated removal of redundant/repetitive words ("ngoài ra ngoài", "thầm lẩm bẩm").
+- **[Workflow]** Refined `/dich` workflow to be even more aggressive in enforcing natural phrasing over literal conversion.
+- **[Prompt]** Updated embedded translation rules with clear "SAI / ĐÚNG" examples for the AI.
+- **[Translator]** "Ta ở đây" opening — Fixed common AI filler opening when no actual location is implied.
+
+### Added
+- **[Translator]** Ultra-lean Rules v3 — Added 10+ specific guardrails to combat typical translation engine hallucinations:
+- **[Translator]** Silent Word Purge — Automated removal of redundant/repetitive words ("ngoài ra ngoài", "thầm lẩm bẩm").
+
+### Changed
+- **[Workflow]** Refined `/dich` workflow to be even more aggressive in enforcing natural phrasing over literal conversion.
+- **[Prompt]** Updated embedded translation rules with clear "SAI / ĐÚNG" examples for the AI.
+- `.agent/workflows/dich.md` — Rule set v3 expansion
+- `bridge/out_*.json` — Applied new rules to Chapter 42-44 deliveries
+
+### Fixed
+- **[Translator]** "Ta ở đây" opening — Fixed common AI filler opening when no actual location is implied.
+- **[Translator]** Incorrect "Nhất" usage — Limited "nhất" to actual comparative contexts only.
+
 ## [2.9.0] - 2026-03-06
 
 ### Top Impact

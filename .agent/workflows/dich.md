@@ -72,15 +72,49 @@ Rules bắt buộc:
 - Trong thoại: `Ta` / `Ngươi`.
 - Độc thoại nội tâm: `Ta`.
 - Trong trần thuật ngôi 3: ưu tiên `hắn` / `nàng`. Tránh `tôi`, `anh`, `em`, `mình`.
+- Với `自己/我` đi cùng danh từ trừu tượng như `năng lực`, `tiền đồ`, `suy nghĩ`, `lựa chọn`, ưu tiên bỏ sở hữu nếu nghĩa vẫn rõ. Tránh `của mình` trong trần thuật ngôi 3.
 - Viết thường `hắn`, `nàng`, `ta`, `ngươi`, trừ đầu câu.
 - Giữ đúng format các dòng hệ thống/game: `[Thông báo: ...]`, `[Gợi ý: ...]`, `Vật phẩm:`, `Mô tả:`.
+- CẤM dấu phẩy sau từ nối đầu câu: `Nhưng`, `Tuy nhiên`, `Vì vậy`, `Do đó`.
+- Tên game, tác phẩm, kỹ năng, phe phái, địa danh đã chốt trong cùng task thì không đổi cách gọi giữa các đoạn hoặc các chương.
+- CẤM dịch sát từng chữ thành ngữ hoặc cụm Hán văn nếu ra câu Việt gượng hoặc vô nghĩa.
+- Nếu bản dịch literal kiểu `chia một chén canh`, phải đổi sang cách nói Việt tự nhiên cùng nghĩa như `chia phần`, `kiếm một phần`, `nhúng tay vào`.
+- CẤM cấu trúc kiểu `danh từ + độ khó cao/thấp`.
+- Ví dụ sai: `công việc độ khó cao thế này`.
+- Ví dụ đúng: `công việc khó như vậy`, `việc này quá khó`.
 
+- CẤM cụm vị trí hoặc logic tự mâu thuẫn trong cùng một vế.
+- Ví dụ sai: `đậu ở bên trong và ngoài doanh trại`.
+- Khi gặp kiểu này, phải tự sửa thành một cách diễn đạt hợp logic trước khi output.
+
+- CẤM từ thừa hoặc lặp từ sát nhau.
+- Ví dụ sai: `ngoài ra ngoài`, `thầm lẩm bẩm`.
+- Phải bỏ từ dư trước khi output.
+
+- CẤM dùng `nhất` nếu source không có ý so sánh rõ ràng.
+- Ví dụ sai: `gần nhà máy hóa chất bỏ hoang nhất`.
+- Chỉ dùng `nhất` khi nguồn thật sự là `gần nhất/xa nhất/lớn nhất...`.
+
+- CẤM các cụm danh từ kiểu dịch máy như `phương tiện loại ô tô`.
+- Phải đổi thành danh từ Việt tự nhiên hơn như `ô tô`, `xe hơi`, `phương tiện`.
+- CẤM các cụm mở lời literal kiểu `ta ở đây`, `ta bên này`, `ta chỗ này` nếu câu không có ý vị trí thật.
+- Ví dụ sai: `ta ở đây tình cờ có một nhiệm vụ`.
+- Ví dụ đúng: `ta tình cờ có một nhiệm vụ`, `ta có một nhiệm vụ`, `ta thấy có một việc ngươi có thể hứng thú`.
+- CẤM dùng `mình` hoặc `của mình` trong suy nghĩ trực tiếp khi toàn đoạn đang trần thuật ngôi 3.
+- Ví dụ sai: `kỹ năng bị động Cảm nhận nguy hiểm của mình`.
+- Ví dụ đúng: `kỹ năng bị động Cảm nhận nguy hiểm của ta`, hoặc bỏ sở hữu nếu nghĩa vẫn rõ.
+- CẤM lặp ý hoặc lặp từ cùng gốc trong một cụm.
+- Ví dụ sai: `theo dấu đánh dấu`, `nhiệm vụ khó chỉ mức C+`.
+- Phải rút gọn còn một hạt nghĩa: `theo dấu trên bản đồ`, `nhiệm vụ chỉ có độ khó C+`.
+- CẤM cụm danh từ dịch máy nghe sai loại sự vật hoặc sai collocation.
+- Ví dụ sai: `bàn chông`, `trạng thái cơ thể`.
+- Phải đổi sang danh từ Việt tự nhiên hơn như `bẫy chông`, `thể trạng`, `thể chất`.
+- Tránh các cụm convert rõ ràng như `trong lòng thầm nghĩ`, `cái địa phương này`, `có thể thấy rằng`.
 Rules định hướng nhẹ:
 - Nếu câu đã rõ nghĩa và tự nhiên, không sửa thêm chỉ để "hay hơn".
 - Có thể ẩn chủ ngữ hoặc thay bằng đại từ nếu nghĩa vẫn rõ.
 - Ưu tiên câu tiếng Việt tự nhiên, không bám cấu trúc Hán văn một cách máy móc.
-- Tránh dịch literal làm câu Việt gượng. Nếu có 2 cách đều đúng nghĩa, ưu tiên cách đọc tự nhiên hơn trong tiếng Việt.
-- Trước khi output, tự rà các lỗi bề mặt rõ ràng như lặp từ, thừa từ, cụm vô nghĩa, hoặc typo dễ thấy. Chỉ sửa các lỗi chắc chắn, không rewrite lớn.
+- Nếu chủ thể đã rõ từ ngữ cảnh, câu mở đầu có thể vô chủ ngữ. Không tự thêm tên nhân vật chỉ để làm rõ chủ ngữ.
 
 ### 2c. Context Bridge
 
@@ -130,8 +164,15 @@ Checklist:
 - Xưng hô và viết thường đúng rule.
 - Dòng hệ thống/game vẫn giữ format ổn định.
 - Không có meta talk, ghi chú, hay output ngoài nội dung chương.
-- Không còn lỗi bề mặt rõ ràng như lặp từ, thừa từ, typo dễ thấy, hoặc câu vô nghĩa do dịch literal.
-
+- Không có dấu phẩy sau từ nối đầu câu.
+- Không còn cụm literal Hán văn nghe gượng trong tiếng Việt.
+- Không còn cụm mâu thuẫn logic bề mặt.
+- Không còn từ thừa, từ lặp, hoặc typo dễ thấy.
+- Không còn cụm mở lời dư kiểu `ta ở đây`, `ta bên này` nếu không mang nghĩa vị trí thật.
+- Không còn `mình/của mình` lệch POV trong ngôi 3.
+- Không còn cụm lặp ý kiểu `theo dấu đánh dấu`.
+- Không còn collocation sai rõ như `bàn chông`, `trạng thái cơ thể`.
+- Không còn các cụm convert rõ ràng như `trong lòng thầm nghĩ`, `cái địa phương này`, `có thể thấy rằng`.
 Nếu fail:
 - Sửa tối thiểu đúng chỗ lỗi.
 - Không rewrite cả chương nếu nghĩa không sai.
