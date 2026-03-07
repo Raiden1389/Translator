@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { withKeyRotation } from "./client";
-import { DEFAULT_MODEL } from "../ai-models";
+import { DEFAULT_MODEL, migrateModelId } from "../ai-models";
 import { SyllableRepository } from "../repositories/syllable-repo";
 import { VietPhraseRepository } from "../repositories/viet-phrase-repo";
 import { extractResponseText, scrubAIChatter } from "./contentProcessor";
@@ -64,7 +64,7 @@ async function forceRescue(text: string): Promise<string> {
  */
 export async function translateTitleOnly(chineseTitle: string, retryCount = 0): Promise<string> {
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = (modelSetting?.value || DEFAULT_MODEL) as string;
+    const aiModel = migrateModelId((modelSetting?.value as string) || DEFAULT_MODEL);
 
     const prompt = `[QUY TẮC TIÊU ĐỀ - BẮT BUỘC]
 Bạn là chuyên gia dịch thuật và Hán Việt.

@@ -172,7 +172,12 @@ export async function pushDelta(workspaceId: string): Promise<{ chapterCount: nu
   }
 
   const payload = JSON.stringify({
-    workspace: { id: ws.id, title: ws.title, sourceLang: ws.sourceLang, targetLang: ws.targetLang },
+    workspace: {
+      id: ws.id, title: ws.title, author: ws.author, cover: ws.cover,
+      description: ws.description, genre: ws.genre,
+      sourceLang: ws.sourceLang, targetLang: ws.targetLang,
+      createdAt: ws.createdAt, updatedAt: ws.updatedAt,
+    },
     chapters: changedChapters.map(c => ({
       title: c.title, title_translated: c.title_translated,
       content_original: c.content_original, content_translated: c.content_translated,

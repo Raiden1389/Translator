@@ -2,6 +2,52 @@
 
 ---
 
+## [2.9.2] - 2026-03-07
+
+**Session**: Bridge Auto-Import v2 + Self-QA Scan + /changelog Workflow
+**Objective**: Automate bridge import flow with polling/sentinel, add post-translation QA step, create reusable changelog workflow.
+
+### Added
+- Bridge Auto-Import v2 — poll outbox 2s, detect `done_*.json` sentinel, auto-import.
+- `checkDoneSentinel()`, `pollJobProgress()`, `DoneSentinel`, `PollProgress` interfaces.
+- `BridgePhase` type + phase state machine in orchestrator hook.
+- `AutoImportTrigger` invisible component for auto-import glue.
+- Real-time progress bar + phase UI in `AgBridgeDialog`.
+- Self-QA Scan — Step 5 in `/dich`: re-read outbox, fix typos/spelling/glossary before done sentinel.
+- `/changelog` workflow — 4-step flow, added to global_workflows.
+- Done sentinel step (Step 7) in `/dich`.
+
+### Changed
+- `importOutbox()` accepts `expectedCount` for safe cleanup.
+- `cleanupJobFiles()` removes `done_*.json`.
+- `findOutboxFilesForJob()` exported.
+- `useAntigravityOrchestrator` expanded with phase, progress, polling, triggerAutoImport.
+- `/dich` steps renumbered (new Step 5 = Self-QA).
+
+### Fixed
+- Typo fixes batch Ch48-52: "đường xá"→"đường sá", "không thảo"→"không khéo".
+- Self-QA blacklist hallucination — corrected to actual SKILL §3 items.
+
+### Technical Notes
+- **Polling vs Watcher**: Chose 2s polling for V1 simplicity. Tauri file watcher = V2 optimization.
+- **Safe cleanup**: `cleanupJobFiles` only runs if imported count >= expected count.
+- **Self-QA**: Scan-only step, no re-translation. Catches "mechanical" errors that Quality Gate misses.
+
+### Files
+| File | Change |
+|------|--------|
+| `lib/bridge/antigravity-bridge.ts` | polling + sentinel + safe cleanup |
+| `components/workspace/hooks/useAntigravityOrchestrator.ts` | phase machine + auto-import |
+| `components/workspace/chapter-list/bridge/AgBridgeDialog.tsx` | progress UI rewrite |
+| `components/workspace/chapter-list/components/ChapterListDialogs.tsx` | AutoImportTrigger |
+| `.agent/workflows/dich.md` | Self-QA step + done sentinel |
+| `.agent/workflows/changelog.md` | NEW |
+| `package.json` | v2.9.1 → v2.9.2 |
+| `src-tauri/Cargo.toml` | v2.9.1 → v2.9.2 |
+| `src-tauri/tauri.conf.json` | v2.9.1 → v2.9.2 |
+
+---
+
 
 ## [2.9.0] - 2026-03-06
 

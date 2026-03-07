@@ -1,3 +1,4 @@
+import React from "react";
 // COPIED from ChapterList.tsx - ALL DIALOGS
 import { TranslateConfigDialog } from "../TranslateConfigDialog";
 import { InspectionDialog } from "../InspectionDialog";
@@ -181,8 +182,42 @@ export function ChapterListDialogs({
           exportPath={bridge.lastExportPath}
           isImporting={bridge.isImporting}
           onImport={() => bridge.importFromBridge(workspaceId)}
+          phase={bridge.phase}
+          progress={bridge.progress}
         />
       )}
+
+      {/* Auto-import trigger: when poll detects completion, this effect fires the actual import */}
+      <AutoImportTrigger
+        phase={bridge.phase}
+        workspaceId={workspaceId}
+        triggerAutoImport={bridge.triggerAutoImport}
+      />
     </>
   );
+}
+
+/** Invisible component that triggers auto-import when phase becomes "importing" */
+function AutoImportTrigger({
+  phase,
+  workspaceId,
+  triggerAutoImport,
+}: {
+  phase: string;
+  workspaceId: string;
+  triggerAutoImport: (wsId: string) => Promise<void>;
+}) {
+  const triggered = React.useRef(false);
+
+  React.useEffect(() => {
+    if (phase === "importing" && !triggered.current) {
+      triggered.current = true;
+      triggerAutoImport(workspaceId);
+    }
+    if (phase === "idle") {
+      triggered.current = false;
+    }
+  }, [phase, workspaceId, triggerAutoImport]);
+
+  return null;
 }

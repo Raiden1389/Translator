@@ -1,6 +1,6 @@
 [package]
 name = "raiden-ai-translator"
-version = "2.9.1"
+version = "2.9.4"
 description = "A portable AI-powered web novel translator"
 authors = ["Antigravity"]
 edition = "2021"
@@ -31,12 +31,17 @@ once_cell = "1.18"
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
 
-# Optimized for FAST BUILD — UI desktop app doesn't need max optimization
-# Trade-off: ~2-4MB larger binary, build ~30-40s instead of ~100s
+# Optimized for FASTEST BUILD — UI desktop app doesn't need heavy optimization
+# Trade-off: ~2-4MB larger binary, slightly less CPU optimization (unnoticeable for UI app)
 [profile.release]
 lto = false           # Skip LTO linking (saves 60-90s)
-codegen-units = 16    # Parallel code generation
+codegen-units = 32    # Max parallel code generation (was 16)
 incremental = true    # Cache intermediate results
-opt-level = 2         # Good enough for UI app
+opt-level = 1         # Faster compile, still optimized enough for UI (was 2)
 panic = "abort"       # Smaller binary
 strip = true          # Remove debug symbols
+
+# Dev mode: optimize dependencies but not our code (fast iteration + good dep performance)
+[profile.dev.package."*"]
+opt-level = 1         # Dependencies get basic optimization
+debug = false         # No debug info for deps (saves ~200MB in target/)

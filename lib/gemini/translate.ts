@@ -1,5 +1,5 @@
 import { db, DictionaryEntry } from "../db";
-import { DEFAULT_MODEL } from "../ai-models";
+import { DEFAULT_MODEL, migrateModelId } from "../ai-models";
 import { TranslationResult, TranslationLog } from "./types";
 import { withKeyRotation, recordUsage } from "./client";
 import { extractResponseText } from "./contentProcessor";
@@ -38,7 +38,7 @@ export const translateChapter = async (
     thinkingLevel?: "minimal" | "low" | "medium" | "high"  // 🧠 For Gemini 3.0 Flash
 ) => {
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = modelSetting?.value || DEFAULT_MODEL;
+    const aiModel = migrateModelId((modelSetting?.value as string) || DEFAULT_MODEL);
 
     /**
      * Build thinking config based on model version
@@ -162,14 +162,113 @@ export const translateChapter = async (
         }
 
         // 5. Extract & Validate Response
-        const rawText = extractResponseText(rawResult).trim();
+        let rawText = extractResponseText(rawResult).trim();
+        const finishReason = adaptiveResult.finishReason;
+
+        // Get safety details for diagnostics
+        const safetyRatings = rawResult.candidates?.[0]?.safetyRatings;
+        const blockReason = rawResult.candidates?.[0]?.blockReason;
+        const blockedCategories = safetyRatings
+            ?.filter((r: { blocked?: boolean; probability?: string }) => r.blocked || r.probability === 'HIGH')
+            ?.map((r: { category: string }) => r.category) || [];
 
         if (!rawText || rawText.trim() === "") {
-            const finishReason = adaptiveResult.finishReason;
-            if (finishReason === "MAX_TOKENS") {
-                throw new Error(`❌ Chapter quá dài (${text.length} chars) - Output bị cắt do MAX_TOKENS! Hãy BẬT CHUNKING trong cấu hình dịch.`);
+            // Build diagnostic summary for UI overlay
+            const apiError = rawResult.error?.message;
+            const promptBlock = rawResult.promptFeedback?.blockReason;
+            const diagParts = [
+                `Model: ${aiModel}`,
+                `Finish: ${finishReason || 'N/A'}`,
+                promptBlock ? `PromptBlocked: ${promptBlock}` : null,
+                blockReason ? `Block: ${blockReason}` : null,
+                `Input: ${text.length} chars`,
+                `SI: ${fullInstruction.length} chars`,
+                blockedCategories.length ? `Safety: ${blockedCategories.join(', ')}` : null,
+                apiError ? `API: ${apiError}` : null,
+                `Candidates: ${rawResult.candidates?.length || 0}`,
+                `Has content: ${!!rawResult.candidates?.[0]?.content}`,
+            ].filter(Boolean).join(' | ');
+
+            // Log diagnostic to UI overlay
+            onLog({ timestamp: new Date(), message: `🔍 Debug: ${diagParts}`, type: 'info' });
+
+            // Also keep full dump in console for deep debugging
+            console.error(`\n${'='.repeat(60)}`);
+            console.error(`🔴 [EMPTY RESPONSE DEBUG DUMP]`);
+            console.error(`${diagParts}`);
+            console.error(`Full Raw Response:`, JSON.stringify(rawResult, null, 2));
+            console.error(`${'='.repeat(60)}\n`);
+
+            // Prompt itself was blocked (input-level filter)
+            if (promptBlock) {
+                const promptSafety = rawResult.promptFeedback?.safetyRatings
+                    ?.filter(r => r.blocked || r.probability === 'HIGH')
+                    ?.map(r => r.category) || [];
+                throw new Error(`❌ Prompt bị chặn! Reason: ${promptBlock}. Safety: ${promptSafety.join(', ') || 'unknown'} | ${diagParts}`);
             }
-            throw new Error(`❌ AI trả về nội dung rỗng! Finish reason: ${finishReason}. Có thể do: API lỗi, Prompt bị reject, hoặc Content vi phạm policy.`);
+
+            if (apiError) {
+                throw new Error(`❌ API Error: ${apiError} | ${diagParts}`);
+            }
+
+            if (finishReason === "MAX_TOKENS") {
+                throw new Error(`❌ MAX_TOKENS! (${text.length} chars) Bật CHUNKING | ${diagParts}`);
+            }
+
+            if (finishReason === "SAFETY" || finishReason === "BLOCKLIST" || finishReason === "PROHIBITED_CONTENT") {
+                throw new Error(`❌ Safety Filter! ${finishReason} | ${diagParts}`);
+            }
+
+            // Auto-retry ONCE for STOP with empty content (API glitch)
+            if (finishReason === "STOP") {
+                onLog({ timestamp: new Date(), message: '⚠️ AI trả về rỗng, đang retry (1/1)...', type: 'info' });
+
+                const retryResult = await withAdaptiveTokens(
+                    async (maxTokens: number) => {
+                        return await withKeyRotation<GeminiResponse>(
+                            {
+                                model: (aiModel as string).trim(),
+                                systemInstruction: fullInstruction,
+                                prompt: text,
+                                generationConfig: {
+                                    temperature: 0.15,
+                                    topP: 0.95,
+                                    maxOutputTokens: maxTokens,
+                                    responseMimeType: "text/plain",
+                                    thinkingConfig: buildThinkingConfig(aiModel as string, enableThinking, thinkingLevel)
+                                }
+                            },
+                            (msg: string) => { onLog({ timestamp: new Date(), message: msg, type: 'info' }); }
+                        );
+                    },
+                    (result) => {
+                        const candidates = (result as GeminiResponse).candidates;
+                        return candidates?.[0]?.finishReason;
+                    },
+                    {
+                        inputLength: text.length,
+                        baseBuffer: 3500,
+                        minTokens: 2048,
+                        maxTokens: 16384
+                    }
+                );
+
+                rawText = extractResponseText(retryResult.data).trim();
+
+                if (retryResult.data.usageMetadata) {
+                    recordUsage(aiModel as string, retryResult.data.usageMetadata);
+                }
+
+                if (!rawText || rawText.trim() === "") {
+                    const retryApiError = retryResult.data.error?.message;
+                    const retryDiag = retryApiError ? `API: ${retryApiError}` : `Finish: ${retryResult.finishReason}`;
+                    throw new Error(`❌ Rỗng sau 2 lần! ${retryDiag} | ${diagParts}`);
+                }
+
+                onLog({ timestamp: new Date(), message: '✅ Retry thành công!', type: 'info' });
+            } else {
+                throw new Error(`❌ AI trả về rỗng! ${diagParts}`);
+            }
         }
 
         // 6. Parse Plain Text Response

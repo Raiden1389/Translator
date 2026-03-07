@@ -4,11 +4,13 @@
  * React hook that bridges the TranslationProvider with
  * the Antigravity file-based translation system.
  */
-import { useState, useCallback } from "react";
-import { exportInbox, importOutbox, hasPendingOutbox } from "@/lib/bridge/antigravity-bridge";
-import type { ImportResult } from "@/lib/bridge/antigravity-bridge";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { exportInbox, importOutbox, hasPendingOutbox, pollJobProgress, findLatestOutboxInfo } from "@/lib/bridge/antigravity-bridge";
+import type { ImportResult, PollProgress } from "@/lib/bridge/antigravity-bridge";
 import type { Chapter, DictionaryEntry, CorrectionEntry } from "@/lib/db";
 import { toast } from "sonner";
+
+export type BridgePhase = "idle" | "waiting" | "translating" | "complete" | "importing" | "success";
 
 interface BridgeState {
   isExporting: boolean;
@@ -17,6 +19,8 @@ interface BridgeState {
   lastExportPath: string | null;
   dialogOpen: boolean;
   exportedCount: number;
+  phase: BridgePhase;
+  progress: PollProgress | null;
 }
 
 export function useAntigravityOrchestrator() {
@@ -27,7 +31,11 @@ export function useAntigravityOrchestrator() {
     lastExportPath: null,
     dialogOpen: false,
     exportedCount: 0,
+    phase: "idle",
+    progress: null,
   });
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoImportTriggered = useRef(false);
 
   const exportForBridge = useCallback(async (
     workspaceId: string,
@@ -51,7 +59,10 @@ export function useAntigravityOrchestrator() {
         lastExportPath: path,
         dialogOpen: true,
         exportedCount: chapterCount,
+        phase: "waiting",
+        progress: null,
       }));
+      autoImportTriggered.current = false;
     } catch (err) {
       setState(s => ({ ...s, isExporting: false }));
       toast.error(`Export thất bại: ${err instanceof Error ? err.message : String(err)}`);
@@ -64,7 +75,11 @@ export function useAntigravityOrchestrator() {
     setState(s => ({ ...s, isImporting: true }));
 
     try {
-      const result = await importOutbox(currentWorkspaceId, state.lastJobId ?? undefined);
+      const result = await importOutbox(
+        currentWorkspaceId,
+        state.lastJobId ?? undefined,
+        state.exportedCount || undefined,
+      );
 
       if (result.imported > 0) {
         toast.success(`✅ Đã nhập ${result.imported} chương từ Antigravity Bridge`);
@@ -82,6 +97,8 @@ export function useAntigravityOrchestrator() {
         dialogOpen: false,
         lastJobId: null,
         lastExportPath: null,
+        phase: "idle",
+        progress: null,
       }));
 
       return result;
@@ -90,10 +107,11 @@ export function useAntigravityOrchestrator() {
       toast.error(`Import thất bại: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
-  }, [state.lastJobId]);
+  }, [state.lastJobId, state.exportedCount]);
 
   const closeDialog = useCallback(() => {
-    setState(s => ({ ...s, dialogOpen: false }));
+    setState(s => ({ ...s, dialogOpen: false, phase: "idle", progress: null }));
+    autoImportTriggered.current = false;
   }, []);
 
   const checkPendingOutbox = useCallback(async (): Promise<boolean> => {
@@ -104,6 +122,62 @@ export function useAntigravityOrchestrator() {
     }
   }, []);
 
+  // ─── Poll Effect ────────────────────────────────────────────
+  useEffect(() => {
+    // Only poll when dialog is open and we have a job
+    if (!state.dialogOpen || !state.lastJobId || state.phase === "importing" || state.phase === "success") {
+      return;
+    }
+
+    const jobId = state.lastJobId;
+    const expected = state.exportedCount;
+
+    const tick = async () => {
+      try {
+        const p = await pollJobProgress(jobId, expected);
+        setState(s => {
+          if (!s.dialogOpen || s.lastJobId !== jobId) return s;
+
+          let nextPhase = s.phase;
+          if (p.isDone && p.completed >= expected) {
+            nextPhase = "complete";
+          } else if (p.completed > 0) {
+            nextPhase = "translating";
+          }
+
+          return { ...s, progress: p, phase: nextPhase as BridgePhase };
+        });
+
+        // Auto-import when complete
+        if (p.isDone && p.completed >= expected && !autoImportTriggered.current) {
+          autoImportTriggered.current = true;
+          // Small delay so user sees "Complete" before import starts
+          setTimeout(() => {
+            setState(s => {
+              if (s.phase === "complete") {
+                return { ...s, phase: "importing", isImporting: true };
+              }
+              return s;
+            });
+          }, 1500);
+        }
+      } catch {
+        // Silently ignore poll errors
+      }
+    };
+
+    // Initial tick
+    tick();
+    pollRef.current = setInterval(tick, 2000);
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [state.dialogOpen, state.lastJobId, state.exportedCount, state.phase]);
+
   const setBridgeResult = useCallback((jobId: string, path: string, chapterCount: number) => {
     setState(s => ({
       ...s,
@@ -112,7 +186,74 @@ export function useAntigravityOrchestrator() {
       lastExportPath: path,
       dialogOpen: true,
       exportedCount: chapterCount,
+      phase: "waiting" as BridgePhase,
+      progress: null,
     }));
+    autoImportTriggered.current = false;
+  }, []);
+
+  // Called externally (from dialog) with workspaceId for auto-import
+  const triggerAutoImport = useCallback(async (
+    currentWorkspaceId: string,
+  ) => {
+    setState(s => ({ ...s, phase: "importing", isImporting: true }));
+    const result = await importFromBridge(currentWorkspaceId);
+    if (result && result.imported > 0) {
+      setState(s => ({ ...s, phase: "success" }));
+
+      // Auto-push to cloud after bridge import (background, non-blocking)
+      import("@/lib/sync/cloud-sync").then(({ hasToken, pushDelta }) => {
+        if (!hasToken()) return;
+        pushDelta(currentWorkspaceId).then(r => {
+          if (r.sizeKB === 0) return;
+          import("sonner").then(({ toast }) => {
+            toast.success(`☁️ Đã sync ${r.delta ? "+" + r.chapterCount : r.chapterCount} chương lên cloud`);
+          });
+        }).catch(err => {
+          console.warn("[CloudSync] Auto-push after bridge import failed:", err);
+        });
+      }).catch(() => { /* cloud-sync module not available */ });
+
+      // Auto-close dialog after showing success
+      setTimeout(() => {
+        setState(s => ({
+          ...s,
+          dialogOpen: false,
+          phase: "idle",
+          progress: null,
+          lastJobId: null,
+          lastExportPath: null,
+        }));
+      }, 2000);
+    }
+  }, [importFromBridge]);
+
+  // ─── Reopen dialog for pending outbox ─────────────────────────
+  const reopenForImport = useCallback(async () => {
+    try {
+      const info = await findLatestOutboxInfo();
+      if (!info) {
+        toast.info("Không có outbox nào đang chờ import");
+        return;
+      }
+      setState(s => ({
+        ...s,
+        lastJobId: info.jobId,
+        lastExportPath: null,
+        dialogOpen: true,
+        exportedCount: info.fileCount,
+        phase: "complete" as BridgePhase,
+        progress: {
+          completed: info.fileCount,
+          total: info.fileCount,
+          completedOrders: info.orders,
+          isDone: true,
+        },
+      }));
+      autoImportTriggered.current = false;
+    } catch {
+      toast.error("Lỗi khi mở lại Bridge dialog");
+    }
   }, []);
 
   return {
@@ -122,5 +263,7 @@ export function useAntigravityOrchestrator() {
     closeDialog,
     checkPendingOutbox,
     setBridgeResult,
+    triggerAutoImport,
+    reopenForImport,
   };
 }

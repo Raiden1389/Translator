@@ -5,6 +5,88 @@
 
 ---
 
+## [2.9.4] - 2026-03-08
+
+**Top Impact**: Bridge Import UX fix • Toolbar icon cleanup • Tauri build 55s→38s • Pagination scroll-to-top
+
+### Fixed
+- **[Bridge]** Auto-import not triggering — `pollJobProgress` now considers job done when outbox file count matches expected, not just when sentinel file exists.
+- **[UI]** Toolbar icon hover inconsistency — all icons now use `icon-only` Button variant (no hover background), matching the Sync button style.
+- **[UI]** Pagination scroll — changing pages now smooth-scrolls to the top of the chapter list.
+
+### Added
+- **[Bridge]** `reopenForImport()` — reopen Bridge dialog after closing to import pending outbox files.
+- **[Bridge]** `findLatestOutboxInfo()` — returns metadata about the latest outbox job for dialog re-opening.
+- **[UI]** 📦 Import Bridge button in toolbar — one-click access to import pending Bridge translations.
+- **[UI]** `icon-only` Button variant — no hover background, only color change on hover.
+- **[Build]** `sccache` integration — shared compilation cache for Rust, survives `cargo clean`.
+- **[Build]** Dev profile optimization — `[profile.dev.package."*"]` with `opt-level=1`, `debug=false`.
+- **[Build]** `rust-analyzer.cargo.targetDir` separation — prevents lock conflicts with `tauri dev`/`bxf`.
+
+### Changed
+- **[Build]** Tauri release profile tuned for speed: `opt-level=1`, `codegen-units=32`, `strip=true`, `panic=abort`.
+- **[Build]** Incremental build time: **55s → 38s** (30% faster).
+
+### Files Modified
+- `lib/bridge/antigravity-bridge.ts` — pollJobProgress fix + findLatestOutboxInfo
+- `components/workspace/hooks/useAntigravityOrchestrator.ts` — reopenForImport
+- `components/workspace/shared/ChapterListHeader.tsx` — Bridge Import button + icon-only variant
+- `components/workspace/chapter-list/ChapterList.tsx` — pagination scroll-to-top
+- `components/ui/button.tsx` — icon-only variant
+- `src-tauri/Cargo.toml` — release + dev profile optimization
+- `.vscode/settings.json` — rust-analyzer targetDir separation
+- `~/.cargo/config.toml` — sccache global config
+
+---
+
+## [2.9.3] - 2026-03-07
+
+**Top Impact**: Bridge → Cloud Sync auto-push • Cover image loss fix on delta push • /dich workflow hardening
+
+### Fixed
+- **[CloudSync]** Bridge import now auto-pushes to cloud — previously Bridge flow returned early in `TranslationProvider`, skipping the cloud sync step entirely.
+- **[CloudSync]** Cover image lost during delta sync — `pushDelta` was sending sparse workspace metadata (`{id, title, sourceLang, targetLang}` only), causing the worker to overwrite full metadata (including `cover`, `author`, `description`, `genre`) on merge. Now sends full metadata matching `pushWorkspace`.
+
+### Changed
+- **[Bridge]** `/dich` workflow Step 4: Added `OVERRIDE` warning — config.prompt contains `CẤM JSON` (meant for App's internal AI flow), but Bridge Agent must always write JSON format. Explicit override prevents format confusion.
+- **[Bridge]** 6 feature ideas analyzed and added to backlog: Missing Chapter Detection + Retry, Background Monitor, Preflight Check, One-click Export, History Log, Review Mode.
+
+---
+
+## [2.9.2] - 2026-03-07
+
+**Top Impact**: Bridge Auto-Import v2 (poll + sentinel + safe cleanup) • Progress Polling UI • Self-QA Scan workflow step • /changelog workflow
+
+### Added
+- **[Bridge]** Auto-Import v2 — App polls outbox every 2s, detects `done_{jobId}.json` sentinel, auto-imports translated chapters.
+- **[Bridge]** `checkDoneSentinel()` — detects agent completion signal file.
+- **[Bridge]** `pollJobProgress()` — returns `{ completed, total, isDone }` for UI.
+- **[Bridge]** `DoneSentinel`, `PollProgress` interfaces; `BridgePhase` type.
+- **[Bridge]** `AutoImportTrigger` invisible component for auto-import glue.
+- **[UI]** Real-time progress bar + phase-based state machine in `AgBridgeDialog` (waiting → translating → complete → importing → success).
+- **[Workflow]** Self-QA Scan — New mandatory Step 5 in `/dich`: agent re-reads outbox files and fixes typos, spelling, Hán Việt sống, glossary inconsistencies before done sentinel.
+- **[Workflow]** `/changelog` workflow — standalone 4-step flow (full → trim → release notes → archive), added to global_workflows for cross-project reuse.
+- **[Workflow]** Done sentinel step (Step 7) — `done_{jobId}.json` written by agent after translation.
+
+### Changed
+- **[Bridge]** `importOutbox()` accepts `expectedCount` for safe cleanup validation.
+- **[Bridge]** `cleanupJobFiles()` also removes `done_*.json` sentinel files.
+- **[Bridge]** `findOutboxFilesForJob()` now exported for polling use.
+- **[Hook]** `useAntigravityOrchestrator` expanded with `phase`, `progress` state, polling `useEffect`, `triggerAutoImport` callback.
+- **[Workflow]** `/dich` steps renumbered (old 5→6, old 6→7, new 5 = Self-QA).
+- `lib/bridge/antigravity-bridge.ts` — polling + sentinel + safe cleanup
+- `components/workspace/hooks/useAntigravityOrchestrator.ts` — phase machine + auto-import
+- `components/workspace/chapter-list/bridge/AgBridgeDialog.tsx` — progress UI rewrite
+- `components/workspace/chapter-list/components/ChapterListDialogs.tsx` — AutoImportTrigger glue
+- `.agent/workflows/dich.md` — Self-QA step + done sentinel step
+- `.agent/workflows/changelog.md` — NEW (also copied to global_workflows)
+
+### Fixed
+- **[Translator]** Typo fixes in batch Ch48-52: "đường xá"→"đường sá", "không thảo"→"không khéo", "chủng dự cảm"→"loại dự cảm".
+- **[Workflow]** Self-QA blacklist checklist referenced wrong terms (hallucinated "huynh/đệ/tiểu thư") — corrected to actual SKILL §3 blacklist.
+
+---
+
 ## [2.9.1] - 2026-03-06
 
 **Top Impact**: Ultra-lean Translation Rules v2/v3 • Anti-Literal & Logic Guardrails • Translation Quality Polish

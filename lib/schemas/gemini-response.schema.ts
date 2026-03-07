@@ -28,19 +28,24 @@ const ContentSchema = z.object({
 
 // Candidate schema
 const CandidateSchema = z.object({
-  content: ContentSchema,
+  content: ContentSchema.optional(),
   finishReason: z.enum([
     'STOP',
     'MAX_TOKENS',
     'SAFETY',
     'RECITATION',
     'OTHER',
-    'FINISH_REASON_UNSPECIFIED'
+    'FINISH_REASON_UNSPECIFIED',
+    'BLOCKLIST',
+    'PROHIBITED_CONTENT',
+    'SPII'
   ]).optional(),
+  blockReason: z.string().optional(),
   index: z.number().int().nonnegative().optional(),
   safetyRatings: z.array(z.object({
     category: z.string(),
     probability: z.string(),
+    blocked: z.boolean().optional(),
   })).optional(),
 });
 
@@ -56,6 +61,14 @@ export const GeminiResponseSchema = z.object({
   candidates: z.array(CandidateSchema).optional(),
   usageMetadata: UsageMetadataSchema.optional(),
   error: GeminiErrorSchema.optional(),
+  promptFeedback: z.object({
+    blockReason: z.string().optional(),
+    safetyRatings: z.array(z.object({
+      category: z.string(),
+      probability: z.string(),
+      blocked: z.boolean().optional(),
+    })).optional(),
+  }).optional(),
 });
 
 export type GeminiResponse = z.infer<typeof GeminiResponseSchema>;

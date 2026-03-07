@@ -44,7 +44,7 @@ export async function processCoverImage(file: File): Promise<string> {
     });
 }
 
-import { AI_MODELS } from "@/lib/ai-models";
+import { AI_MODELS, migrateModelId } from "@/lib/ai-models";
 import { format, subDays, eachDayOfInterval } from "date-fns";
 
 /**
@@ -172,7 +172,7 @@ export async function generateAiSummary(workspace: Workspace): Promise<string> {
     }
 
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash";
+    const aiModel = migrateModelId((modelSetting?.value as string) || "gemini-2.5-flash");
 
     return await generateBookSummary(contextText, aiModel);
 }

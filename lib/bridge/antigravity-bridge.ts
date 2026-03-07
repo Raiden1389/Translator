@@ -46,6 +46,20 @@ export interface AgOutboxResult {
   content: string;
 }
 
+export interface DoneSentinel {
+  jobId: string;
+  completedAt: string;
+  totalChapters: number;
+  completedChapters: number[];
+}
+
+export interface PollProgress {
+  completed: number;
+  total: number;
+  completedOrders: number[];
+  isDone: boolean;
+}
+
 // ─── Helpers ───────────────────────────────────────────────────
 
 /** Generate 8-char short ID from UUID */
@@ -117,7 +131,7 @@ export interface ImportResult {
 }
 
 /** Find outbox files — supports both new (out_) and legacy (ag_outbox_) naming */
-async function findOutboxFilesForJob(jobId: string): Promise<string[]> {
+export async function findOutboxFilesForJob(jobId: string): Promise<string[]> {
   if (!(await exists(BRIDGE_DIR, FS_OPTS))) return [];
   const entries = await readDir(BRIDGE_DIR, FS_OPTS);
   return entries
@@ -126,6 +140,36 @@ async function findOutboxFilesForJob(jobId: string): Promise<string[]> {
       e.name.startsWith(`ag_outbox_${jobId}`)    // Legacy: ag_outbox_{uuid}_ch9938.json
     ))
     .map(e => `${BRIDGE_DIR}/${e.name}`);
+}
+
+/** Check if agent wrote the done sentinel file */
+export async function checkDoneSentinel(jobId: string): Promise<DoneSentinel | null> {
+  const filePath = `${BRIDGE_DIR}/done_${jobId}.json`;
+  try {
+    if (!(await exists(filePath, FS_OPTS))) return null;
+    const raw = await readTextFile(filePath, FS_OPTS);
+    return JSON.parse(raw) as DoneSentinel;
+  } catch {
+    return null;
+  }
+}
+
+/** Poll job progress: count outbox files + check done sentinel */
+export async function pollJobProgress(jobId: string, expectedCount: number): Promise<PollProgress> {
+  const outFiles = await findOutboxFilesForJob(jobId);
+  const done = await checkDoneSentinel(jobId);
+  const completedOrders = outFiles.map(f => {
+    const match = f.match(/_ch(\d+)\.json$/);
+    return match ? parseInt(match[1]) : -1;
+  }).filter(n => n >= 0);
+
+  return {
+    completed: completedOrders.length,
+    total: expectedCount,
+    completedOrders,
+    // Done when sentinel exists OR all expected files are present
+    isDone: done !== null || completedOrders.length >= expectedCount,
+  };
 }
 
 /** Find latest outbox job ID — supports both naming conventions */
@@ -153,6 +197,7 @@ async function findLatestOutboxJobId(): Promise<string | null> {
 export async function importOutbox(
   currentWorkspaceId: string,
   expectedJobId?: string,
+  expectedCount?: number,
 ): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
 
@@ -255,8 +300,14 @@ export async function importOutbox(
       result.errors.push(`✅ Luyện Văn: đã sửa ${corrected}/${importedIds.length} chương`);
     }
 
-    // Cleanup ALL files after successful import
-    await cleanupJobFiles(actualJobId);
+    // Safe cleanup: only delete files when all chapters imported
+    if (expectedCount === undefined || result.imported >= expectedCount) {
+      await cleanupJobFiles(actualJobId);
+    } else {
+      result.errors.push(
+        `⚠️ Import ${result.imported}/${expectedCount} chương — giữ lại file để import tiếp`
+      );
+    }
   }
 
   return result;
@@ -264,13 +315,14 @@ export async function importOutbox(
 
 // ─── Cleanup ───────────────────────────────────────────────────
 
-/** Remove inbox + all outbox files for a job (both new and legacy naming) */
+/** Remove inbox + all outbox + done sentinel files for a job */
 async function cleanupJobFiles(jobId: string): Promise<void> {
   try {
     const entries = await readDir(BRIDGE_DIR, FS_OPTS);
     const jobFiles = entries.filter(e => e.isFile && e.name.endsWith(".json") && (
       e.name === `inbox_${jobId}.json` ||          // New inbox
       e.name === `ag_inbox_${jobId}.json` ||        // Legacy inbox
+      e.name === `done_${jobId}.json` ||            // Done sentinel
       e.name.startsWith(`out_${jobId}`) ||          // New outbox
       e.name.startsWith(`ag_outbox_${jobId}`)       // Legacy outbox
     ));
@@ -285,4 +337,17 @@ async function cleanupJobFiles(jobId: string): Promise<void> {
 export async function hasPendingOutbox(): Promise<boolean> {
   const jobId = await findLatestOutboxJobId();
   return jobId !== null;
+}
+
+/** Return metadata about the latest outbox job (for reopening Bridge dialog) */
+export async function findLatestOutboxInfo(): Promise<{ jobId: string; fileCount: number; orders: number[] } | null> {
+  const jobId = await findLatestOutboxJobId();
+  if (!jobId) return null;
+  const files = await findOutboxFilesForJob(jobId);
+  if (files.length === 0) return null;
+  const orders = files.map(f => {
+    const match = f.match(/_ch(\d+)\.json$/);
+    return match ? parseInt(match[1]) : -1;
+  }).filter(n => n >= 0);
+  return { jobId, fileCount: files.length, orders };
 }

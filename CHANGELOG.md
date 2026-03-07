@@ -1,3 +1,78 @@
+## [2.9.4] - 2026-03-08
+
+### Top Impact
+- **[Bridge]** Auto-import not triggering — `pollJobProgress` now considers job done when outbox file count matches expected, not just when sentinel file exists.
+- **[UI]** Toolbar icon hover inconsistency — all icons now use `icon-only` Button variant (no hover background), matching the Sync button style.
+- **[UI]** Pagination scroll — changing pages now smooth-scrolls to the top of the chapter list.
+- **[Bridge]** `reopenForImport()` — reopen Bridge dialog after closing to import pending outbox files.
+- **[Bridge]** `findLatestOutboxInfo()` — returns metadata about the latest outbox job for dialog re-opening.
+
+### Added
+- **[Bridge]** `reopenForImport()` — reopen Bridge dialog after closing to import pending outbox files.
+- **[Bridge]** `findLatestOutboxInfo()` — returns metadata about the latest outbox job for dialog re-opening.
+- **[UI]** 📦 Import Bridge button in toolbar — one-click access to import pending Bridge translations.
+- **[UI]** `icon-only` Button variant — no hover background, only color change on hover.
+- **[Build]** `sccache` integration — shared compilation cache for Rust, survives `cargo clean`.
+- **[Build]** Dev profile optimization — `[profile.dev.package."*"]` with `opt-level=1`, `debug=false`.
+
+### Changed
+- **[Build]** Tauri release profile tuned for speed: `opt-level=1`, `codegen-units=32`, `strip=true`, `panic=abort`.
+- **[Build]** Incremental build time: **55s → 38s** (30% faster).
+- `lib/bridge/antigravity-bridge.ts` — pollJobProgress fix + findLatestOutboxInfo
+- `components/workspace/hooks/useAntigravityOrchestrator.ts` — reopenForImport
+- `components/workspace/shared/ChapterListHeader.tsx` — Bridge Import button + icon-only variant
+- `components/workspace/chapter-list/ChapterList.tsx` — pagination scroll-to-top
+
+### Fixed
+- **[Bridge]** Auto-import not triggering — `pollJobProgress` now considers job done when outbox file count matches expected, not just when sentinel file exists.
+- **[UI]** Toolbar icon hover inconsistency — all icons now use `icon-only` Button variant (no hover background), matching the Sync button style.
+- **[UI]** Pagination scroll — changing pages now smooth-scrolls to the top of the chapter list.
+
+## [2.9.3] - 2026-03-07
+
+### Top Impact
+- **[CloudSync]** Bridge import now auto-pushes to cloud — previously Bridge flow returned early in `TranslationProvider`, skipping the cloud sync step entirely.
+- **[CloudSync]** Cover image lost during delta sync — `pushDelta` was sending sparse workspace metadata (`{id, title, sourceLang, targetLang}` only), causing the worker to overwrite full metadata (including `cover`, `author`, `description`, `genre`) on merge. Now sends full metadata matching `pushWorkspace`.
+- **[Bridge]** `/dich` workflow Step 4: Added `OVERRIDE` warning — config.prompt contains `CẤM JSON` (meant for App's internal AI flow), but Bridge Agent must always write JSON format. Explicit override prevents format confusion.
+- **[Bridge]** 6 feature ideas analyzed and added to backlog: Missing Chapter Detection + Retry, Background Monitor, Preflight Check, One-click Export, History Log, Review Mode.
+
+### Changed
+- **[Bridge]** `/dich` workflow Step 4: Added `OVERRIDE` warning — config.prompt contains `CẤM JSON` (meant for App's internal AI flow), but Bridge Agent must always write JSON format. Explicit override prevents format confusion.
+- **[Bridge]** 6 feature ideas analyzed and added to backlog: Missing Chapter Detection + Retry, Background Monitor, Preflight Check, One-click Export, History Log, Review Mode.
+
+### Fixed
+- **[CloudSync]** Bridge import now auto-pushes to cloud — previously Bridge flow returned early in `TranslationProvider`, skipping the cloud sync step entirely.
+- **[CloudSync]** Cover image lost during delta sync — `pushDelta` was sending sparse workspace metadata (`{id, title, sourceLang, targetLang}` only), causing the worker to overwrite full metadata (including `cover`, `author`, `description`, `genre`) on merge. Now sends full metadata matching `pushWorkspace`.
+
+## [2.9.2] - 2026-03-07
+
+### Top Impact
+- **[Bridge]** Auto-Import v2 — App polls outbox every 2s, detects `done_{jobId}.json` sentinel, auto-imports translated chapters.
+- **[Bridge]** `checkDoneSentinel()` — detects agent completion signal file.
+- **[Bridge]** `pollJobProgress()` — returns `{ completed, total, isDone }` for UI.
+- **[Bridge]** `DoneSentinel`, `PollProgress` interfaces; `BridgePhase` type.
+- **[Bridge]** `AutoImportTrigger` invisible component for auto-import glue.
+
+### Added
+- **[Bridge]** Auto-Import v2 — App polls outbox every 2s, detects `done_{jobId}.json` sentinel, auto-imports translated chapters.
+- **[Bridge]** `checkDoneSentinel()` — detects agent completion signal file.
+- **[Bridge]** `pollJobProgress()` — returns `{ completed, total, isDone }` for UI.
+- **[Bridge]** `DoneSentinel`, `PollProgress` interfaces; `BridgePhase` type.
+- **[Bridge]** `AutoImportTrigger` invisible component for auto-import glue.
+- **[UI]** Real-time progress bar + phase-based state machine in `AgBridgeDialog` (waiting → translating → complete → importing → success).
+
+### Changed
+- **[Bridge]** `importOutbox()` accepts `expectedCount` for safe cleanup validation.
+- **[Bridge]** `cleanupJobFiles()` also removes `done_*.json` sentinel files.
+- **[Bridge]** `findOutboxFilesForJob()` now exported for polling use.
+- **[Hook]** `useAntigravityOrchestrator` expanded with `phase`, `progress` state, polling `useEffect`, `triggerAutoImport` callback.
+- **[Workflow]** `/dich` steps renumbered (old 5→6, old 6→7, new 5 = Self-QA).
+- `lib/bridge/antigravity-bridge.ts` — polling + sentinel + safe cleanup
+
+### Fixed
+- **[Translator]** Typo fixes in batch Ch48-52: "đường xá"→"đường sá", "không thảo"→"không khéo", "chủng dự cảm"→"loại dự cảm".
+- **[Workflow]** Self-QA blacklist checklist referenced wrong terms (hallucinated "huynh/đệ/tiểu thư") — corrected to actual SKILL §3 blacklist.
+
 ## [2.9.1] - 2026-03-06
 
 ### Top Impact
@@ -122,49 +197,3 @@
 
 ### Perf
 - **[Build]** Rust module extraction (lib.rs 375→58 LOC), dependency trim, build 167s→32s.
-
-## [2.7.6] - 2026-02-11
-
-### Top Impact
-- **[Sync]** Tunnel URL port appending bug (mobile couldn't connect).
-- **[Mobile]** PWA manifest MIME type → Chrome install prompt now works.
-- **[Mobile]** Missing PWA icons (192/512).
-- **[Build]** Static export for `manifest.ts`.
-- **[Sync]** Disabled auto-shutdown, enhanced CORS headers.
-
-### Fixed
-- **[Sync]** Tunnel URL port appending bug (mobile couldn't connect).
-- **[Mobile]** PWA manifest MIME type → Chrome install prompt now works.
-- **[Mobile]** Missing PWA icons (192/512).
-- **[Build]** Static export for `manifest.ts`.
-- **[Sync]** Disabled auto-shutdown, enhanced CORS headers.
-
-## [2.7.5] - 2026-02-11
-
-### Top Impact
-- **[Translator]** Eliminated cross-chunk character contamination — AI no longer substitutes POV with minor chars during concurrent translation.
-- **[Translator]** Double-layer glossary isolation prevents "Ghost Characters" leaking across batch chapters.
-- **[Translator]** Main character auto-tagged `(Main)` in prompt for priority.
-- **[Translator]** Glossary moved to end of system instruction for max saliency.
-
-### Fixed
-- **[Translator]** Eliminated cross-chunk character contamination — AI no longer substitutes POV with minor chars during concurrent translation.
-- **[Translator]** Double-layer glossary isolation prevents "Ghost Characters" leaking across batch chapters.
-- **[Translator]** Main character auto-tagged `(Main)` in prompt for priority.
-- **[Translator]** Glossary moved to end of system instruction for max saliency.
-
-## [2.7.4] - 2026-02-11
-
-### Top Impact
-- **[Translator]** Race condition: `sharedGlossary` shared by reference → `structuredClone()` + `Object.freeze()`.
-- **[Translator]** Title normalization: auto-fix ALL CAPS and Title Case.
-- **[UI]** Retranslate button now reloads fresh chapters from DB.
-- **[Translator]** CORE_RULES: explicit prohibition of Title Case and ALL CAPS in titles.
-
-### Changed
-- **[Translator]** CORE_RULES: explicit prohibition of Title Case and ALL CAPS in titles.
-
-### Fixed
-- **[Translator]** Race condition: `sharedGlossary` shared by reference → `structuredClone()` + `Object.freeze()`.
-- **[Translator]** Title normalization: auto-fix ALL CAPS and Title Case.
-- **[UI]** Retranslate button now reloads fresh chapters from DB.

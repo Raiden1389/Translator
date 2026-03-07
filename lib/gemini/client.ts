@@ -102,6 +102,14 @@ export async function withKeyRotation<T = GeminiResponse>(
         };
     }
 
+    // Safety settings: BLOCK_NONE for novel translation (horror, violence, etc.)
+    payloadObj.safetySettings = [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+    ];
+
     const payload = JSON.stringify(payloadObj);
     let lastError: Error | null = null;
 

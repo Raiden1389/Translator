@@ -7,6 +7,7 @@
 
 import { useCallback } from "react";
 import { db } from "@/lib/db";
+import { migrateModelId } from "@/lib/ai-models";
 import type { Chapter, CorrectionEntry, DictionaryEntry } from "@/lib/db";
 import { normalizeChapterTitle } from "@/lib/utils/chapter-title-normalizer";
 import { applyCorrectionsToChapter } from "@/lib/services/corrections.service";
@@ -72,7 +73,7 @@ export function useBatchOrchestrator(
         });
 
         const modelSetting = await db.settings.get("aiModel");
-        const aiModel = (modelSetting?.value as string) || "gemini-2.5-flash";
+        const aiModel = migrateModelId((modelSetting?.value as string) || "gemini-2.5-flash");
 
         const result = await translateBatch(
           userPrompt,

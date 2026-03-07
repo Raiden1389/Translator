@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { withKeyRotation } from '../client';
-import { DEFAULT_MODEL } from '../../ai-models';
+import { DEFAULT_MODEL, migrateModelId } from '../../ai-models';
 import { SyllableRepository } from '../../repositories/syllable-repo';
 
 /**
@@ -9,7 +9,7 @@ import { SyllableRepository } from '../../repositories/syllable-repo';
  */
 export async function refineHeuristicTerms(workspaceId: string, onLog?: (msg: string) => void) {
     const modelSetting = await db.settings.get("aiModel");
-    const aiModel = (modelSetting?.value as string) || DEFAULT_MODEL;
+    const aiModel = migrateModelId((modelSetting?.value as string) || DEFAULT_MODEL);
 
     const totalTerms = await db.heuristicTerms
         .where('workspaceId')

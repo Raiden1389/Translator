@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import Dexie from "dexie";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { useCorrections } from "./hooks/useCorrections";
 import { useDialogStates } from "./hooks/useDialogStates";
 import { useScanConfig } from "./hooks/useScanConfig";
 import { useReaderNavigation } from "./hooks/useReaderNavigation";
+import { useTranslation } from "../hooks/TranslationProvider.v2";
 
 import { ChapterListHeader } from "../shared/ChapterListHeader";
 import { ImportProgressOverlay } from "./ImportProgressOverlay";
@@ -61,7 +62,12 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
 
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = usePersistedState<"all" | "draft" | "translated">(`workspace-${workspaceId}-filter`, "all");
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPageRaw] = useState(1);
+    const listContainerRef = useRef<HTMLDivElement>(null);
+    const setCurrentPage = useCallback((page: number) => {
+        setCurrentPageRaw(page);
+        listContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, []);
     const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
     const [sortOrder, setSortOrder] = usePersistedState<"asc" | "desc">(`workspace-${workspaceId}-sortOrder`, "asc");
     const [viewMode, setViewMode] = usePersistedState<"grid" | "table">(`workspace-${workspaceId}-viewMode`, "grid");
@@ -104,6 +110,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     } = useAIExtraction(workspaceId, dictEntries || []);
 
     const queueState = useAiQueueStats();
+    const { bridge } = useTranslation();
 
     // NEW: Dialog states first (needed by other hooks)
     const { translateDialogOpen, setTranslateDialogOpen, historyOpen, setHistoryOpen } = useDialogStates();
@@ -195,7 +202,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
 
     // Reset to page 1 when filters change
     useEffect(() => {
-        const timer = setTimeout(() => setCurrentPage(1), 0);
+        const timer = setTimeout(() => setCurrentPageRaw(1), 0);
         return () => clearTimeout(timer);
     }, [search, filterStatus]);
 
@@ -272,89 +279,92 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onFixTitles={() => toast.info("Tính năng đang phát triển")}
                 onFixTitleCase={handleFixTitleCase}
                 onAuditQuality={handleAuditQuality}
+                onBridgeImport={bridge.reopenForImport}
             />
 
             {/* Main Content */}
-            <ChapterListContent
-                viewMode={viewMode}
-                currentChapters={currentChapters}
-                selectedChapters={selectedChapters}
-                queueState={queueState}
-                setSelectedChapters={setSelectedChapters}
-                filtered={filtered}
-                sortOrder={sortOrder}
-                onToggleSortOrder={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
-                handleSelect={handleSelect}
-                handleRead={handleRead}
-                handleInspect={handleInspect}
-                handleRetranslate={async (id) => {
-                    console.log('[ChapterList] handleRetranslate called for ID:', id);
-                    if (!workspace) {
-                        console.error('[ChapterList] No workspace found!');
-                        return;
-                    }
-                    await handleRetranslate(id, async (ids) => {
-                        console.log('[ChapterList] translateFn called with IDs:', ids);
-                        // Load current settings from IndexedDB (same as TranslateConfigDialog)
-                        const key = await db.settings.get("apiKey");
-                        const model = await db.settings.get("model");
-                        const lastPrompt = await db.settings.get("customPrompt");
-                        const lastConcurrency = await db.settings.get("maxConcurrency");
-                        const lastFixPunctuation = await db.settings.get("fixPunctuation");
-                        const lastEnableChunking = await db.settings.get("enableChunking");
-                        const lastEnableTurbo = await db.settings.get("enableTurbo");
-                        const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
-                        const lastChunkSize = await db.settings.get("chunkSize");
-                        const lastTemperature = await db.settings.get("temperature");
-                        const lastEnableBatch = await db.settings.get("enableBatch");
-                        const lastBatchSize = await db.settings.get("batchSize");
-                        const lastMaxCharsPerBatch = await db.settings.get("maxCharsPerBatch");
+            <div ref={listContainerRef}>
+                <ChapterListContent
+                    viewMode={viewMode}
+                    currentChapters={currentChapters}
+                    selectedChapters={selectedChapters}
+                    queueState={queueState}
+                    setSelectedChapters={setSelectedChapters}
+                    filtered={filtered}
+                    sortOrder={sortOrder}
+                    onToggleSortOrder={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+                    handleSelect={handleSelect}
+                    handleRead={handleRead}
+                    handleInspect={handleInspect}
+                    handleRetranslate={async (id) => {
+                        console.log('[ChapterList] handleRetranslate called for ID:', id);
+                        if (!workspace) {
+                            console.error('[ChapterList] No workspace found!');
+                            return;
+                        }
+                        await handleRetranslate(id, async (ids) => {
+                            console.log('[ChapterList] translateFn called with IDs:', ids);
+                            // Load current settings from IndexedDB (same as TranslateConfigDialog)
+                            const key = await db.settings.get("apiKey");
+                            const model = await db.settings.get("model");
+                            const lastPrompt = await db.settings.get("customPrompt");
+                            const lastConcurrency = await db.settings.get("maxConcurrency");
+                            const lastFixPunctuation = await db.settings.get("fixPunctuation");
+                            const lastEnableChunking = await db.settings.get("enableChunking");
+                            const lastEnableTurbo = await db.settings.get("enableTurbo");
+                            const lastMaxConcurrentChunks = await db.settings.get("maxConcurrentChunks");
+                            const lastChunkSize = await db.settings.get("chunkSize");
+                            const lastTemperature = await db.settings.get("temperature");
+                            const lastEnableBatch = await db.settings.get("enableBatch");
+                            const lastBatchSize = await db.settings.get("batchSize");
+                            const lastMaxCharsPerBatch = await db.settings.get("maxCharsPerBatch");
 
-                        const currentSettings: TranslationSettings = {
-                            apiKey: (key?.value as string) || '',
-                            model: migrateModelId((model?.value as string) || DEFAULT_MODEL),
-                            temperature: (lastTemperature?.value as number) ?? 0.1,
-                        };
+                            const currentSettings: TranslationSettings = {
+                                apiKey: (key?.value as string) || '',
+                                model: migrateModelId((model?.value as string) || DEFAULT_MODEL),
+                                temperature: (lastTemperature?.value as number) ?? 0.1,
+                            };
 
-                        const translateConfig = {
-                            customPrompt: (lastPrompt?.value as string) || "",
-                            autoExtract: false,
-                            maxConcurrency: (lastConcurrency?.value as number) || 5,
-                            fixPunctuation: (lastFixPunctuation?.value as boolean) || false,
-                            enableChunking: (lastEnableChunking?.value as boolean) || false,
-                            enableTurbo: lastEnableTurbo ? (lastEnableTurbo.value as boolean) : true,
-                            maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
-                            chunkSize: (lastChunkSize?.value as number) || 800,
-                            temperature: (lastTemperature?.value as number) ?? 0.1,
-                            enableBatch: (lastEnableBatch?.value as boolean) || false,
-                            batchSize: (lastBatchSize?.value as number) || 3,
-                            maxCharsPerBatch: (lastMaxCharsPerBatch?.value as number) || 25000,
-                        };
+                            const translateConfig = {
+                                customPrompt: (lastPrompt?.value as string) || "",
+                                autoExtract: false,
+                                maxConcurrency: (lastConcurrency?.value as number) || 5,
+                                fixPunctuation: (lastFixPunctuation?.value as boolean) || false,
+                                enableChunking: (lastEnableChunking?.value as boolean) || false,
+                                enableTurbo: lastEnableTurbo ? (lastEnableTurbo.value as boolean) : true,
+                                maxConcurrentChunks: (lastMaxConcurrentChunks?.value as number) || 3,
+                                chunkSize: (lastChunkSize?.value as number) || 800,
+                                temperature: (lastTemperature?.value as number) ?? 0.1,
+                                enableBatch: (lastEnableBatch?.value as boolean) || false,
+                                batchSize: (lastBatchSize?.value as number) || 3,
+                                maxCharsPerBatch: (lastMaxCharsPerBatch?.value as number) || 25000,
+                            };
 
-                        // 🔥 CRITICAL: Reload chapters from DB to get fresh data after clear
-                        // Without reload, `filtered` still has old content_translated
-                        // → TranslationProvider filters it out → No translation happens
-                        const freshChapters = await db.chapters
-                            .where('workspaceId')
-                            .equals(workspaceId)
-                            .toArray();
+                            // 🔥 CRITICAL: Reload chapters from DB to get fresh data after clear
+                            // Without reload, `filtered` still has old content_translated
+                            // → TranslationProvider filters it out → No translation happens
+                            const freshChapters = await db.chapters
+                                .where('workspaceId')
+                                .equals(workspaceId)
+                                .toArray();
 
-                        console.log('[ChapterList] Calling onTranslate with settings:', currentSettings, translateConfig);
-                        onTranslate({
-                            workspaceId,
-                            chapters: freshChapters, // Use fresh data from DB
-                            selectedChapters: ids,
-                            currentSettings,
-                            translateConfig,
-                            onReviewNeeded: (chars, terms) => onShowScanResults({ chars, terms }),
+                            console.log('[ChapterList] Calling onTranslate with settings:', currentSettings, translateConfig);
+                            onTranslate({
+                                workspaceId,
+                                chapters: freshChapters, // Use fresh data from DB
+                                selectedChapters: ids,
+                                currentSettings,
+                                translateConfig,
+                                onReviewNeeded: (chars, terms) => onShowScanResults({ chars, terms }),
+                            });
+                            console.log('[ChapterList] onTranslate called successfully');
                         });
-                        console.log('[ChapterList] onTranslate called successfully');
-                    });
-                }}
-                handleClearTranslation={handleClearTranslation}
-                handleApplyCorrections={handleApplyCorrections}
-                fileInputRef={fileInputRef}
-            />
+                    }}
+                    handleClearTranslation={handleClearTranslation}
+                    handleApplyCorrections={handleApplyCorrections}
+                    fileInputRef={fileInputRef}
+                />
+            </div>
 
             {/* All Dialogs */}
             <ChapterListDialogs

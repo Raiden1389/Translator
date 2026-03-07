@@ -1,6 +1,6 @@
 {
   "name": "raiden-ai-translator",
-  "version": "2.9.1",
+  "version": "2.9.4",
   "private": true,
   "scripts": {
     "//": "=========================",
@@ -40,6 +40,8 @@
     "meta:info": "node scripts/system-info.mjs",
     "meta:version-sync": "node scripts/sync-version.mjs",
     "changelog:trim": "node scripts/changelog-trim.mjs",
+    "bridge:status": "node scripts/ag-bridge-watcher.mjs --status",
+    "bridge:watch": "node scripts/ag-bridge-watcher.mjs --watch",
     "test": "vitest run",
     "test:watch": "vitest"
   },

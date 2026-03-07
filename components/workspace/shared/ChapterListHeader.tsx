@@ -7,7 +7,7 @@ import {
     Search, ChevronLeft, ChevronRight,
     FileText, LayoutGrid, LayoutList, Zap,
     Clock, ShieldCheck, Eraser, CaseSensitive,
-    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles, ClipboardCheck
+    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles, ClipboardCheck, Package
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -64,6 +64,7 @@ interface ChapterListHeaderProps {
     onFixTitles?: () => void; // New: Fix Chinese characters in titles
     onFixTitleCase?: () => void; // NEW: Fix ALL CAPS titles
     onAuditQuality?: () => void; // NEW: Audit translation quality
+    onBridgeImport?: () => void; // NEW: Import from Antigravity Bridge
 }
 
 export function ChapterListHeader({
@@ -96,7 +97,8 @@ export function ChapterListHeader({
     onSelectRange,
     onFixTitles,
     onFixTitleCase,
-    onAuditQuality
+    onAuditQuality,
+    onBridgeImport
 }: ChapterListHeaderProps) {
     const [rangeValue, setRangeValue] = React.useState("");
     const tokenStats = useWorkspaceTokens(workspaceId);
@@ -312,9 +314,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-muted-foreground hover:text-foreground transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-muted-foreground hover:text-foreground transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onClearCache}
                                     disabled={processing || importing}
                                 >
@@ -328,9 +330,9 @@ export function ChapterListHeader({
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
-                                        variant="ghost"
+                                        variant="icon-only"
                                         size="icon"
-                                        className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
+                                        className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
                                         onClick={onFixTitleCase}
                                         disabled={processing || importing}
                                     >
@@ -352,9 +354,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-primary hover:text-primary/80 transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onExport}
                                     disabled={processing || importing}
                                 >
@@ -367,9 +369,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-emerald-500 hover:text-emerald-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-emerald-500 hover:text-emerald-600 transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onImportJSON}
                                     disabled={processing || importing}
                                 >
@@ -382,9 +384,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-rose-500 hover:text-rose-600 transition-all active:scale-95 disabled:opacity-50 group"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-rose-500 hover:text-rose-600 transition-all active:scale-95 disabled:opacity-50 group"
                                     onClick={onApplyCorrections}
                                     disabled={importing || processing}
                                 >
@@ -397,9 +399,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-orange-500 hover:text-orange-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-orange-500 hover:text-orange-600 transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={processing || importing}
                                 >
@@ -412,9 +414,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-sky-500 hover:text-sky-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-sky-500 hover:text-sky-600 transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onFixTitles}
                                     disabled={processing || importing}
                                 >
@@ -428,9 +430,9 @@ export function ChapterListHeader({
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
-                                        variant="ghost"
+                                        variant="icon-only"
                                         size="icon"
-                                        className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-purple-500 hover:text-purple-600 transition-all active:scale-95 group disabled:opacity-50"
+                                        className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-purple-500 hover:text-purple-600 transition-all active:scale-95 group disabled:opacity-50"
                                         onClick={onAuditQuality}
                                         disabled={processing || importing}
                                     >
@@ -444,9 +446,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-sky-600 hover:text-sky-700 transition-all active:scale-95 group disabled:opacity-50 underline decoration-2 underline-offset-4"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-sky-600 hover:text-sky-700 transition-all active:scale-95 group disabled:opacity-50 underline decoration-2 underline-offset-4"
                                     onClick={onScan}
                                     disabled={processing || importing}
                                 >
@@ -456,13 +458,30 @@ export function ChapterListHeader({
                             <TooltipContent side="bottom" className="text-[10px] font-bold">Quét AI (Cải tiến)</TooltipContent>
                         </Tooltip>
 
+                        {onBridgeImport && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="icon-only"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-indigo-500 hover:text-indigo-600 transition-all active:scale-95 group disabled:opacity-50"
+                                        onClick={onBridgeImport}
+                                        disabled={processing || importing}
+                                    >
+                                        <Package className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-[10px] font-bold">Import Bridge</TooltipContent>
+                            </Tooltip>
+                        )}
+
                         <Tooltip>
                             <TooltipTrigger asChild>
 
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-accent hover:shadow-primary/20 text-muted-foreground hover:text-foreground transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-muted-foreground hover:text-foreground transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onHistoryOpen}
                                     disabled={processing || importing}
                                 >
@@ -475,9 +494,9 @@ export function ChapterListHeader({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
-                                    variant="ghost"
+                                    variant="icon-only"
                                     size="icon"
-                                    className="h-8 w-8 rounded-xl hover:bg-background hover:shadow-primary/20 text-amber-500 hover:text-amber-600 transition-all active:scale-95 group disabled:opacity-50"
+                                    className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-amber-500 hover:text-amber-600 transition-all active:scale-95 group disabled:opacity-50"
                                     onClick={onRefresh}
                                     disabled={processing || importing}
                                 >
