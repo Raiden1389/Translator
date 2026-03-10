@@ -42,6 +42,10 @@
     "changelog:trim": "node scripts/changelog-trim.mjs",
     "bridge:status": "node scripts/ag-bridge-watcher.mjs --status",
     "bridge:watch": "node scripts/ag-bridge-watcher.mjs --watch",
+    "bridge:distribute": "node scripts/bridge-distribute.mjs",
+    "bridge:collect": "node scripts/bridge-collect.mjs",
+    "bd": "node scripts/bridge-distribute.mjs",
+    "bc": "node scripts/bridge-collect.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

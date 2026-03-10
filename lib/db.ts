@@ -184,6 +184,32 @@ export interface UIPreference {
     updatedAt: Date;
 }
 
+/**
+ * Bridge Job History (v2.9.5 - Bridge Enhancements)
+ * Tracks export/import jobs for debugging and audit trail
+ */
+export interface BridgeJobEntry {
+    id?: number;
+    jobId: string;
+    workspaceId: string;
+    status: 'exported' | 'translating' | 'completed' | 'imported' | 'partial' | 'failed';
+    exportedAt: Date;
+    completedAt?: Date;
+    importedAt?: Date;
+    chapterCount: number;         // Total chapters exported
+    importedCount?: number;       // How many imported successfully
+    missingOrders?: number[];     // Orders that failed/missing
+    completedOrders?: number[];   // Orders that completed
+    qaSummary?: {
+        cleanChapters: number;
+        fixedChapters: number;
+        totalFindings: number;
+        hardFindings: number;
+        softFindings: number;
+        topRules: [string, number][];
+    };
+}
+
 
 const db = new Dexie('AITranslatorDB') as Dexie & {
     workspaces: EntityTable<Workspace, 'id'>;
@@ -198,7 +224,8 @@ const db = new Dexie('AITranslatorDB') as Dexie & {
     history: EntityTable<HistoryEntry, 'id'>;
     heuristicTerms: EntityTable<HeuristicTerm, 'id'>;
     consistencyLogs: EntityTable<ConsistencyLog, 'id'>;
-    uiPreferences: EntityTable<UIPreference, 'key'>; // v2.7.0 - UI Polish
+    uiPreferences: EntityTable<UIPreference, 'key'>;
+    bridgeJobs: EntityTable<BridgeJobEntry, 'id'>;
 };
 
 // ----------------------------------------------------------------------
@@ -242,6 +269,13 @@ db.version(104).stores({
 // ----------------------------------------------------------------------
 db.version(105).stores({
     uiPreferences: 'key' // Simple key-value store for UI preferences
+});
+
+// ----------------------------------------------------------------------
+// BRIDGE JOB HISTORY (v107) - v2.9.5
+// ----------------------------------------------------------------------
+db.version(107).stores({
+    bridgeJobs: '++id, jobId, workspaceId, status, exportedAt'
 });
 
 // v106: Global Corrections (Luyện Văn) — uses workspaceId='__global__' sentinel

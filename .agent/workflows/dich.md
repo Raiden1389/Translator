@@ -143,50 +143,172 @@ Format JSON:
 
 App sẽ tự quét `out_{jobId}*`, import vào DB rồi xóa sạch.
 
-## 5. Self-QA Scan (BẮT BUỘC)
+## 5. Self-QA Pipeline (BẮT BUỘC)
 
 > SAU KHI ghi hết outbox, TRƯỚC KHI ghi done sentinel.
-> Đọc lại nhanh từng file outbox vừa ghi và chỉ sửa lỗi rõ ràng.
-> KHÔNG rewrite lớn. KHÔNG đánh bóng văn phong. KHÔNG đổi glossary/constant đã khóa.
+> **KHÔNG sửa outbox trực tiếp.** QA chỉ GHI findings. App apply hard fixes khi import.
 
-### Checklist quét
-1. Chính tả tiếng Việt
-- Ví dụ: lỗi dấu hỏi/ngã, chữ sai chính tả, chữ dùng sai nghĩa rõ ràng.
+### 🚨 SPEED BUDGET (TUYỆT ĐỐI KHÔNG VI PHẠM)
 
-2. Typo / gõ nhầm / từ thừa
-- Ví dụ: chữ thừa, chữ thiếu, lặp từ sát nhau, cụm như `ngoài ra ngoài`.
+> **Toàn bộ flow `/dich` (đọc inbox → dịch → ghi → QA → done) TỐI ĐA 7 tool calls:**
+>
+> 1. `list_dir` bridge folder (tìm inbox)
+> 2. `view_file` inbox (đọc source) — BỎ nếu đã có trong context
+> 3. `write_to_file` × N chương (ghi bản dịch)
+> 4. `grep_search` × 1 (gộp TẤT CẢ checks vào 1 regex duy nhất)
+> 5. `write_to_file` QA report
+> 6. `write_to_file` done sentinel
+>
+> **CẤM:**
+> - `mcp_cmd`, `findstr`, `powershell` — KHÔNG BAO GIỜ dùng trong flow dịch
+> - `dir`, `find_by_name` — Đã biết path, không cần tìm lại
+> - `view_file` để "xác nhận file đã ghi" — Trust the write
+> - `list_dir` sau khi ghi — Ghi xong đi tiếp, không verify
+> - Đọc lại SKILL.md, qa-memory.json nếu đã đọc trong session
+>
+> **HARDCODED PATH:**
+> ```
+> BRIDGE_DIR = C:\Users\Admin\AppData\Roaming\com.raiden.translator\.raiden\bridge
+> ```
+> Không tìm, không check, không verify. Path này là cố định.
 
-3. Cụm literal hoặc Hán Việt sống nghe không tự nhiên
-- Ví dụ: `chia một chén canh`, `công việc độ khó cao`, `theo dấu đánh dấu`.
+### 5A. Mechanical Scan (1 grep duy nhất)
 
-4. Glossary consistency
-- Tên riêng, thuật ngữ, item, skill phải khớp glossary xuyên suốt batch.
-- Nếu có trong glossary thì phải copy đúng nguyên dạng, gồm cả hoa/thường.
+Gộp tất cả patterns vào **1 lệnh `grep_search`** duy nhất với regex OR:
+- Pronouns: `anh |em | tôi |mình |bạn `
+- Blacklist: `dường như|tựa hồ|bất giác|hít hơi lạnh|vấn đề không lớn|thanh âm vang lên`
+- Known failures: `trong lòng nảy sinh|công việc độ khó cao`
 
-5. Xưng hô
-- Đối thoại: `Ta/Ngươi`.
-- Trần thuật: `hắn/nàng`.
-- Không trộn `tôi/anh/em/mình` sai ngôi.
-- Quét riêng thoại, nếu lọt `anh/em/tôi/mình` mà không có chỉ định riêng thì phải sửa.
+Kết quả 0 → Sạch, ghi QA report "zero-issue earned" → Done.
+Kết quả > 0 → Ghi finding vào QA report với evidence từ grep output → Done.
 
-6. Blacklist
-- Không để lọt các cụm đã cấm trong rules hiện hành.
 
-7. Câu thiếu / câu thừa / thêm ý
-- Không bỏ sót ý gốc.
-- Không tự thêm nội dung không có trong source.
+#### Check 1: Glossary Exact Match (hard)
+- Đọc glossary từ inbox file (đã có sẵn).
+- Với mỗi entry có `translated` != "":
+  - Nếu `original` xuất hiện trong content gốc (inbox) NHƯNG `translated` KHÔNG xuất hiện trong content dịch (outbox) → **glossary miss**.
+  - Nếu `translated` xuất hiện nhưng casing khác glossary → **casing mismatch**.
 
-8. Câu cụt / câu mở đầu gượng / mùi convert
-- Không để câu cụt thiếu chủ thể nếu không phải dụng ý rõ ràng.
-- Không để mở đầu vô chủ ngữ nghe gượng.
-- Không để lọt các cụm tâm lý mang mùi convert nếu có cách nói Việt tự nhiên hơn.
-- Không để `mình/của mình` lọt vào trần thuật ngôi 3.
+#### Check 2: Dialogue Pronoun Lock (hard)
+- Tìm tất cả đoạn thoại trực tiếp (trong dấu ngoặc kép hoặc có gạch đầu dòng).
+- Grep: `anh `, `em `, ` tôi `, `mình ` trong thoại.
+- Nếu tìm thấy mà không có chỉ định riêng trong glossary → **pronoun violation**.
 
-### Quy trình
-1. Đọc lại `content` của từng file `out_*.json` vừa ghi.
-2. Nếu thấy lỗi rõ ràng thì sửa trực tiếp file đó bằng tool ghi file hiện có.
-3. Nếu câu đã đọc ổn thì giữ nguyên, không sửa.
-4. Không in kết quả QA ra chat trừ khi có lỗi nghiêm trọng.
+#### Check 3: Third Person "mình" (hard)
+- Grep: `mình`, `của mình` trong phần TRẦN THUẬT (ngoài thoại).
+- Nếu tìm thấy → **third_person_minh violation**.
+
+#### Check 4: Blacklist Phrases (hard)
+- Đọc blacklist từ SKILL.md rules.
+- Grep từng cụm cấm trong content dịch.
+- Nếu tìm thấy → **blacklist violation**.
+
+#### Check 5: Known Failure Patterns (hard + soft)
+- Đọc file `.agent/knowledge/translation-qa-memory.json` (seed tĩnh).
+- Nếu có runtime file ở `AppData/.raiden/bridge-meta/translation-qa-memory.json` thì merge overlay.
+- Grep từng `grepPatterns` trong content dịch theo `scope`.
+- Ghi finding theo severity của pattern.
+
+#### Check 6: Convert Smell (soft — chỉ ghi, không fix)
+- Câu cụt mở đầu không chủ ngữ mà đọc lên gượng.
+- Collocation máy (VD: "công việc độ khó cao").
+- Lặp ý, lặp từ sát nhau.
+- Cụm tâm lý literal (VD: "trong lòng nảy sinh cảnh giác").
+
+---
+
+### 5B. Findings — Ghi QA Report
+
+Build object QA trong memory, ghi **1 lần** vào file `qa_{jobId}.json` (cùng thư mục bridge).
+
+**KHÔNG update incremental.** Scan hết → build object → ghi 1 file.
+
+Mỗi finding PHẢI có evidence:
+- `span`: cụm text vi phạm (trích nguyên văn)
+- `rule`: ID rule bị vi phạm (VD: `glossary_exact_match`)
+- `fix`: đề xuất sửa (nếu high-confidence)
+- `severity`: `hard` hoặc `soft`
+
+#### Zero-issue phải earned
+
+Nếu chương có 0 findings, QA entry VẪN PHẢI có `checks` object chứng minh đã quét:
+
+```json
+{
+  "order": 26,
+  "checks": {
+    "glossaryExact": true,
+    "dialoguePronouns": true,
+    "blacklistScan": true,
+    "knownFailures": true,
+    "convertSmell": true
+  },
+  "findings": [],
+  "appliedFixCount": 0,
+  "remainingHardFindings": 0
+}
+```
+
+Không có `checks` → 0 findings vô giá trị.
+
+#### Full QA file format:
+
+```json
+{
+  "jobId": "cd862374",
+  "scannedAt": "2026-03-10T17:00:00Z",
+  "chapters": [
+    {
+      "order": 26,
+      "checks": {
+        "glossaryExact": true,
+        "dialoguePronouns": true,
+        "blacklistScan": true,
+        "knownFailures": true,
+        "convertSmell": true
+      },
+      "findings": [
+        {
+          "severity": "hard",
+          "rule": "glossary_exact_match",
+          "span": "Lệ tỷ",
+          "fix": "Lệ Tỷ"
+        },
+        {
+          "severity": "soft",
+          "rule": "convert_psychology_phrase",
+          "span": "trong lòng nảy sinh cảnh giác",
+          "fix": null
+        }
+      ],
+      "appliedFixCount": 0,
+      "remainingHardFindings": 1
+    }
+  ]
+}
+```
+
+---
+
+### 5C. Final Report & Recommendation
+
+> ⚠️ **QA chỉ GHI findings.** KHÔNG sửa trực tiếp vào file outbox.
+> App sẽ dựa vào `qa_{jobId}.json` để tự động apply hard fixes khi import vào DB.
+
+1. Tổng hợp tất cả findings từ bước 5A.
+2. Với mỗi hard finding, đảm bảo `fix` là một cụm từ thay thế chính xác và an toàn.
+3. Đảm bảo `appliedFixCount` được set về `0` (vì agent không apply), nhưng `remainingHardFindings` phản ánh đúng số lỗi cần app xử lý.
+
+---
+
+### 5D. Verify & Done
+
+Trước khi ghi file `done`, hãy tự kiểm tra lại (self-reflect):
+1. **Consistency**: Đã check glossary cho TẤT CẢ các chương chưa?
+2. **Safety**: Các đề xuất sửa (`fix`) có làm hỏng ngữ pháp xung quanh không?
+3. **Completeness**: File `qa_{jobId}.json` đã có đủ mục `chapters` cho mọi chương trong job chưa?
+
+Sau khi tự tin, ghi file `done_{jobId}.json` để báo hiệu App có thể bắt đầu auto-import.
 
 ## 6. Thông báo hoàn thành
 

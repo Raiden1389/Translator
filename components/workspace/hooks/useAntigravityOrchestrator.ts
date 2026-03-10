@@ -5,8 +5,8 @@
  * the Antigravity file-based translation system.
  */
 import { useState, useCallback, useEffect, useRef } from "react";
-import { exportInbox, importOutbox, hasPendingOutbox, pollJobProgress, findLatestOutboxInfo } from "@/lib/bridge/antigravity-bridge";
-import type { ImportResult, PollProgress } from "@/lib/bridge/antigravity-bridge";
+import { exportInbox, importOutbox, hasPendingOutbox, pollJobProgress, findLatestOutboxInfo, detectMissingChapters, updateBridgeJobStatus } from "@/lib/bridge/antigravity-bridge";
+import type { ImportResult, PollProgress, MissingChapterInfo } from "@/lib/bridge/antigravity-bridge";
 import type { Chapter, DictionaryEntry, CorrectionEntry } from "@/lib/db";
 import { toast } from "sonner";
 
@@ -19,8 +19,11 @@ interface BridgeState {
   lastExportPath: string | null;
   dialogOpen: boolean;
   exportedCount: number;
+  exportedOrders: number[];   // Track which orders were exported
   phase: BridgePhase;
   progress: PollProgress | null;
+  missingInfo: MissingChapterInfo | null;
+  importResult: ImportResult | null;
 }
 
 export function useAntigravityOrchestrator() {
@@ -31,8 +34,11 @@ export function useAntigravityOrchestrator() {
     lastExportPath: null,
     dialogOpen: false,
     exportedCount: 0,
+    exportedOrders: [],
     phase: "idle",
     progress: null,
+    missingInfo: null,
+    importResult: null,
   });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoImportTriggered = useRef(false);
@@ -59,8 +65,11 @@ export function useAntigravityOrchestrator() {
         lastExportPath: path,
         dialogOpen: true,
         exportedCount: chapterCount,
+        exportedOrders: chapters.map(c => c.order),
         phase: "waiting",
         progress: null,
+        missingInfo: null,
+        importResult: null,
       }));
       autoImportTriggered.current = false;
     } catch (err) {
@@ -94,9 +103,9 @@ export function useAntigravityOrchestrator() {
       setState(s => ({
         ...s,
         isImporting: false,
-        dialogOpen: false,
-        lastJobId: null,
-        lastExportPath: null,
+        // dialogOpen: false, // Don't close here, let phase transition handle it
+        lastJobId: result.imported > 0 ? s.lastJobId : null,
+        lastExportPath: result.imported > 0 ? s.lastExportPath : null,
         phase: "idle",
         progress: null,
       }));
@@ -199,7 +208,29 @@ export function useAntigravityOrchestrator() {
     setState(s => ({ ...s, phase: "importing", isImporting: true }));
     const result = await importFromBridge(currentWorkspaceId);
     if (result && result.imported > 0) {
-      setState(s => ({ ...s, phase: "success" }));
+      // Check for missing chapters based on ACTUAL imported orders
+      const missing = detectMissingChapters(state.exportedOrders, result.importedOrders);
+
+      if (missing.hasMissing) {
+        // Partial import — update history and keep dialog open
+        if (state.lastJobId) {
+          await updateBridgeJobStatus(state.lastJobId, {
+            status: 'partial',
+            missingOrders: missing.missingOrders,
+          });
+        }
+        setState(s => ({
+          ...s,
+          phase: "success",
+          missingInfo: missing,
+          importResult: result,
+        }));
+        toast.warning(`⚠️ Thiếu ${missing.missingOrders.length} chương: ${missing.missingOrders.join(', ')}`);
+        // Don't auto-close — user needs to see missing info
+        return;
+      }
+
+      setState(s => ({ ...s, phase: "success", importResult: result, missingInfo: null }));
 
       // Auto-push to cloud after bridge import (background, non-blocking)
       import("@/lib/sync/cloud-sync").then(({ hasToken, pushDelta }) => {
@@ -214,19 +245,9 @@ export function useAntigravityOrchestrator() {
         });
       }).catch(() => { /* cloud-sync module not available */ });
 
-      // Auto-close dialog after showing success
-      setTimeout(() => {
-        setState(s => ({
-          ...s,
-          dialogOpen: false,
-          phase: "idle",
-          progress: null,
-          lastJobId: null,
-          lastExportPath: null,
-        }));
-      }, 2000);
+      // Don't auto-close dialog — let user see summary and results
     }
-  }, [importFromBridge]);
+  }, [importFromBridge, state.exportedOrders, state.lastJobId]);
 
   // ─── Reopen dialog for pending outbox ─────────────────────────
   const reopenForImport = useCallback(async () => {

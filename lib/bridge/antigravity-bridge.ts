@@ -12,7 +12,7 @@
  */
 import { writeTextFile, readTextFile, exists, mkdir, remove, readDir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { db } from "@/lib/db";
-import type { Chapter, DictionaryEntry, CorrectionEntry } from "@/lib/db";
+import type { Chapter, DictionaryEntry, CorrectionEntry, BridgeJobEntry } from "@/lib/db";
 import { applyCorrectionsToChapters } from "@/lib/services/corrections.service";
 
 // ─── Schema ────────────────────────────────────────────────────
@@ -119,6 +119,15 @@ export async function exportInbox(
   const filePath = `${BRIDGE_DIR}/inbox_${jobId}.json`;
   await writeTextFile(filePath, JSON.stringify(inbox, null, 2), FS_OPTS);
 
+  // Log to history
+  await logBridgeJob({
+    jobId,
+    workspaceId,
+    status: 'exported',
+    exportedAt: new Date(),
+    chapterCount: chapters.length,
+  });
+
   return { jobId, path: filePath, chapterCount: chapters.length };
 }
 
@@ -126,6 +135,7 @@ export async function exportInbox(
 
 export interface ImportResult {
   imported: number;
+  importedOrders: number[];
   skipped: number;
   errors: string[];
 }
@@ -172,26 +182,54 @@ export async function pollJobProgress(jobId: string, expectedCount: number): Pro
   };
 }
 
-/** Find latest outbox job ID — supports both naming conventions */
+/** Find latest outbox job ID — uses done sentinel timestamps for accuracy */
 async function findLatestOutboxJobId(): Promise<string | null> {
   if (!(await exists(BRIDGE_DIR, FS_OPTS))) return null;
   const entries = await readDir(BRIDGE_DIR, FS_OPTS);
-  const outboxFiles = entries
-    .filter(e => e.isFile && e.name.endsWith(".json") && (
-      e.name.startsWith("out_") || e.name.startsWith("ag_outbox_")
-    ))
-    .map(e => e.name)
-    .sort()
-    .reverse();
-  if (outboxFiles.length === 0) return null;
 
-  // Try new naming first: out_{shortId}_ch*.json
-  const newMatch = outboxFiles[0].match(/^out_([a-f0-9]+)/);
-  if (newMatch) return newMatch[1];
+  // Strategy 1: Find all done_*.json files — pick newest by completedAt
+  const doneFiles = entries.filter(e => e.isFile && e.name.startsWith("done_") && e.name.endsWith(".json"));
+  const doneCandidates: { jobId: string; completedAt: string }[] = [];
+  for (const f of doneFiles) {
+    const match = f.name.match(/^done_([a-f0-9]+)\.json$/);
+    if (!match) continue;
+    try {
+      const raw = await readTextFile(`${BRIDGE_DIR}/${f.name}`, FS_OPTS);
+      const data = JSON.parse(raw) as { completedAt?: string };
+      doneCandidates.push({ jobId: match[1], completedAt: data.completedAt || "" });
+    } catch { /* skip unreadable done files */ }
+  }
 
-  // Fallback to legacy: ag_outbox_{uuid}*.json
-  const legacyMatch = outboxFiles[0].match(/^ag_outbox_([a-f0-9-]+)/);
-  return legacyMatch ? legacyMatch[1] : null;
+  // Sort by completedAt descending → pick the newest that still has outbox files
+  doneCandidates.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+  for (const candidate of doneCandidates) {
+    const hasOutbox = entries.some(e =>
+      e.isFile && (e.name.startsWith(`out_${candidate.jobId}`) || e.name.startsWith(`ag_outbox_${candidate.jobId}`))
+    );
+    if (hasOutbox) return candidate.jobId;
+  }
+
+  // Strategy 2: No done files with outbox → collect unique jobIds from outbox files
+  const outboxJobIds = new Set<string>();
+  for (const e of entries) {
+    if (!e.isFile || !e.name.endsWith(".json")) continue;
+    const newMatch = e.name.match(/^out_([a-f0-9]+)/);
+    if (newMatch) { outboxJobIds.add(newMatch[1]); continue; }
+    const legacyMatch = e.name.match(/^ag_outbox_([a-f0-9-]+)/);
+    if (legacyMatch) outboxJobIds.add(legacyMatch[1]);
+  }
+  if (outboxJobIds.size === 0) return null;
+
+  // Pick the jobId with the most outbox files (most likely the latest batch)
+  let bestJobId = "";
+  let bestCount = 0;
+  for (const jid of outboxJobIds) {
+    const count = entries.filter(e => e.isFile && (
+      e.name.startsWith(`out_${jid}`) || e.name.startsWith(`ag_outbox_${jid}`)
+    )).length;
+    if (count > bestCount) { bestCount = count; bestJobId = jid; }
+  }
+  return bestJobId || null;
 }
 
 export async function importOutbox(
@@ -199,7 +237,7 @@ export async function importOutbox(
   expectedJobId?: string,
   expectedCount?: number,
 ): Promise<ImportResult> {
-  const result: ImportResult = { imported: 0, skipped: 0, errors: [] };
+  const result: ImportResult = { imported: 0, importedOrders: [], skipped: 0, errors: [] };
 
   // Resolve jobId
   const actualJobId = expectedJobId || await findLatestOutboxJobId();
@@ -288,6 +326,9 @@ export async function importOutbox(
       translationModel: "antigravity-bridge",
     });
     result.imported++;
+    if (r.order !== undefined) {
+      result.importedOrders.push(r.order);
+    }
   }
 
   // Post-processing: Apply global corrections (Luyện Văn)
@@ -299,6 +340,39 @@ export async function importOutbox(
     if (corrected > 0) {
       result.errors.push(`✅ Luyện Văn: đã sửa ${corrected}/${importedIds.length} chương`);
     }
+
+    // Parse QA report and apply hard fixes
+    const qaReport = await parseQAReport(actualJobId);
+    let qaSummary: QASummary | undefined;
+    if (qaReport) {
+      qaSummary = aggregateQASummary(qaReport);
+      // Apply hard fixes from QA to already-imported chapters
+      for (const chEntry of qaReport.chapters) {
+        const hardFixes = chEntry.findings.filter(f => f.severity === 'hard' && f.fix);
+        if (hardFixes.length === 0) continue;
+        const matchResult = allResults.find(r => (r.order ?? r.id) === chEntry.order);
+        if (!matchResult) continue;
+        const chapter = await db.chapters.get(matchResult.id);
+        if (!chapter?.content_translated) continue;
+        const fixed = applyQAHardFixes(chapter.content_translated, hardFixes);
+        if (fixed !== chapter.content_translated) {
+          await db.chapters.update(matchResult.id, { content_translated: fixed });
+        }
+      }
+      result.errors.push(`🔍 QA: ${qaSummary.totalFindings} findings (${qaSummary.hardFindings} hard, ${qaSummary.softFindings} soft)`);
+    }
+
+    // Update history with import result
+    const importedOrders = allResults
+      .filter(r => (r.content || "").trim())
+      .map(r => r.order ?? r.id);
+    await updateBridgeJobStatus(actualJobId, {
+      status: (expectedCount && result.imported < expectedCount) ? 'partial' : 'imported',
+      importedAt: new Date(),
+      importedCount: result.imported,
+      completedOrders: importedOrders,
+      ...(qaSummary ? { qaSummary } : {}),
+    });
 
     // Safe cleanup: only delete files when all chapters imported
     if (expectedCount === undefined || result.imported >= expectedCount) {
@@ -323,13 +397,32 @@ async function cleanupJobFiles(jobId: string): Promise<void> {
       e.name === `inbox_${jobId}.json` ||          // New inbox
       e.name === `ag_inbox_${jobId}.json` ||        // Legacy inbox
       e.name === `done_${jobId}.json` ||            // Done sentinel
+      e.name === `qa_${jobId}.json` ||              // QA report
       e.name.startsWith(`out_${jobId}`) ||          // New outbox
       e.name.startsWith(`ag_outbox_${jobId}`)       // Legacy outbox
     ));
+    const failed: string[] = [];
     for (const f of jobFiles) {
-      try { await remove(`${BRIDGE_DIR}/${f.name}`, FS_OPTS); } catch { /* noop */ }
+      const path = `${BRIDGE_DIR}/${f.name}`;
+      try {
+        await remove(path, FS_OPTS);
+      } catch {
+        // Retry once after a short delay (file may be locked)
+        try {
+          await new Promise(r => setTimeout(r, 200));
+          await remove(path, FS_OPTS);
+        } catch (retryErr) {
+          failed.push(f.name);
+          console.warn(`[Bridge] Failed to cleanup ${f.name}:`, retryErr);
+        }
+      }
     }
-  } catch { /* noop */ }
+    if (failed.length > 0) {
+      console.warn(`[Bridge] ${failed.length} files could not be deleted for job ${jobId}:`, failed);
+    }
+  } catch (err) {
+    console.warn(`[Bridge] cleanupJobFiles(${jobId}) failed:`, err);
+  }
 }
 
 // ─── Status Check ──────────────────────────────────────────────
@@ -350,4 +443,211 @@ export async function findLatestOutboxInfo(): Promise<{ jobId: string; fileCount
     return match ? parseInt(match[1]) : -1;
   }).filter(n => n >= 0);
   return { jobId, fileCount: files.length, orders };
+}
+
+// ─── Missing Chapter Detection ─────────────────────────────────
+
+export interface MissingChapterInfo {
+  expectedOrders: number[];
+  completedOrders: number[];
+  missingOrders: number[];
+  hasMissing: boolean;
+}
+
+/** Compare expected vs completed orders to detect missing chapters */
+export function detectMissingChapters(
+  expectedOrders: number[],
+  completedOrders: number[],
+): MissingChapterInfo {
+  const completedSet = new Set(completedOrders);
+  const missingOrders = expectedOrders.filter(o => !completedSet.has(o));
+  return {
+    expectedOrders,
+    completedOrders,
+    missingOrders,
+    hasMissing: missingOrders.length > 0,
+  };
+}
+
+/** Re-export only missing chapters as a new inbox job */
+export async function exportMissingOnly(
+  workspaceId: string,
+  missingOrders: number[],
+  glossary: DictionaryEntry[],
+  corrections: CorrectionEntry[],
+  prompt: string,
+  temperature: number,
+): Promise<{ jobId: string; path: string; chapterCount: number }> {
+  // Fetch only the missing chapters by order
+  const allChapters = await db.chapters
+    .where('workspaceId').equals(workspaceId)
+    .toArray();
+  const chapters = allChapters.filter(c => missingOrders.includes(c.order));
+
+  if (chapters.length === 0) {
+    throw new Error(`Không tìm thấy chương nào với order: ${missingOrders.join(', ')}`);
+  }
+
+  return exportInbox(workspaceId, chapters, glossary, corrections, prompt, temperature);
+}
+
+// ─── Bridge Job History ────────────────────────────────────────
+
+const MAX_HISTORY_ENTRIES = 20;
+
+/** Log a new bridge job to history */
+export async function logBridgeJob(
+  entry: Omit<BridgeJobEntry, 'id'>,
+): Promise<void> {
+  try {
+    await db.bridgeJobs.add(entry as BridgeJobEntry);
+    // Auto-purge old entries
+    const count = await db.bridgeJobs.count();
+    if (count > MAX_HISTORY_ENTRIES) {
+      const oldest = await db.bridgeJobs
+        .orderBy('exportedAt')
+        .limit(count - MAX_HISTORY_ENTRIES)
+        .toArray();
+      await db.bridgeJobs.bulkDelete(oldest.map(e => e.id!));
+    }
+  } catch {
+    console.warn('[Bridge] Failed to log job history');
+  }
+}
+
+/** Update bridge job status */
+export async function updateBridgeJobStatus(
+  jobId: string,
+  updates: Partial<Pick<BridgeJobEntry, 'status' | 'completedAt' | 'importedAt' | 'importedCount' | 'missingOrders' | 'completedOrders' | 'qaSummary'>>,
+): Promise<void> {
+  try {
+    const job = await db.bridgeJobs.where('jobId').equals(jobId).first();
+    if (job?.id) {
+      await db.bridgeJobs.update(job.id, updates);
+    }
+  } catch {
+    console.warn('[Bridge] Failed to update job status');
+  }
+}
+
+/** Get recent bridge jobs for history UI */
+export async function getBridgeJobHistory(
+  workspaceId?: string,
+  limit = 10,
+): Promise<BridgeJobEntry[]> {
+  const query = db.bridgeJobs.orderBy('exportedAt').reverse();
+  if (workspaceId) {
+    const all = await query.toArray();
+    return all.filter(j => j.workspaceId === workspaceId).slice(0, limit);
+  }
+  return query.limit(limit).toArray();
+}
+
+// ─── QA Report Parsing ─────────────────────────────────────────
+
+export interface QAFinding {
+  severity: 'hard' | 'soft';
+  rule: string;
+  span: string;
+  fix: string | null;
+}
+
+export interface QAChapterEntry {
+  order: number;
+  checks: Record<string, boolean>;
+  findings: QAFinding[];
+  appliedFixCount: number;
+  remainingHardFindings: number;
+}
+
+export interface QAReport {
+  jobId: string;
+  scannedAt: string;
+  chapters: QAChapterEntry[];
+}
+
+export interface QASummary {
+  cleanChapters: number;
+  fixedChapters: number;
+  totalFindings: number;
+  hardFindings: number;
+  softFindings: number;
+  topRules: [string, number][];
+}
+
+/** Parse qa_{jobId}.json from bridge folder */
+export async function parseQAReport(jobId: string): Promise<QAReport | null> {
+  try {
+    const filePath = `${BRIDGE_DIR}/qa_${jobId}.json`;
+    const fileExists = await exists(filePath, FS_OPTS);
+    if (!fileExists) return null;
+    const raw = await readTextFile(filePath, FS_OPTS);
+    return JSON.parse(raw) as QAReport;
+  } catch {
+    console.warn('[Bridge] Failed to parse QA report');
+    return null;
+  }
+}
+
+/** Aggregate QA report into summary stats */
+export function aggregateQASummary(report: QAReport): QASummary {
+  const ruleCounts = new Map<string, number>();
+  let cleanChapters = 0;
+  let fixedChapters = 0;
+  let totalFindings = 0;
+  let hardFindings = 0;
+  let softFindings = 0;
+
+  for (const ch of report.chapters) {
+    const hardCount = ch.findings.filter(f => f.severity === 'hard').length;
+    const softCount = ch.findings.filter(f => f.severity === 'soft').length;
+    totalFindings += ch.findings.length;
+    hardFindings += hardCount;
+    softFindings += softCount;
+
+    const hasHardFix = ch.findings.some(f => f.severity === 'hard' && f.fix);
+    if (ch.findings.length === 0) {
+      cleanChapters++;
+    } else if (hasHardFix) {
+      fixedChapters++;
+    }
+
+    for (const f of ch.findings) {
+      ruleCounts.set(f.rule, (ruleCounts.get(f.rule) ?? 0) + 1);
+    }
+  }
+
+  const topRules = Array.from(ruleCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5) as [string, number][];
+
+  return { cleanChapters, fixedChapters, totalFindings, hardFindings, softFindings, topRules };
+}
+
+/** Apply hard fixes from QA report to imported chapter content */
+export function applyQAHardFixes(
+  content: string,
+  findings: QAFinding[],
+): string {
+  let result = content;
+  for (const f of findings) {
+    if (f.severity === 'hard' && f.fix && f.span) {
+      // Use escapeRegExp for safe replacement
+      const escapedSpan = f.span.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // If the span is long enough (> 10 chars), assume it's specific enough for global replace
+      // Otherwise, try to use word boundaries to avoid partial word replacement
+      if (escapedSpan.length > 10) {
+        result = result.replaceAll(f.span, f.fix);
+      } else {
+        // Simple word boundary check (only for alphanumeric spans)
+        const isWord = /^\w+$/.test(f.span);
+        const regex = isWord
+          ? new RegExp(`\\b${escapedSpan}\\b`, 'g')
+          : new RegExp(escapedSpan, 'g');
+        result = result.replace(regex, f.fix);
+      }
+    }
+  }
+  return result;
 }

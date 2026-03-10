@@ -1,4 +1,27 @@
+## [2.9.5] - 2026-03-10
+
+### Top Impact
+- **[Bridge]** Multi-Station Parallel Translation Architecture — 3 isolated workspaces (`dich-1/2/3`) for concurrent translation across multiple Antigravity windows.
+- **[Bridge]** One-Click Station Setup (`./bd`) — Distributes chapters, generates station-specific `GEMINI.md` rules, and auto-opens multiple Antigravity CLI windows.
+- **[Bridge]** Standardized Collection (`./bc`) — Merges independent station outputs into unified Bridge outbox with forced UTF-8 encoding (fixed mojibake on Windows).
+- **[Agent]** Isolated Workflow (`dich.md`) — Each station has a localized workflow for `/dich` command support.
+
+### Added
+- **[Bridge]** `scripts/bridge-distribute.mjs` — Intelligence logic for splitting jobs and rule generation.
+- **[Bridge]** `scripts/bridge-collect.mjs` — Merging engine with UTF-8 safety guards.
+- **[CLI]** `bd.ps1` & `bc.ps1` — PowerShell shortcuts for rapid station management.
+- **[Workflow]** Station-specific `dich.md` workflow for automated agent execution.
+
+### Changed
+- **[Architecture]** Shifted from `.stations/` subfolders to isolated `scratch/dich-N/` folders to prevent Agent "cross-talk" and hallucinated file paths.
+- **[UI]** Enabled multi-window translation flow leveraging Antigravity's CLI.
+
+### Fixed
+- **[Bridge]** UTF-8 Encoding — Fixed `Get-Content` (ANSI) related mangling of Vietnamese characters during processing.
+- **[Agent]** Directory confusion — Agents no longer mistake station-1's input for station-2's because they are now in separate physical workspaces.
+
 ## [2.9.4] - 2026-03-08
+
 
 ### Top Impact
 - **[Bridge]** Auto-import not triggering — `pollJobProgress` now considers job done when outbox file count matches expected, not just when sentinel file exists.
