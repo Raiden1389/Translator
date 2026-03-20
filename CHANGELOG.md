@@ -1,27 +1,22 @@
-## [2.9.5] - 2026-03-10
+## [2.9.5] - 2026-03-20
 
 ### Top Impact
-- **[Bridge]** Multi-Station Parallel Translation Architecture — 3 isolated workspaces (`dich-1/2/3`) for concurrent translation across multiple Antigravity windows.
-- **[Bridge]** One-Click Station Setup (`./bd`) — Distributes chapters, generates station-specific `GEMINI.md` rules, and auto-opens multiple Antigravity CLI windows.
-- **[Bridge]** Standardized Collection (`./bc`) — Merges independent station outputs into unified Bridge outbox with forced UTF-8 encoding (fixed mojibake on Windows).
-- **[Agent]** Isolated Workflow (`dich.md`) — Each station has a localized workflow for `/dich` command support.
+- **[Sync]** `pollAndApplyCloudCorrections()` — Desktop auto-polls cloud every 30s for corrections pushed from Mobile. Applies text replacements to chapters + saves as global correction rules.
+- **[Sync]** Auto-poll hook in `CloudSyncButton` — polls on mount + every 30s, shows toast `📱 Nhận N cải chính từ Mobile (cloud)`.
+- **[Sync]** Cloud correction flow now fully operational: Mobile `pushCorrectionsToCloud()` → R2 storage → Desktop `pollAndApplyCloudCorrections()` → toast. Previously, corrections could only sync via LAN (broken for HTTPS-hosted PWA due to mixed content block).
+- `lib/sync/cloud-sync.ts` — `pollAndApplyCloudCorrections()`, `GLOBAL_WORKSPACE_ID` import
+- `components/workspace/shared/CloudSyncButton.tsx` — auto-poll useEffect
 
 ### Added
-- **[Bridge]** `scripts/bridge-distribute.mjs` — Intelligence logic for splitting jobs and rule generation.
-- **[Bridge]** `scripts/bridge-collect.mjs` — Merging engine with UTF-8 safety guards.
-- **[CLI]** `bd.ps1` & `bc.ps1` — PowerShell shortcuts for rapid station management.
-- **[Workflow]** Station-specific `dich.md` workflow for automated agent execution.
+- **[Sync]** `pollAndApplyCloudCorrections()` — Desktop auto-polls cloud every 30s for corrections pushed from Mobile. Applies text replacements to chapters + saves as global correction rules.
+- **[Sync]** Auto-poll hook in `CloudSyncButton` — polls on mount + every 30s, shows toast `📱 Nhận N cải chính từ Mobile (cloud)`.
 
 ### Changed
-- **[Architecture]** Shifted from `.stations/` subfolders to isolated `scratch/dich-N/` folders to prevent Agent "cross-talk" and hallucinated file paths.
-- **[UI]** Enabled multi-window translation flow leveraging Antigravity's CLI.
-
-### Fixed
-- **[Bridge]** UTF-8 Encoding — Fixed `Get-Content` (ANSI) related mangling of Vietnamese characters during processing.
-- **[Agent]** Directory confusion — Agents no longer mistake station-1's input for station-2's because they are now in separate physical workspaces.
+- **[Sync]** Cloud correction flow now fully operational: Mobile `pushCorrectionsToCloud()` → R2 storage → Desktop `pollAndApplyCloudCorrections()` → toast. Previously, corrections could only sync via LAN (broken for HTTPS-hosted PWA due to mixed content block).
+- `lib/sync/cloud-sync.ts` — `pollAndApplyCloudCorrections()`, `GLOBAL_WORKSPACE_ID` import
+- `components/workspace/shared/CloudSyncButton.tsx` — auto-poll useEffect
 
 ## [2.9.4] - 2026-03-08
-
 
 ### Top Impact
 - **[Bridge]** Auto-import not triggering — `pollJobProgress` now considers job done when outbox file count matches expected, not just when sentinel file exists.
@@ -196,27 +191,3 @@
 
 ### Breaking/Migration
 - Automatic on first app launch after update. Old per-workspace corrections are merged into one global pool.
-
-## [2.7.8] - 2026-02-24
-
-### Top Impact
-- **[Translator]** JSON import from Crawler app (`{ metadata, chapters }` format).
-- **[Translator]** `appendChaptersFromJSON()` — append new chapters without overwriting translations.
-- **[Translator]** `UpdateFromJSONCard` component in Settings tab.
-- **[Sync]** Multi-workspace sync protocol — sync ALL workspaces at once.
-- **[Sync]** Named tunnel `raidenhub.xyz` (fixed domain, PWA installable).
-
-### Added
-- **[Translator]** JSON import from Crawler app (`{ metadata, chapters }` format).
-- **[Translator]** `appendChaptersFromJSON()` — append new chapters without overwriting translations.
-- **[Translator]** `UpdateFromJSONCard` component in Settings tab.
-- **[Sync]** Multi-workspace sync protocol — sync ALL workspaces at once.
-- **[Sync]** Named tunnel `raidenhub.xyz` (fixed domain, PWA installable).
-- **[Mobile]** Update button with NEW badge in reader menu.
-
-### Fixed
-- **[Sync]** Corrections from mobile routed to wrong workspace.
-- **[Mobile]** Overscroll pull-to-refresh in Reader.
-
-### Perf
-- **[Build]** Rust module extraction (lib.rs 375→58 LOC), dependency trim, build 167s→32s.

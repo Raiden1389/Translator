@@ -5,6 +5,23 @@
 
 ---
 
+## [2.9.5] - 2026-03-20
+
+**Top Impact**: Cloud Correction Sync (Mobile→Cloud→Desktop auto-pull) • No more LAN-only corrections
+
+### Added
+- **[Sync]** `pollAndApplyCloudCorrections()` — Desktop auto-polls cloud every 30s for corrections pushed from Mobile. Applies text replacements to chapters + saves as global correction rules.
+- **[Sync]** Auto-poll hook in `CloudSyncButton` — polls on mount + every 30s, shows toast `📱 Nhận N cải chính từ Mobile (cloud)`.
+
+### Changed
+- **[Sync]** Cloud correction flow now fully operational: Mobile `pushCorrectionsToCloud()` → R2 storage → Desktop `pollAndApplyCloudCorrections()` → toast. Previously, corrections could only sync via LAN (broken for HTTPS-hosted PWA due to mixed content block).
+
+### Files Modified
+- `lib/sync/cloud-sync.ts` — `pollAndApplyCloudCorrections()`, `GLOBAL_WORKSPACE_ID` import
+- `components/workspace/shared/CloudSyncButton.tsx` — auto-poll useEffect
+
+---
+
 ## [2.9.4] - 2026-03-08
 
 **Top Impact**: Bridge Import UX fix • Toolbar icon cleanup • Tauri build 55s→38s • Pagination scroll-to-top

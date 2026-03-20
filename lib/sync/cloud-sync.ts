@@ -1,6 +1,6 @@
 "use client";
 
-import { db } from "@/lib/db";
+import { db, GLOBAL_WORKSPACE_ID } from "@/lib/db";
 
 // ===================================================
 // CLOUD SYNC — Push/Pull via raidenhub.xyz R2
@@ -265,6 +265,90 @@ export async function pullCorrections(workspaceId: string): Promise<unknown[]> {
   });
   if (!res.ok) return [];
   return res.json();
+}
+
+interface CloudCorrection {
+  workspaceId: string;
+  oldText: string;
+  newText: string;
+  scope: string;
+  fromChapterOrder: number;
+  appliedAt?: string;
+}
+
+/**
+ * Poll cloud for new corrections from mobile, apply them to DB.
+ * Tracks last-processed count per workspace to avoid re-applying.
+ * Returns total number of corrections applied (0 = nothing new).
+ */
+export async function pollAndApplyCloudCorrections(): Promise<number> {
+  if (!hasToken()) return 0;
+
+  let totalApplied = 0;
+
+  try {
+    const cloudList = await listCloudWorkspaces();
+
+    for (const wsInfo of cloudList) {
+      // Check if this workspace exists locally
+      const localWs = await db.workspaces.get(wsInfo.id);
+      if (!localWs) continue;
+
+      // Pull all corrections from cloud
+      const allCorrections = await pullCorrections(wsInfo.id) as CloudCorrection[];
+      if (allCorrections.length === 0) continue;
+
+      // Track how many we've already processed
+      const lastProcessedKey = `cloudCorrections_processed_${wsInfo.id}`;
+      const lastProcessed = parseInt(localStorage.getItem(lastProcessedKey) || "0", 10);
+
+      // Only process NEW corrections (index >= lastProcessed)
+      const newCorrections = allCorrections.slice(lastProcessed);
+      if (newCorrections.length === 0) continue;
+
+      // Apply each correction to chapters
+      for (const c of newCorrections) {
+        const targetChapters = c.scope === "all"
+          ? await db.chapters.where("workspaceId").equals(wsInfo.id).toArray()
+          : await db.chapters.where({ workspaceId: wsInfo.id, order: c.fromChapterOrder }).toArray();
+
+        for (const ch of targetChapters) {
+          if (ch.content_translated?.includes(c.oldText)) {
+            await db.chapters.update(ch.id!, {
+              content_translated: ch.content_translated.replaceAll(c.oldText, c.newText),
+            });
+            totalApplied++;
+          }
+        }
+
+        // Save as correction rule (for future translations)
+        const existing = await db.corrections
+          .where({ workspaceId: GLOBAL_WORKSPACE_ID })
+          .filter(e => e.type === "replace" && e.from === c.oldText && e.to === c.newText)
+          .first();
+
+        if (!existing) {
+          await db.corrections.add({
+            workspaceId: GLOBAL_WORKSPACE_ID,
+            type: "replace",
+            from: c.oldText,
+            to: c.newText,
+            original: c.oldText,
+            replacement: c.newText,
+            createdAt: new Date(),
+          });
+        }
+      }
+
+      // Update processed count
+      localStorage.setItem(lastProcessedKey, String(allCorrections.length));
+      console.log(`[CloudSync] Applied ${newCorrections.length} corrections for "${wsInfo.title}" (${totalApplied} chapters updated)`);
+    }
+  } catch (err) {
+    console.warn("[CloudSync] Correction poll failed:", err);
+  }
+
+  return totalApplied;
 }
 
 // ── List ──────────────────────────────────────────

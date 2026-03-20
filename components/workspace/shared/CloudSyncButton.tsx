@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import {
   pushAllDirty, hasToken, setToken, listCloudWorkspaces,
+  pollAndApplyCloudCorrections,
   type CloudWorkspaceInfo,
 } from "@/lib/sync/cloud-sync";
 
@@ -21,6 +22,28 @@ export function CloudSyncButton() {
   const [cloudList, setCloudList] = useState<CloudWorkspaceInfo[]>([]);
 
   const tokenSet = hasToken();
+
+  // ── Auto-poll cloud corrections from mobile ──
+  useEffect(() => {
+    if (!tokenSet) return;
+
+    // Poll once immediately on mount
+    pollAndApplyCloudCorrections().then(count => {
+      if (count > 0) {
+        toast.success(`📱 Nhận ${count} cải chính từ Mobile (cloud)`, { duration: 5000 });
+      }
+    });
+
+    // Then poll every 30s
+    const interval = setInterval(async () => {
+      const count = await pollAndApplyCloudCorrections();
+      if (count > 0) {
+        toast.success(`📱 Nhận ${count} cải chính từ Mobile (cloud)`, { duration: 5000 });
+      }
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [tokenSet]);
 
   // Load cloud workspace list when popover opens
   useEffect(() => {
