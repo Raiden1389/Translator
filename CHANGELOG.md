@@ -20,8 +20,16 @@
 - **[UI]** Intelligence Hub — added "Name Audit" tab with `Users` icon.
 - `lib/services/name-audit.types.ts` — Shared types (SourceParagraphRef, NameCluster, NameVariant, NameAuditReport, NameFixSelection, NameFixResult)
 - `lib/services/name-audit.extraction.ts` — NEW (Phase 1)
-- `lib/services/name-audit.clustering.ts` — NEW (Phase 2)
-- `lib/services/name-audit.autofix.ts` — NEW (Phase 4)
+- `lib/services/name-audit.clustering.ts` — NEW (Phase 2) + ambiguity guard
+- `lib/services/name-audit.autofix.ts` — NEW (Phase 4) + override logic + global snapshot
+
+### Fixed
+- **[Intelligence]** Dictionary cold-start — `SyllableRepository` and `VietPhraseRepository` not loaded before Name Audit scan/convert. Cold start returned raw Chinese text instead of HanViet/VietPhrase.
+- **[Intelligence]** SourceRef ambiguity — paragraphs with multiple Chinese names caused false cluster merges. Now skipped when >1 name found.
+- **[Intelligence]** Stale Correction rules — re-auditing with a different canonical silently skipped the new rule. Now updates existing rule when `to` differs.
+- **[Intelligence]** Undo scope mismatch — snapshot was workspace-scoped but sweep was global. Snapshot now captures all translated chapters.
+- **[Corrections]** `sweepSingleRule()` now also corrects `title_translated`, matching the main Luyện Văn flow and preventing "body fixed, title stale".
+- **[UI]** Fix result label: "chương" → "lượt cập nhật" to avoid inflated count when 1 chapter is updated by multiple rules.
 
 ## [2.9.5] - 2026-03-20
 
