@@ -281,8 +281,11 @@ interface CloudCorrection {
  * Tracks last-processed count per workspace to avoid re-applying.
  * Returns total number of corrections applied (0 = nothing new).
  */
+let _pollingLock = false;
 export async function pollAndApplyCloudCorrections(): Promise<number> {
   if (!hasToken()) return 0;
+  if (_pollingLock) return 0; // Prevent concurrent runs
+  _pollingLock = true;
 
   let totalApplied = 0;
 
@@ -306,8 +309,18 @@ export async function pollAndApplyCloudCorrections(): Promise<number> {
       const newCorrections = allCorrections.slice(lastProcessed);
       if (newCorrections.length === 0) continue;
 
+      // Update processed count IMMEDIATELY to prevent race conditions
+      localStorage.setItem(lastProcessedKey, String(allCorrections.length));
+
       // Apply each correction to chapters
       for (const c of newCorrections) {
+        // Check if this correction rule already exists (dedup)
+        const existing = await db.corrections
+          .filter(e => e.type === "replace" && e.from === c.oldText && e.to === c.newText)
+          .first();
+
+        if (existing) continue; // Already have this correction, skip
+
         const targetChapters = c.scope === "all"
           ? await db.chapters.where("workspaceId").equals(wsInfo.id).toArray()
           : await db.chapters.where({ workspaceId: wsInfo.id, order: c.fromChapterOrder }).toArray();
@@ -322,30 +335,23 @@ export async function pollAndApplyCloudCorrections(): Promise<number> {
         }
 
         // Save as correction rule (for future translations)
-        const existing = await db.corrections
-          .where({ workspaceId: GLOBAL_WORKSPACE_ID })
-          .filter(e => e.type === "replace" && e.from === c.oldText && e.to === c.newText)
-          .first();
-
-        if (!existing) {
-          await db.corrections.add({
-            workspaceId: GLOBAL_WORKSPACE_ID,
-            type: "replace",
-            from: c.oldText,
-            to: c.newText,
-            original: c.oldText,
-            replacement: c.newText,
-            createdAt: new Date(),
-          });
-        }
+        await db.corrections.add({
+          workspaceId: GLOBAL_WORKSPACE_ID,
+          type: "replace",
+          from: c.oldText,
+          to: c.newText,
+          original: c.oldText,
+          replacement: c.newText,
+          createdAt: new Date(),
+        });
       }
 
-      // Update processed count
-      localStorage.setItem(lastProcessedKey, String(allCorrections.length));
       console.log(`[CloudSync] Applied ${newCorrections.length} corrections for "${wsInfo.title}" (${totalApplied} chapters updated)`);
     }
   } catch (err) {
     console.warn("[CloudSync] Correction poll failed:", err);
+  } finally {
+    _pollingLock = false;
   }
 
   return totalApplied;
