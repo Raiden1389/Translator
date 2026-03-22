@@ -260,11 +260,21 @@ export async function convertChapterForReview(
         .map(para => para.replace(/<[^>]+>/g, '').trim())
         .filter(para => para.length > 0);
 
+    // VP convert with HanViet fallback for chars VP doesn't cover
+    const vpWithFallback = (text: string): string => {
+        const vpResult = vpRepo.convert(text);
+        // Replace any remaining CJK characters with HanViet
+        return vpResult.replace(/[\u4e00-\u9fff\u3400-\u4dbf]/g, (char) => {
+            const hanviet = repo.toHanViet(char);
+            return hanviet !== char ? ` ${hanviet} ` : char;
+        }).replace(/\s{2,}/g, ' ').trim();
+    };
+
     return {
         chapterOrder: chapter.order,
         paragraphs: cleanParas.map(para => ({
             original: para,
-            vietPhrase: vpRepo.convert(para),
+            vietPhrase: vpWithFallback(para),
             hanViet: repo.toHanViet(para),
         })),
     };
