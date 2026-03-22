@@ -124,11 +124,20 @@ export async function sweepSingleRule(
 
     let affected = 0;
     for (const ch of allChapters) {
-        const original = ch.content_translated!;
-        const corrected = applyCorrectionsText(original, [rule]);
+        const originalContent = ch.content_translated!;
+        const correctedContent = applyCorrectionsText(originalContent, [rule]);
 
-        if (corrected !== original) {
-            await db.chapters.update(ch.id!, { content_translated: corrected });
+        const originalTitle = ch.title_translated || "";
+        const correctedTitle = originalTitle ? applyCorrectionsText(originalTitle, [rule]) : originalTitle;
+
+        const contentChanged = correctedContent !== originalContent;
+        const titleChanged = correctedTitle !== originalTitle;
+
+        if (contentChanged || titleChanged) {
+            const update: { content_translated?: string; title_translated?: string } = {};
+            if (contentChanged) update.content_translated = correctedContent;
+            if (titleChanged) update.title_translated = correctedTitle;
+            await db.chapters.update(ch.id!, update);
             affected++;
         }
     }

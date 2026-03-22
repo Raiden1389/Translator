@@ -61,8 +61,6 @@ export async function applyNameFixes(
 
     // 1. Snapshot for undo (before any changes)
     const translatedChapters = await db.chapters
-        .where("workspaceId")
-        .equals(workspaceId)
         .filter(c => !!c.content_translated)
         .toArray();
 
@@ -88,7 +86,7 @@ export async function applyNameFixes(
         const fix = fixes[i];
         onProgress?.(i + 1, total, `${fix.from} → ${fix.to}`);
 
-        // Duplicate check — don't create if rule already exists
+        // Duplicate/override check
         const existing = await db.corrections
             .where("workspaceId")
             .equals(GLOBAL_WORKSPACE_ID)
@@ -99,29 +97,50 @@ export async function applyNameFixes(
             .first();
 
         if (existing) {
-            console.log(`[NameAudit] Skipped duplicate rule: "${fix.from}" → "${fix.to}"`);
-            continue;
+            const existingTo = (existing.to || existing.replacement || "").normalize("NFC").toLowerCase();
+            const newTo = fix.to.normalize("NFC").toLowerCase();
+
+            if (existingTo === newTo) {
+                console.log(`[NameAudit] Skipped existing identical rule: "${fix.from}" → "${fix.to}"`);
+                continue;
+            }
+
+            // Override: canonical changed → update existing rule
+            await db.corrections.update(existing.id!, {
+                to: fix.to.normalize("NFC"),
+                replacement: fix.to.normalize("NFC"),
+                createdAt: new Date(),
+            });
+            rulesCreated++;
+            console.log(`[NameAudit] Updated rule: "${fix.from}" → "${existingTo}" ⇒ "${fix.to}"`);
+        } else {
+            // Create new Correction entry
+            const entry: Partial<CorrectionEntry> = {
+                workspaceId: GLOBAL_WORKSPACE_ID,
+                type: "replace",
+                from: fix.from.normalize("NFC"),
+                to: fix.to.normalize("NFC"),
+                original: fix.from.normalize("NFC"),
+                replacement: fix.to.normalize("NFC"),
+                createdAt: new Date(),
+            };
+
+            await db.corrections.add(entry as CorrectionEntry);
+            rulesCreated++;
         }
 
-        // Create Correction entry
-        const entry: Partial<CorrectionEntry> = {
-            workspaceId: GLOBAL_WORKSPACE_ID,
+        // Sweep all translated chapters with this rule (both new + override)
+        const sweepRule: Partial<CorrectionEntry> = {
             type: "replace",
             from: fix.from.normalize("NFC"),
             to: fix.to.normalize("NFC"),
             original: fix.from.normalize("NFC"),
             replacement: fix.to.normalize("NFC"),
-            createdAt: new Date(),
         };
-
-        await db.corrections.add(entry as CorrectionEntry);
-        rulesCreated++;
-
-        // Sweep all translated chapters with this new rule
-        const affected = await sweepSingleRule(entry);
+        const affected = await sweepSingleRule(sweepRule);
         totalChaptersFixed += affected;
 
-        console.log(`[NameAudit] Rule "${fix.from}" → "${fix.to}": ${affected} chapters fixed`);
+        console.log(`[NameAudit] Rule "${fix.from}" → "${fix.to}": ${affected} chapters updated`);
     }
 
     const durationMs = Math.round(performance.now() - startTime);

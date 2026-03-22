@@ -273,7 +273,7 @@ export function NameAuditModule({ workspaceId }: NameAuditModuleProps) {
                                 </strong>
                                 {' '}đã tạo vào Luyện Văn,{' '}
                                 <strong className="text-emerald-700">
-                                    {fixResult.chaptersFixed} chương
+                                    {fixResult.chaptersFixed} lượt cập nhật
                                 </strong>
                                 {' '}đã cập nhật.
                                 <span className="text-muted-foreground ml-1">({fixResult.durationMs}ms)</span>
