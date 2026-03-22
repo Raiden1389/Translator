@@ -146,6 +146,33 @@ export function CloudSyncButton() {
                   : "No workspaces on cloud yet"}
               </p>
 
+              {/* Pull corrections button */}
+              <Button className="w-full" size="sm" variant="outline"
+                disabled={status === "syncing"}
+                onClick={async () => {
+                  setStatus("syncing");
+                  setProgress("📱 Đang pull corrections...");
+                  try {
+                    const count = await pollAndApplyCloudCorrections();
+                    if (count > 0) {
+                      toast.success(`📱 Nhận ${count} cải chính từ Mobile!`, { duration: 5000 });
+                      setProgress(`✅ Nhận ${count} cải chính`);
+                    } else {
+                      toast.info("📱 Không có cải chính mới");
+                      setProgress("✅ Không có cải chính mới");
+                    }
+                    setStatus("done");
+                    setTimeout(() => setStatus("idle"), 3000);
+                  } catch (err) {
+                    toast.error(`Pull failed: ${err instanceof Error ? err.message : String(err)}`);
+                    setStatus("error");
+                    setTimeout(() => setStatus("idle"), 2000);
+                  }
+                }}
+              >
+                {status === "syncing" ? progress : "📱 Pull Corrections từ Mobile"}
+              </Button>
+
               {/* Sync button */}
               <Button className="w-full" size="sm" onClick={handleSync}
                 disabled={status === "syncing"}>
