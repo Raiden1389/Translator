@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Eye, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NameCluster } from "@/lib/services/name-audit.types";
 
@@ -21,10 +21,11 @@ export function NameClusterCard({
     onConvertChapter,
 }: NameClusterCardProps) {
     const [expanded, setExpanded] = useState(cluster.isInconsistent);
-    const [showSourceRefs, setShowSourceRefs] = useState<string | null>(null);
+
 
     const maxCount = Math.max(...cluster.variants.map(v => v.count));
-    const canonical = selectedCanonical ?? cluster.suggestedCanonical;
+    const canonical = selectedCanonical;
+    const displayCanonical = selectedCanonical ?? cluster.suggestedCanonical;
 
     const confidenceColor = cluster.confidence >= 0.8
         ? "bg-emerald-500"
@@ -66,7 +67,7 @@ export function NameClusterCard({
 
                 {/* Canonical name */}
                 <span className="font-bold text-sm text-foreground truncate">
-                    {cluster.suggestedCanonical}
+                    {displayCanonical}
                 </span>
 
                 {/* Stats */}
@@ -127,67 +128,24 @@ export function NameClusterCard({
                                             </span>
                                         </div>
 
-                                        {/* Chapter range */}
+                                        {/* Chapter range + Convert button */}
                                         <span className="text-[10px] text-muted-foreground shrink-0 font-mono">
                                             ch.{variant.chapters[0]}–{variant.chapters[variant.chapters.length - 1]}
                                         </span>
 
-                                        {/* Look-back toggle */}
-                                        {variant.sourceRefs.length > 0 && (
+                                        {onConvertChapter && variant.sourceRefs[0]?.chapterId && (
                                             <button
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    setShowSourceRefs(showSourceRefs === variant.name ? null : variant.name);
+                                                    onConvertChapter(variant.sourceRefs[0].chapterId!);
                                                 }}
                                                 className="shrink-0 p-1 rounded hover:bg-muted/50 transition-colors"
-                                                title="Xem ngữ cảnh gốc"
+                                                title="Đọc chương gốc (VP/HanViet)"
                                             >
                                                 <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                                             </button>
                                         )}
                                     </label>
-
-                                    {/* Source refs (look-back) */}
-                                    {showSourceRefs === variant.name && variant.sourceRefs.length > 0 && (
-                                        <div className="ml-6 space-y-2 text-xs">
-                                            {variant.sourceRefs.map((ref, idx) => (
-                                                <div key={idx} className="border border-border/30 rounded-lg p-2.5 bg-muted/10 space-y-1">
-                                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                                        <span className="font-mono text-[10px]">Ch.{ref.chapterOrder} ¶{ref.paragraphIndex}</span>
-                                                        {ref.chapterId && onConvertChapter && (
-                                                            <button
-                                                                onClick={() => onConvertChapter(ref.chapterId!)}
-                                                                className="flex items-center gap-1 text-[10px] text-primary hover:underline"
-                                                                title="Convert toàn chương"
-                                                            >
-                                                                <BookOpen className="w-3 h-3" />
-                                                                Convert
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    {/* Vietnamese paragraph */}
-                                                    <p className="text-foreground/80 leading-relaxed">
-                                                        🇻🇳 {ref.vietnameseParagraph.substring(0, 150)}
-                                                        {ref.vietnameseParagraph.length > 150 && "…"}
-                                                    </p>
-                                                    {/* VietPhrase conversion (primary) */}
-                                                    {ref.chineseVietPhrase && (
-                                                        <p className="text-emerald-600 leading-relaxed font-medium">
-                                                            📖 {ref.chineseVietPhrase.substring(0, 150)}
-                                                            {ref.chineseVietPhrase.length > 150 && "…"}
-                                                        </p>
-                                                    )}
-                                                    {/* Original Chinese */}
-                                                    {ref.chineseParagraph && (
-                                                        <p className="text-muted-foreground font-mono leading-relaxed">
-                                                            🇨🇳 {ref.chineseParagraph.substring(0, 100)}
-                                                            {ref.chineseParagraph.length > 100 && "…"}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
