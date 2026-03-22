@@ -74,7 +74,6 @@ const VN_STOP_WORDS = new Set([
     "cũng", "vẫn", "đã", "đang", "sẽ", "chỉ", "lại", "mới", "còn",
     "từ", "về", "ra", "vào", "lên", "xuống", "theo", "qua", "sang",
     "của", "để", "mà", "nên", "bị", "liền", "luôn", "hết", "gần",
-    // Common verbs at sentence start
     "nghe", "nhìn", "thấy", "nói", "hỏi", "biết", "đến", "đi",
     "xem", "gọi", "bảo", "muốn", "cần", "phải", "nên", "chờ",
     "ngồi", "đứng", "chạy", "đưa", "lấy", "mang", "giữ", "bỏ",
@@ -83,6 +82,7 @@ const VN_STOP_WORDS = new Set([
     "mắt", "đầu", "tay", "vai", "mặt", "miệng", "mũi", "tai",
     "chân", "lưng", "ngực", "bụng", "cổ", "môi", "má", "trán",
     "giọng", "tiếng", "lời", "tên", "nhà", "bên", "phía", "chỗ",
+    "trừ", "sợ", "cả", "mọi", "mỗi", "các", "những", "loại", "bọn",
 ]);
 
 /**
