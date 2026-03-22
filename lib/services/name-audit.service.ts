@@ -255,9 +255,14 @@ export async function convertChapterForReview(
 
     const originalParas = splitParagraphs(chapter.content_original);
 
+    // Strip HTML tags and filter out HTML-only / empty paragraphs
+    const cleanParas = originalParas
+        .map(para => para.replace(/<[^>]+>/g, '').trim())
+        .filter(para => para.length > 0);
+
     return {
         chapterOrder: chapter.order,
-        paragraphs: originalParas.map(para => ({
+        paragraphs: cleanParas.map(para => ({
             original: para,
             vietPhrase: vpRepo.convert(para),
             hanViet: repo.toHanViet(para),
