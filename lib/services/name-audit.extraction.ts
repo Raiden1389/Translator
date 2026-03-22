@@ -83,6 +83,8 @@ const VN_STOP_WORDS = new Set([
     "chân", "lưng", "ngực", "bụng", "cổ", "môi", "má", "trán",
     "giọng", "tiếng", "lời", "tên", "nhà", "bên", "phía", "chỗ",
     "trừ", "sợ", "cả", "mọi", "mỗi", "các", "những", "loại", "bọn",
+    "vậy", "thế", "này", "đấy", "một", "hai", "ba", "bốn", "năm",
+    "nửa", "vài", "đôi", "mấy", "bao", "nhiêu", "tất", "tần", "tật",
 ]);
 
 /**
