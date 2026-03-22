@@ -134,9 +134,10 @@ export async function sweepSingleRule(
         const titleChanged = correctedTitle !== originalTitle;
 
         if (contentChanged || titleChanged) {
-            const update: { content_translated?: string; title_translated?: string } = {};
+            const update: { content_translated?: string; title_translated?: string; lastTranslatedAt?: Date } = {};
             if (contentChanged) update.content_translated = correctedContent;
             if (titleChanged) update.title_translated = correctedTitle;
+            update.lastTranslatedAt = new Date(); // Mark for cloud delta sync
             await db.chapters.update(ch.id!, update);
             affected++;
         }
