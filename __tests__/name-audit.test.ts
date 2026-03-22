@@ -105,6 +105,13 @@ describe('extractVietnameseNamesFromText', () => {
         const result = extractVietnameseNamesFromText('', 1);
         expect(result.size).toBe(0);
     });
+    it('should extract names at the start of a new sentence within the same paragraph', () => {
+        const text = 'Han quay lai. Cu Nam buoc vao phong.';
+        const result = extractVietnameseNamesFromText(text, 1);
+
+        expect(result.has('Cu Nam')).toBe(true);
+        expect(result.get('Cu Nam')!.count).toBe(1);
+    });
 
     // ── Paragraph index tracking ──
 

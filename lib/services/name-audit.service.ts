@@ -98,9 +98,11 @@ export async function scanWorkspaceNames(
     }>();
     const globalChineseNames = new Map<string, { count: number; chapters: Set<number> }>();
 
-    // Get repositories for paragraph conversion
+    // Get repositories for paragraph conversion — ensure loaded (idempotent)
     const repo = SyllableRepository.getInstance();
     const vpRepo = VietPhraseRepository.getInstance();
+    await repo.load("/dicts/ChinesePhienAmWords.txt");
+    await vpRepo.load("/dicts/VietPhrase.txt");
 
     for (let i = 0; i < chapters.length; i++) {
         const chapter = chapters[i];
@@ -248,6 +250,8 @@ export async function convertChapterForReview(
 
     const repo = SyllableRepository.getInstance();
     const vpRepo = VietPhraseRepository.getInstance();
+    await repo.load("/dicts/ChinesePhienAmWords.txt");
+    await vpRepo.load("/dicts/VietPhrase.txt");
 
     const originalParas = splitParagraphs(chapter.content_original);
 
