@@ -1,30 +1,16 @@
 /**
- * 🔧 Name Audit — Auto-Fix Engine (Phase 04)
+ * Name Audit - Auto-Fix Engine (Phase 04)
  *
  * Applies confirmed name fixes:
- * 1. Creates Correction entries (Luyện Văn) for future translations
+ * 1. Creates Correction entries (Luyen Van) for future translations
  * 2. Sweeps all translated chapters with each new rule
- * 3. Saves undo snapshot to history
+ * 3. Saves undo snapshot to history only when chapters were actually updated
  */
 
 import { db, CorrectionEntry, GLOBAL_WORKSPACE_ID } from "@/lib/db";
 import { sweepSingleRule } from "@/lib/services/corrections.service";
 import type { NameCluster, NameFixResult } from "./name-audit.types";
 
-/**
- * Apply confirmed name fixes from audit report.
- *
- * For each confirmed cluster:
- * 1. Check for duplicate Correction rules (skip if exists)
- * 2. Create CorrectionEntry { from: variant, to: canonical }
- * 3. sweepSingleRule → fix all existing chapters
- * 4. Save undo snapshot to db.history
- *
- * @param confirmedFixes - Map<clusterId, canonicalName>
- * @param clusters - All clusters from the report
- * @param workspaceId - For history tracking
- * @param onProgress - Callback for UI progress updates
- */
 export async function applyNameFixes(
     confirmedFixes: Map<string, string>,
     clusters: NameCluster[],
@@ -33,7 +19,6 @@ export async function applyNameFixes(
 ): Promise<NameFixResult> {
     const startTime = performance.now();
 
-    // Build fix list: for each confirmed cluster, collect variants to replace
     const fixes: { from: string; to: string; clusterId: string }[] = [];
 
     for (const [clusterId, canonicalName] of confirmedFixes) {
@@ -41,7 +26,6 @@ export async function applyNameFixes(
         if (!cluster) continue;
 
         for (const variant of cluster.variants) {
-            // Don't replace the canonical itself
             if (variant.name === canonicalName) continue;
             fixes.push({
                 from: variant.name,
@@ -58,35 +42,34 @@ export async function applyNameFixes(
     const total = fixes.length;
     let rulesCreated = 0;
     let totalChaptersFixed = 0;
+    let snapshot: {
+        chapterId: number;
+        before: { title: string; content: string };
+    }[] | null = null;
+    let historySaved = false;
 
-    // 1. Snapshot for undo (before any changes)
-    const translatedChapters = await db.chapters
-        .filter(c => !!c.content_translated)
-        .toArray();
+    async function ensureSnapshot() {
+        if (snapshot) return snapshot;
 
-    const snapshot = translatedChapters.map(c => ({
-        chapterId: c.id!,
-        before: {
-            title: c.title_translated || c.title,
-            content: c.content_translated || "",
-        },
-    }));
+        const translatedChapters = await db.chapters
+            .filter(c => !!c.content_translated)
+            .toArray();
 
-    await db.history.add({
-        workspaceId,
-        actionType: 'batch_correction',
-        summary: `Name Audit: ${fixes.length} quy tắc từ ${confirmedFixes.size} nhóm tên`,
-        timestamp: new Date(),
-        affectedCount: snapshot.length,
-        snapshot,
-    });
+        snapshot = translatedChapters.map(c => ({
+            chapterId: c.id!,
+            before: {
+                title: c.title_translated || c.title,
+                content: c.content_translated || "",
+            },
+        }));
 
-    // 2. For each fix: create Correction + sweep chapters
+        return snapshot;
+    }
+
     for (let i = 0; i < fixes.length; i++) {
         const fix = fixes[i];
-        onProgress?.(i + 1, total, `${fix.from} → ${fix.to}`);
+        onProgress?.(i + 1, total, `${fix.from} -> ${fix.to}`);
 
-        // Duplicate/override check
         const existing = await db.corrections
             .where("workspaceId")
             .equals(GLOBAL_WORKSPACE_ID)
@@ -101,20 +84,18 @@ export async function applyNameFixes(
             const newTo = fix.to.normalize("NFC").toLowerCase();
 
             if (existingTo === newTo) {
-                console.log(`[NameAudit] Skipped existing identical rule: "${fix.from}" → "${fix.to}"`);
+                console.log(`[NameAudit] Skipped existing identical rule: "${fix.from}" -> "${fix.to}"`);
                 continue;
             }
 
-            // Override: canonical changed → update existing rule
             await db.corrections.update(existing.id!, {
                 to: fix.to.normalize("NFC"),
                 replacement: fix.to.normalize("NFC"),
                 createdAt: new Date(),
             });
             rulesCreated++;
-            console.log(`[NameAudit] Updated rule: "${fix.from}" → "${existingTo}" ⇒ "${fix.to}"`);
+            console.log(`[NameAudit] Updated rule: "${fix.from}" -> "${existingTo}" => "${fix.to}"`);
         } else {
-            // Create new Correction entry
             const entry: Partial<CorrectionEntry> = {
                 workspaceId: GLOBAL_WORKSPACE_ID,
                 type: "replace",
@@ -129,7 +110,8 @@ export async function applyNameFixes(
             rulesCreated++;
         }
 
-        // Sweep all translated chapters with this rule (both new + override)
+        const currentSnapshot = await ensureSnapshot();
+
         const sweepRule: Partial<CorrectionEntry> = {
             type: "replace",
             from: fix.from.normalize("NFC"),
@@ -140,7 +122,19 @@ export async function applyNameFixes(
         const affected = await sweepSingleRule(sweepRule);
         totalChaptersFixed += affected;
 
-        console.log(`[NameAudit] Rule "${fix.from}" → "${fix.to}": ${affected} chapters updated`);
+        if (affected > 0 && !historySaved && currentSnapshot && currentSnapshot.length > 0) {
+            await db.history.add({
+                workspaceId,
+                actionType: "batch_correction",
+                summary: "Name Audit: ap dung sua ten toan cuc",
+                timestamp: new Date(),
+                affectedCount: currentSnapshot.length,
+                snapshot: currentSnapshot,
+            });
+            historySaved = true;
+        }
+
+        console.log(`[NameAudit] Rule "${fix.from}" -> "${fix.to}": ${affected} chapters updated`);
     }
 
     const durationMs = Math.round(performance.now() - startTime);
