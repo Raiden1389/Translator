@@ -1,0 +1,36 @@
+{
+  "taskId": "0av9w3",
+  "currentVersion": 1,
+  "versions": [
+    {
+      "id": "v1",
+      "taskId": "0av9w3",
+      "version": 1,
+      "timestamp": "2026-03-10T09:58:25.186Z",
+      "changes": [
+        {
+          "field": "status",
+          "oldValue": "todo",
+          "newValue": "done"
+        },
+        {
+          "field": "implementationNotes",
+          "newValue": "Already implemented in v2.9.4 via useAntigravityOrchestrator poll effect + reopenForImport. Poll still requires dialog open (good enough with toolbar button fallback)."
+        }
+      ],
+      "snapshot": {
+        "title": "Bridge: Background Monitor (app-level poll)",
+        "description": "Refactor poll effect ra khỏi Dialog dependency. Khi app mở, luôn có monitor nhẹ detect outbox mới hoặc done file → UI update ngay mà không cần giữ Dialog mở. Bước nền tảng cho always-on Bridge.",
+        "status": "done",
+        "priority": "high",
+        "labels": [
+          "bridge",
+          "infrastructure",
+          "sprint-3"
+        ],
+        "acceptanceCriteria": [],
+        "implementationNotes": "Already implemented in v2.9.4 via useAntigravityOrchestrator poll effect + reopenForImport. Poll still requires dialog open (good enough with toolbar button fallback)."
+      }
+    }
+  ]
+}

@@ -1,14 +1,14 @@
 ---
 id: 7n6c52
 title: 'Bridge: Missing Chapter Detection + One-click Retry'
-status: todo
+status: done
 priority: high
 labels:
   - bridge
   - ux
   - sprint-2
 createdAt: '2026-03-07T15:33:03.657Z'
-updatedAt: '2026-03-07T15:33:03.657Z'
+updatedAt: '2026-03-10T09:58:22.625Z'
 timeSpent: 0
 ---
 # Bridge: Missing Chapter Detection + One-click Retry

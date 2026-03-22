@@ -5,6 +5,40 @@
 
 ---
 
+## [2.10.0] - 2026-03-22
+
+**Top Impact**: Name Consistency Audit (4-phase feature) • Intelligence Hub "Name Audit" tab • Auto-fix → Luyện Văn integration • Chapter Convert modal
+
+### Added
+- **[Intelligence]** Name Consistency Audit — Full post-translation scanner detecting inconsistent character name translations (zero API cost, pure string processing + HanViet lookup).
+- **[Intelligence]** `name-audit.extraction.ts` — Phase 1: Vietnamese + Chinese name extraction with paragraph alignment and cross-referencing via VietPhrase + HanViet repos.
+- **[Intelligence]** `name-audit.clustering.ts` — Phase 2: Fuzzy name clustering using Chinese cross-refs first, then source ref matching, then Levenshtein distance.
+- **[Intelligence]** `name-audit.autofix.ts` — Phase 4: Auto-fix engine creates Correction rules (Luyện Văn) + sweeps all translated chapters + saves undo snapshot.
+- **[UI]** `NameAuditModule.tsx` — Main Intelligence Hub module with chapter range selector, scan progress bar, filter tabs (All/Inconsistent/Confirmed), similarity threshold slider.
+- **[UI]** `NameClusterCard.tsx` — Cluster card with proportional frequency bars, radio canonical selection, source ref look-back (VietPhrase + Chinese + Vietnamese), "Convert" chapter button.
+- **[UI]** `ChapterConvertModal.tsx` — Full chapter converter modal (VietPhrase/HanViet/Original Chinese tabs) for manual name identification when cross-ref fails.
+- **[UI]** `useNameAudit.ts` hook — Scan lifecycle, clustering, confirm/dismiss state, chapter range filter, auto-fix integration.
+- **[Intelligence]** Chapter range filter on scan — scan chapters 50→100 or all.
+
+### Changed
+- **[Intelligence]** Refactored monolithic `name-audit.service.ts` into 4 modules: extraction, clustering, autofix, orchestrator.
+- **[UI]** Intelligence Hub — added "Name Audit" tab with `Users` icon.
+
+### Files Modified
+- `lib/services/name-audit.types.ts` — Shared types (SourceParagraphRef, NameCluster, NameVariant, NameAuditReport, NameFixSelection, NameFixResult)
+- `lib/services/name-audit.extraction.ts` — NEW (Phase 1)
+- `lib/services/name-audit.clustering.ts` — NEW (Phase 2)
+- `lib/services/name-audit.autofix.ts` — NEW (Phase 4)
+- `lib/services/name-audit.service.ts` — Orchestrator + convertChapterForReview + re-exports
+- `components/workspace/intelligence/NameAuditModule.tsx` — NEW
+- `components/workspace/intelligence/NameClusterCard.tsx` — NEW
+- `components/workspace/intelligence/ChapterConvertModal.tsx` — NEW
+- `components/workspace/intelligence/hooks/useNameAudit.ts` — NEW
+- `components/workspace/intelligence/IntelligenceHub.tsx` — Added tab
+- `__tests__/name-audit.test.ts` — 36 unit tests
+
+---
+
 ## [2.9.5] - 2026-03-20
 
 **Top Impact**: Cloud Correction Sync (Mobile→Cloud→Desktop auto-pull) • No more LAN-only corrections

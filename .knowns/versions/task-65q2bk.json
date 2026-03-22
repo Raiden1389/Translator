@@ -1,0 +1,30 @@
+{
+  "taskId": "65q2bk",
+  "currentVersion": 1,
+  "versions": [
+    {
+      "id": "v1",
+      "taskId": "65q2bk",
+      "version": 1,
+      "timestamp": "2026-03-10T09:58:25.166Z",
+      "changes": [
+        {
+          "field": "status",
+          "oldValue": "todo",
+          "newValue": "done"
+        }
+      ],
+      "snapshot": {
+        "title": "Bridge: History log (Dexie table)",
+        "description": "Lưu 10-20 job gần nhất: lúc export, lúc complete, số chương thành công/thất bại. Basic Dexie table + list UI. Nice-to-have, debug dễ hơn.",
+        "status": "done",
+        "priority": "low",
+        "labels": [
+          "bridge",
+          "sprint-3"
+        ],
+        "acceptanceCriteria": []
+      }
+    }
+  ]
+}

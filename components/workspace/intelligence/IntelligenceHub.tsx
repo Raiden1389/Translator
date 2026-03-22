@@ -8,7 +8,8 @@ import {
     ShieldAlert,
     ArrowLeft,
     Compass,
-    BrainCircuit
+    BrainCircuit,
+    Users
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { DictionaryView } from "../dictionary/tabs/DictionaryView";
 import { CharacterTab } from "../CharacterTab";
 import { CorrectionsView } from "../dictionary/tabs/CorrectionsView";
 import { BlacklistView } from "../dictionary/tabs/BlacklistView";
+import { NameAuditModule } from "./NameAuditModule";
 
 interface IntelligenceHubProps {
     workspaceId: string;
@@ -26,7 +28,7 @@ interface IntelligenceHubProps {
     initialModule?: string;
 }
 
-type ModuleType = "discovery" | "glossary" | "persona" | "tuning" | "sanitizer";
+type ModuleType = "discovery" | "glossary" | "persona" | "tuning" | "sanitizer" | "nameAudit";
 
 export function IntelligenceHub({ workspaceId, onClose, initialModule = "discovery" }: IntelligenceHubProps) {
     const [activeModule, setActiveModule] = useState<ModuleType>(initialModule as ModuleType);
@@ -37,6 +39,7 @@ export function IntelligenceHub({ workspaceId, onClose, initialModule = "discove
         { id: "persona", label: "Persona", icon: UserCircle2, sub: "Nhân vật" },
         { id: "tuning", label: "Luyện Văn", icon: Wrench, sub: "Global Corrections" },
         { id: "sanitizer", label: "Sanitizer", icon: ShieldAlert, sub: "Blacklist" },
+        { id: "nameAudit", label: "Name Audit", icon: Users, sub: "Nhất quán tên" },
     ];
 
     return (
@@ -124,6 +127,7 @@ export function IntelligenceHub({ workspaceId, onClose, initialModule = "discove
                             {activeModule === "persona" && <CharacterTab workspaceId={workspaceId} />}
                             {activeModule === "tuning" && <CorrectionsView workspaceId={workspaceId} />}
                             {activeModule === "sanitizer" && <BlacklistView workspaceId={workspaceId} />}
+                            {activeModule === "nameAudit" && <NameAuditModule workspaceId={workspaceId} />}
                         </div>
                     </div>
                 </div>

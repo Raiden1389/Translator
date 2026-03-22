@@ -1,0 +1,31 @@
+{
+  "taskId": "7n6c52",
+  "currentVersion": 1,
+  "versions": [
+    {
+      "id": "v1",
+      "taskId": "7n6c52",
+      "version": 1,
+      "timestamp": "2026-03-10T09:58:22.625Z",
+      "changes": [
+        {
+          "field": "status",
+          "oldValue": "todo",
+          "newValue": "done"
+        }
+      ],
+      "snapshot": {
+        "title": "Bridge: Missing Chapter Detection + One-click Retry",
+        "description": "So sánh expected vs actual orders từ PollProgress.completedOrders → hiện danh sách chương thiếu. Nút \"Re-export missing only\" tạo inbox mới chỉ cho chương lỗi. Infrastructure (completedOrders[], exportInbox filter) đã có sẵn.",
+        "status": "done",
+        "priority": "high",
+        "labels": [
+          "bridge",
+          "ux",
+          "sprint-2"
+        ],
+        "acceptanceCriteria": []
+      }
+    }
+  ]
+}

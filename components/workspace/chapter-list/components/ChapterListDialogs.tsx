@@ -184,6 +184,9 @@ export function ChapterListDialogs({
           onImport={() => bridge.importFromBridge(workspaceId)}
           phase={bridge.phase}
           progress={bridge.progress}
+          missingInfo={bridge.missingInfo}
+          importResult={bridge.importResult}
+          workspaceId={workspaceId}
         />
       )}
 
