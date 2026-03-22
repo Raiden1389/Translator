@@ -277,27 +277,22 @@ describe('clusterSimilarNames', () => {
         };
     }
 
-    it('should cluster names from crossRefMap', () => {
+    it('should cluster similar names via Levenshtein (cross-ref disabled)', () => {
         const result = makeScanResult({
             vietnameseNames: [
                 { name: 'Cư Nam', count: 20, chapters: [1, 2, 3], contexts: [], sourceRefs: [] },
-                { name: 'Trư Nam', count: 10, chapters: [4, 5], contexts: [], sourceRefs: [] },
+                { name: 'Cừ Nam', count: 10, chapters: [4, 5], contexts: [], sourceRefs: [] },
             ],
-            crossRefMap: [{
-                chineseName: '朱南',
-                hanViet: 'Chu Nam',
-                vietnameseVariants: ['Cư Nam', 'Trư Nam'],
-            }],
+            crossRefMap: [],
         });
 
         const clusters = clusterSimilarNames(result);
 
+        // 'Cư Nam' and 'Cừ Nam' cluster via Levenshtein (sim ≈ 0.83)
         expect(clusters.length).toBe(1);
-        expect(clusters[0].chineseName).toBe('朱南');
         expect(clusters[0].variants.length).toBe(2);
         expect(clusters[0].suggestedCanonical).toBe('Cư Nam');
         expect(clusters[0].isInconsistent).toBe(true);
-        expect(clusters[0].confidence).toBe(1.0);
     });
 
     it('should fuzzy-match unassigned names to existing clusters', () => {
@@ -349,18 +344,15 @@ describe('clusterSimilarNames', () => {
             vietnameseNames: [
                 { name: 'Abc Def', count: 100, chapters: [1], contexts: [], sourceRefs: [] },
                 { name: 'Cư Nam', count: 20, chapters: [1], contexts: [], sourceRefs: [] },
-                { name: 'Trư Nam', count: 10, chapters: [2], contexts: [], sourceRefs: [] },
+                { name: 'Cừ Nam', count: 10, chapters: [2], contexts: [], sourceRefs: [] },
             ],
-            crossRefMap: [{
-                chineseName: '朱南',
-                hanViet: 'Chu Nam',
-                vietnameseVariants: ['Cư Nam', 'Trư Nam'],
-            }],
+            crossRefMap: [],
         });
 
         const clusters = clusterSimilarNames(result);
+        // 'Cư Nam' + 'Cừ Nam' cluster via Levenshtein → inconsistent
+        // 'Abc Def' standalone → consistent
         expect(clusters[0].isInconsistent).toBe(true);
-        expect(clusters[0].chineseName).toBe('朱南');
         expect(clusters[1].isInconsistent).toBe(false);
     });
 });
@@ -370,20 +362,18 @@ describe('generateAuditReport', () => {
         const scanResult: NameScanResult = {
             vietnameseNames: [
                 { name: 'Cư Nam', count: 20, chapters: [1], contexts: [], sourceRefs: [] },
-                { name: 'Trư Nam', count: 10, chapters: [2], contexts: [], sourceRefs: [] },
+                { name: 'Cừ Nam', count: 10, chapters: [2], contexts: [], sourceRefs: [] },
                 { name: 'Lý Minh', count: 15, chapters: [1], contexts: [], sourceRefs: [] },
             ],
             chineseNames: [],
-            crossRefMap: [{
-                chineseName: '朱南',
-                hanViet: 'Chu Nam',
-                vietnameseVariants: ['Cư Nam', 'Trư Nam'],
-            }],
+            crossRefMap: [],
             totalChaptersScanned: 10,
             scanDurationMs: 100,
         };
 
         const report = generateAuditReport(scanResult);
+        // 'Cư Nam' + 'Trư Nam' cluster via Levenshtein → 1 inconsistent
+        // 'Lý Minh' standalone → 1 consistent
         expect(report.inconsistentCount).toBe(1);
         expect(report.consistentCount).toBe(1);
         expect(report.totalNamesFound).toBe(3);

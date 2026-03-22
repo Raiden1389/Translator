@@ -63,6 +63,20 @@ const COMMON_PHRASES = new Set([
 ]);
 
 /**
+ * Vietnamese stop-words that can appear capitalized at sentence/clause start.
+ * When a matched name starts with one of these, strip it off.
+ * e.g. "Là Trư Lam" → "Trư Lam"
+ */
+const VN_STOP_WORDS = new Set([
+    "là", "có", "được", "này", "đó", "như", "khi", "nếu", "thì",
+    "và", "nhưng", "hay", "hoặc", "vì", "do", "bởi", "tại", "cho",
+    "với", "trong", "ngoài", "trên", "dưới", "sau", "trước", "rồi",
+    "cũng", "vẫn", "đã", "đang", "sẽ", "chỉ", "lại", "mới", "còn",
+    "từ", "về", "ra", "vào", "lên", "xuống", "theo", "qua", "sang",
+    "của", "để", "mà", "nên", "bị", "liền", "luôn", "hết", "gần",
+]);
+
+/**
  * Top ~200 Chinese surnames covering 95%+ of real names.
  */
 const COMMON_SURNAMES = new Set(Array.from(
@@ -118,7 +132,17 @@ export function extractVietnameseNamesFromText(
         VIET_NAME_REGEX.lastIndex = 0; // Reset regex state
 
         while ((match = VIET_NAME_REGEX.exec(para)) !== null) {
-            const name = match[1].trim();
+            let name = match[1].trim();
+
+            // Strip leading stop-words (e.g. "Là Trư Lam" → "Trư Lam")
+            const words = name.split(/\s+/);
+            while (words.length > 1 && VN_STOP_WORDS.has(words[0].toLowerCase())) {
+                words.shift();
+            }
+            name = words.join(" ");
+
+            // After stripping, must still be 2+ words to be a name
+            if (words.length < 2) continue;
 
             // Skip common phrases
             if (COMMON_PHRASES.has(name)) continue;
