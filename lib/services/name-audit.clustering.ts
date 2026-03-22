@@ -34,17 +34,21 @@ export function normalizedSimilarity(a: string, b: string): number {
 
 /**
  * Extract Chinese name from a paragraph by checking against known names.
+ * Safety: only returns when EXACTLY 1 name is found in the paragraph.
+ * If multiple names co-exist, returns undefined to prevent false cluster merges.
  */
 function extractChineseNameFromParagraph(
     chineseParagraph: string,
     chineseNames: ChineseNameOccurrence[]
 ): string | undefined {
+    const found: string[] = [];
     for (const cn of chineseNames) {
         if (chineseParagraph.includes(cn.name)) {
-            return cn.name;
+            found.push(cn.name);
+            if (found.length > 1) return undefined; // Ambiguous — skip
         }
     }
-    return undefined;
+    return found.length === 1 ? found[0] : undefined;
 }
 
 /**
