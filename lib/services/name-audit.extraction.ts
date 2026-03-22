@@ -141,19 +141,29 @@ export function extractVietnameseNamesFromText(
         VIET_NAME_REGEX.lastIndex = 0; // Reset regex state
 
         while ((match = VIET_NAME_REGEX.exec(para)) !== null) {
-            let name = match[1].trim();
+            let matches = match[1].trim().split(/\s+/);
+            
+            // 1. Initial filter by length (2-4 words)
+            if (matches.length < 2 || matches.length > 4) continue;
 
-            // Strip leading stop-words (e.g. "Là Trư Lam" → "Trư Lam")
-            const words = name.split(/\s+/);
-            while (words.length > 1 && VN_STOP_WORDS.has(words[0].toLowerCase())) {
-                words.shift();
+            // 2. ITERATIVE STRIPPING: Loop to remove ALL leading stop-words
+            // e.g. "Mà Thấy Ngu Hạnh" -> "Ngu Hạnh"
+            // We must keep at least 2 words to be a name
+            while (matches.length >= 3) {
+                const firstWordLower = matches[0].toLowerCase();
+                if (VN_STOP_WORDS.has(firstWordLower)) {
+                    matches.shift(); // Remove the leading stop-word
+                } else {
+                    break; // Stop if the first word is not a stop-word
+                }
             }
-            name = words.join(" ");
+            
+            let name = matches.join(' ');
 
-            // After stripping, must still be 2+ words to be a name
-            if (words.length < 2) continue;
-
-            // Skip common phrases
+            // Final safety: if it's still just 2 words and the first is a stop-word, skip it
+            if (matches.length < 2 || VN_STOP_WORDS.has(matches[0].toLowerCase())) continue;
+            
+            // Check against common phrases (whole match)
             if (COMMON_PHRASES.has(name)) continue;
 
             // Skip if name starts a sentence after period (likely not a name)
