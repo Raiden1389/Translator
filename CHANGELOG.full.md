@@ -5,6 +5,30 @@
 
 ---
 
+## [2.10.1] - 2026-03-23
+
+**Top Impact**: Fix 5 lỗi audit prompt rules (Codex) • Post-processing capitalize [] deterministic • Sửa 万→vạn tệ (10x error)
+
+### Fixed
+- **[Translator]** Batch prompt gọi `buildSystemInstruction()` không truyền `isBatch=true` → "CẤM JSON" conflict với JSON output yêu cầu. Flash output không ổn định.
+- **[Translator]** `CURRENCY_RULE`: 万→nghìn tệ SAI 10x. Sửa thành 万→vạn tệ (mười nghìn) + đầy đủ 千万, 亿.
+- **[Translator]** `WESTERN_NAME_RULE` fallback "ghi chú" mâu thuẫn CẤM Hán tự + CẤM giải thích. Sửa: "giữ phiên âm Latin hóa, KHÔNG ghi chú".
+- **[Translator]** `[HARD LIMIT]` ẩn chủ ngữ quá cứng → mờ nhân vật scene đông người. Nới thành "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ nghĩa".
+- **[Translator]** `IDIOM_RULE` dead code — export nhưng không dùng `ALL_RULES`. Comment DEPRECATED.
+- **[Translator]** Đại từ đầu câu viết thường (hắn/nàng/ngươi). Tách rule: "GIỮA CÂU viết thường / ĐẦU CÂU BẮT BUỘC hoa".
+- **[Translator]** Text `[]` hệ thống viết thường đầu dòng (VD: `[tỷ lệ...]`). Fix post-processing deterministic trong `finalSweep()`.
+
+### Changed
+- **[Translator]** Thêm rule `[VIẾT HOA]`: Sentence case cho text `[]` với ví dụ SAI/ĐÚNG.
+- **[Translator]** `FLOW_RULE`: "Tuyệt đối không..." → "Ưu tiên tránh..., ĐƯỢC PHÉP nếu cần rõ nghĩa".
+
+### Files Modified
+- `lib/gemini/batch/prompt.ts` — `isBatch=true`
+- `lib/gemini/constants.ts` — 5 rule fixes + [VIẾT HOA]
+- `lib/gemini/text/casing.ts` — capitalize `[]` post-process (step 3.5)
+
+---
+
 ## [2.10.0] - 2026-03-22
 
 **Top Impact**: Name Consistency Audit (4-phase feature) • Intelligence Hub "Name Audit" tab • Auto-fix → Luyện Văn integration • Chapter Convert modal

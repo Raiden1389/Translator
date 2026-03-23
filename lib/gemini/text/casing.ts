@@ -92,6 +92,12 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
         .replace(/\uE000/g, "[")
         .replace(/\uE001/g, "]");
 
+    // 3.5. Capitalize first char inside [] brackets (Sentence case for system/game text)
+    // SAI: "[tỷ lệ chuyển đổi]"  →  ĐÚNG: "[Tỷ lệ chuyển đổi]"
+    cleaned = cleaned.replace(/\[([a-zà-ỹ\u00C0-\u024F])/gu, (_, firstChar) => {
+        return '[' + firstChar.toLocaleUpperCase('vi-VN');
+    });
+
     // 4. Structure Repair & Idiom Cleaning
     cleaned = repairSentenceStructure(cleaned);
     cleaned = repairUnmatchedQuotes(cleaned);

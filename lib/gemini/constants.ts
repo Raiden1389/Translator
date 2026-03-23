@@ -14,7 +14,11 @@ export const CORE_RULES = `
   + CẤM Title Case (VD: "Chuyển Đổi Tư Duy").
   + CẤM VIẾT HOA TOÀN BỘ (VD: "CHUYỂN ĐỔI TƯ DUY").
   + ĐÚNG: "Chuyển đổi tư duy".
-- [HARD LIMIT]: Mỗi đoạn văn CHỈ ĐƯỢC xuất hiện tên riêng nhân vật chính TỐI ĐA 1 lần (thường ở đầu đoạn để neo POV).
+- [VIẾT HOA]: BẮT BUỘC viết hoa chữ cái đầu tiên của MỌI câu và MỌI dòng mới (kể cả trong ngoặc []).
+  + Text hệ thống/game trong ngoặc []: Sentence case — CHỈ viết hoa chữ đầu, còn lại viết thường.
+  + SAI: "[tỷ lệ chuyển đổi Lợi nhuận]", "[Quỹ Hệ thống]"
+  + ĐÚNG: "[Tỷ lệ chuyển đổi lợi nhuận]", "[Quỹ hệ thống]"
+- [ƯU TIÊN ẨN CHỦ NGỮ]: Mỗi đoạn văn NÊN hạn chế lặp tên nhân vật chính (ưu tiên ẩn khi ngữ cảnh rõ). Được phép nhắc tên >1 lần nếu cần thiết để phân biệt nhân vật hoặc tránh nhầm lẫn hành động.
 - [PHÂN VAI]: Glossary chỉ là HƯỚNG DẪN dịch tên, KHÔNG phải danh sách đầy đủ mọi nhân vật trong chương.
   + Nếu gặp tên nhân vật KHÔNG CÓ trong Glossary:
     → Tên Hán thật sự (姓+名): Phiên âm Hán Việt (VD: 阮光建 → Nguyễn Quang Kiến).
@@ -54,21 +58,21 @@ export const CORE_RULES = `
 - [XƯNG HÔ]: Trong thoại (我=Ta, 你=Ngươi). Độc thoại nội tâm dùng "Ta". CẤM: tôi, anh, em, mình (trong trần thuật).
 - [DẤU PHẨY]: CẤM dấu phẩy sau từ nối đầu câu: Nhưng, Tuy nhiên, Vì vậy...
 
-- STYLE: Dịch giả cao cấp. Thoát ý, mượt mà. VIẾT THƯỜNG (hắn/nàng/ta/ngươi) trừ đầu câu.
+- STYLE: Dịch giả cao cấp. Thoát ý, mượt mà. Đại từ GIỮA CÂU viết thường (hắn/nàng/ta/ngươi). ĐẦU CÂU BẮT BUỘC viết hoa (Hắn/Nàng/Ta/Ngươi).
 `;
 export const VOICE_RULE = `- NGỮ KHÍ: Thoại phải tự nhiên như đời thực, tả phải giàu hình ảnh. Đúng vai nhân vật.`;
-export const FLOW_RULE = `- MẠCH VĂN: Trôi chảy, có vần điệu. Nếu 2-3 câu liên tiếp cùng chủ ngữ, hãy ẩn chủ ngữ hoặc dùng đại từ thay thế. Tuyệt đối không để 1 đoạn văn có 2 câu bắt đầu bằng cùng một tên riêng.`;
-export const IDIOM_RULE = `- THÀNH NGỮ 4 CHỮ: Giữ Âm Hán Việt nếu phổ biến, dịch thoát ý nếu hiếm. Khi nghi ngờ -> DỊCH.`;
+export const FLOW_RULE = `- MẠCH VĂN: Trôi chảy, có vần điệu. Nếu 2-3 câu liên tiếp cùng chủ ngữ, hãy ẩn chủ ngữ hoặc dùng đại từ thay thế. Ưu tiên tránh 2 câu liên tiếp bắt đầu bằng cùng tên riêng, nhưng ĐƯỢC PHÉP nếu cần rõ nghĩa.`;
+// DEPRECATED: IDIOM_RULE không được dùng trong ALL_RULES. Dùng IDIOM_SYSTEM_RULE từ ./idioms thay thế.
 export const TOP_BLACKLIST = `- BLACKLIST (CẤM): hít hơi lạnh, mặt không đỏ tim không đập, vấn đề không lớn, trong lòng không khỏi, thanh âm vang lên, tựa hồ, dường như, bất giác.`;
 export const BATTLE_RULE = `- CHIẾN ĐẤU: Câu ngắn, dồn dập. "Ngã xuống đất" → "Đập mạnh xuống đất". Tạo cảm giác đau, không ước lệ.`;
 export const EMOTION_RULE = `- CẢM XÚC: Thể hiện qua ánh mắt, hơi thở, động tác. KHÔNG gọi tên trực tiếp (tức giận, sợ hãi, vui mừng).`;
 export const DIALOGUE_RULE = `- HỘI THOẠI: Giống người NÓI, không giống người KỂ. Không mở đầu "nói rằng", "lên tiếng". Đối thoại nhanh → bỏ chủ ngữ.`;
-export const CURRENCY_RULE = `- TIỀN TỆ: Thống nhất dùng đơn vị "tệ" (nghìn tệ, vạn tệ). Không dùng "đồng". Chuyển đổi: 万 -> nghìn tệ, 十万 -> trăm nghìn tệ, 百万 -> triệu tệ.`;
+export const CURRENCY_RULE = `- TIỀN TỆ: Thống nhất dùng đơn vị "tệ". Không dùng "đồng". Chuyển đổi: 万 -> vạn tệ (mười nghìn), 十万 -> mười vạn tệ (trăm nghìn), 百万 -> triệu tệ, 千万 -> nghìn vạn tệ (mười triệu), 亿 -> trăm triệu tệ.`;
 export const CONSISTENCY_RULE = `- NHẤT QUÁN: Giữ nguyên thuật ngữ, tên riêng, và ĐẶC BIỆT là nội dung trong ngoặc 《 》, 「 」, "". BẮT BUỘC dịch đồng nhất 100% tên game/tác phẩm xuyên suốt, KHÔNG được thêm thắt hay thay đổi từ ngữ (Ví dụ: Đã dùng "Đường Sa Mạc" thì cấm đổi thành "Đường Cao Tốc").`;
 export const WESTERN_NAME_RULE = `- [TÊN TÂY]: Khi gặp tên phương Tây phiên âm sang tiếng Trung (VD: 杰克=Jack, 迈克尔=Michael, 艾米丽=Emily, 约翰=John, 威廉=William, 彼得=Peter, 亚历山大=Alexander), BẮT BUỘC khôi phục về tên tiếng Anh gốc, KHÔNG phiên âm Hán Việt.
   + SAI: "Kiệt Khắc", "Mạch Khắc Nhĩ", "Ái Mễ Lệ"
   + ĐÚNG: "Jack", "Michael", "Emily"
-  + Nếu không chắc chắn tên gốc → Giữ phiên âm Trung nguyên dạng và ghi chú.
+  + Nếu không chắc chắn tên gốc → Giữ phiên âm Latin hóa nhất quán, KHÔNG ghi chú, KHÔNG dùng Hán tự.
   + Tên Tây PHẢI NHẤT QUÁN xuyên suốt: Đã dùng "Jack" thì TUYỆT ĐỐI không đổi thành "Jeck", "Giắc", hay "Trắc".
   + Phân biệt: Tên Hán thật sự (李明, 张三) → Phiên âm Hán Việt bình thường (Lý Minh, Trương Tam).`;
 export const ALL_RULES = [

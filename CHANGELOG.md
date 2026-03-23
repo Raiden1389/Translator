@@ -1,3 +1,21 @@
+## [2.10.1] - 2026-03-23
+
+### Top Impact
+- Fix 5 lỗi audit prompt rules (Codex report) — batch isBatch, 万→vạn tệ, tên Tây fallback, ẩn chủ ngữ cứng, IDIOM_RULE dead
+- Post-processing deterministic capitalize `[]` trong `finalSweep()`
+
+### Fixed
+- Batch prompt conflict "CẤM JSON" vs JSON output — truyền `isBatch=true`
+- `CURRENCY_RULE`: 万→nghìn tệ SAI 10x → vạn tệ
+- `WESTERN_NAME_RULE` fallback "ghi chú" → "giữ Latin hóa, KHÔNG ghi chú"
+- `[HARD LIMIT]` ẩn chủ ngữ → nới "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ"
+- `IDIOM_RULE` dead code → comment DEPRECATED
+- Text `[]` viết thường đầu → capitalize post-processing `finalSweep()`
+
+### Changed
+- Thêm rule `[VIẾT HOA]` cho system text `[]`
+- Tách rule đại từ: "GIỮA CÂU thường / ĐẦU CÂU BẮT BUỘC hoa"
+
 ## [2.10.0] - 2026-03-22
 
 ### Top Impact

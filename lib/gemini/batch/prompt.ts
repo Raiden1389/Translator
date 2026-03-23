@@ -23,7 +23,8 @@ export async function buildBatchPrompt(
   // 2. Build system instruction (includes ta/ngươi rules!)
   const systemInstruction = buildSystemInstruction(
     config.customPrompt,
-    glossaryContext
+    glossaryContext,
+    true // isBatch: skip "CẤM JSON" rule — batch cần JSON output
   );
 
   // 3. Build Style Capsule (Bí thuật giữ context cho Flash)
