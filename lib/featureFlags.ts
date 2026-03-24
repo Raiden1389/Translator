@@ -67,7 +67,7 @@ export const featureFlags = {
    * and lets user pick canonical form → pushed to Corrections.
    * OFF by default — zero DB writes, zero side effects when OFF.
    */
-  termAudit: true, // ON — Phase 4 UI complete, ready for testing
+  termAudit: false, // Shelved — extraction needs tuning per novel genre
 } as const;
 
 /**
