@@ -162,19 +162,51 @@ function extractContext(paragraph: string, term: string): string {
 
 /**
  * Validate a soft-wrapper candidate.
- * Valid if tail matches a hard anchor suffix OR has ≥2 content tokens.
+ * Must satisfy ALL of:
+ *   1. Tail is non-empty
+ *   2. First content token is NOT a common verb/adjective (blocks "người khác đứng", "người lấy ra")
+ *   3. Either: last token is a hard anchor suffix, OR tail has ≥2 content tokens
  */
 function isSoftWrapperValid(tail: string): boolean {
   const tailTokens = tokenize(tail);
   if (tailTokens.length === 0) return false;
 
-  // Check if last token is a hard anchor suffix
+  // Block: first token after wrapper is a common verb/adjective → NOT a term
+  const firstToken = tailTokens[0];
+  if (SOFT_WRAPPER_VERB_BLOCKLIST.has(firstToken)) return false;
+
+  // Accept: last token is a hard anchor suffix (e.g., "suy diễn giả")
   const lastToken = tailTokens[tailTokens.length - 1];
   if (HARD_ANCHOR_SUFFIXES.has(lastToken)) return true;
 
-  // Check content token count
+  // Accept: ≥2 content tokens AND first token looks like a noun/role
   return countContentTokens(tailTokens) >= 2;
 }
+
+/**
+ * Common Vietnamese verbs/adjectives that should NOT form terms after soft wrappers.
+ * "người khác", "người lấy", "người sống", "người đứng" → all noise.
+ */
+const SOFT_WRAPPER_VERB_BLOCKLIST = new Set([
+  // Motion / position verbs
+  'đứng', 'ngồi', 'nằm', 'chạy', 'đi', 'đến', 'về', 'lại', 'ra', 'vào',
+  'lên', 'xuống', 'bay', 'nhảy', 'bước', 'dừng', 'quay', 'rời',
+  // Common action verbs
+  'lấy', 'bắt', 'giữ', 'mở', 'đóng', 'đặt', 'để', 'mang', 'đem', 'cầm',
+  'ném', 'kéo', 'đẩy', 'gọi', 'hỏi', 'nói', 'bảo', 'nhìn', 'xem', 'nghe',
+  'ăn', 'uống', 'ngủ', 'dậy', 'thức', 'mặc', 'cởi', 'rửa', 'lau',
+  // Common adjectives / states
+  'khác', 'giống', 'sống', 'chết', 'già', 'trẻ', 'lớn', 'nhỏ', 'cao', 'thấp',
+  'mạnh', 'yếu', 'nhanh', 'chậm', 'tốt', 'xấu', 'đẹp', 'xinh', 'béo', 'gầy',
+  'giàu', 'nghèo', 'vui', 'buồn', 'sợ', 'ghét', 'thích', 'yêu',
+  // Relative / comparative
+  'từng', 'đang', 'luôn', 'hay', 'còn', 'mới', 'cũ',
+  // Demonstrative / generic
+  'nào', 'ta', 'ấy', 'đó', 'nọ', 'kia',
+  // Existence / misc
+  'có', 'biết', 'được', 'phải', 'cần', 'muốn', 'nên', 'bị', 'làm',
+  'ngay', 'liền', 'rồi', 'dùng', 'theo', 'càng', 'chỉ',
+]);
 
 // ---------------------------------------------------------------------------
 // Candidate extraction from a single paragraph
