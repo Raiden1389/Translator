@@ -5,6 +5,43 @@
 
 ---
 
+## [2.11.0] - 2026-03-24
+
+**Top Impact**: Term Audit — scanner phát hiện thuật ngữ Việt không nhất quán • Anchor-first extraction (giả/sư/người/kẻ) • Bucket+greedy clustering với guard chống chain-merge • Auto-fix qua Luyện Văn • 16 unit tests pass
+
+### Added
+- **[AI]** `term-audit.types.ts` — Types: `TermCluster`, `TermOccurrence`, `ClusterMode` (`auto`, `review`, `protected-related`), `TermAuditReport`, `TermFixResult`
+- **[AI]** `term-audit.extraction.ts` — Anchor-first extractor: hard anchors (giả, sư, tông, môn, phái…) + soft wrappers (người, kẻ, tên) với validity guard
+- **[AI]** `term-audit.normalization.ts` — NFC, ascii-fold, generic head stripping → stable `rootHint`
+- **[AI]** `term-audit.clustering.ts` — Bucket-based greedy merge: score (edit-distance + shared-prefix + set-overlap) ≥ 0.72 = merge; Review Zone 0.60–0.71; canonical guard chống chain-merge
+- **[AI]** `term-audit.autofix.ts` — Tạo CorrectionEntry → `sweepSingleRule()`; 3 guards: confirmed, variants ≥ 2, scanRunId match
+- **[AI]** `term-audit.service.ts` — Orchestrator: extract → cluster → enrich (Glossary/Correction lookup)
+- **[UI]** `hooks/useTermAudit.ts` — Hook: idle→scanning→ready→applying state machine, confirmCanonical với scanRunId guard
+- **[UI]** `TermClusterCard.tsx` — Variant radio, frequency bars, confidence reasons collapsible, mode badges
+- **[UI]** `TermAuditModule.tsx` — Scan controls, filter tabs (tất cả/không nhất quán/xem lại/đã chọn), apply flow, feature gate
+- **[UI]** `IntelligenceHub.tsx` + Term Audit tab (chỉ hiện khi `featureFlags.termAudit = true`)
+- **[Test]** `__tests__/term-audit.test.ts` — 16 unit tests (all pass)
+
+### Changed
+- **[Build]** `featureFlags.ts` — +`termAudit: false` (off-switch)
+- **[UI]** `IntelligenceHub.tsx` — +ScanSearch icon, +TermAuditModule import, +termAudit ModuleType
+
+### Design Decisions
+- Anchor-first extraction tránh n-gram rác • No auto-merge ở Review Zone • scanRunId guard reset confirm khi rescan • Protected terms → chỉ show, không merge • Reuse sweepSingleRule từ corrections.service.ts
+
+### Files Added
+- `lib/services/term-audit.{types,extraction,normalization,clustering,autofix,service}.ts`
+- `hooks/useTermAudit.ts`
+- `components/workspace/intelligence/TermClusterCard.tsx`
+- `components/workspace/intelligence/TermAuditModule.tsx`
+- `__tests__/term-audit.test.ts`
+
+### Files Modified
+- `lib/featureFlags.ts`, `components/workspace/intelligence/IntelligenceHub.tsx`
+- `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` — 2.10.1 → 2.11.0
+
+---
+
 ## [2.10.1] - 2026-03-23
 
 **Top Impact**: Fix 5 lỗi audit prompt rules (Codex) • Post-processing capitalize [] deterministic • Sửa 万→vạn tệ (10x error)

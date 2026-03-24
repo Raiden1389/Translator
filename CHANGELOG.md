@@ -1,20 +1,50 @@
+## [2.11.0] - 2026-03-24
+
+### Top Impact
+- **[AI]** `term-audit.types.ts` — Types: `TermCluster`, `TermOccurrence`, `ClusterMode` (`auto`, `review`, `protected-related`), `TermAuditReport`, `TermFixResult`
+- **[AI]** `term-audit.extraction.ts` — Anchor-first extractor: hard anchors (giả, sư, tông, môn, phái…) + soft wrappers (người, kẻ, tên) với validity guard
+- **[AI]** `term-audit.normalization.ts` — NFC, ascii-fold, generic head stripping → stable `rootHint`
+- **[AI]** `term-audit.clustering.ts` — Bucket-based greedy merge: score (edit-distance + shared-prefix + set-overlap) ≥ 0.72 = merge; Review Zone 0.60–0.71; canonical guard chống chain-merge
+- **[AI]** `term-audit.autofix.ts` — Tạo CorrectionEntry → `sweepSingleRule()`; 3 guards: confirmed, variants ≥ 2, scanRunId match
+
+### Added
+- **[AI]** `term-audit.types.ts` — Types: `TermCluster`, `TermOccurrence`, `ClusterMode` (`auto`, `review`, `protected-related`), `TermAuditReport`, `TermFixResult`
+- **[AI]** `term-audit.extraction.ts` — Anchor-first extractor: hard anchors (giả, sư, tông, môn, phái…) + soft wrappers (người, kẻ, tên) với validity guard
+- **[AI]** `term-audit.normalization.ts` — NFC, ascii-fold, generic head stripping → stable `rootHint`
+- **[AI]** `term-audit.clustering.ts` — Bucket-based greedy merge: score (edit-distance + shared-prefix + set-overlap) ≥ 0.72 = merge; Review Zone 0.60–0.71; canonical guard chống chain-merge
+- **[AI]** `term-audit.autofix.ts` — Tạo CorrectionEntry → `sweepSingleRule()`; 3 guards: confirmed, variants ≥ 2, scanRunId match
+- **[AI]** `term-audit.service.ts` — Orchestrator: extract → cluster → enrich (Glossary/Correction lookup)
+
+### Changed
+- **[Build]** `featureFlags.ts` — +`termAudit: false` (off-switch)
+- **[UI]** `IntelligenceHub.tsx` — +ScanSearch icon, +TermAuditModule import, +termAudit ModuleType
+- Anchor-first extraction tránh n-gram rác • No auto-merge ở Review Zone • scanRunId guard reset confirm khi rescan • Protected terms → chỉ show, không merge • Reuse sweepSingleRule từ corrections.service.ts
+- `lib/featureFlags.ts`, `components/workspace/intelligence/IntelligenceHub.tsx`
+- `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` — 2.10.1 → 2.11.0
+
 ## [2.10.1] - 2026-03-23
 
 ### Top Impact
-- Fix 5 lỗi audit prompt rules (Codex report) — batch isBatch, 万→vạn tệ, tên Tây fallback, ẩn chủ ngữ cứng, IDIOM_RULE dead
-- Post-processing deterministic capitalize `[]` trong `finalSweep()`
-
-### Fixed
-- Batch prompt conflict "CẤM JSON" vs JSON output — truyền `isBatch=true`
-- `CURRENCY_RULE`: 万→nghìn tệ SAI 10x → vạn tệ
-- `WESTERN_NAME_RULE` fallback "ghi chú" → "giữ Latin hóa, KHÔNG ghi chú"
-- `[HARD LIMIT]` ẩn chủ ngữ → nới "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ"
-- `IDIOM_RULE` dead code → comment DEPRECATED
-- Text `[]` viết thường đầu → capitalize post-processing `finalSweep()`
+- **[Translator]** Batch prompt gọi `buildSystemInstruction()` không truyền `isBatch=true` → "CẤM JSON" conflict với JSON output yêu cầu. Flash output không ổn định.
+- **[Translator]** `CURRENCY_RULE`: 万→nghìn tệ SAI 10x. Sửa thành 万→vạn tệ (mười nghìn) + đầy đủ 千万, 亿.
+- **[Translator]** `WESTERN_NAME_RULE` fallback "ghi chú" mâu thuẫn CẤM Hán tự + CẤM giải thích. Sửa: "giữ phiên âm Latin hóa, KHÔNG ghi chú".
+- **[Translator]** `[HARD LIMIT]` ẩn chủ ngữ quá cứng → mờ nhân vật scene đông người. Nới thành "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ nghĩa".
+- **[Translator]** `IDIOM_RULE` dead code — export nhưng không dùng `ALL_RULES`. Comment DEPRECATED.
 
 ### Changed
-- Thêm rule `[VIẾT HOA]` cho system text `[]`
-- Tách rule đại từ: "GIỮA CÂU thường / ĐẦU CÂU BẮT BUỘC hoa"
+- **[Translator]** Thêm rule `[VIẾT HOA]`: Sentence case cho text `[]` với ví dụ SAI/ĐÚNG.
+- **[Translator]** `FLOW_RULE`: "Tuyệt đối không..." → "Ưu tiên tránh..., ĐƯỢC PHÉP nếu cần rõ nghĩa".
+- `lib/gemini/batch/prompt.ts` — `isBatch=true`
+- `lib/gemini/constants.ts` — 5 rule fixes + [VIẾT HOA]
+- `lib/gemini/text/casing.ts` — capitalize `[]` post-process (step 3.5)
+
+### Fixed
+- **[Translator]** Batch prompt gọi `buildSystemInstruction()` không truyền `isBatch=true` → "CẤM JSON" conflict với JSON output yêu cầu. Flash output không ổn định.
+- **[Translator]** `CURRENCY_RULE`: 万→nghìn tệ SAI 10x. Sửa thành 万→vạn tệ (mười nghìn) + đầy đủ 千万, 亿.
+- **[Translator]** `WESTERN_NAME_RULE` fallback "ghi chú" mâu thuẫn CẤM Hán tự + CẤM giải thích. Sửa: "giữ phiên âm Latin hóa, KHÔNG ghi chú".
+- **[Translator]** `[HARD LIMIT]` ẩn chủ ngữ quá cứng → mờ nhân vật scene đông người. Nới thành "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ nghĩa".
+- **[Translator]** `IDIOM_RULE` dead code — export nhưng không dùng `ALL_RULES`. Comment DEPRECATED.
+- **[Translator]** Đại từ đầu câu viết thường (hắn/nàng/ngươi). Tách rule: "GIỮA CÂU viết thường / ĐẦU CÂU BẮT BUỘC hoa".
 
 ## [2.10.0] - 2026-03-22
 
@@ -167,58 +197,3 @@
 - **[Translator]** "Ta ở đây" opening — Fixed common AI filler opening when no actual location is implied.
 - **[Translator]** Incorrect "Nhất" usage — Limited "nhất" to actual comparative contexts only.
 - **[Sync]** Cloud push 500 for new novels — R2 rejected `DecompressionStream` output (unknown length). Worker now buffers decompressed body as string before `R2.put()`. Also fixed client-side gzip: `Blob` → `ArrayBuffer` for reliable `Content-Length`.
-
-## [2.9.0] - 2026-03-06
-
-### Top Impact
-- **[Translator]** Workflow-Embedded Rules — 10+ critical translation rules (pronouns, subjects, blacklist) now live directly in `.agent/workflows/dich.md` for zero-hallucination enforcement.
-- **[Translator]** Continuous Task Mode — All chapters in a batch are treated as a single task, preventing style/terminology reset per chapter.
-- **[Translator]** Quality Gate Checklist — Mandatory pre-save validation for pronouns, blacklist, and formatting.
-- **[Translator]** Large Chapter Truncation — fixed "Expect double quote" JSON errors by optimizing the `write_to_file` pipeline for large chapter contents.
-- **[Translator]** Rule Adherence — eliminated AI "over-thinking" by prioritizing embedded workflow rules over internal reasoning.
-
-### Added
-- **[Translator]** Workflow-Embedded Rules — 10+ critical translation rules (pronouns, subjects, blacklist) now live directly in `.agent/workflows/dich.md` for zero-hallucination enforcement.
-- **[Translator]** Continuous Task Mode — All chapters in a batch are treated as a single task, preventing style/terminology reset per chapter.
-- **[Translator]** Quality Gate Checklist — Mandatory pre-save validation for pronouns, blacklist, and formatting.
-
-### Changed
-- **[Workflow]** Refactored `/dich` command to be completely silent and batch-optimized.
-- **[Prompt]** Simplified internal prompts to prevent AI from re-analyzing style per segment.
-- `.agent/workflows/dich.md` — Core translation logic overhaul
-- `bridge/out_*.json` — Fixed truncation/formatting issues
-
-### Fixed
-- **[Translator]** Large Chapter Truncation — fixed "Expect double quote" JSON errors by optimizing the `write_to_file` pipeline for large chapter contents.
-- **[Translator]** Rule Adherence — eliminated AI "over-thinking" by prioritizing embedded workflow rules over internal reasoning.
-
-## [2.7.13] - 2026-03-04
-
-### Top Impact
-- **[NER]** ReviewDialog `onSave` ignored edited data — renaming/deleting characters in review was discarded on save.
-- **[Build]** `Cannot access 'J' before initialization` — top-level `import { invoke }` from `@tauri-apps/api/core` crashed Next.js SSR prerender. Reverted to lazy `await import()` inside `isTauri()` blocks.
-- **[UI]** Delete button on Character Tab rows — trash icon appears on hover for quick character removal.
-- **[UI]** "Dịch lại" (Retranslate) button in ChapterSelectionDock — bulk retranslate selected chapters with one click.
-- **[Translator]** `post-cleanup.ts` module — deduplicateConsecutiveParagraphs, normalizeQuoteStyles, scrubVietnameseAIChatter.
-
-### Added
-- **[UI]** Delete button on Character Tab rows — trash icon appears on hover for quick character removal.
-- **[UI]** "Dịch lại" (Retranslate) button in ChapterSelectionDock — bulk retranslate selected chapters with one click.
-- **[Translator]** `post-cleanup.ts` module — deduplicateConsecutiveParagraphs, normalizeQuoteStyles, scrubVietnameseAIChatter.
-- **[Test]** `vitest.config.ts` + `__tests__/title-normalizer.test.ts` unit tests.
-- **[Translator]** Auto-apply corrections on new translations — every chapter gets global corrections applied silently after translation completes.
-- **[Translator]** `corrections.service.ts` — dedicated service layer with `applyCorrectionsText()`, `sweepSingleRule()`, `applyCorrectionsToChapter()`.
-
-### Changed
-- **[Translator]** `finalSweep()` now integrates post-cleanup functions for cleaner output.
-- **[Cleanup]** Removed stale lint-report files, TranslationProvider backup, cleaned .gitignore.
-- `components/workspace/characters/CharacterRow.tsx` — delete button
-- `components/workspace/CharacterTab.tsx` — pass handleDelete
-- `components/workspace/ChapterSelectionDock.tsx` — retranslate button
-- `components/workspace/chapter-list/ChapterList.tsx` — bulk retranslate handler
-
-### Fixed
-- **[NER]** ReviewDialog `onSave` ignored edited data — renaming/deleting characters in review was discarded on save.
-- **[Build]** `Cannot access 'J' before initialization` — top-level `import { invoke }` from `@tauri-apps/api/core` crashed Next.js SSR prerender. Reverted to lazy `await import()` inside `isTauri()` blocks.
-- **[NER]** ReviewDialog reset edits on parent re-render — `useRef` + `initialData` pattern to prevent data loss.
-- **[NER]** AI NER service edge cases in character extraction.

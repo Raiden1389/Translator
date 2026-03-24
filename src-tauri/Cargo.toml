@@ -1,6 +1,6 @@
 [package]
 name = "raiden-ai-translator"
-version = "2.10.1"
+version = "2.11.0"
 description = "A portable AI-powered web novel translator"
 authors = ["Antigravity"]
 edition = "2021"

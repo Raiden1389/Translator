@@ -2,6 +2,47 @@
 
 ---
 
+## [2.11.0] - 2026-03-24
+
+**Session**: Term Audit — Post-Translation Consistency Scanner
+**Objective**: Xây dựng isolated service layer phát hiện và sửa thuật ngữ Việt không nhất quán trong content_translated.
+
+### Added
+- `term-audit.types.ts` — Types: TermCluster, TermOccurrence, ClusterMode, TermAuditReport, TermFixResult
+- `term-audit.extraction.ts` — Anchor-first extractor (hard anchors: giả/sư/tông/môn/phái + soft wrappers: người/kẻ/tên)
+- `term-audit.normalization.ts` — NFC + ascii-fold + generic head strip → stable rootHint
+- `term-audit.clustering.ts` — Bucket-based greedy merge (score ≥ 0.72), Review Zone (0.60–0.71), canonical guard
+- `term-audit.autofix.ts` — CorrectionEntry creation + sweepSingleRule; 3 guards: confirmed + variants≥2 + scanRunId
+- `term-audit.service.ts` — Orchestrator runTermAuditScan() + applyTermFixes()
+- `hooks/useTermAudit.ts` — State machine hook: idle→scanning→ready→applying; confirmCanonical với scanRunId guard
+- `TermClusterCard.tsx` — Variant radio, frequency bars, confidence reasons, protected/review/auto badges
+- `TermAuditModule.tsx` — Full module UI, feature-gated, 4 filter tabs
+- `__tests__/term-audit.test.ts` — 16 unit tests (all pass)
+
+### Changed
+- `featureFlags.ts` — +termAudit: false (off-switch)
+- `IntelligenceHub.tsx` — +Term Audit tab (hidden when flag OFF)
+
+### Technical Notes
+- **Anchor-first** vs sliding window: tránh n-gram rác đặc thù tiếng Việt dịch truyện
+- **No auto-merge** ở Review Zone: người dùng quyết định thủ công
+- **scanRunId guard**: `confirmed` reset tự động khi rescan để tránh stale apply
+- **Reuse sweepSingleRule** từ corrections.service.ts: không viết lại chapter sweep logic
+
+### Files
+| File | Change |
+|------|--------|
+| `lib/services/term-audit.{types,extraction,normalization,clustering,autofix,service}.ts` | NEW (6 files) |
+| `hooks/useTermAudit.ts` | NEW |
+| `components/.../TermClusterCard.tsx` | NEW |
+| `components/.../TermAuditModule.tsx` | NEW |
+| `__tests__/term-audit.test.ts` | NEW |
+| `lib/featureFlags.ts` | +termAudit flag |
+| `components/.../IntelligenceHub.tsx` | +Term Audit tab |
+| `package.json` / `Cargo.toml` / `tauri.conf.json` | 2.10.1 → 2.11.0 |
+
+---
+
 ## [2.9.2] - 2026-03-07
 
 **Session**: Bridge Auto-Import v2 + Self-QA Scan + /changelog Workflow

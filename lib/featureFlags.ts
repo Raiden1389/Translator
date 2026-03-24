@@ -59,6 +59,15 @@ export const featureFlags = {
    * Uses file-based inbox/outbox at ~/.raiden/bridge/
    */
   antigravityBridge: true, // ON for testing
+
+  /**
+   * Term Audit (Experimental)
+   * Post-translation consistency checker for Vietnamese terms.
+   * Detects variant spellings of the same concept, clusters them,
+   * and lets user pick canonical form → pushed to Corrections.
+   * OFF by default — zero DB writes, zero side effects when OFF.
+   */
+  termAudit: false, // OFF until Phase 3 (UI) complete
 } as const;
 
 /**

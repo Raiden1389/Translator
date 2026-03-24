@@ -64,3 +64,4 @@ CHANGELOG.md.bak
 
 # Lint reports (generated artifacts)
 lint-*.json
+.gitnexus

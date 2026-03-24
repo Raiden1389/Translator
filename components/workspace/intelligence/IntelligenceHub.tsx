@@ -9,8 +9,10 @@ import {
     ArrowLeft,
     Compass,
     BrainCircuit,
-    Users
+    Users,
+    ScanSearch
 } from "lucide-react";
+import { featureFlags } from "@/lib/featureFlags";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +23,7 @@ import { CharacterTab } from "../CharacterTab";
 import { CorrectionsView } from "../dictionary/tabs/CorrectionsView";
 import { BlacklistView } from "../dictionary/tabs/BlacklistView";
 import { NameAuditModule } from "./NameAuditModule";
+import { TermAuditModule } from "./TermAuditModule";
 
 interface IntelligenceHubProps {
     workspaceId: string;
@@ -28,7 +31,7 @@ interface IntelligenceHubProps {
     initialModule?: string;
 }
 
-type ModuleType = "discovery" | "glossary" | "persona" | "tuning" | "sanitizer" | "nameAudit";
+type ModuleType = "discovery" | "glossary" | "persona" | "tuning" | "sanitizer" | "nameAudit" | "termAudit";
 
 export function IntelligenceHub({ workspaceId, onClose, initialModule = "discovery" }: IntelligenceHubProps) {
     const [activeModule, setActiveModule] = useState<ModuleType>(initialModule as ModuleType);
@@ -40,6 +43,7 @@ export function IntelligenceHub({ workspaceId, onClose, initialModule = "discove
         { id: "tuning", label: "Luyện Văn", icon: Wrench, sub: "Global Corrections" },
         { id: "sanitizer", label: "Sanitizer", icon: ShieldAlert, sub: "Blacklist" },
         { id: "nameAudit", label: "Name Audit", icon: Users, sub: "Nhất quán tên" },
+        ...(featureFlags.termAudit ? [{ id: "termAudit", label: "Term Audit", icon: ScanSearch, sub: "Nhất quán thuật ngữ" }] : []),
     ];
 
     return (
@@ -128,6 +132,7 @@ export function IntelligenceHub({ workspaceId, onClose, initialModule = "discove
                             {activeModule === "tuning" && <CorrectionsView workspaceId={workspaceId} />}
                             {activeModule === "sanitizer" && <BlacklistView workspaceId={workspaceId} />}
                             {activeModule === "nameAudit" && <NameAuditModule workspaceId={workspaceId} />}
+                            {activeModule === "termAudit" && <TermAuditModule workspaceId={workspaceId} />}
                         </div>
                     </div>
                 </div>
