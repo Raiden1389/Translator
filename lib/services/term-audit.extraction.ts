@@ -87,6 +87,50 @@ function countContentTokens(tokens: string[]): number {
 }
 
 // ---------------------------------------------------------------------------
+// Candidate cleanup
+// ---------------------------------------------------------------------------
+
+/** Leading quantifiers/classifiers to strip from candidates */
+const LEADING_QUANTIFIERS = [
+  'một số', 'một vài', 'một', 'các', 'những', 'mấy', 'vài', 'nhiều',
+  'mỗi', 'từng', 'toàn bộ', 'tất cả',
+];
+
+/** Trailing demonstratives/fillers to strip from candidates */
+const TRAILING_DEMONSTRATIVES = [
+  'kia', 'này', 'đó', 'ấy', 'nọ', 'đây', 'đấy',
+];
+
+/**
+ * Clean a candidate by stripping grammatical noise:
+ * - Leading quantifiers: "một thanh đoản kiếm" → "thanh đoản kiếm"
+ * - Trailing demonstratives: "vị tiền bối kia" → "vị tiền bối"
+ */
+function cleanCandidate(candidate: string): string {
+  let result = candidate.trim();
+  const lower = result.toLowerCase();
+
+  // Strip leading quantifiers (longest first to handle "một số" before "một")
+  for (const q of LEADING_QUANTIFIERS) {
+    if (lower.startsWith(q + ' ')) {
+      result = result.slice(q.length).trim();
+      break;
+    }
+  }
+
+  // Strip trailing demonstratives
+  const resultLower = result.toLowerCase();
+  for (const d of TRAILING_DEMONSTRATIVES) {
+    if (resultLower.endsWith(' ' + d)) {
+      result = result.slice(0, -(d.length + 1)).trim();
+      break;
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Context extraction
 // ---------------------------------------------------------------------------
 
@@ -252,7 +296,9 @@ export function extractTermCandidates(input: ExtractionInput): TermOccurrence[] 
     paragraphs.forEach((paragraph, paragraphIndex) => {
       const candidates = extractFromParagraph(paragraph);
 
-      for (const raw of candidates) {
+      for (let raw of candidates) {
+        // Clean: strip quantifiers + demonstratives
+        raw = cleanCandidate(raw);
         const key = raw.toLowerCase().trim();
         if (key.length < 3) continue; // too short
 

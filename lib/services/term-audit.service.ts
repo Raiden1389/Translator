@@ -26,82 +26,75 @@ export { applyTermFixes } from './term-audit.autofix';
 export type { TermApplyInput } from './term-audit.autofix';
 
 // ---------------------------------------------------------------------------
-// Scan run ID generator
+// Helpers
 // ---------------------------------------------------------------------------
+
+/** Yield to main thread — prevents UI freeze during heavy computation */
+function yieldToMain(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
 
 function generateScanRunId(): string {
   return `scan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-// ---------------------------------------------------------------------------
-// Protected term detection
-// ---------------------------------------------------------------------------
 
-/**
- * Check if a term has an exact-match Correction or Glossary entry.
- * Used to tag cluster as 'protected-related'.
- */
-async function findRelatedCorrection(term: string): Promise<string | undefined> {
-  const normalized = term.normalize('NFC').toLowerCase();
-  const rule = await db.corrections
-    .where('workspaceId')
-    .equals(GLOBAL_WORKSPACE_ID)
-    .filter(c =>
-      c.type === 'replace' &&
-      (c.from || c.original || '').normalize('NFC').toLowerCase() === normalized
-    )
-    .first();
-  return rule ? `${rule.from} → ${rule.to}` : undefined;
-}
 
-async function findRelatedGlossary(term: string, workspaceId: string): Promise<string | undefined> {
-  const normalized = term.normalize('NFC').toLowerCase();
-  const entry = await db.dictionary
-    .where('[workspaceId+type]')
-    .equals([workspaceId, 'term'])
-    .filter(e =>
-      (e.original || '').normalize('NFC').toLowerCase() === normalized ||
-      (e.translated || '').normalize('NFC').toLowerCase() === normalized
-    )
-    .first();
-  return entry ? `${entry.original} → ${entry.translated}` : undefined;
-}
 
 /**
  * Enrich clusters with protected-term detection.
- * Clusters that have all variants exact-matched in Corrections/Glossary
- * get clusterMode = 'protected-related'.
+ * Batch-loads all corrections + glossary entries upfront to avoid N+1 DB queries.
  */
 async function enrichWithProtectedTerms(
   clusters: TermCluster[],
   workspaceId: string,
 ): Promise<TermCluster[]> {
-  const enriched: TermCluster[] = [];
+  // Batch-load all corrections and glossary entries upfront
+  const [allCorrections, allGlossary] = await Promise.all([
+    db.corrections.where('workspaceId').equals(GLOBAL_WORKSPACE_ID).toArray(),
+    db.dictionary.where('[workspaceId+type]').equals([workspaceId, 'term']).toArray(),
+  ]);
 
-  for (const cluster of clusters) {
+  // Build lookup maps (normalized → display string)
+  const corrMap = new Map<string, string>();
+  for (const c of allCorrections) {
+    if (c.type !== 'replace') continue;
+    const key = (c.from || c.original || '').normalize('NFC').toLowerCase();
+    if (key) corrMap.set(key, `${c.from} → ${c.to}`);
+  }
+
+  const glossMap = new Map<string, string>();
+  for (const e of allGlossary) {
+    const origKey = (e.original || '').normalize('NFC').toLowerCase();
+    const transKey = (e.translated || '').normalize('NFC').toLowerCase();
+    const display = `${e.original} → ${e.translated}`;
+    if (origKey) glossMap.set(origKey, display);
+    if (transKey) glossMap.set(transKey, display);
+  }
+
+  // Enrich clusters using lookup maps (O(1) per variant)
+  return clusters.map(cluster => {
     let relatedCorrection: string | undefined;
     let relatedGlossary: string | undefined;
     let anyVariantProtected = false;
 
     for (const variant of cluster.variants) {
-      const corr = await findRelatedCorrection(variant.term);
-      const gloss = await findRelatedGlossary(variant.term, workspaceId);
+      const normalized = variant.term.normalize('NFC').toLowerCase();
+      const corr = corrMap.get(normalized);
+      const gloss = glossMap.get(normalized);
 
       if (corr && !relatedCorrection) relatedCorrection = corr;
       if (gloss && !relatedGlossary) relatedGlossary = gloss;
       if (corr || gloss) anyVariantProtected = true;
     }
 
-    enriched.push({
+    return {
       ...cluster,
       relatedCorrection,
       relatedGlossary,
-      // If any variant is already in Corrections/Glossary → protected-related
       clusterMode: anyVariantProtected ? 'protected-related' : cluster.clusterMode,
-    });
-  }
-
-  return enriched;
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -127,13 +120,49 @@ export async function runTermAuditScan(
     return true;
   });
 
-  // Phase 1: Extract
-  const occurrences = extractTermCandidates({
-    chapters: targetChapters,
-    fromChapter: options.fromChapter,
-    toChapter: options.toChapter,
-    minFrequency: options.minFrequency ?? 2,
-  });
+  // Phase 1: Extract — chunked to prevent UI freeze on large datasets
+  const CHUNK_SIZE = 50;
+  const allOccurrences: ReturnType<typeof extractTermCandidates> extends (infer T)[] ? T[] : never = [];
+
+  for (let i = 0; i < targetChapters.length; i += CHUNK_SIZE) {
+    const chunk = targetChapters.slice(i, i + CHUNK_SIZE);
+    const chunkResults = extractTermCandidates({
+      chapters: chunk,
+      minFrequency: 1,  // no threshold within chunks — filter globally below
+    });
+    allOccurrences.push(...chunkResults);
+
+    // Yield to main thread every chunk to prevent UI freeze
+    if (i + CHUNK_SIZE < targetChapters.length) {
+      await yieldToMain();
+    }
+  }
+
+  // Merge chunk results: aggregate by term key
+  const merged = new Map<string, typeof allOccurrences[0]>();
+  for (const occ of allOccurrences) {
+    const key = occ.term.toLowerCase().trim();
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...occ });
+    } else {
+      existing.count += occ.count;
+      existing.chapters = [...new Set([...existing.chapters, ...occ.chapters])].sort((a, b) => a - b);
+      if (existing.contexts.length < 3) {
+        existing.contexts.push(...occ.contexts.slice(0, 3 - existing.contexts.length));
+      }
+      if (existing.chapterRefs && occ.chapterRefs && existing.chapterRefs.length < 3) {
+        existing.chapterRefs.push(...occ.chapterRefs.slice(0, 3 - existing.chapterRefs.length));
+      }
+    }
+  }
+
+  // Apply global frequency threshold
+  const minFreq = options.minFrequency ?? 2;
+  const occurrences = Array.from(merged.values()).filter(o => o.count >= minFreq);
+  occurrences.sort((a, b) => b.count - a.count);
+
+  await yieldToMain();
 
   // Phase 2+3: Normalize (embedded in clustering) + Cluster
   const rawClusters = clusterTerms({
@@ -144,6 +173,8 @@ export async function runTermAuditScan(
     },
     scanRunId,
   });
+
+  await yieldToMain();
 
   // Phase 4: Enrich with protected-term detection
   const clusters = await enrichWithProtectedTerms(rawClusters, options.workspaceId);
