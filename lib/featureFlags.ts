@@ -67,7 +67,7 @@ export const featureFlags = {
    * and lets user pick canonical form → pushed to Corrections.
    * OFF by default — zero DB writes, zero side effects when OFF.
    */
-  termAudit: false, // OFF until Phase 3 (UI) complete
+  termAudit: true, // ON — Phase 4 UI complete, ready for testing
 } as const;
 
 /**
