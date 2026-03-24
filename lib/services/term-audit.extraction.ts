@@ -153,7 +153,10 @@ function extractFromParagraph(paragraph: string): string[] {
       for (let lookback = 1; lookback <= 3; lookback++) {
         if (i - lookback < 0) break;
         const candidate = tokens.slice(i - lookback, i + 1).join(' ');
-        const cleaned = candidate.replace(/^["'(「『]+|["')」』]+$/g, '').trim();
+        const cleaned = candidate
+          .replace(/^["'(「『]+|["')」』]+$/g, '')
+          .replace(/[,;.!?。、！？]+$/g, '')  // strip trailing punctuation
+          .trim();
         if (cleaned.length > 0 && !STOPLIST.has(cleaned.toLowerCase())) {
           candidates.push(cleaned);
         }
@@ -167,7 +170,10 @@ function extractFromParagraph(paragraph: string): string[] {
         if (i + lookahead >= tokens.length) break;
         const tail = tokens.slice(i + 1, i + 1 + lookahead).join(' ');
         const full = tokens.slice(i, i + 1 + lookahead).join(' ');
-        const cleanedFull = full.replace(/^["'(「『]+|["')」』]+$/g, '').trim();
+        const cleanedFull = full
+          .replace(/^["'(「『]+|["')」』]+$/g, '')
+          .replace(/[,;.!?。、！？]+$/g, '')  // strip trailing punctuation
+          .trim();
 
         if (!STOPLIST.has(cleanedFull.toLowerCase()) && isSoftWrapperValid(tail)) {
           candidates.push(cleanedFull);
@@ -185,7 +191,10 @@ function extractFromParagraph(paragraph: string): string[] {
           const endIdx = i + wrapTokens.length + ext;
           if (endIdx > tokens.length) break;
           const candidate = tokens.slice(i, endIdx).join(' ');
-          const cleaned = candidate.replace(/^["'(「『]+|["')」』]+$/g, '').trim();
+          const cleaned = candidate
+            .replace(/^["'(「『]+|["')」』]+$/g, '')
+            .replace(/[,;.!?。、！？]+$/g, '')  // strip trailing punctuation
+            .trim();
           if (!STOPLIST.has(cleaned.toLowerCase())) {
             candidates.push(cleaned);
           }

@@ -68,6 +68,32 @@ function chapterIoU(chaptersA: number[], chaptersB: number[]): number {
   return union === 0 ? 0 : intersect / union;
 }
 
+// ---------------------------------------------------------------------------
+// Grammatical variant guard
+// ---------------------------------------------------------------------------
+
+/**
+ * Soft wrapper heads that produce grammatical variants.
+ * "người X" and "X" are NOT a terminology inconsistency — just Vietnamese classifier usage.
+ */
+const GRAMMATICAL_HEADS = new Set([
+  'người', 'kẻ', 'vị', 'gã', 'tên', 'đứa', 'thằng', 'con', 'bọn', 'nhóm', 'đám',
+]);
+
+/**
+ * Returns true if one term is just [grammatical_head + " "] + the other.
+ * These should NOT be clustered — they're grammatical variants, not inconsistent translations.
+ */
+function isGrammaticalVariant(termA: string, termB: string): boolean {
+  const a = termA.toLowerCase().trim();
+  const b = termB.toLowerCase().trim();
+  for (const head of GRAMMATICAL_HEADS) {
+    const prefix = head + ' ';
+    if (a === prefix + b || b === prefix + a) return true;
+  }
+  return false;
+}
+
 interface ScoredPair {
   idxA: number;
   idxB: number;
@@ -81,6 +107,11 @@ function scorePair(
   normA: ReturnType<typeof normalizeTerm>,
   normB: ReturnType<typeof normalizeTerm>,
 ): ScoredPair & { idxA: -1; idxB: -1 } {
+  // Guard: grammatical variant ("người X" vs "X") — skip entirely
+  if (isGrammaticalVariant(a.term, b.term)) {
+    return { idxA: -1, idxB: -1, score: 0, reasons: [] };
+  }
+
   const reasons: ClusterReason[] = [];
 
   const rm = rootMatch(normA.rootHint, normB.rootHint);
