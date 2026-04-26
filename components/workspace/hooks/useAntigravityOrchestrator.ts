@@ -5,7 +5,7 @@
  * the Antigravity file-based translation system.
  */
 import { useState, useCallback, useEffect, useRef } from "react";
-import { exportInbox, importOutbox, hasPendingOutbox, pollJobProgress, findLatestOutboxInfo, detectMissingChapters, updateBridgeJobStatus } from "@/lib/bridge/antigravity-bridge";
+import { exportInbox, exportMissingOnly, importOutbox, hasPendingOutbox, pollJobProgress, findLatestOutboxInfo, detectMissingChapters, updateBridgeJobStatus } from "@/lib/bridge/antigravity-bridge";
 import type { ImportResult, PollProgress, MissingChapterInfo } from "@/lib/bridge/antigravity-bridge";
 import type { Chapter, DictionaryEntry, CorrectionEntry } from "@/lib/db";
 import { toast } from "sonner";
@@ -26,6 +26,14 @@ interface BridgeState {
   importResult: ImportResult | null;
 }
 
+interface BridgeExportContext {
+  workspaceId: string;
+  glossary: DictionaryEntry[];
+  corrections: CorrectionEntry[];
+  prompt: string;
+  temperature: number;
+}
+
 export function useAntigravityOrchestrator() {
   const [state, setState] = useState<BridgeState>({
     isExporting: false,
@@ -42,6 +50,7 @@ export function useAntigravityOrchestrator() {
   });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoImportTriggered = useRef(false);
+  const exportContextRef = useRef<BridgeExportContext | null>(null);
 
   const exportForBridge = useCallback(async (
     workspaceId: string,
@@ -54,6 +63,7 @@ export function useAntigravityOrchestrator() {
     setState(s => ({ ...s, isExporting: true }));
 
     try {
+      exportContextRef.current = { workspaceId, glossary, corrections, prompt, temperature };
       const { jobId, path, chapterCount } = await exportInbox(
         workspaceId, chapters, glossary, corrections, prompt, temperature,
       );
@@ -148,7 +158,7 @@ export function useAntigravityOrchestrator() {
           if (!s.dialogOpen || s.lastJobId !== jobId) return s;
 
           let nextPhase = s.phase;
-          if (p.isDone && p.completed >= expected) {
+          if (p.isDone) {
             nextPhase = "complete";
           } else if (p.completed > 0) {
             nextPhase = "translating";
@@ -158,7 +168,7 @@ export function useAntigravityOrchestrator() {
         });
 
         // Auto-import when complete
-        if (p.isDone && p.completed >= expected && !autoImportTriggered.current) {
+        if (p.isDone && !autoImportTriggered.current) {
           autoImportTriggered.current = true;
           // Small delay so user sees "Complete" before import starts
           setTimeout(() => {
@@ -187,7 +197,16 @@ export function useAntigravityOrchestrator() {
     };
   }, [state.dialogOpen, state.lastJobId, state.exportedCount, state.phase]);
 
-  const setBridgeResult = useCallback((jobId: string, path: string, chapterCount: number) => {
+  const setBridgeResult = useCallback((
+    jobId: string,
+    path: string,
+    chapterCount: number,
+    exportedOrders: number[] = [],
+    exportContext?: BridgeExportContext,
+  ) => {
+    if (exportContext) {
+      exportContextRef.current = exportContext;
+    }
     setState(s => ({
       ...s,
       isExporting: false,
@@ -195,8 +214,11 @@ export function useAntigravityOrchestrator() {
       lastExportPath: path,
       dialogOpen: true,
       exportedCount: chapterCount,
+      exportedOrders,
       phase: "waiting" as BridgePhase,
       progress: null,
+      missingInfo: null,
+      importResult: null,
     }));
     autoImportTriggered.current = false;
   }, []);
@@ -263,6 +285,7 @@ export function useAntigravityOrchestrator() {
         lastExportPath: null,
         dialogOpen: true,
         exportedCount: info.fileCount,
+        exportedOrders: info.orders,
         phase: "complete" as BridgePhase,
         progress: {
           completed: info.fileCount,
@@ -277,6 +300,45 @@ export function useAntigravityOrchestrator() {
     }
   }, []);
 
+  const reExportMissing = useCallback(async (workspaceId: string, missingOrders: number[]) => {
+    const ctx = exportContextRef.current;
+    if (!ctx || ctx.workspaceId !== workspaceId) {
+      toast.error("Không còn context export để re-export chương thiếu. Hãy chọn lại chương và export Bridge mới.");
+      return;
+    }
+    if (missingOrders.length === 0) return;
+
+    setState(s => ({ ...s, isExporting: true }));
+    try {
+      const { jobId, path, chapterCount } = await exportMissingOnly(
+        workspaceId,
+        missingOrders,
+        ctx.glossary,
+        ctx.corrections,
+        ctx.prompt,
+        ctx.temperature,
+      );
+      setState(s => ({
+        ...s,
+        isExporting: false,
+        lastJobId: jobId,
+        lastExportPath: path,
+        dialogOpen: true,
+        exportedCount: chapterCount,
+        exportedOrders: missingOrders,
+        phase: "waiting" as BridgePhase,
+        progress: null,
+        missingInfo: null,
+        importResult: null,
+      }));
+      autoImportTriggered.current = false;
+      toast.success(`Đã export lại ${chapterCount} chương thiếu`);
+    } catch (err) {
+      setState(s => ({ ...s, isExporting: false }));
+      toast.error(`Re-export thất bại: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, []);
+
   return {
     ...state,
     exportForBridge,
@@ -286,5 +348,6 @@ export function useAntigravityOrchestrator() {
     setBridgeResult,
     triggerAutoImport,
     reopenForImport,
+    reExportMissing,
   };
 }

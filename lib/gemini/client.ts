@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { AI_MODELS } from "../ai-models";
+import { AI_MODELS, migrateModelId } from "../ai-models";
 import { safeParseGeminiResponse, GeminiResponse } from "../schemas/gemini-response.schema";
 
 /**
@@ -8,7 +8,8 @@ import { safeParseGeminiResponse, GeminiResponse } from "../schemas/gemini-respo
 export async function recordUsage(modelId: string, usage: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number }) {
     try {
         if (!usage) return;
-        const modelInfo = AI_MODELS.find(m => m.value === modelId.trim()) || AI_MODELS[0];
+        const normalizedModelId = migrateModelId(modelId.trim());
+        const modelInfo = AI_MODELS.find(m => m.value === normalizedModelId) || AI_MODELS[0];
         const inputTokens = usage.promptTokenCount || 0;
         const outputTokens = usage.candidatesTokenCount || 0;
         const thinkingTokens = usage.thoughtsTokenCount || 0;  // Gemini 2.5 Flash thinking tokens
@@ -102,7 +103,8 @@ export async function withKeyRotation<T = GeminiResponse>(
         };
     }
 
-    // Safety settings: BLOCK_NONE for novel translation (horror, violence, etc.)
+    // Safety settings: BLOCK_NONE for novel translation
+    // Matches working config from ai-fiction-game (BLOCK_NONE proven, OFF/CIVIC_INTEGRITY may cause rejection)
     payloadObj.safetySettings = [
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
         { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
@@ -141,39 +143,101 @@ export async function withKeyRotation<T = GeminiResponse>(
             const accessToken = await getValidAccessToken();
             const activeAccount = await getActiveAccount();
 
+            if (!accessToken || !activeAccount) {
+                const reason = !activeAccount ? "Chưa chọn tài khoản active" : "Token hết hạn và không thể refresh";
+                if (onLog) onLog(`⚠️ OAuth fallback: ${reason}`);
+                
+                // If user STRICTLY prefers OAuth, throw here instead of falling back to 0 keys
+                if (preferOAuth && keys.length === 0) {
+                    throw new Error(`OAuth Error: ${reason}. Vui lòng đăng nhập lại trong Settings.`);
+                }
+            }
+
             if (accessToken && activeAccount) {
+                // Line 148: Keep as diagnostic log, but the main status will be in line 176
+                if (onLog) onLog(`🔑 Auth: OAuth (${activeAccount.email})`);
+
                 // Get rate limiter for active account
                 const rateLimiter = await getRateLimiter(activeAccount.id);
 
                 // Estimate tokens
                 const estimatedTokens = rateLimiter.estimateTokens(params.prompt + (params.systemInstruction || ""));
+                if (onLog) onLog(`📊 Token ước tính: ~${estimatedTokens.toLocaleString()}`);
 
-                // Check if we can make request
-                const quotaCheck = await rateLimiter.canMakeRequest(estimatedTokens);
+                // Check if we can make request — auto-wait for short windows (RPM/TPM)
+                const MAX_RATE_RETRIES = 3;
+                let rateLimitRetries = 0;
+                // eslint-disable-next-line no-constant-condition
+                while (true) {
+                    const quotaCheck = await rateLimiter.canMakeRequest(estimatedTokens);
+                    if (quotaCheck.allowed) break;
 
-                if (!quotaCheck.allowed) {
-                    const waitMinutes = quotaCheck.waitTime ? Math.ceil(quotaCheck.waitTime / 60000) : 0;
-                    throw new Error(`⏸️ Rate limit: ${quotaCheck.reason}. Vui lòng đợi ${waitMinutes} phút.`);
+                    const waitMs = quotaCheck.waitTime ?? 60000;
+                    const isShortWait = waitMs <= 70_000; // <= 70s → RPM/TPM window
+
+                    if (!isShortWait || rateLimitRetries >= MAX_RATE_RETRIES) {
+                        // Daily/hourly limit or exhausted retries → give up
+                        const waitMinutes = Math.ceil(waitMs / 60000);
+                        throw new Error(`⏸️ Rate limit: ${quotaCheck.reason}. Vui lòng đợi ${waitMinutes} phút.`);
+                    }
+
+                    // RPM window: sleep and retry
+                    rateLimitRetries++;
+                    const waitSec = Math.ceil(waitMs / 1000) + 2; // +2s buffer
+                    if (onLog) onLog(`⏸️ RPM limit — tự đợi ${waitSec}s rồi tiếp (${rateLimitRetries}/${MAX_RATE_RETRIES})...`);
+                    await new Promise(resolve => setTimeout(resolve, waitMs + 2000));
                 }
+
+                // Get metrics for display
+                const metrics = await rateLimiter.getMetrics();
+                if (onLog) onLog(`📈 Hôm nay: ${metrics.requestsToday} req | ${(metrics.tokensToday / 1000).toFixed(1)}K tokens`);
 
                 // Apply delay (human-like pattern)
                 const delay = rateLimiter.getDelay();
                 if (delay > 0) {
-                    if (onLog) onLog(`⏳ Đợi ${Math.ceil(delay / 1000)}s để tránh abuse detection...`);
+                    if (onLog) onLog(`⏳ Delay ${(delay / 1000).toFixed(1)}s...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
 
-                if (onLog) onLog("🔐 Đang dùng OAuth credentials...");
+                if (onLog) onLog(`🚀 Gọi OAuth: ${activeAccount.email} (${params.model.trim()})`);
 
                 let rawResponse: unknown;
+                const requestStart = Date.now();
 
                 try {
                     if (isTauri) {
-                        const responseText = await invoke<string>("native_gemini_oauth_request", {
-                            payload,
-                            model: params.model.trim(),
-                            accessToken
-                        });
+                        let responseText: string;
+                        try {
+                            responseText = await invoke<string>("native_gemini_oauth_request", {
+                                payload,
+                                model: params.model.trim(),
+                                accessToken
+                            });
+                        } catch (rustErr) {
+                            // Rust returns Err("HTTP_ERROR:<status>:<body>") for non-2xx responses
+                            const errStr = String(rustErr);
+                            const httpErrMatch = errStr.match(/^HTTP_ERROR:(\d+):([\s\S]*)$/);
+                            if (httpErrMatch) {
+                                const statusCode = parseInt(httpErrMatch[1], 10);
+                                const errBody = httpErrMatch[2];
+                                if (statusCode === 429) {
+                                    await rateLimiter.recordError(true);
+                                    if (onLog) onLog(`🚨 429 Rate Limited! (${activeAccount.email}) — Google đang throttle, cần đợi.`);
+                                    throw new Error("⚠️ Google đã throttle account này. Vui lòng đợi hoặc switch sang account khác.");
+                                }
+                                if (statusCode === 401) {
+                                    if (onLog) onLog(`🔐 401 Unauthorized — Token hết hạn, cần refresh.`);
+                                    throw new Error("⚠️ OAuth token hết hạn (401). Vui lòng vào Settings → Refresh token.");
+                                }
+                                // Generic HTTP error
+                                let apiMsg = errStr;
+                                try { apiMsg = JSON.parse(errBody)?.error?.message || errBody; } catch { /* keep raw */ }
+                                if (onLog) onLog(`❌ HTTP ${statusCode}: ${apiMsg.slice(0, 80)}`);
+                                throw new Error(`Gemini API Error ${statusCode}: ${apiMsg}`);
+                            }
+                            // Non-HTTP error (network, etc.) — rethrow as-is
+                            throw rustErr;
+                        }
                         rawResponse = JSON.parse(responseText);
                     } else {
                         const url = `https://generativelanguage.googleapis.com/v1beta/models/${params.model.trim()}:generateContent`;
@@ -181,7 +245,8 @@ export async function withKeyRotation<T = GeminiResponse>(
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${accessToken}`
+                                'Authorization': `Bearer ${accessToken}`,
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
                             },
                             body: payload
                         });
@@ -192,6 +257,7 @@ export async function withKeyRotation<T = GeminiResponse>(
                             // Check if it's a rate limit error
                             if (res.status === 429) {
                                 await rateLimiter.recordError(true);
+                                if (onLog) onLog("🚨 429 Throttled!");
                                 throw new Error("⚠️ Google đã throttle account này. Vui lòng đợi hoặc switch sang account khác.");
                             }
 
@@ -201,13 +267,30 @@ export async function withKeyRotation<T = GeminiResponse>(
                         rawResponse = await res.json();
                     }
 
+                    const elapsed = ((Date.now() - requestStart) / 1000).toFixed(1);
+                    if (onLog) onLog(`✅ Phản hồi trong ${elapsed}s`);
+
                     // Record successful request
                     await rateLimiter.recordRequest(estimatedTokens);
+
+                    // Debug: Log raw response structure before validation
+                    const rawObj = rawResponse as Record<string, unknown>;
+                    const rawCandidates = rawObj?.candidates;
+                    const rawPromptFeedback = rawObj?.promptFeedback;
+                    if (!Array.isArray(rawCandidates) || !rawCandidates.length || rawPromptFeedback) {
+                        console.error(`\n${'='.repeat(60)}`);
+                        console.error(`🔍 [RAW API RESPONSE - PRE-VALIDATION]`);
+                        console.error(`Candidates: ${Array.isArray(rawCandidates) ? rawCandidates.length : 'N/A'}`);
+                        console.error(`PromptFeedback:`, JSON.stringify(rawPromptFeedback, null, 2));
+                        console.error(`Top-level keys: ${Object.keys(rawObj || {}).join(', ')}`);
+                        console.error(`${'='.repeat(60)}\n`);
+                    }
 
                     const validationResult = safeParseGeminiResponse(rawResponse);
 
                     if (!validationResult.success) {
                         console.error("[Gemini API] Response validation failed:", validationResult.error);
+                        console.error("[Gemini API] Raw response (first 2000 chars):", JSON.stringify(rawResponse).slice(0, 2000));
                         throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
                     }
 
@@ -220,6 +303,8 @@ export async function withKeyRotation<T = GeminiResponse>(
                     return validated as T;
 
                 } catch (requestError) {
+                    const elapsed = ((Date.now() - requestStart) / 1000).toFixed(1);
+                    if (onLog) onLog(`❌ Lỗi OAuth [${activeAccount.email}] sau ${elapsed}s: ${requestError instanceof Error ? requestError.message.slice(0, 80) : 'Unknown'}`);
                     // Record error
                     await rateLimiter.recordError(false);
                     throw requestError;
@@ -227,12 +312,14 @@ export async function withKeyRotation<T = GeminiResponse>(
             }
         } catch (oauthError) {
             // If user prefers OAuth but it failed, don't fallback silently
-            if (preferOAuth && keys.length > 0) {
-                console.warn("OAuth failed but user prefers OAuth. Falling back to API key:", oauthError);
-                if (onLog) onLog("⚠️ OAuth thất bại, chuyển sang API key...");
-            } else {
-                console.warn("OAuth attempt failed, falling back to API key:", oauthError);
+            const errMsg = oauthError instanceof Error ? oauthError.message : String(oauthError);
+            if (preferOAuth && keys.length === 0) {
+                // No keys and OAuth failed -> this is the end of the line
+                throw oauthError;
             }
+            
+            console.warn("OAuth attempt failed, falling back to API key pool:", oauthError);
+            if (onLog) onLog(`⚠️ OAuth failed (${errMsg.slice(0, 40)}...), thử dùng API Key pool...`);
             // Continue to API key rotation below
         }
     }
@@ -242,11 +329,11 @@ export async function withKeyRotation<T = GeminiResponse>(
         try {
             if (onLog) {
                 if (!key) {
-                    onLog("Thử Key hệ thống (.env)...");
+                    onLog(`🚀 Gọi API: System Key (env) [${params.model.trim()}]`);
                 } else if (i === 0) {
-                    onLog("Đang dùng API Key chính...");
+                    onLog(`🚀 Gọi API: Primary Key [${params.model.trim()}]`);
                 } else {
-                    onLog(`Đang thử API Key phụ (${i})...`);
+                    onLog(`🚀 Gọi API: Pool Key #${i} [${params.model.trim()}]`);
                 }
             }
 
@@ -282,14 +369,24 @@ export async function withKeyRotation<T = GeminiResponse>(
                 rawResponse = await res.json();
             }
 
-            // ✅ DEBUG: Log raw response BEFORE validation
-            console.log("[DEBUG] Raw Gemini response:", JSON.stringify(rawResponse, null, 2));
+            // Debug: Log raw response structure before validation (only when suspicious)
+            const rawCandidates = (rawResponse as Record<string, unknown>)?.candidates;
+            const rawPromptFeedback = (rawResponse as Record<string, unknown>)?.promptFeedback;
+            if (!Array.isArray(rawCandidates) || !rawCandidates.length || rawPromptFeedback) {
+                console.error(`\n${'='.repeat(60)}`);
+                console.error(`🔍 [RAW API RESPONSE - API KEY PATH]`);
+                console.error(`Candidates: ${Array.isArray(rawCandidates) ? rawCandidates.length : 'N/A'}`);
+                console.error(`PromptFeedback:`, JSON.stringify(rawPromptFeedback, null, 2));
+                console.error(`Top-level keys: ${Object.keys((rawResponse as Record<string, unknown>) || {}).join(', ')}`);
+                console.error(`${'='.repeat(60)}\n`);
+            }
 
             // ✅ Validate response with Zod
             const validationResult = safeParseGeminiResponse(rawResponse);
 
             if (!validationResult.success) {
                 console.error("[Gemini API] Response validation failed:", validationResult.error);
+                console.error("[Gemini API] Raw response (first 2000 chars):", JSON.stringify(rawResponse).slice(0, 2000));
                 throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
             }
 
@@ -321,4 +418,3 @@ export async function withKeyRotation<T = GeminiResponse>(
     }
     throw lastError;
 }
-

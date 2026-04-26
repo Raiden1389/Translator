@@ -1,6 +1,6 @@
 import { IDIOM_SYSTEM_RULE } from "./idioms";
 
-export const SYSTEM_VERSION = "v3.3";
+export const SYSTEM_VERSION = "v3.4";
 
 // 🔥 CRITICAL: Title Translation Rule (HIGHEST PRIORITY)
 export const TITLE_RULE = `[TIÊU ĐỀ]: Dòng 1 = Tiêu đề dịch. Format: "Chương [Số]: [Tên chương]" (Nếu có tên). CẤM xuống dòng, CẤM Hán tự.`;
@@ -10,8 +10,7 @@ export const CORE_RULES = `
 [ABSOLUTE STYLE CONTRACT]
 - [TIÊU ĐỀ]: Dòng 1 là Tiêu đề dịch ("Chương [Số]: [Tên chương]").
   + CẤM xuống dòng. CẤM Hán tự.
-  + PHẢI viết hoa chữ cái đầu câu (Sentence case).
-  + CẤM Title Case (VD: "Chuyển Đổi Tư Duy").
+  + PHẢI viết hoa chữ cái đầu câu (Sentence case). CẤM Title Case (VD: "Chuyển Đổi Tư Duy"). Tuy nhiên, BẮT BUỘC giữ nguyên viết hoa tên riêng nếu có trong tiêu đề.
   + CẤM VIẾT HOA TOÀN BỘ (VD: "CHUYỂN ĐỔI TƯ DUY").
   + ĐÚNG: "Chuyển đổi tư duy".
 - [VIẾT HOA]: BẮT BUỘC viết hoa chữ cái đầu tiên của MỌI câu và MỌI dòng mới (kể cả trong ngoặc []).
@@ -55,7 +54,10 @@ export const CORE_RULES = `
     - Chủ thể đã rõ từ ngữ cảnh chương
   + KHÔNG được tự ý thêm tên nhân vật chỉ để làm rõ chủ ngữ.
 
-- [XƯNG HÔ]: Trong thoại (我=Ta, 你=Ngươi). Độc thoại nội tâm dùng "Ta". CẤM: tôi, anh, em, mình (trong trần thuật).
+- [XƯNG HÔ]: 我=Ta, 你=Ngươi, 他=Hắn, 她=Nàng/Cô ấy, 它=Nó, 我们=Chúng ta/Bọn ta, 你们=Các ngươi/Bọn ngươi, 他们=Bọn hắn/Bọn họ, 她们=Các nàng/Bọn nàng, 它们=Bọn nó. Nội tâm dùng "Ta". CẤM: tôi, anh, em, mình (trần thuật).
+- [DANH XƯNG]: X家=X gia, X府=X phủ, X门=X môn, X宗=X tông, X派=X phái, X族=X tộc, X殿=X điện, X阁=X các. GIỮ NGUYÊN cấu trúc Hán Việt, KHÔNG dịch thoát.
+  + SAI: "nhà Trần", "cửa Thiên Kiếm", "phái Thanh Vân"
+  + ĐÚNG: "Trần gia", "Thiên Kiếm môn", "Thanh Vân phái"
 - [DẤU PHẨY]: CẤM dấu phẩy sau từ nối đầu câu: Nhưng, Tuy nhiên, Vì vậy...
 
 - STYLE: Dịch giả cao cấp. Thoát ý, mượt mà. Đại từ GIỮA CÂU viết thường (hắn/nàng/ta/ngươi). ĐẦU CÂU BẮT BUỘC viết hoa (Hắn/Nàng/Ta/Ngươi).
@@ -81,6 +83,51 @@ export const ALL_RULES = [
   CONSISTENCY_RULE, WESTERN_NAME_RULE, FLOW_RULE
 ];
 
+/**
+ * [FEW-SHOT PROTOCOL] - v2.0
+ * 5 structured examples covering all Flash failure modes.
+ * Each example targets a specific drift pattern: dialogue, narration (M/F), inner thought, blacklist.
+ */
+export const FEW_SHOT_PROTOCOL = `
+### VÍ DỤ DỊCH MẪU (BẮT BUỘC NỘI HOÁ):
+
+<example_1 type="đối_thoại">
+Gốc: "你以为我不敢动你？你太天真了。"
+Dịch: "Ngươi cho rằng ta không dám động vào ngươi sao? Ngươi quá ngây thơ rồi."
+SAI: "Cậu tưởng tôi không dám...", "Mày nghĩ tao..."
+</example_1>
+
+<example_2 type="trần_thuật_nam">
+Gốc: "他深吸了一口气，却怎么也掩饰不住眼中的惊恐。"
+Dịch: "Hắn hít sâu một hơi, nhưng thế nào cũng không che giấu được vẻ kinh hoàng trong mắt."
+SAI: "Anh ấy hít một hơi lạnh..." (CẤM: hơi lạnh, anh ấy)
+</example_2>
+
+<example_3 type="trần_thuật_nữ">
+Gốc: "她微微一笑，转身离去，只留下一句话。"
+Dịch: "Nàng khẽ mỉm cười, xoay người rời đi, chỉ để lại một câu."
+SAI: "Cô ấy mỉm cười rồi xoay người rời đi..."
+</example_3>
+
+<example_4 type="nội_tâm">
+Gốc: "我必须变得更强，否则连自己的命都保不住。"
+Dịch: "Ta phải trở nên mạnh hơn, nếu không ngay cả tính mạng cũng giữ không nổi."
+SAI: "Tôi phải mạnh lên, không thì mạng mình cũng không giữ được."
+</example_4>
+
+<example_5 type="chiến_đấu_blacklist">
+Gốc: "他不由得倒吸一口凉气，心中不禁一震。"
+Dịch: "Sắc mặt hắn chợt biến, trong lòng rúng động."
+SAI: "Hắn hít một hơi lạnh, trong lòng không khỏi chấn động." (CẤM: hít hơi lạnh, không khỏi)
+</example_5>
+
+<example_6 type="danh_xưng_gia_tộc">
+Gốc: "陈家和洛家争斗多年，廖家一直在暗中观望。"
+Dịch: "Trần gia và Lạc gia tranh đấu nhiều năm, Liêu gia vẫn luôn ngầm quan sát."
+SAI: "Nhà Trần và nhà Lạc...", "Gia tộc họ Trần..." (GIỮ: X gia, KHÔNG dịch thoát)
+</example_6>
+`;
+
 export function buildSystemInstruction(
   customInstruction?: string,
   glossaryContext?: string,
@@ -89,6 +136,7 @@ export function buildSystemInstruction(
   return [
     customInstruction || "Dịch giả tiểu thuyết cao cấp. Thoát ý, mượt mà.",
     CORE_RULES,
+    FEW_SHOT_PROTOCOL, // 🔥 Prime the model with examples early
     !isBatch && "- FORMAT: Dòng 1 là Tiêu đề, sau đó xuống dòng, các dòng sau là Nội dung. CẤM JSON/Giải thích.",
     ...ALL_RULES,
     glossaryContext, // 🔥 DEEP STRUCTURE CHANGE: Move glossary closer to the end for higher saliency

@@ -75,13 +75,13 @@ export async function withAdaptiveTokens<T>(
     const dynamicTokens = calculateDynamicTokens(config);
 
     let result = await apiCall(dynamicTokens);
-    let finishReason = extractFinishReason(result) || "STOP";
+    let finishReason = extractFinishReason(result) || "UNKNOWN";
 
     // If MAX_TOKENS hit and we haven't used max capacity yet, retry
     if (finishReason === "MAX_TOKENS" && dynamicTokens < config.maxTokens) {
         console.warn(`⚠️ [Adaptive Tokens] MAX_TOKENS hit, retrying with ${config.maxTokens} tokens...`);
         result = await apiCall(config.maxTokens);
-        finishReason = extractFinishReason(result) || "STOP";
+        finishReason = extractFinishReason(result) || "UNKNOWN";
 
         return {
             data: result,

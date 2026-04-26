@@ -143,7 +143,7 @@ export function extractVietnameseNamesFromText(
         VIET_NAME_REGEX.lastIndex = 0; // Reset regex state
 
         while ((match = VIET_NAME_REGEX.exec(para)) !== null) {
-            let matches = match[1].trim().split(/\s+/);
+            const matches = match[1].trim().split(/\s+/);
             
             // 1. Initial filter by length (2-4 words)
             if (matches.length < 2 || matches.length > 4) continue;
@@ -160,7 +160,7 @@ export function extractVietnameseNamesFromText(
                 }
             }
             
-            let name = matches.join(' ');
+            const name = matches.join(' ');
 
             // Final safety: if it's still just 2 words and the first is a stop-word, skip it
             if (matches.length < 2 || VN_STOP_WORDS.has(matches[0].toLowerCase())) continue;

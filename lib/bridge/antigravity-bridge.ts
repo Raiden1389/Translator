@@ -69,6 +69,16 @@ function generateJobId(): string {
 
 const FS_OPTS = { baseDir: BaseDirectory.AppData };
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isOutboxFileName(name: string, jobId: string): boolean {
+  const escaped = escapeRegExp(jobId);
+  return new RegExp(`^out_${escaped}_ch\\d+\\.json$`).test(name)
+    || new RegExp(`^ag_outbox_${escaped}(?:_ch\\d+)?\\.json$`).test(name);
+}
+
 async function ensureBridgeDir(): Promise<void> {
   if (!(await exists(BRIDGE_DIR, FS_OPTS))) {
     await mkdir(BRIDGE_DIR, { ...FS_OPTS, recursive: true });
@@ -87,11 +97,13 @@ export async function exportInbox(
 ): Promise<{ jobId: string; path: string; chapterCount: number }> {
   await ensureBridgeDir();
   const jobId = generateJobId();
+  const createdAt = new Date().toISOString();
 
-  const inbox: AgInbox = {
+  // Shared metadata (config, glossary, corrections)
+  const sharedMeta = {
     schemaVersion: SCHEMA_VERSION,
     jobId,
-    createdAt: new Date().toISOString(),
+    createdAt,
     workspaceId,
     config: { prompt, temperature },
     glossary: glossary.map(g => ({
@@ -107,17 +119,24 @@ export async function exportInbox(
       pattern: c.pattern,
       replace: c.replace,
     })),
-    chapters: chapters.map(c => ({
-      id: c.id!,
-      order: c.order,
-      title: c.title,
-      content: c.content_original,
-    })),
   };
 
-  // New naming: inbox_{shortId}.json
-  const filePath = `${BRIDGE_DIR}/inbox_${jobId}.json`;
-  await writeTextFile(filePath, JSON.stringify(inbox, null, 2), FS_OPTS);
+  // Write one file per chapter: inbox_{jobId}_ch{order}.json
+  let firstFilePath = "";
+  for (const ch of chapters) {
+    const inbox: AgInbox = {
+      ...sharedMeta,
+      chapters: [{
+        id: ch.id!,
+        order: ch.order,
+        title: ch.title,
+        content: ch.content_original,
+      }],
+    };
+    const filePath = `${BRIDGE_DIR}/inbox_${jobId}_ch${ch.order}.json`;
+    await writeTextFile(filePath, JSON.stringify(inbox, null, 2), FS_OPTS);
+    if (!firstFilePath) firstFilePath = filePath;
+  }
 
   // Log to history
   await logBridgeJob({
@@ -128,7 +147,7 @@ export async function exportInbox(
     chapterCount: chapters.length,
   });
 
-  return { jobId, path: filePath, chapterCount: chapters.length };
+  return { jobId, path: firstFilePath, chapterCount: chapters.length };
 }
 
 // ─── Import (Agent → App) ──────────────────────────────────────
@@ -145,10 +164,7 @@ export async function findOutboxFilesForJob(jobId: string): Promise<string[]> {
   if (!(await exists(BRIDGE_DIR, FS_OPTS))) return [];
   const entries = await readDir(BRIDGE_DIR, FS_OPTS);
   return entries
-    .filter(e => e.isFile && e.name.endsWith(".json") && (
-      e.name.startsWith(`out_${jobId}`) ||      // New: out_{id}_ch26.json
-      e.name.startsWith(`ag_outbox_${jobId}`)    // Legacy: ag_outbox_{uuid}_ch9938.json
-    ))
+    .filter(e => e.isFile && isOutboxFileName(e.name, jobId))
     .map(e => `${BRIDGE_DIR}/${e.name}`);
 }
 
@@ -168,17 +184,19 @@ export async function checkDoneSentinel(jobId: string): Promise<DoneSentinel | n
 export async function pollJobProgress(jobId: string, expectedCount: number): Promise<PollProgress> {
   const outFiles = await findOutboxFilesForJob(jobId);
   const done = await checkDoneSentinel(jobId);
-  const completedOrders = outFiles.map(f => {
+  const outFileOrders = outFiles.map(f => {
     const match = f.match(/_ch(\d+)\.json$/);
     return match ? parseInt(match[1]) : -1;
   }).filter(n => n >= 0);
+  const completedOrders = done?.completedChapters?.length ? done.completedChapters : outFileOrders;
 
   return {
     completed: completedOrders.length,
-    total: expectedCount,
+    total: done?.totalChapters || expectedCount,
     completedOrders,
-    // Done when sentinel exists OR all expected files are present
-    isDone: done !== null || completedOrders.length >= expectedCount,
+    // `done_` is the only completion signal. Outbox count is progress only;
+    // the agent writes QA before done, so importing early can skip QA fixes.
+    isDone: done !== null,
   };
 }
 
@@ -204,7 +222,7 @@ async function findLatestOutboxJobId(): Promise<string | null> {
   doneCandidates.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
   for (const candidate of doneCandidates) {
     const hasOutbox = entries.some(e =>
-      e.isFile && (e.name.startsWith(`out_${candidate.jobId}`) || e.name.startsWith(`ag_outbox_${candidate.jobId}`))
+      e.isFile && isOutboxFileName(e.name, candidate.jobId)
     );
     if (hasOutbox) return candidate.jobId;
   }
@@ -213,9 +231,9 @@ async function findLatestOutboxJobId(): Promise<string | null> {
   const outboxJobIds = new Set<string>();
   for (const e of entries) {
     if (!e.isFile || !e.name.endsWith(".json")) continue;
-    const newMatch = e.name.match(/^out_([a-f0-9]+)/);
+    const newMatch = e.name.match(/^out_([a-f0-9]+)_ch\d+\.json$/);
     if (newMatch) { outboxJobIds.add(newMatch[1]); continue; }
-    const legacyMatch = e.name.match(/^ag_outbox_([a-f0-9-]+)/);
+    const legacyMatch = e.name.match(/^ag_outbox_([a-f0-9-]+)(?:_ch\d+)?\.json$/);
     if (legacyMatch) outboxJobIds.add(legacyMatch[1]);
   }
   if (outboxJobIds.size === 0) return null;
@@ -224,9 +242,7 @@ async function findLatestOutboxJobId(): Promise<string | null> {
   let bestJobId = "";
   let bestCount = 0;
   for (const jid of outboxJobIds) {
-    const count = entries.filter(e => e.isFile && (
-      e.name.startsWith(`out_${jid}`) || e.name.startsWith(`ag_outbox_${jid}`)
-    )).length;
+    const count = entries.filter(e => e.isFile && isOutboxFileName(e.name, jid)).length;
     if (count > bestCount) { bestCount = count; bestJobId = jid; }
   }
   return bestJobId || null;
@@ -255,6 +271,7 @@ export async function importOutbox(
 
   // Merge results from all files
   const allResults: AgOutboxResult[] = [];
+  const importedChapterIds: number[] = [];
   let workspaceId = "";
 
   for (const filePath of outboxPaths) {
@@ -314,6 +331,11 @@ export async function importOutbox(
       result.errors.push(`Chapter ${r.id}: không tồn tại trong DB, bỏ qua`);
       continue;
     }
+    if (chapter.workspaceId !== currentWorkspaceId) {
+      result.skipped++;
+      result.errors.push(`Chapter ${r.id}: workspace mismatch, bỏ qua`);
+      continue;
+    }
 
     const wordCount = content.split(/\s+/).filter(Boolean).length;
 
@@ -325,6 +347,7 @@ export async function importOutbox(
       lastTranslatedAt: new Date(),
       translationModel: "antigravity-bridge",
     });
+    importedChapterIds.push(r.id);
     result.imported++;
     if (r.order !== undefined) {
       result.importedOrders.push(r.order);
@@ -333,9 +356,7 @@ export async function importOutbox(
 
   // Post-processing: Apply global corrections (Luyện Văn)
   if (result.imported > 0) {
-    const importedIds = allResults
-      .filter(r => (r.content || "").trim())
-      .map(r => r.id);
+    const importedIds = importedChapterIds;
     const corrected = await applyCorrectionsToChapters(importedIds);
     if (corrected > 0) {
       result.errors.push(`✅ Luyện Văn: đã sửa ${corrected}/${importedIds.length} chương`);
@@ -352,6 +373,7 @@ export async function importOutbox(
         if (hardFixes.length === 0) continue;
         const matchResult = allResults.find(r => (r.order ?? r.id) === chEntry.order);
         if (!matchResult) continue;
+        if (!importedChapterIds.includes(matchResult.id)) continue;
         const chapter = await db.chapters.get(matchResult.id);
         if (!chapter?.content_translated) continue;
         const fixed = applyQAHardFixes(chapter.content_translated, hardFixes);
@@ -364,7 +386,7 @@ export async function importOutbox(
 
     // Update history with import result
     const importedOrders = allResults
-      .filter(r => (r.content || "").trim())
+      .filter(r => importedChapterIds.includes(r.id))
       .map(r => r.order ?? r.id);
     await updateBridgeJobStatus(actualJobId, {
       status: (expectedCount && result.imported < expectedCount) ? 'partial' : 'imported',
@@ -393,13 +415,14 @@ export async function importOutbox(
 async function cleanupJobFiles(jobId: string): Promise<void> {
   try {
     const entries = await readDir(BRIDGE_DIR, FS_OPTS);
+    const inboxPerChapterRe = new RegExp(`^inbox_${escapeRegExp(jobId)}_ch\\d+\\.json$`);
     const jobFiles = entries.filter(e => e.isFile && e.name.endsWith(".json") && (
-      e.name === `inbox_${jobId}.json` ||          // New inbox
+      e.name === `inbox_${jobId}.json` ||          // Legacy single inbox
+      inboxPerChapterRe.test(e.name) ||            // Per-chapter inbox
       e.name === `ag_inbox_${jobId}.json` ||        // Legacy inbox
       e.name === `done_${jobId}.json` ||            // Done sentinel
       e.name === `qa_${jobId}.json` ||              // QA report
-      e.name.startsWith(`out_${jobId}`) ||          // New outbox
-      e.name.startsWith(`ag_outbox_${jobId}`)       // Legacy outbox
+      isOutboxFileName(e.name, jobId)
     ));
     const failed: string[] = [];
     for (const f of jobFiles) {

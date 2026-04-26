@@ -1,7 +1,7 @@
 export const AI_MODELS = [
     { value: "gemini-3-flash-preview", label: "Gemini 3.0 Flash (Paid Tier)", inputPrice: 0.50, outputPrice: 3.00 },
     { value: "gemini-3-pro-preview", label: "Gemini 3.0 Pro (Paid Tier)", inputPrice: 1.25, outputPrice: 5.0 },
-    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (GA)", inputPrice: 0.10, outputPrice: 0.40 },  // Non-thinking pricing (thinkingBudget: 0)
+    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (GA)", inputPrice: 0.30, outputPrice: 2.50 },
     { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", inputPrice: 0.10, outputPrice: 0.40 },
     { value: "antigravity-bridge", label: "Antigravity Bridge (Free - Agent Powered)", inputPrice: 0, outputPrice: 0 },
 ];

@@ -143,8 +143,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         // 3.5 Route: Antigravity Bridge (file-based fallback)
         if (featureFlags.antigravityBridge && currentSettings.model === 'antigravity-bridge') {
             try {
-                const { exportInbox } = await import('@/lib/bridge/antigravity-bridge');
-
                 // Build full system prompt with ALL translation rules from constants.ts
                 const glossaryText = (sharedGlossary as DictionaryEntry[]).map(g => `${g.original}=${g.translated}`).join(', ');
                 const fullPrompt = buildSystemInstruction(
@@ -152,7 +150,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     glossaryText ? `[GLOSSARY]: ${glossaryText}` : undefined,
                 );
 
-                const { jobId, path, chapterCount } = await exportInbox(
+                await bridge.exportForBridge(
                     workspaceId,
                     chaptersToTranslate,
                     sharedGlossary as DictionaryEntry[],
@@ -160,7 +158,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
                     fullPrompt,
                     0.1,
                 );
-                bridge.setBridgeResult(jobId, path, chapterCount);
             } catch (err) {
                 progress.addNotification({ type: 'error', message: `Bridge export failed: ${err instanceof Error ? err.message : String(err)}` });
             }

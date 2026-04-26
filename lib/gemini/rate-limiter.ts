@@ -12,22 +12,23 @@
 
 import { db } from "../db";
 
-// Rate limit configuration
+// Rate limit configuration (tuned for paid-tier / Ultra accounts)
 export const RATE_LIMITS = {
-  // Conservative limits (80% of estimated thresholds)
-  maxRequestsPerMinute: 10,
-  maxRequestsPerHour: 80,
-  maxRequestsPerDay: 1200,
-  maxTokensPerMinute: 25000,
-  maxTokensPerDay: 800000,
+  // Generous limits for paid accounts
+  maxRequestsPerMinute: 30,
+  maxRequestsPerHour: 500,
+  maxRequestsPerDay: 5000,
+  maxTokensPerMinute: 100000,
+  maxTokensPerDay: 5000000,
 
-  // Delays (milliseconds)
-  minDelayBetweenRequests: 3000,  // 3s
-  maxDelayBetweenRequests: 8000,  // 8s
-  burstCooldown: 60000,           // 1 min
-  idleBreakInterval: 20,          // Every 20 requests
-  idleBreakDuration: 45000,       // 30-60s break
+  // Minimal delays — just enough to avoid Google's abuse detection
+  minDelayBetweenRequests: 300,   // 0.3s
+  maxDelayBetweenRequests: 800,   // 0.8s
+  burstCooldown: 5000,            // 5s (was 60s)
+  idleBreakInterval: 100,         // Every 100 requests (was 20)
+  idleBreakDuration: 5000,        // 5s break (was 45s)
 };
+
 
 export interface UsageMetrics {
   // Counters
@@ -41,6 +42,8 @@ export interface UsageMetrics {
   // Timestamps
   lastRequestTime: number;
   lastResetTime: number;
+  minuteWindowStart: number;  // Start of current 1-min sliding window
+  hourWindowStart: number;    // Start of current 1-hour sliding window
 
   // Patterns
   consecutiveRequests: number;
@@ -62,6 +65,7 @@ export class RateLimiter {
   }
 
   private getDefaultMetrics(): UsageMetrics {
+    const now = Date.now();
     return {
       requestsThisMinute: 0,
       tokensThisMinute: 0,
@@ -70,7 +74,9 @@ export class RateLimiter {
       requestsToday: 0,
       tokensToday: 0,
       lastRequestTime: 0,
-      lastResetTime: Date.now(),
+      lastResetTime: now,
+      minuteWindowStart: now,
+      hourWindowStart: now,
       consecutiveRequests: 0,
       burstCount: 0,
       throttleCount: 0,
@@ -141,14 +147,42 @@ export class RateLimiter {
     const oneMinute = 60 * 1000;
     const oneHour = 60 * 60 * 1000;
 
-    if (now - this.metrics.lastRequestTime > oneMinute) {
-      this.metrics.requestsThisMinute = 0;
-      this.metrics.tokensThisMinute = 0;
+    // Migration: old data has no minuteWindowStart/hourWindowStart
+    // Derive from lastRequestTime so stale counters get properly reset
+    if (!this.metrics.minuteWindowStart) {
+      // If last request was > 1 min ago (or never), window is already expired → reset now
+      const elapsed = this.metrics.lastRequestTime > 0 ? now - this.metrics.lastRequestTime : oneMinute + 1;
+      if (elapsed >= oneMinute) {
+        this.metrics.requestsThisMinute = 0;
+        this.metrics.tokensThisMinute = 0;
+        this.metrics.minuteWindowStart = now;
+      } else {
+        // Last request was recent — window started at lastRequestTime
+        this.metrics.minuteWindowStart = this.metrics.lastRequestTime;
+      }
     }
 
-    if (now - this.metrics.lastRequestTime > oneHour) {
+    if (!this.metrics.hourWindowStart) {
+      const elapsed = this.metrics.lastRequestTime > 0 ? now - this.metrics.lastRequestTime : oneHour + 1;
+      if (elapsed >= oneHour) {
+        this.metrics.requestsThisHour = 0;
+        this.metrics.tokensThisHour = 0;
+        this.metrics.hourWindowStart = now;
+      } else {
+        this.metrics.hourWindowStart = this.metrics.lastRequestTime;
+      }
+    }
+
+    if (now - this.metrics.minuteWindowStart >= oneMinute) {
+      this.metrics.requestsThisMinute = 0;
+      this.metrics.tokensThisMinute = 0;
+      this.metrics.minuteWindowStart = now;
+    }
+
+    if (now - this.metrics.hourWindowStart >= oneHour) {
       this.metrics.requestsThisHour = 0;
       this.metrics.tokensThisHour = 0;
+      this.metrics.hourWindowStart = now;
     }
   }
 
@@ -184,20 +218,24 @@ export class RateLimiter {
       };
     }
 
-    // Check minute limits
+    // Check minute limits — compute exact remaining wait from window start
+    const now = Date.now();
+    const msIntoMinute = now - (this.metrics.minuteWindowStart || now);
+    const msUntilMinuteReset = Math.max(0, 60_000 - msIntoMinute) + 500; // +500ms buffer
+
     if (this.metrics.requestsThisMinute >= RATE_LIMITS.maxRequestsPerMinute) {
       return {
         allowed: false,
-        reason: `Per-minute request limit exceeded (${RATE_LIMITS.maxRequestsPerMinute})`,
-        waitTime: 60000 // Wait 1 minute
+        reason: `RPM limit (${this.metrics.requestsThisMinute}/${RATE_LIMITS.maxRequestsPerMinute} req/min)`,
+        waitTime: msUntilMinuteReset
       };
     }
 
     if (this.metrics.tokensThisMinute + estimatedTokens > RATE_LIMITS.maxTokensPerMinute) {
       return {
         allowed: false,
-        reason: `Per-minute token limit exceeded (${RATE_LIMITS.maxTokensPerMinute})`,
-        waitTime: 60000
+        reason: `TPM limit (${Math.round(this.metrics.tokensThisMinute / 1000)}K/${RATE_LIMITS.maxTokensPerMinute / 1000}K tokens/min)`,
+        waitTime: msUntilMinuteReset
       };
     }
 
@@ -279,6 +317,9 @@ export class RateLimiter {
     this.metrics.tokensToday += tokens;
 
     this.metrics.lastRequestTime = now;
+    // Initialize window starts if missing (migration from old data)
+    if (!this.metrics.minuteWindowStart) this.metrics.minuteWindowStart = now;
+    if (!this.metrics.hourWindowStart) this.metrics.hourWindowStart = now;
     this.metrics.consecutiveRequests++;
 
     // Update status

@@ -93,9 +93,7 @@ export interface ReviewData {
 /**
  * Extended Chapter type with additional properties
  */
-export interface ExtendedChapter extends Chapter {
-    // Add any additional properties that aren't in the base Chapter type
-}
+export type ExtendedChapter = Chapter;
 
 /**
  * Log callback function type

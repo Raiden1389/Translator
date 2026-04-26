@@ -31,6 +31,7 @@ import { DEFAULT_TRANSLATION_CONFIG } from "./TranslateConfigDialog";
 import { AuditResultDialog } from "./AuditResultDialog";
 import { auditTranslation, type AuditResult } from "@/lib/gemini/translation/audit";
 import { migrateModelId, DEFAULT_MODEL } from "@/lib/ai-models";
+import { cleanWorkspaceBoilerplate } from "@/lib/services/clean.service";
 
 interface ChapterListProps {
     workspaceId: string;
@@ -242,6 +243,34 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         setAuditDialogOpen(true);
     };
 
+    const handleCleanBoilerplate = async () => {
+        const numId = parseInt(workspaceId);
+        if (isNaN(numId)) return;
+
+        const confirmed = confirm(`Xóa rác web (navigation, disclaimer, boilerplate) khỏi tất cả ${chapters?.length || 0} chương?\n\nThao tác này sẽ sửa content gốc (Trung) trong database.`);
+        if (!confirmed) return;
+
+        try {
+            const result = await cleanWorkspaceBoilerplate(numId, (current, total, title) => {
+                toast.loading(`Đang xử lý ${current}/${total}: ${title}`, { id: 'clean-boilerplate' });
+            });
+
+            toast.dismiss('clean-boilerplate');
+
+            if (result.cleaned > 0) {
+                toast.success(`Đã xóa rác ${result.cleaned}/${result.total} chương`, {
+                    description: result.details.slice(0, 5).map(d => `${d.title}: ${d.junkFound.length} mẫu rác`).join('\n'),
+                    duration: 8000,
+                });
+            } else {
+                toast.info('Không tìm thấy rác web trong các chương');
+            }
+        } catch (err) {
+            toast.dismiss('clean-boilerplate');
+            toast.error(`Lỗi: ${err instanceof Error ? err.message : 'Unknown'}`);
+        }
+    };
+
     if (!chapters) return <div className="p-10 text-center text-white/50 animate-pulse">Loading workspace...</div>;
 
     return (
@@ -280,6 +309,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 onFixTitleCase={handleFixTitleCase}
                 onAuditQuality={handleAuditQuality}
                 onBridgeImport={bridge.reopenForImport}
+                onCleanBoilerplate={handleCleanBoilerplate}
             />
 
             {/* Main Content */}

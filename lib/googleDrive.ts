@@ -62,7 +62,7 @@ export class GoogleDriveService {
         }
 
         // 1. Start local server in Rust
-        const { port, state } = await invoke<{ port: number, state: string }>("start_auth_server");
+        const { port, state } = await invoke<{ port: number, state: string }>("start_auth_server", { port: null });
         // Use localhost if port 3000 (standard Web App), else 127.0.0.1 (Loopback/Desktop)
         const redirectUri = port === 3000 ? `http://localhost:3000` : `http://127.0.0.1:${port}`;
 

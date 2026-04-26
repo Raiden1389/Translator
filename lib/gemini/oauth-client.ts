@@ -7,17 +7,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { db } from "../db";
 
-// OAuth Configuration (using Google's public OAuth client for Gemini CLI)
-// NOTE: This may be blocked by Google. For production use, create your own OAuth client.
+// OAuth Configuration — secrets loaded from .env.local (gitignored)
 const OAUTH_CONFIG = {
-  clientId: "77185425430.apps.googleusercontent.com", // Gemini CLI public client
-  clientSecret: "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", // Public secret (safe to expose)
+  clientId: process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID || "",
+  clientSecret: process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_SECRET || "",
   redirectUri: "http://localhost:11451",
   scopes: [
-    // Only use generative-language scope (cloud-platform requires verification)
+    // Official Gemini API scope (requires registration in Cloud Console)
     "https://www.googleapis.com/auth/generative-language.retriever",
-    "https://www.googleapis.com/auth/userinfo.email", // For user info
-    "https://www.googleapis.com/auth/userinfo.profile" // For avatar
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "openid"
   ],
   authEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
   tokenEndpoint: "https://oauth2.googleapis.com/token"
@@ -43,82 +43,68 @@ export interface OAuthAccount {
 /**
  * Step 1: Generate OAuth authorization URL
  */
-export function getAuthorizationUrl(): string {
-  const params = new URLSearchParams({
+export function getAuthorizationUrl(state?: string): string {
+  const params: Record<string, string> = {
     client_id: OAUTH_CONFIG.clientId,
     redirect_uri: OAUTH_CONFIG.redirectUri,
     response_type: "code",
     scope: OAUTH_CONFIG.scopes.join(" "),
     access_type: "offline", // Get refresh token
     prompt: "consent" // Force consent screen to ensure refresh token
-  });
+  };
 
-  return `${OAUTH_CONFIG.authEndpoint}?${params.toString()}`;
+  if (state) {
+    params.state = state;
+  }
+
+  const searchParams = new URLSearchParams(params);
+  return `${OAUTH_CONFIG.authEndpoint}?${searchParams.toString()}`;
 }
 
 /**
  * Step 2: Exchange authorization code for tokens
  */
 export async function exchangeCodeForTokens(authCode: string): Promise<OAuthCredentials> {
-  const response = await fetch(OAUTH_CONFIG.tokenEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
+  try {
+    const data = await invoke<any>("exchange_code_native", {
       code: authCode,
-      client_id: OAUTH_CONFIG.clientId,
-      client_secret: OAUTH_CONFIG.clientSecret,
-      redirect_uri: OAUTH_CONFIG.redirectUri,
-      grant_type: "authorization_code"
-    })
-  });
+      clientId: OAUTH_CONFIG.clientId,
+      clientSecret: OAUTH_CONFIG.clientSecret,
+      redirectUri: OAUTH_CONFIG.redirectUri
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`OAuth token exchange failed: ${error.error_description || error.error}`);
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + (data.expires_in * 1000),
+      token_type: data.token_type
+    };
+  } catch (err) {
+    throw new Error(`OAuth token exchange failed: ${err}`);
   }
-
-  const data = await response.json();
-
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    expires_at: Date.now() + (data.expires_in * 1000),
-    token_type: data.token_type
-  };
 }
 
 /**
  * Step 3: Refresh access token when expired
+ * Uses Tauri native request to bypass CSP restrictions
  */
 export async function refreshAccessToken(refreshToken: string): Promise<OAuthCredentials> {
-  const response = await fetch(OAUTH_CONFIG.tokenEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      refresh_token: refreshToken,
-      client_id: OAUTH_CONFIG.clientId,
-      client_secret: OAUTH_CONFIG.clientSecret,
-      grant_type: "refresh_token"
-    })
-  });
+  try {
+    const data = await invoke<any>("refresh_token_native", {
+      refreshToken,
+      clientId: OAUTH_CONFIG.clientId,
+      clientSecret: OAUTH_CONFIG.clientSecret
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Token refresh failed: ${error.error_description || error.error}`);
+    return {
+      access_token: data.access_token,
+      refresh_token: refreshToken, // Keep existing refresh token
+      expires_at: Date.now() + (data.expires_in * 1000),
+      token_type: data.token_type
+    };
+  } catch (err) {
+    throw new Error(`Token refresh failed: ${err}`);
   }
-
-  const data = await response.json();
-
-  return {
-    access_token: data.access_token,
-    refresh_token: refreshToken, // Keep existing refresh token
-    expires_at: Date.now() + (data.expires_in * 1000),
-    token_type: data.token_type
-  };
 }
 
 /**
@@ -145,24 +131,84 @@ export async function loadOAuthCredentials(): Promise<OAuthCredentials | null> {
   }
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
 /**
  * Step 6: Get valid access token (auto-refresh if needed)
+ * Uses a singleton promise to prevent concurrent refresh requests
  */
 export async function getValidAccessToken(): Promise<string | null> {
+  // If a refresh is already in progress, wait for it
+  if (refreshPromise) {
+    console.log("[OAuth] Waiting for concurrent token refresh...");
+    return refreshPromise;
+  }
+
   const credentials = await loadOAuthCredentials();
   if (!credentials) return null;
 
   // Check if token is expired (with 5min buffer)
   const isExpired = Date.now() >= (credentials.expires_at - 5 * 60 * 1000);
 
-  if (isExpired && credentials.refresh_token) {
-    // Refresh token
-    const newCredentials = await refreshAccessToken(credentials.refresh_token);
-    await saveOAuthCredentials(newCredentials);
-    return newCredentials.access_token;
+  if (!isExpired) {
+    return credentials.access_token;
   }
 
-  return credentials.access_token;
+  // Token is expired, start refresh process
+  if (!credentials.refresh_token) {
+    console.warn("[OAuth] Token expired, no refresh_token available. Need re-login.");
+    return null;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      console.log("[OAuth] Token expired, refreshing...");
+      const newCredentials = await refreshAccessToken(credentials.refresh_token);
+      
+      // Safety check: if backend didn't return a new refresh token, keep the old one
+      if (!newCredentials.refresh_token) {
+        newCredentials.refresh_token = credentials.refresh_token;
+      }
+
+      await saveOAuthCredentials(newCredentials);
+      await syncCredentialsToAccountList(newCredentials);
+      
+      console.log("[OAuth] Token refreshed successfully. Expires in", Math.round((newCredentials.expires_at - Date.now()) / 60000), "min");
+      return newCredentials.access_token;
+    } catch (err) {
+      console.error("[OAuth] Token refresh failed:", err);
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+/**
+ * Step 6b: Sync refreshed credentials back to account list
+ * Prevents stale credentials when account list is reloaded
+ */
+async function syncCredentialsToAccountList(newCredentials: OAuthCredentials): Promise<void> {
+  try {
+    const activeAccount = await getActiveAccount();
+    if (!activeAccount) return;
+
+    const accounts = await listAccounts();
+    const updatedAccounts = accounts.map(a =>
+      a.id === activeAccount.id
+        ? { ...a, credentials: newCredentials, lastUsed: Date.now() }
+        : a
+    );
+
+    await db.settings.put({
+      key: "geminiOAuthAccounts",
+      value: JSON.stringify(updatedAccounts)
+    });
+  } catch (err) {
+    console.warn("[OAuth] Failed to sync credentials to account list:", err);
+  }
 }
 
 /**

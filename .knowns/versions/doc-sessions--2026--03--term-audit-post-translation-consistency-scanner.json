@@ -1,0 +1,47 @@
+{
+  "docPath": "sessions/2026/03/term-audit-post-translation-consistency-scanner",
+  "currentVersion": 1,
+  "versions": [
+    {
+      "id": "v1",
+      "docPath": "sessions/2026/03/term-audit-post-translation-consistency-scanner",
+      "version": 1,
+      "timestamp": "2026-03-24T06:25:52.3698746Z",
+      "changes": [
+        {
+          "field": "title",
+          "oldValue": null,
+          "newValue": "Term Audit — Post-Translation Consistency Scanner"
+        },
+        {
+          "field": "description",
+          "oldValue": null,
+          "newValue": "Implementation guide for Term Audit feature: anchor-first extraction, bucket clustering, autofix pipeline, and UI integration."
+        },
+        {
+          "field": "tags",
+          "oldValue": null,
+          "newValue": [
+            "term-audit",
+            "clustering",
+            "consistency",
+            "feature",
+            "v2.11.0"
+          ]
+        }
+      ],
+      "snapshot": {
+        "content": "# Term Audit — Post-Translation Consistency Scanner\n\n\u003e Session: 2026-03-24 | Version: 2.11.0 | Status: Implemented (feature flag OFF)\n\n## Objective\n\nPhát hiện và sửa các biến thể tiếng Việt của cùng một thuật ngữ trong `content_translated`, không cần source Chinese. Ví dụ:\n- `suy diễn giả` ↔ `người suy diễn` ↔ `tên suy diễn`\n- `kẻ tuần đêm` ↔ `người gác đêm`\n- `nghi thức thăng hoa` ↔ `nghi lễ thăng hoa`\n\n## Architecture\n\n```\ncontent_translated\n      ↓\n[Extraction] anchor-first (giả/sư/người/kẻ...)\n      ↓\n[Normalization] NFC + ascii-fold + rootHint\n      ↓\n[Clustering] bucket-by-rootHint → greedy merge (score ≥ 0.72)\n      ↓\n[Review Zone] 0.60–0.71 → show, no auto-merge\n      ↓\n[Autofix] confirmed clusters → sweepSingleRule() → CorrectionEntry\n```\n\n## Files\n\n| File | Role |\n|------|------|\n| `lib/services/term-audit.types.ts` | Types: TermCluster, TermOccurrence, ClusterMode |\n| `lib/services/term-audit.extraction.ts` | Anchor-first extractor |\n| `lib/services/term-audit.normalization.ts` | NFC + ascii-fold + rootHint |\n| `lib/services/term-audit.clustering.ts` | Bucket+greedy+guard |\n| `lib/services/term-audit.autofix.ts` | sweepSingleRule + 3 guards |\n| `lib/services/term-audit.service.ts` | Orchestrator |\n| `hooks/useTermAudit.ts` | React hook state machine |\n| `components/.../TermClusterCard.tsx` | Cluster card UI |\n| `components/.../TermAuditModule.tsx` | Module UI |\n| `__tests__/term-audit.test.ts` | 16 unit tests |\n\n## Key Design Decisions\n\n### 1. Anchor-first Extraction (vs sliding window)\n- **Lý do:** Vietnamese novel text tạo quá nhiều n-gram rác với sliding window\n- **Cách:** Tìm anchor token trước (hard: giả/sư/tông/môn/phái; soft: người/kẻ/tên), expand trái/phải theo pattern\n- **Guard:** Soft wrapper chỉ valid nếu tail có ≥1 content token sau khi strip stopwords\n\n### 2. Cluster Modes\n- `auto`: Confidence ≥ 0.72 — merge tự động, user chọn canonical\n- `review`: Confidence 0.60–0.71 — hiển thị nhưng KHÔNG merge\n- `protected-related`: Term đã có trong Glossary/Correction — chỉ show, không touch\n\n### 3. Canonical Guard (no chain-merge)\n- Canonical của cluster A không được là variant của cluster B\n- Prevents: A~B mạnh, B~C → A~C merge không mong muốn\n\n### 4. scanRunId Guard\n- `confirmed` flag bị reset khi rescan\n- Prevents: apply nhầm cluster đã biến dạng sau lần rescan mới\n\n### 5. Autofix Guards (3 bắt buộc)\n- `cluster.confirmed === true`\n- `cluster.variants.length \u003e= 2`  \n- `cluster.scanRunId === currentScanRunId`\n\n## Enable Feature\n\n```typescript\n// lib/featureFlags.ts\ntermAudit: true  // Bật Term Audit tab trong Intelligence Hub\n```\n\n## Rollback\n\n```bash\n# Option 1: instant\nfeatureFlags.termAudit = false\n\n# Option 2: full removal\nrm lib/services/term-audit.*\nrm hooks/useTermAudit.ts\nrm components/workspace/intelligence/TermCluster*.tsx\nrm components/workspace/intelligence/TermAuditModule.tsx\n# Revert IntelligenceHub.tsx changes\n```\n\n## Test Coverage\n\n16 unit tests in `__tests__/term-audit.test.ts`:\n- Normalization (NFC, ascii-fold, rootHint)\n- Levenshtein distance\n- Tokenization + stopword filtering\n- Cluster formation (merge / no-merge / review zone)\n- Canonical guard (no chain-merge)\n",
+        "description": "Implementation guide for Term Audit feature: anchor-first extraction, bucket clustering, autofix pipeline, and UI integration.",
+        "tags": [
+          "term-audit",
+          "clustering",
+          "consistency",
+          "feature",
+          "v2.11.0"
+        ],
+        "title": "Term Audit — Post-Translation Consistency Scanner"
+      }
+    }
+  ]
+}

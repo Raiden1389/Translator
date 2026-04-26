@@ -9,13 +9,15 @@ pub struct AuthServerInfo {
 }
 
 #[tauri::command]
-pub fn start_auth_server(app: AppHandle) -> Result<AuthServerInfo, String> {
+pub fn start_auth_server(app: AppHandle, port: Option<u16>) -> Result<AuthServerInfo, String> {
     let state = uuid::Uuid::new_v4().to_string();
     let state_clone = state.clone();
 
-    // Attempt to bind to a random free port
-    // Attempt to bind to fixed port 3000 (for localhost:3000 redirect match), else random
-    let server = match Server::http("127.0.0.1:3000") {
+    let bind_port = port.unwrap_or(3000);
+    let bind_addr = format!("127.0.0.1:{}", bind_port);
+
+    // Attempt to bind to the specified port
+    let server = match Server::http(&bind_addr) {
         Ok(s) => s,
         Err(_) => Server::http("127.0.0.1:0").map_err(|e| format!("Failed to start server: {}", e))?,
     };
@@ -80,22 +82,28 @@ pub fn start_auth_server(app: AppHandle) -> Result<AuthServerInfo, String> {
                         <p id="desc">Vui lòng đợi giây lát để ứng dụng nhận token.</p>
                     </div>
                     <script>
-                        // Captured Google's Auth Fragment
+                        // Captured Google's Auth Fragment or Code
                         const hash = window.location.hash;
                         const urlParams = new URLSearchParams(window.location.search);
                         const state = urlParams.get('state');
+                        const code = urlParams.get('code');
 
-                        if (hash && hash.includes('access_token')) {
-                            // Forward the state we received from Google back to our server
+                        if ((hash && hash.includes('access_token')) || code) {
+                            // Forward everything we received back to our server
+                            const body = code ? window.location.search : hash;
+                            
                             fetch(`/token?state=${state}`, {
                                 method: 'POST',
-                                body: hash
+                                body: body
+                            }).then(() => {
+                                document.getElementById('status').innerText = 'Kết nối thành công!';
+                                document.getElementById('desc').innerText = 'Dữ liệu đã được gửi về ứng dụng. Bạn có thể đóng cửa sổ này.';
                             }).catch(err => {
                                 document.getElementById('status').innerText = 'Lỗi kết nối';
-                                document.getElementById('desc').innerText = 'Không thể gửi token về ứng dụng: ' + err;
+                                document.getElementById('desc').innerText = 'Không thể gửi dữ liệu về ứng dụng: ' + err;
                             });
                         } else {
-                            document.getElementById('status').innerText = 'Không tìm thấy Token';
+                            document.getElementById('status').innerText = 'Không tìm thấy Token/Code';
                             document.getElementById('desc').innerText = 'Vui lòng thực hiện lại quy trình đăng nhập.';
                             document.getElementById('spinner').style.display = 'none';
                         }
@@ -111,4 +119,90 @@ pub fn start_auth_server(app: AppHandle) -> Result<AuthServerInfo, String> {
     });
 
     Ok(AuthServerInfo { port, state })
+}
+
+#[tauri::command]
+pub async fn exchange_code_native(
+    code: String,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+
+    // Step 1: Exchange code for tokens
+    let params = [
+        ("code", code),
+        ("client_id", client_id),
+        ("client_secret", client_secret),
+        ("redirect_uri", redirect_uri),
+        ("grant_type", "authorization_code".to_string()),
+    ];
+
+    let res = client
+        .post("https://oauth2.googleapis.com/token")
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| format!("Token request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        let err_body = res.text().await.unwrap_or_default();
+        return Err(format!("Token exchange failed: {}", err_body));
+    }
+
+    let mut token_data = res.json::<serde_json::Value>().await
+        .map_err(|e| format!("Token parse failed: {}", e))?;
+
+    // Step 2: Use access_token to fetch user info
+    if let Some(access_token) = token_data.get("access_token").and_then(|v| v.as_str()) {
+        let user_res = client
+            .get("https://www.googleapis.com/oauth2/v2/userinfo")
+            .header("Authorization", format!("Bearer {}", access_token))
+            .send()
+            .await;
+
+        if let Ok(user_response) = user_res {
+            if user_response.status().is_success() {
+                if let Ok(user_info) = user_response.json::<serde_json::Value>().await {
+                    token_data["user_info"] = user_info;
+                }
+            }
+        }
+    }
+
+    Ok(token_data)
+}
+
+#[tauri::command]
+pub async fn refresh_token_native(
+    refresh_token: String,
+    client_id: String,
+    client_secret: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+
+    let params = [
+        ("refresh_token", refresh_token),
+        ("client_id", client_id),
+        ("client_secret", client_secret),
+        ("grant_type", "refresh_token".to_string()),
+    ];
+
+    let res = client
+        .post("https://oauth2.googleapis.com/token")
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| format!("Token refresh request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        let err_body = res.text().await.unwrap_or_default();
+        return Err(format!("Token refresh failed: {}", err_body));
+    }
+
+    let token_data = res.json::<serde_json::Value>().await
+        .map_err(|e| format!("Token parse failed: {}", e))?;
+
+    Ok(token_data)
 }

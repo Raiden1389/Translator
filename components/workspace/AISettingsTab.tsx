@@ -17,6 +17,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { GeminiOAuthSettings } from "@/components/settings/GeminiOAuthSettings";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 
+function maskKeyTail(key: string) {
+    const trimmed = key.trim();
+    if (!trimmed) return "";
+    if (trimmed.length <= 4) return `••••${trimmed}`;
+    return `••••${trimmed.slice(-4)}`;
+}
+
 export default function AISettingsTab() {
 
     const { state, actions } = useAISettings();
@@ -31,6 +38,7 @@ export default function AISettingsTab() {
         handleSaveAll, handleLoadFromBackend, handleFetchModels,
         handleCheckAllKeys
     } = actions;
+    const activePoolKeys = poolKeys.split(/[\n,;]+/).map((key) => key.trim()).filter((key) => key.length > 10);
 
     return (
         <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -73,6 +81,11 @@ export default function AISettingsTab() {
                                     )}
                                 </div>
                             </div>
+                            {primaryKey && (
+                                <p className="text-[11px] text-muted-foreground font-mono">
+                                    Đang dùng: <span className="font-bold text-foreground">{maskKeyTail(primaryKey)}</span>
+                                </p>
+                            )}
                             <p className="text-[10px] text-muted-foreground italic">Phím tắt: Bấm Refresh bên dưới để cập nhật danh sách model sau khi dán key.</p>
                         </div>
 
@@ -126,7 +139,7 @@ export default function AISettingsTab() {
                                 Kho Key dự phòng (Pool)
                             </CardTitle>
                             <div className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-lg border border-primary/20">
-                                {poolKeys.split(/[\n,;]+/).filter(k => k.trim().length > 10).length} KEYS ACTIVE
+                                {activePoolKeys.length} KEYS ACTIVE
                             </div>
                         </div>
                     </CardHeader>
@@ -137,6 +150,18 @@ export default function AISettingsTab() {
                             onChange={(e) => setPoolKeys(e.target.value)}
                             className="bg-muted/30 border-border/50 text-foreground focus-visible:ring-primary font-mono text-xs h-[120px] resize-none px-4 py-3"
                         />
+                        {activePoolKeys.length > 0 && (
+                            <div className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3 space-y-1.5">
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Preview key pool</div>
+                                <div className="space-y-1">
+                                    {activePoolKeys.map((key, index) => (
+                                        <div key={`${key}-${index}`} className="text-[11px] font-mono text-muted-foreground">
+                                            Key {index + 1}: <span className="font-bold text-foreground">{maskKeyTail(key)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         <div className="flex items-start gap-3 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
                             <div className="bg-amber-500/20 p-1.5 rounded-lg">
                                 <ShieldCheck className="h-4 w-4 text-amber-500" />
@@ -174,7 +199,7 @@ export default function AISettingsTab() {
                                                         k.status === 'invalid' ? "bg-rose-500" :
                                                             "bg-amber-500 animate-pulse"
                                                 )} />
-                                                <span className="font-mono text-[10px] text-muted-foreground truncate">{k.key.substring(0, 15)}...</span>
+                                                <span className="font-mono text-[10px] text-muted-foreground truncate">{maskKeyTail(k.key)}</span>
                                             </div>
                                             <div className="shrink-0">
                                                 {k.status === 'valid' ? (

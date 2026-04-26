@@ -186,6 +186,7 @@ export function ChapterListDialogs({
           progress={bridge.progress}
           missingInfo={bridge.missingInfo}
           importResult={bridge.importResult}
+          onReExportMissing={(missingOrders) => bridge.reExportMissing(workspaceId, missingOrders)}
           workspaceId={workspaceId}
         />
       )}

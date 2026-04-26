@@ -13,7 +13,7 @@ const VN_LOWER = 'a-zđáàảãạăằắẳẵặâầấẩẫậéèẻẽ�
 
 // Pre-compiled regexes using complete Vietnamese char classes
 const ALL_CAPS_RE = new RegExp(`^Chương\\s+\\d+:\\s+[${VN_UPPER}\\s!,.]+$`);
-const TITLE_CASE_RE = new RegExp(`:\\s*(?:[${VN_UPPER}][${VN_LOWER}]+\\s+){2,}`);
+const TITLE_CASE_RE = new RegExp(`:\\s*(?:[${VN_UPPER}][${VN_LOWER}]+\\s+){4,}`);
 
 /**
  * Normalize title to sentence case

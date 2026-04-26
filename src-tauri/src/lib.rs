@@ -40,6 +40,8 @@ pub fn run() {
             // TTS & Auth
             tts::edge_tts_speak,
             auth::start_auth_server,
+            auth::exchange_code_native,
+            auth::refresh_token_native,
             // Storage
             storage::open_folder,
             storage::create_storage_symlink,

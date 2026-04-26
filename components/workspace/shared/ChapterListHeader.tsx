@@ -7,7 +7,7 @@ import {
     Search, ChevronLeft, ChevronRight,
     FileText, LayoutGrid, LayoutList, Zap,
     Clock, ShieldCheck, Eraser, CaseSensitive,
-    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles, ClipboardCheck, Package
+    Download, UploadCloud, ScanLine, SlidersHorizontal, RotateCw, Sparkles, ClipboardCheck, Package, Scissors
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -65,6 +65,7 @@ interface ChapterListHeaderProps {
     onFixTitleCase?: () => void; // NEW: Fix ALL CAPS titles
     onAuditQuality?: () => void; // NEW: Audit translation quality
     onBridgeImport?: () => void; // NEW: Import from Antigravity Bridge
+    onCleanBoilerplate?: () => void; // NEW: Strip web novel boilerplate
 }
 
 export function ChapterListHeader({
@@ -98,7 +99,8 @@ export function ChapterListHeader({
     onFixTitles,
     onFixTitleCase,
     onAuditQuality,
-    onBridgeImport
+    onBridgeImport,
+    onCleanBoilerplate
 }: ChapterListHeaderProps) {
     const [rangeValue, setRangeValue] = React.useState("");
     const tokenStats = useWorkspaceTokens(workspaceId);
@@ -325,6 +327,23 @@ export function ChapterListHeader({
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-[10px] font-bold">Dọn HTML rác</TooltipContent>
                         </Tooltip>
+
+                        {onCleanBoilerplate && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="icon-only"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-xl hover:shadow-primary/20 text-teal-500 hover:text-teal-600 transition-all active:scale-95 group disabled:opacity-50"
+                                        onClick={onCleanBoilerplate}
+                                        disabled={processing || importing}
+                                    >
+                                        <Scissors className={cn("h-4 w-4 group-hover:scale-110 transition-transform", processing && "animate-pulse")} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-[10px] font-bold">Xóa rác web (boilerplate)</TooltipContent>
+                            </Tooltip>
+                        )}
 
                         {onFixTitleCase && (
                             <Tooltip>

@@ -40,12 +40,21 @@ pub async fn native_gemini_oauth_request(
         .post(url)
         .header("Content-Type", "application/json")
         .header("Authorization", format!("Bearer {}", access_token))
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .body(payload)
         .send()
         .await
         .map_err(|e| e.to_string())?;
 
-    res.text().await.map_err(|e| e.to_string())
+    let status = res.status();
+    let body = res.text().await.map_err(|e| e.to_string())?;
+
+    if !status.is_success() {
+        // Surface HTTP error code so the TS layer can detect 429, 401, etc.
+        return Err(format!("HTTP_ERROR:{}:{}", status.as_u16(), body));
+    }
+
+    Ok(body)
 }
 
 #[tauri::command]

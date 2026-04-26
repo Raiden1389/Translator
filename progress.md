@@ -21,9 +21,10 @@
 - **Afternoon:** Refactored Gemini 2.5 Flash token tracking for accurate cost calculation.
 - **Evening:** Decided to drop **Context Caching** due to cost vs complexity.
 
-## 2026-02-05
-- **10:15:** Initiated **Final Engine Cleanup**.
-- **10:30:** Removed all residual Turbo/Cache logic from Client, Translator, and Provider.
-- **10:45:** Deleted deprecated V1 components and backup files.
-- **11:00:** Sanitized codebase: switched `any` to `unknown`, fixed lint errors, and cleaned up index exports.
-- **11:15:** Updated **Session History** and **CHANGELOG.md** to v2.4.2.
+## 2026-04-16
+- **20:30:** Stabilized Gemini OAuth by implementing native `refresh_token_native` command in Rust backend.
+- **20:45:** Implemented `syncCredentialsToAccountList` to prevent OAuth re-login loops after token refresh.
+- **21:10:** Enhanced observability with account-specific logging (`🚀 Gọi OAuth: email`).
+- **21:30:** Fixed regression in Name Audit clustering logic (李明 → Ly Minh correlation).
+- **21:45:** Updated **CHANGELOG.md** to v2.14.0 and re-indexed code-graph (811 symbols).
+- **21:55:** Finalized stability fixes and verified tests pass.

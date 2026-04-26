@@ -8,6 +8,7 @@
 import type {
     NameScanResult,
     NameCluster,
+    NameVariant,
     NameAuditReport,
 } from "./name-audit.types";
 import { levenshteinDistance } from "./name-audit.extraction";
@@ -45,23 +46,52 @@ export function clusterSimilarNames(
     scanResult: NameScanResult,
     similarityThreshold = 0.75,
 ): NameCluster[] {
-    const { vietnameseNames } = scanResult;
-
+    const { vietnameseNames, crossRefMap } = scanResult;
     const clusters: NameCluster[] = [];
     const assignedNames = new Set<string>();
     let clusterId = 0;
 
-    // ── Step 1a & 1b: Chinese cross-ref clusters — DISABLED ──
-    // Paragraph alignment between CN original and VN translation is unreliable
-    // (HTML artifacts like <div class="contentadv"></div> cause index offset,
-    // making cross-ref map wrong → false cluster merges).
-    // Only Levenshtein fuzzy matching is used for clustering now.
-    // Chinese name data is still extracted and shown in UI for reference.
+    // ── Step 1: Initialize clusters from crossRefMap (High Confidence) ──
+    if (crossRefMap && crossRefMap.length > 0) {
+        for (const entry of crossRefMap) {
+            const variants: NameVariant[] = [];
+            let totalOccurrences = 0;
 
-    // ── Step 2: Fuzzy match all names by Levenshtein similarity ──
-    const allNames = vietnameseNames.filter(n => !assignedNames.has(n.name));
+            for (const vName of entry.vietnameseVariants) {
+                const nameData = vietnameseNames.find(n => n.name === vName);
+                if (nameData && !assignedNames.has(vName)) {
+                    variants.push({
+                        name: nameData.name,
+                        count: nameData.count,
+                        chapters: nameData.chapters,
+                        contexts: nameData.contexts,
+                        sourceRefs: nameData.sourceRefs,
+                    });
+                    totalOccurrences += nameData.count;
+                    assignedNames.add(vName);
+                }
+            }
 
-    for (const nameData of allNames) {
+            if (variants.length > 0) {
+                variants.sort((a, b) => b.count - a.count);
+                clusters.push({
+                    id: `cluster-${++clusterId}`,
+                    chineseName: entry.chineseName,
+                    hanViet: entry.hanViet,
+                    variants,
+                    suggestedCanonical: variants[0].name,
+                    totalOccurrences,
+                    isInconsistent: variants.length > 1,
+                    confidence: 1.0, // Confirmed by Chinese cross-ref
+                });
+            }
+        }
+    }
+
+    // ── Step 2: Fuzzy match remaining names into existing or new clusters ──
+    const remainingNames = vietnameseNames.filter(n => !assignedNames.has(n.name));
+
+    for (const nameData of remainingNames) {
         if (assignedNames.has(nameData.name)) continue;
 
         let bestClusterIdx = -1;
@@ -94,7 +124,7 @@ export function clusterSimilarNames(
             }
             assignedNames.add(nameData.name);
         } else {
-            // Create single-name cluster
+            // Create single-name cluster without Chinese name
             clusters.push({
                 id: `cluster-${++clusterId}`,
                 variants: [{

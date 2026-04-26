@@ -1,3 +1,128 @@
+## [2.15.2] - 2026-04-26
+
+### Top Impact
+- **[Safety]** Soft-retry mechanism for PROHIBITED_CONTENT blocks — wraps system instruction with Vietnamese academic framing to bypass input-level false positives.
+- **[Safety]** Full safety ratings now embedded directly in error messages (PromptRatings, CandRatings, response keys) — visible in UI overlay without DevTools.
+- **[Utils]** `strip-boilerplate.ts` — shared module with 15+ regex patterns to strip Chinese web novel navigation, UI controls, genre tags, disclaimers, page-break prompts, and site watermarks.
+- **[Service]** `clean.service.ts` — bulk scan/clean boilerplate from all chapters in a workspace with progress tracking.
+- **[UI]** ✂️ "Xóa rác web" button in Action Hub — one-click bulk clean boilerplate from `content_original` in database.
+
+### Added
+- **[Safety]** Soft-retry mechanism for PROHIBITED_CONTENT blocks — wraps system instruction with Vietnamese academic framing to bypass input-level false positives.
+- **[Safety]** Full safety ratings now embedded directly in error messages (PromptRatings, CandRatings, response keys) — visible in UI overlay without DevTools.
+- **[Utils]** `strip-boilerplate.ts` — shared module with 15+ regex patterns to strip Chinese web novel navigation, UI controls, genre tags, disclaimers, page-break prompts, and site watermarks.
+- **[Service]** `clean.service.ts` — bulk scan/clean boilerplate from all chapters in a workspace with progress tracking.
+- **[UI]** ✂️ "Xóa rác web" button in Action Hub — one-click bulk clean boilerplate from `content_original` in database.
+
+### Changed
+- `lib/utils/strip-boilerplate.ts` — NEW: shared boilerplate stripping module
+- `lib/services/clean.service.ts` — NEW: bulk workspace clean service
+- `lib/gemini/translate.ts` — boilerplate strip + safety soft-retry + diagnostic embedding
+- `lib/gemini/client.ts` — type cast fix + raw response debug logging
+- `lib/gemini/adaptive-tokens.ts` — finishReason UNKNOWN fix
+- `components/workspace/shared/ChapterListHeader.tsx` — ✂️ clean button
+
+### Fixed
+- **[Safety]** `adaptive-tokens.ts` — empty candidate responses now correctly report `finishReason: "UNKNOWN"` instead of falsely masking as `"STOP"`.
+- **[Build]** `client.ts` — fixed TypeScript type error where `rawResponse` (typed `unknown`) was accessed without proper `Record<string, unknown>` cast.
+- **[Safety]** Reverted safety settings to `BLOCK_NONE` for 4 core categories; removed `HARM_CATEGORY_CIVIC_INTEGRITY` which may cause API rejection in Gemini 2.5 Flash.
+
+## [2.15.1] - 2026-04-25
+
+### Top Impact
+- **[Bridge]** Missing-chapter re-export is now wired from the Bridge dialog to `exportMissingOnly()`, preserving glossary, corrections, prompt, and temperature from the original export context.
+- **[Translator]** `chinese-vietnamese-translator` now includes Translation Mode, Convert Kill List, Before Output Rewrite Pass, and 10 grounded Chinese→Vietnamese few-shot examples.
+- **[Workflow]** `/dich` Self-QA now explicitly checks Convert Kill List patterns and records hard/soft findings.
+- **[Bridge]** `pollJobProgress()` now treats `done_{jobId}.json` as the only completion signal. Outbox count is progress only, preventing premature import before QA is written.
+- **[Bridge]** Outbox discovery and cleanup now use exact filename matching instead of broad `startsWith()` checks.
+
+### Added
+- **[Bridge]** Missing-chapter re-export is now wired from the Bridge dialog to `exportMissingOnly()`, preserving glossary, corrections, prompt, and temperature from the original export context.
+- **[Translator]** `chinese-vietnamese-translator` now includes Translation Mode, Convert Kill List, Before Output Rewrite Pass, and 10 grounded Chinese→Vietnamese few-shot examples.
+- **[Workflow]** `/dich` Self-QA now explicitly checks Convert Kill List patterns and records hard/soft findings.
+
+### Changed
+- **[Bridge]** `pollJobProgress()` now treats `done_{jobId}.json` as the only completion signal. Outbox count is progress only, preventing premature import before QA is written.
+- **[Bridge]** Outbox discovery and cleanup now use exact filename matching instead of broad `startsWith()` checks.
+- **[Bridge]** Partial `done` sentinel chapter lists are surfaced to the orchestrator so partial jobs can import and report missing chapters.
+- **[Workflow]** `/dich` now requires Translation Mode → Few-Shot internalization → Before Output Rewrite Pass → Quality Gate before writing every outbox file.
+- **[Build]** Version bumped to `2.15.1` across `package.json`, `package-lock.json`, `tauri.conf.json`, `tauri.fast.conf.json`, `Cargo.toml`, and `Cargo.lock`.
+- `.agent/workflows/dich.md` — restored bridge contract + quality-over-token translation flow
+
+### Fixed
+- **[Bridge]** Early auto-import race: the app could import as soon as all `out_*.json` files appeared, skipping `qa_{jobId}.json` and losing QA hard fixes.
+- **[Bridge]** Workspace safety: flat outbox imports now verify `chapter.workspaceId === currentWorkspaceId` before updating DB records.
+- **[Bridge]** Missing detection: `exportedOrders` is now populated in the Antigravity export path, so missing chapters are detected correctly.
+- **[Bridge]** QA hard fixes now apply only to chapters that actually imported and passed workspace validation.
+- **[Workflow]** Restored full `/dich` bridge contract after regression to an incomplete short prompt that omitted JSON contract, QA report, and done sentinel requirements.
+
+## [2.15.0] - 2026-04-21
+
+### Top Impact
+- **[OAuth]** Browser Header Mimicry: Implemented `User-Agent` (Chrome/124) in both Rust and Frontend paths to reduce bot-detection surface.
+- **[Observability]** Enhanced 429 Logging: Processing overlay now explicitly reports "🚨 429 Rate Limited!" when Google triggers throttling.
+- **[Gemini]** Proper Name Protection: Updated system prompt and loosed normalization regex (`TITLE_CASE_RE`) to ensure character names (e.g., "Dương Quân Bác") are NOT lowercased in chapter titles.
+- **[OAuth]** Precise Wait Times: `RateLimiter` now returns exact remaining milliseconds in the current window instead of a hardcoded 60s delay.
+- **[OAuth]** Migration Stale Counters: Fixed a bug in `resetExpiredCounters` where missing window start timestamps in legacy data caused permanent request blocking until a manual cache clear.
+
+### Added
+- **[OAuth]** Browser Header Mimicry: Implemented `User-Agent` (Chrome/124) in both Rust and Frontend paths to reduce bot-detection surface.
+- **[Observability]** Enhanced 429 Logging: Processing overlay now explicitly reports "🚨 429 Rate Limited!" when Google triggers throttling.
+
+### Changed
+- **[Gemini]** Proper Name Protection: Updated system prompt and loosed normalization regex (`TITLE_CASE_RE`) to ensure character names (e.g., "Dương Quân Bác") are NOT lowercased in chapter titles.
+- **[OAuth]** Precise Wait Times: `RateLimiter` now returns exact remaining milliseconds in the current window instead of a hardcoded 60s delay.
+- `src-tauri/src/gemini.rs` — HTTP error surfacing + User-Agent
+- `lib/gemini/client.ts` — Auto-retry loop + 429/401 handling + User-Agent
+- `lib/gemini/rate-limiter.ts` — Precise wait logic + migration reset fix
+- `lib/gemini/constants.ts` — Prompt rule update for titles
+
+### Fixed
+- **[OAuth]** Migration Stale Counters: Fixed a bug in `resetExpiredCounters` where missing window start timestamps in legacy data caused permanent request blocking until a manual cache clear.
+- **[Auth]** OAuth 429 Handling: Rust backend now correctly surfaces HTTP 429 status codes to the frontend orchestrator for retry processing.
+
+## [2.14.0] - 2026-04-16
+
+### Top Impact
+- **[Gemini]** Native OAuth 2.0 flow via Tauri/Rust to bypass CORS "Failed to fetch" errors.
+- **[Auth]** Combined `exchange_code_native` command for unified token + user info retrieval.
+- **[UI]** Detailed OAuth indicators in Max Ping panel (Delay, Quota, Response Time).
+- **[Performance]** Optimized `rate-limiter.ts` for Ultra subscribers: 3s delay → 0.3s.
+- **[Performance]** RPM increased to 30; Burst cooldown reduced to 5s.
+
+### Added
+- **[Gemini]** Native OAuth 2.0 flow via Tauri/Rust to bypass CORS "Failed to fetch" errors.
+- **[Auth]** Combined `exchange_code_native` command for unified token + user info retrieval.
+- **[UI]** Detailed OAuth indicators in Max Ping panel (Delay, Quota, Response Time).
+
+### Changed
+- **[Performance]** Optimized `rate-limiter.ts` for Ultra subscribers: 3s delay → 0.3s.
+- **[Performance]** RPM increased to 30; Burst cooldown reduced to 5s.
+
+## [2.12.0] - 2026-03-28
+
+### Top Impact
+- **[Translator]** `XƯNG HÔ` Rule Expansion: Full 10 pairs of Chinese pronouns (我/你/他/她/它/我们/你们/他们/她们/它们) mapped to Vietnamese equivalents with context-aware flexibility (e.g., 她=Nàng/Cô ấy).
+- **[AI]** `SOFT_WRAPPER_VERB_BLOCKLIST` — Danh sách chặn 50+ động từ/tính từ phổ biến để lọc rác cho Term Audit.
+- **[AI]** Term Audit Filter: Strip trailing punctuation (,, ;, ., !, ?) khỏi các term trích xuất.
+- **[AI]** Term Audit Extractor: Loại bỏ quantifiers (loạt/mấy/vài) và demonstratives (này/kia) tự động.
+- **[Build]** `SYSTEM_VERSION` → `v3.4` (Core rules updated).
+
+### Added
+- **[Translator]** `XƯNG HÔ` Rule Expansion: Full 10 pairs of Chinese pronouns (我/你/他/她/它/我们/你们/他们/她们/它们) mapped to Vietnamese equivalents with context-aware flexibility (e.g., 她=Nàng/Cô ấy).
+- **[AI]** `SOFT_WRAPPER_VERB_BLOCKLIST` — Danh sách chặn 50+ động từ/tính từ phổ biến để lọc rác cho Term Audit.
+- **[AI]** Term Audit Filter: Strip trailing punctuation (,, ;, ., !, ?) khỏi các term trích xuất.
+- **[AI]** Term Audit Extractor: Loại bỏ quantifiers (loạt/mấy/vài) và demonstratives (này/kia) tự động.
+
+### Changed
+- **[Build]** `SYSTEM_VERSION` → `v3.4` (Core rules updated).
+- **[AI]** Term Audit Engine: Yield-to-main thread pattern during scan to prevent UI freeze on large chapter blocks.
+- **[Build]** `package.json`, `tauri.conf.json` — 2.11.0 → 2.12.0.
+- **Shelved Term Audit**: Tính năng hiện đang để **OFF** mặc định (`featureFlags.termAudit = false`) do extractor vẫn còn sinh noise với truyện hiện đại. Cần tuning theo genre trong tương lai.
+
+### Fixed
+- **[AI]** Term Audit extraction noise: Fixed "soft wrapper" over-detection by enforcing 1st content token check against blocklist.
+
 ## [2.11.0] - 2026-03-24
 
 ### Top Impact
@@ -78,122 +203,3 @@
 - **[Intelligence]** Undo scope mismatch — snapshot was workspace-scoped but sweep was global. Snapshot now captures all translated chapters.
 - **[Corrections]** `sweepSingleRule()` now also corrects `title_translated`, matching the main Luyện Văn flow and preventing "body fixed, title stale".
 - **[UI]** Fix result label: "chương" → "lượt cập nhật" to avoid inflated count when 1 chapter is updated by multiple rules.
-
-## [2.9.5] - 2026-03-20
-
-### Top Impact
-- **[Sync]** `pollAndApplyCloudCorrections()` — Desktop auto-polls cloud every 30s for corrections pushed from Mobile. Applies text replacements to chapters + saves as global correction rules.
-- **[Sync]** Auto-poll hook in `CloudSyncButton` — polls on mount + every 30s, shows toast `📱 Nhận N cải chính từ Mobile (cloud)`.
-- **[Sync]** Cloud correction flow now fully operational: Mobile `pushCorrectionsToCloud()` → R2 storage → Desktop `pollAndApplyCloudCorrections()` → toast. Previously, corrections could only sync via LAN (broken for HTTPS-hosted PWA due to mixed content block).
-- `lib/sync/cloud-sync.ts` — `pollAndApplyCloudCorrections()`, `GLOBAL_WORKSPACE_ID` import
-- `components/workspace/shared/CloudSyncButton.tsx` — auto-poll useEffect
-
-### Added
-- **[Sync]** `pollAndApplyCloudCorrections()` — Desktop auto-polls cloud every 30s for corrections pushed from Mobile. Applies text replacements to chapters + saves as global correction rules.
-- **[Sync]** Auto-poll hook in `CloudSyncButton` — polls on mount + every 30s, shows toast `📱 Nhận N cải chính từ Mobile (cloud)`.
-
-### Changed
-- **[Sync]** Cloud correction flow now fully operational: Mobile `pushCorrectionsToCloud()` → R2 storage → Desktop `pollAndApplyCloudCorrections()` → toast. Previously, corrections could only sync via LAN (broken for HTTPS-hosted PWA due to mixed content block).
-- `lib/sync/cloud-sync.ts` — `pollAndApplyCloudCorrections()`, `GLOBAL_WORKSPACE_ID` import
-- `components/workspace/shared/CloudSyncButton.tsx` — auto-poll useEffect
-
-## [2.9.4] - 2026-03-08
-
-### Top Impact
-- **[Bridge]** Auto-import not triggering — `pollJobProgress` now considers job done when outbox file count matches expected, not just when sentinel file exists.
-- **[UI]** Toolbar icon hover inconsistency — all icons now use `icon-only` Button variant (no hover background), matching the Sync button style.
-- **[UI]** Pagination scroll — changing pages now smooth-scrolls to the top of the chapter list.
-- **[Bridge]** `reopenForImport()` — reopen Bridge dialog after closing to import pending outbox files.
-- **[Bridge]** `findLatestOutboxInfo()` — returns metadata about the latest outbox job for dialog re-opening.
-
-### Added
-- **[Bridge]** `reopenForImport()` — reopen Bridge dialog after closing to import pending outbox files.
-- **[Bridge]** `findLatestOutboxInfo()` — returns metadata about the latest outbox job for dialog re-opening.
-- **[UI]** 📦 Import Bridge button in toolbar — one-click access to import pending Bridge translations.
-- **[UI]** `icon-only` Button variant — no hover background, only color change on hover.
-- **[Build]** `sccache` integration — shared compilation cache for Rust, survives `cargo clean`.
-- **[Build]** Dev profile optimization — `[profile.dev.package."*"]` with `opt-level=1`, `debug=false`.
-
-### Changed
-- **[Build]** Tauri release profile tuned for speed: `opt-level=1`, `codegen-units=32`, `strip=true`, `panic=abort`.
-- **[Build]** Incremental build time: **55s → 38s** (30% faster).
-- `lib/bridge/antigravity-bridge.ts` — pollJobProgress fix + findLatestOutboxInfo
-- `components/workspace/hooks/useAntigravityOrchestrator.ts` — reopenForImport
-- `components/workspace/shared/ChapterListHeader.tsx` — Bridge Import button + icon-only variant
-- `components/workspace/chapter-list/ChapterList.tsx` — pagination scroll-to-top
-
-### Fixed
-- **[Bridge]** Auto-import not triggering — `pollJobProgress` now considers job done when outbox file count matches expected, not just when sentinel file exists.
-- **[UI]** Toolbar icon hover inconsistency — all icons now use `icon-only` Button variant (no hover background), matching the Sync button style.
-- **[UI]** Pagination scroll — changing pages now smooth-scrolls to the top of the chapter list.
-
-## [2.9.3] - 2026-03-07
-
-### Top Impact
-- **[CloudSync]** Bridge import now auto-pushes to cloud — previously Bridge flow returned early in `TranslationProvider`, skipping the cloud sync step entirely.
-- **[CloudSync]** Cover image lost during delta sync — `pushDelta` was sending sparse workspace metadata (`{id, title, sourceLang, targetLang}` only), causing the worker to overwrite full metadata (including `cover`, `author`, `description`, `genre`) on merge. Now sends full metadata matching `pushWorkspace`.
-- **[Bridge]** `/dich` workflow Step 4: Added `OVERRIDE` warning — config.prompt contains `CẤM JSON` (meant for App's internal AI flow), but Bridge Agent must always write JSON format. Explicit override prevents format confusion.
-- **[Bridge]** 6 feature ideas analyzed and added to backlog: Missing Chapter Detection + Retry, Background Monitor, Preflight Check, One-click Export, History Log, Review Mode.
-
-### Changed
-- **[Bridge]** `/dich` workflow Step 4: Added `OVERRIDE` warning — config.prompt contains `CẤM JSON` (meant for App's internal AI flow), but Bridge Agent must always write JSON format. Explicit override prevents format confusion.
-- **[Bridge]** 6 feature ideas analyzed and added to backlog: Missing Chapter Detection + Retry, Background Monitor, Preflight Check, One-click Export, History Log, Review Mode.
-
-### Fixed
-- **[CloudSync]** Bridge import now auto-pushes to cloud — previously Bridge flow returned early in `TranslationProvider`, skipping the cloud sync step entirely.
-- **[CloudSync]** Cover image lost during delta sync — `pushDelta` was sending sparse workspace metadata (`{id, title, sourceLang, targetLang}` only), causing the worker to overwrite full metadata (including `cover`, `author`, `description`, `genre`) on merge. Now sends full metadata matching `pushWorkspace`.
-
-## [2.9.2] - 2026-03-07
-
-### Top Impact
-- **[Bridge]** Auto-Import v2 — App polls outbox every 2s, detects `done_{jobId}.json` sentinel, auto-imports translated chapters.
-- **[Bridge]** `checkDoneSentinel()` — detects agent completion signal file.
-- **[Bridge]** `pollJobProgress()` — returns `{ completed, total, isDone }` for UI.
-- **[Bridge]** `DoneSentinel`, `PollProgress` interfaces; `BridgePhase` type.
-- **[Bridge]** `AutoImportTrigger` invisible component for auto-import glue.
-
-### Added
-- **[Bridge]** Auto-Import v2 — App polls outbox every 2s, detects `done_{jobId}.json` sentinel, auto-imports translated chapters.
-- **[Bridge]** `checkDoneSentinel()` — detects agent completion signal file.
-- **[Bridge]** `pollJobProgress()` — returns `{ completed, total, isDone }` for UI.
-- **[Bridge]** `DoneSentinel`, `PollProgress` interfaces; `BridgePhase` type.
-- **[Bridge]** `AutoImportTrigger` invisible component for auto-import glue.
-- **[UI]** Real-time progress bar + phase-based state machine in `AgBridgeDialog` (waiting → translating → complete → importing → success).
-
-### Changed
-- **[Bridge]** `importOutbox()` accepts `expectedCount` for safe cleanup validation.
-- **[Bridge]** `cleanupJobFiles()` also removes `done_*.json` sentinel files.
-- **[Bridge]** `findOutboxFilesForJob()` now exported for polling use.
-- **[Hook]** `useAntigravityOrchestrator` expanded with `phase`, `progress` state, polling `useEffect`, `triggerAutoImport` callback.
-- **[Workflow]** `/dich` steps renumbered (old 5→6, old 6→7, new 5 = Self-QA).
-- `lib/bridge/antigravity-bridge.ts` — polling + sentinel + safe cleanup
-
-### Fixed
-- **[Translator]** Typo fixes in batch Ch48-52: "đường xá"→"đường sá", "không thảo"→"không khéo", "chủng dự cảm"→"loại dự cảm".
-- **[Workflow]** Self-QA blacklist checklist referenced wrong terms (hallucinated "huynh/đệ/tiểu thư") — corrected to actual SKILL §3 blacklist.
-
-## [2.9.1] - 2026-03-06
-
-### Top Impact
-- **[Translator]** Ultra-lean Rules v3 — Added 10+ specific guardrails to combat typical translation engine hallucinations:
-- **[Translator]** Silent Word Purge — Automated removal of redundant/repetitive words ("ngoài ra ngoài", "thầm lẩm bẩm").
-- **[Workflow]** Refined `/dich` workflow to be even more aggressive in enforcing natural phrasing over literal conversion.
-- **[Prompt]** Updated embedded translation rules with clear "SAI / ĐÚNG" examples for the AI.
-- **[Translator]** "Ta ở đây" opening — Fixed common AI filler opening when no actual location is implied.
-
-### Added
-- **[Translator]** Ultra-lean Rules v3 — Added 10+ specific guardrails to combat typical translation engine hallucinations:
-- **[Translator]** Silent Word Purge — Automated removal of redundant/repetitive words ("ngoài ra ngoài", "thầm lẩm bẩm").
-
-### Changed
-- **[Workflow]** Refined `/dich` workflow to be even more aggressive in enforcing natural phrasing over literal conversion.
-- **[Prompt]** Updated embedded translation rules with clear "SAI / ĐÚNG" examples for the AI.
-- `.agent/workflows/dich.md` — Rule set v3 expansion
-- `bridge/out_*.json` — Applied new rules to Chapter 42-44 deliveries
-- `lib/sync/cloud-sync.ts` — Gzip body: Blob → ArrayBuffer
-- `raiden-sync/src/index.ts` — Buffer decompressed body before R2.put (deployed)
-
-### Fixed
-- **[Translator]** "Ta ở đây" opening — Fixed common AI filler opening when no actual location is implied.
-- **[Translator]** Incorrect "Nhất" usage — Limited "nhất" to actual comparative contexts only.
-- **[Sync]** Cloud push 500 for new novels — R2 rejected `DecompressionStream` output (unknown length). Worker now buffers decompressed body as string before `R2.put()`. Also fixed client-side gzip: `Blob` → `ArrayBuffer` for reliable `Content-Length`.

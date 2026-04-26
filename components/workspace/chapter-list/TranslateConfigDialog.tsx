@@ -57,6 +57,13 @@ export const DEFAULT_TRANSLATION_CONFIG: TranslationConfig = {
     maxCharsPerBatch: 25000, // 25K chars (empirical sweet spot)
 };
 
+function maskKeyTail(key: string) {
+    const trimmed = key.trim();
+    if (!trimmed) return "";
+    if (trimmed.length <= 4) return `••••${trimmed}`;
+    return `••••${trimmed.slice(-4)}`;
+}
+
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [currentSettings, setCurrentSettings] = useState({ apiKey: "", model: DEFAULT_MODEL });
@@ -214,6 +221,11 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">API Key (Gemini)</Label>
                                     <Input value={currentSettings.apiKey} onChange={(e) => setCurrentSettings({ ...currentSettings, apiKey: e.target.value })} type="password" placeholder="AIza..." className="bg-background border-border" />
+                                    {currentSettings.apiKey && (
+                                        <p className="text-[11px] text-muted-foreground font-mono">
+                                            Đang dùng: <span className="font-bold text-foreground">{maskKeyTail(currentSettings.apiKey)}</span>
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">AI Model</Label>

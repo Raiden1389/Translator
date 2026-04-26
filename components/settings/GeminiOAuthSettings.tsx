@@ -19,9 +19,12 @@ import {
   getActiveAccount,
   switchAccount,
   removeAccount,
+  loadOAuthCredentials,
+  refreshAccessToken,
+  saveOAuthCredentials,
   type OAuthAccount
 } from "@/lib/gemini/oauth-client";
-import { CheckCircle2, XCircle, Loader2, ExternalLink, User, Trash2, Check, ChevronDown } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ExternalLink, User, Trash2, Check, ChevronDown, ShieldCheck, ShieldAlert, ShieldX, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useOAuthPreference } from "@/lib/gemini/useOAuthPreference";
@@ -36,6 +39,7 @@ export function GeminiOAuthSettings() {
   const [authCode, setAuthCode] = useState("");
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [tokenHealth, setTokenHealth] = useState<{ status: 'fresh' | 'expiring' | 'expired' | 'none'; remainingMin: number; hasRefresh: boolean } | null>(null);
 
   // OAuth preference toggle
   const { preferOAuth, isLoading: prefLoading, togglePreference } = useOAuthPreference();
@@ -43,6 +47,35 @@ export function GeminiOAuthSettings() {
   useEffect(() => {
     loadAccounts();
   }, []);
+
+  // Check token health every 30s
+  useEffect(() => {
+    checkTokenHealth();
+    const interval = setInterval(checkTokenHealth, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const checkTokenHealth = async () => {
+    try {
+      const creds = await loadOAuthCredentials();
+      if (!creds) {
+        setTokenHealth({ status: 'none', remainingMin: 0, hasRefresh: false });
+        return;
+      }
+      const remaining = creds.expires_at - Date.now();
+      const remainingMin = Math.max(0, Math.round(remaining / 60_000));
+      const hasRefresh = !!creds.refresh_token;
+      if (remaining <= 0) {
+        setTokenHealth({ status: 'expired', remainingMin: 0, hasRefresh });
+      } else if (remainingMin <= 10) {
+        setTokenHealth({ status: 'expiring', remainingMin, hasRefresh });
+      } else {
+        setTokenHealth({ status: 'fresh', remainingMin, hasRefresh });
+      }
+    } catch {
+      setTokenHealth({ status: 'none', remainingMin: 0, hasRefresh: false });
+    }
+  };
 
   const loadAccounts = async () => {
     const allAccounts = await listAccounts();
@@ -60,45 +93,85 @@ export function GeminiOAuthSettings() {
     }
   };
 
-  const handleStartAuth = () => {
+  const handleManualRefresh = async () => {
+    setLoading(true);
     setError(null);
-    setSuccess(null);
+    try {
+      const creds = await loadOAuthCredentials();
+      if (!creds?.refresh_token) {
+        setError("Không có refresh token. Cần đăng nhập lại.");
+        return;
+      }
+      const newCreds = await refreshAccessToken(creds.refresh_token);
+      await saveOAuthCredentials(newCreds);
 
-    // Open Google OAuth consent screen
-    const authUrl = getAuthorizationUrl();
-    window.open(authUrl, "_blank");
+      // Sync refreshed credentials to account list
+      const active = await getActiveAccount();
+      if (active) {
+        const allAccounts = await listAccounts();
+        const updated = allAccounts.map(a =>
+          a.id === active.id
+            ? { ...a, credentials: newCreds, lastUsed: Date.now() }
+            : a
+        );
+        const { db } = await import("@/lib/db");
+        await db.settings.put({
+          key: "geminiOAuthAccounts",
+          value: JSON.stringify(updated)
+        });
+      }
 
-    // Show code input
-    setShowCodeInput(true);
+      await checkTokenHealth();
+      await loadAccounts();
+      setSuccess("✅ Token đã được refresh thành công!");
+      toast.success("Token refreshed!");
+    } catch (err) {
+      setError(`Refresh thất bại: ${err instanceof Error ? err.message : 'Unknown'}. Cần đăng nhập lại.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmitCode = async () => {
-    if (!authCode.trim()) {
-      setError("Vui lòng nhập mã xác thực");
-      return;
-    }
-
+  const processOAuthCode = async (rawCode: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      // Extract code from URL if user pasted full URL
-      let code = authCode.trim();
+      const { invoke } = await import("@tauri-apps/api/core");
+
+      // Extract code from URL if provided as full URL/Query
+      let code = rawCode.trim();
       if (code.includes("code=")) {
-        const match = code.match(/code=([^&]+)/);
-        if (match) code = match[1];
+        const urlParams = new URLSearchParams(code.includes("?") ? code.split("?")[1] : code);
+        const extracted = urlParams.get("code");
+        if (extracted) code = extracted;
       }
 
-      // Exchange code for tokens
-      const credentials = await exchangeCodeForTokens(code);
+      // Exchange code for tokens + user info in one native call
+      const data = await invoke<any>("exchange_code_native", {
+        code,
+        clientId: process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID || "",
+        clientSecret: process.env.NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_SECRET || "",
+        redirectUri: "http://localhost:11451"
+      });
 
-      // Get user info
-      const userInfo = await getUserInfo(credentials.access_token);
+      const credentials = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Date.now() + (data.expires_in * 1000),
+        token_type: data.token_type
+      };
+
+      const userInfo = data.user_info || { email: "unknown@gmail.com" };
 
       // Save account
-      await saveAccount(credentials, userInfo);
+      await saveAccount(credentials, {
+        email: userInfo.email || "unknown@gmail.com",
+        name: userInfo.name,
+        picture: userInfo.picture
+      });
 
-      setSuccess(`✅ Đã thêm tài khoản ${userInfo.email} thành công!`);
+      setSuccess(`Đã thêm tài khoản ${userInfo.email} thành công!`);
       setShowCodeInput(false);
       setAuthCode("");
 
@@ -109,6 +182,55 @@ export function GeminiOAuthSettings() {
     } finally {
       setLoading(false);
     }
+  };
+
+
+  const handleStartAuth = async () => {
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const { listen } = await import("@tauri-apps/api/event");
+      const { open } = await import("@tauri-apps/plugin-shell");
+
+      // 1. Start local server in Rust on Gemini's specific port
+      const { state } = await invoke<{ port: number, state: string }>("start_auth_server", { port: 11451 });
+
+      // 2. Open Google OAuth consent screen
+      const authUrl = getAuthorizationUrl(state);
+      await open(authUrl);
+
+      // 3. Show manual input as fallback but start listening
+      setShowCodeInput(true);
+      setAuthCode("");
+
+      // 4. Listen for code event (Automatic capture)
+      const unlisten = await listen<string>("oauth_token_received", async (event) => {
+        const payload = event.payload;
+        if (payload.includes("code=")) {
+          processOAuthCode(payload);
+          unlisten(); // Stop listening after success
+        }
+      });
+
+      // Optional: Auto-unlisten after some time to prevent leaks
+      setTimeout(() => unlisten(), 300000); // 5 minutes
+
+    } catch (err) {
+      // Fallback: Just open in browser if Tauri logic fails
+      const authUrl = getAuthorizationUrl();
+      window.open(authUrl, "_blank");
+      setShowCodeInput(true);
+    }
+  };
+
+  const handleSubmitCode = async () => {
+    if (!authCode.trim()) {
+      setError("Vui lòng nhập mã xác thực");
+      return;
+    }
+    await processOAuthCode(authCode);
   };
 
   const handleSwitchAccount = async (accountId: string) => {
@@ -244,12 +366,45 @@ export function GeminiOAuthSettings() {
                             Active
                           </span>
                         )}
+                        {/* Token Health Badge */}
+                        {activeAccount?.id === account.id && tokenHealth && tokenHealth.status !== 'none' && (
+                          tokenHealth.status === 'fresh' ? (
+                            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-mono border border-emerald-500/20 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              Token OK · {tokenHealth.remainingMin}m
+                            </span>
+                          ) : tokenHealth.status === 'expiring' ? (
+                            <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full font-mono border border-yellow-500/20 flex items-center gap-1 animate-pulse">
+                              <ShieldAlert className="w-3 h-3" />
+                              Sắp hết · {tokenHealth.remainingMin}m
+                              {tokenHealth.hasRefresh && <RefreshCw className="w-3 h-3" />}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full font-mono border border-red-500/20 flex items-center gap-1">
+                              <ShieldX className="w-3 h-3" />
+                              {tokenHealth.hasRefresh ? 'Hết hạn · Auto-refresh' : 'Hết hạn · Cần login lại'}
+                            </span>
+                          )
+                        )}
                       </div>
                       <p className="text-xs text-gray-400 truncate">{account.email}</p>
                     </div>
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
+                      {/* Refresh/Re-login for active account with expired token */}
+                      {activeAccount?.id === account.id && tokenHealth && (tokenHealth.status === 'expired' || tokenHealth.status === 'expiring') && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleManualRefresh}
+                          disabled={loading}
+                          className="h-8 px-3 text-xs border-emerald-500/20 hover:bg-emerald-500/10 text-emerald-400"
+                        >
+                          <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
+                      )}
                       {activeAccount?.id !== account.id && (
                         <Button
                           size="sm"
@@ -300,7 +455,7 @@ export function GeminiOAuthSettings() {
                     <strong>Bước 2:</strong> Đăng nhập và cho phép truy cập
                   </p>
                   <p className="text-sm text-foreground">
-                    <strong>Bước 3:</strong> Sau khi redirect về localhost:11451, copy URL hoặc mã code
+                    <strong>Bước 3:</strong> Bạn chỉ cần <strong>Đăng nhập và Cho phép</strong>, ứng dụng sẽ tự động nhận diện và hoàn tất.
                   </p>
                 </div>
 
@@ -308,8 +463,8 @@ export function GeminiOAuthSettings() {
                   type="text"
                   value={authCode}
                   onChange={(e) => setAuthCode(e.target.value)}
-                  placeholder="Dán URL hoặc mã code ở đây..."
-                  className="w-full px-4 py-2 rounded-lg bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                  placeholder="Hoặc dán URL/mã code tại đây nếu tự động thất bại..."
+                  className="w-full px-4 py-2 rounded-lg bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary text-xs"
                 />
 
                 <div className="flex gap-2">
