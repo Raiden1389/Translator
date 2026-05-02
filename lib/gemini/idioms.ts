@@ -56,14 +56,52 @@ export const WHITELIST = [
    { phrase: "phản phác quy chân", contexts: ["xianxia", "martial"] }
 ];
 
-// 5. MODERN SLANG WITH MULTI-DEST
-export const MODERN_SLANG_MAP = [
-   { src: "卧槽", dest: ["Vãi!", "Đậu xanh!", "Cái đệt!", "Đù!"], note: "Ngoại tào" },
-   { src: "靠", dest: ["Mịa nó!", "Vãi thật!", "Khốn khiếp!", "Xúi quẩy!"], note: "Kháo" },
-   { src: "草泥马", dest: ["Đệt mịa!", "Vãi đạn!", "Khốn kiếp!", "Khốn kiếp!"], note: "Thảo nê mã" },
-   { src: "腹黑", dest: ["mưu mô", "thâm sâu", "đen bụng", "cáo già"], note: "Phúc hắc" },
-   { src: "装逼", dest: ["làm màu", "gáy", "ra vẻ", "thích thể hiện"], note: "Trang bức" },
-   { src: "骚操作", dest: ["thao tác cực gắt", "xử lý ảo ma", "màn múa lửa"], note: "Tao thao tác" }
+export type ModernSlangCategory =
+   | "reaction"
+   | "praise"
+   | "insult"
+   | "censored_profanity"
+   | "behavior";
+
+export interface ModernSlangEntry {
+   src: string;
+   category: ModernSlangCategory;
+   dest: string[];
+   note: string;
+}
+
+// 5. MODERN SLANG WITH TAXONOMY
+export const MODERN_SLANG_MAP: ModernSlangEntry[] = [
+   { src: "我靠", category: "reaction", dest: ["Vãi!", "Đệt!", "Đệch!", "Vãi lol!"], note: "Ngã kháo - cảm thán, cấm dịch là 'Ta dựa vào'" },
+   { src: "我操", category: "reaction", dest: ["Đệt!", "Đệch!", "Vãi lol!", "ĐM!"], note: "Ngã thao - cảm thán/chửi, không dịch từng chữ" },
+   { src: "我去", category: "reaction", dest: ["Vãi!", "Ơ kìa!", "Vái nhái!", "Đệt!"], note: "Ngã khứ - cảm thán bất ngờ, không dịch là 'Ta đi'" },
+   { src: "卧槽", category: "reaction", dest: ["Đệt!", "Đệch!", "Vãi lol!", "Vãi cứt!"], note: "Ngoại tào - cảm thán sốc mạnh" },
+   { src: "靠", category: "reaction", dest: ["Đệch!", "Vãi thật!", "Vãi lol!", "Xúi quẩy!"], note: "Kháo" },
+   { src: "绷不住了", category: "reaction", dest: ["Không nhịn nổi nữa!", "Cười ỉa!", "Đỡ kiểu gì được!", "Bó tay thật!"], note: "Reaction bật cười/sụp đổ cảm xúc, không dịch literal" },
+   { src: "离谱", category: "reaction", dest: ["Vô lý vãi!", "Lố bịch thật!", "Khó đỡ vãi!", "Quá ba chấm!"], note: "Chê cái gì đó quá mức, khó tin" },
+   { src: "逆天", category: "reaction", dest: ["Bá đạo vãi!", "Lỗi game thật!", "Phi lý vãi!", "Quá trời luôn!"], note: "Mức độ vượt chuẩn, có thể khen hoặc chê tùy câu" },
+   { src: "乱七八糟", category: "reaction", dest: ["loạn mẹ hết cả lên", "lung ta lung tung", "rối như canh hẹ", "lôm côm vãi"], note: "Tả trạng thái bừa bộn/hỗn loạn, không đọc Hán Việt" },
+   { src: "一脸懵逼", category: "reaction", dest: ["đơ cmn mặt", "ngu người luôn", "mặt đần ra", "đứng hình luôn"], note: "Reaction ngơ ngác/sốc, không dịch literal" },
+
+   { src: "666", category: "praise", dest: ["Đỉnh vkl", "Gắt đấy", "Ảo thật", "Hay vl"], note: "Meme số dùng để hype/khen, tuyệt đối không đọc số ra chữ" },
+   { src: "太6了", category: "praise", dest: ["Gắt thật đấy", "Đỉnh vkl", "Ảo ma thật", "Hay vl"], note: "Khen ai/cái gì đó quá đỉnh" },
+   { src: "牛逼", category: "praise", dest: ["đỉnh thật", "ghê thật", "bá đạo", "xịn thật"], note: "Khen/ngạc nhiên, không dịch thô là 'trâu bức'" },
+
+   { src: "妈的", category: "censored_profanity", dest: ["ĐM!", "Đệt!", "Đệch!", "Vãi cứt!"], note: "Ma đích - trợ từ chửi thề, không dịch theo nghĩa 'mẹ của ai đó'" },
+   { src: "他妈的", category: "censored_profanity", dest: ["ĐM!", "Đệt!", "Đệch!", "Vãi lol!"], note: "Chửi thề nhẹ/mạnh tùy ngữ cảnh" },
+   { src: "我他妈", category: "censored_profanity", dest: ["ĐM", "Đệt thật", "Đệch thật", "Vãi thật"], note: "Cụm chửi chen giữa câu, cấm dịch thành 'Ta con mẹ nó'" },
+   { src: "你他妈", category: "censored_profanity", dest: ["ĐM", "Đệt", "Đệch", "Vãi lol"], note: "Cụm chửi nhắm vào đối phương, cấm dịch thành 'Ngươi con mẹ nó'" },
+   { src: "操你妈", category: "censored_profanity", dest: ["ĐM!", "Mẹ kiếp nhà ngươi!", "Cút mẹ đi!", "Khốn kiếp!"], note: "Chửi cực gắt, ưu tiên rút gọn thành 'ĐM', không tự chế thành 'địt bố mày'" },
+   { src: "草泥马", category: "censored_profanity", dest: ["ĐM!", "Vãi cứt!", "Đệt mịa!", "Vãi lol!"], note: "Meme né kiểm duyệt, gốc tục gần với chửi thề, cấm giữ nguyên pinyin/Hán Việt" },
+   { src: "千只草泥马", category: "censored_profanity", dest: ["cả đàn ĐM", "đm vãi chưởng", "đệt mịa thật sự", "vãi cứt luôn"], note: "Biến thể phóng đại của meme chửi, tuyệt đối không dịch kiểu 'ngàn con thảo nê mã'" },
+   { src: "千只草泥马奔腾而过", category: "censored_profanity", dest: ["cả đàn ĐM chạy qua đầu", "đm đúng kiểu cạn lời", "vãi cứt thật sự", "đệt mịa luôn"], note: "Meme phóng đại cảm xúc sốc/cạn lời, cấm dịch literal hoặc Hán Việt" },
+   { src: "尼玛", category: "censored_profanity", dest: ["ĐM", "Vãi thật", "Đệt", "Bó tay vãi"], note: "Mắng/chửi lách, cấm giữ nguyên pinyin/Hán Việt" },
+
+   { src: "傻逼", category: "insult", dest: ["đồ ngu", "đồ đần", "ngu vãi", "thằng ngu"], note: "Mắng chửi trực diện, không ép ra 'ngươi thằng điên này'" },
+
+   { src: "腹黑", category: "behavior", dest: ["mưu mô", "thâm sâu", "đen bụng", "cáo già"], note: "Phúc hắc" },
+   { src: "装逼", category: "behavior", dest: ["làm màu", "gáy", "ra vẻ", "thích thể hiện"], note: "Trang bức" },
+   { src: "骚操作", category: "behavior", dest: ["thao tác cực gắt", "xử lý ảo ma", "màn múa lửa"], note: "Tao thao tác" }
 ];
 
 export const IDIOM_SYSTEM_RULE = `

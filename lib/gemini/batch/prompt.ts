@@ -3,7 +3,8 @@
  */
 
 import type { Chapter } from "@/lib/db";
-import { buildSystemInstruction } from "../constants";
+import { buildSystemInstruction, getPromptProfileForModel } from "../constants";
+import { buildDynamicSlangHints } from "../rules/assembler";
 import { buildGlossaryContext } from "./glossary";
 
 /**
@@ -15,6 +16,7 @@ export async function buildBatchPrompt(
   config: {
     customPrompt?: string;
     workspaceId: string;
+    model?: string;
   }
 ): Promise<{ systemInstruction: string; userPrompt: string }> {
   // 1. Load glossary context (terms + characters)
@@ -24,8 +26,16 @@ export async function buildBatchPrompt(
   const systemInstruction = buildSystemInstruction(
     config.customPrompt,
     glossaryContext,
-    true // isBatch: skip "CẤM JSON" rule — batch cần JSON output
+    true,
+    getPromptProfileForModel(config.model)
   );
+  const originalText = chapters
+    .map(ch => `${ch.title || ""}\n${ch.content_original || ""}`)
+    .join('\n');
+  const slangHints = buildDynamicSlangHints(originalText);
+  const mergedSystemInstruction = slangHints
+    ? `${systemInstruction}\n${slangHints}`.trim()
+    : systemInstruction;
 
   // 3. Build Style Capsule (Bí thuật giữ context cho Flash)
   const styleCapsule = JSON.stringify({
@@ -72,5 +82,5 @@ YÊU CẦU OUTPUT (CỰC TRỌNG YẾU):
 }
   `.trim();
 
-  return { systemInstruction, userPrompt };
+  return { systemInstruction: mergedSystemInstruction, userPrompt };
 }

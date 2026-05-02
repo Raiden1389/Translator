@@ -4,6 +4,19 @@ import { scrubAIChatter, cleanIdiomExplanations } from "./scrub";
 import { repairSentenceStructure, repairUnmatchedQuotes, applyAllCorrections } from "./correction";
 import { deduplicateConsecutiveParagraphs, normalizeQuoteStyles, scrubVietnameseAIChatter } from "./post-cleanup";
 
+function cleanupMalformedProfanity(text: string): string {
+    return text
+        .replace(/([Tt]a|[Nn]gươi|[Hh]ắn|[Nn]àng)\s+con\s+mẹ\s+nó(?=[\s!?.,…]|$)([!?.,…]*)/gu, (_, pronoun: string, punctuation: string) => {
+            const replacement = pronoun[0] === pronoun[0].toUpperCase() ? "Đệt" : "đệt";
+            return `${replacement}${punctuation || ""}`;
+        })
+        .replace(/([Nn]gươi|[Tt]a)\s+thằng\s+điên\s+này(?=[\s!?.,…]|$)([!?.,…]*)/gu, (_, pronoun: string, punctuation: string) => {
+            const replacement = pronoun[0] === pronoun[0].toUpperCase() ? "Đồ điên" : "đồ điên";
+            return `${replacement}${punctuation || ""}`;
+        })
+        .replace(/địt (bố|mẹ) mày/giu, () => "ĐM");
+}
+
 /**
  * Casing & Final Sweep Module
  * The orchestrator for final text cleanup before display.
@@ -102,6 +115,7 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
     cleaned = repairSentenceStructure(cleaned);
     cleaned = repairUnmatchedQuotes(cleaned);
     cleaned = cleanIdiomExplanations(cleaned);
+    cleaned = cleanupMalformedProfanity(cleaned);
 
     return cleaned
         .replace(/\[\s+/g, '[')
