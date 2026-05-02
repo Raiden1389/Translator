@@ -15,9 +15,9 @@ export interface CleanResult {
 /**
  * Preview: Scan all chapters for boilerplate without modifying anything.
  */
-export async function scanWorkspaceBoilerplate(workspaceId: number): Promise<CleanResult> {
+export async function scanWorkspaceBoilerplate(workspaceId: string): Promise<CleanResult> {
     const chapters = await db.chapters
-        .where('workspace_id')
+        .where('workspaceId')
         .equals(workspaceId)
         .toArray();
 
@@ -50,11 +50,11 @@ export async function scanWorkspaceBoilerplate(workspaceId: number): Promise<Cle
  * Updates content_original in DB.
  */
 export async function cleanWorkspaceBoilerplate(
-    workspaceId: number,
+    workspaceId: string,
     onProgress?: (current: number, total: number, title: string) => void
 ): Promise<CleanResult> {
     const chapters = await db.chapters
-        .where('workspace_id')
+        .where('workspaceId')
         .equals(workspaceId)
         .toArray();
 

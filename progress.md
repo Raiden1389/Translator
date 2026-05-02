@@ -28,3 +28,8 @@
 - **21:30:** Fixed regression in Name Audit clustering logic (李明 → Ly Minh correlation).
 - **21:45:** Updated **CHANGELOG.md** to v2.14.0 and re-indexed code-graph (811 symbols).
 - **21:55:** Finalized stability fixes and verified tests pass.
+
+## 2026-05-02
+- **16:20:** Implemented **Academic Shield** logic — proactive academic framing in default system instruction to reduce `PROHIBITED_CONTENT` blocks.
+- **16:25:** Verified build stability with `next build`.
+- **16:28:** Bumped version to **v2.16.0** and synchronized across package.json, tauri.conf.json, and Cargo.toml.

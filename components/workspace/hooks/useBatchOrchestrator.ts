@@ -59,11 +59,6 @@ export function useBatchOrchestrator(
       console.log(`📦 [BATCH ${i + 1}/${batches.length}] ${batch.length} chapters`);
       batch.forEach(ch => queue.updateStatus(ch.id!, 'processing'));
 
-      const { systemInstruction, userPrompt } = await buildBatchPrompt(batch, {
-        customPrompt: config.customPrompt,
-        workspaceId
-      });
-
       try {
         const { translateBatch } = await import('@/lib/gemini/batch-api');
         console.log(`📡 [BATCH ${i + 1}/${batches.length}] Calling API for ${batch.length} chapters...`);
@@ -74,6 +69,12 @@ export function useBatchOrchestrator(
 
         const modelSetting = await db.settings.get("aiModel");
         const aiModel = migrateModelId((modelSetting?.value as string) || "gemini-2.5-flash");
+
+        const { systemInstruction, userPrompt } = await buildBatchPrompt(batch, {
+          customPrompt: config.customPrompt,
+          workspaceId,
+          model: aiModel,
+        });
 
         const result = await translateBatch(
           userPrompt,

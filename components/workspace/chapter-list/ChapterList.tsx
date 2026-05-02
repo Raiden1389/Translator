@@ -244,14 +244,11 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     };
 
     const handleCleanBoilerplate = async () => {
-        const numId = parseInt(workspaceId);
-        if (isNaN(numId)) return;
-
         const confirmed = confirm(`Xóa rác web (navigation, disclaimer, boilerplate) khỏi tất cả ${chapters?.length || 0} chương?\n\nThao tác này sẽ sửa content gốc (Trung) trong database.`);
         if (!confirmed) return;
 
         try {
-            const result = await cleanWorkspaceBoilerplate(numId, (current, total, title) => {
+            const result = await cleanWorkspaceBoilerplate(workspaceId, (current, total, title) => {
                 toast.loading(`Đang xử lý ${current}/${total}: ${title}`, { id: 'clean-boilerplate' });
             });
 

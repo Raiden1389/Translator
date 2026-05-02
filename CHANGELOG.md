@@ -5,62 +5,48 @@
 - **[Codex][Prompt]** Built an internet-slang taxonomy plus dynamic grouped prompt hints for Chinese web slang (`666`, `草泥马`, `绷不住了`, `乱七八糟`, `一脸懵逼`, etc.) so the translator stops falling back to literal Hán-Việt or read-aloud meme nonsense.
 - **[Codex][Prompt]** Hardened profanity handling toward abbreviated urban slang (`ĐM`, `đệt`, `đệch`, `vãi lol`, `vãi cứt`) and added a final sweep fix for malformed outputs like `Ta con mẹ nó`, `Ngươi con mẹ nó`, and `địt bố mày`.
 - **[Codex][Prompt]** Reworked urban-currency guidance to remove `vạn tệ` / `ức` wording and force modern numeric reads like `500 nghìn tệ`, `100 triệu tệ`, and `5 tỷ tệ`.
+- **[Safety][Prompt]** Proactive Academic Framing: default system instruction now identifies content as "published Chinese web novel" for "literary research and archival purposes" to decrease false-positive safety triggers from the first attempt.
 
 ### Added
-- **[Safety][Prompt]** Proactive Academic Framing: default system instruction now identifies content as "published Chinese web novel" for "literary research and archival purposes" to decrease false-positive safety triggers.
+- **[Safety][Prompt]** Proactive Academic Framing: default system instruction now identifies content as "published Chinese web novel" for "literary research and archival purposes" to decrease false-positive safety triggers from the first attempt.
 - **[Codex][Prompt]** Added `PRONOUN LOCK` as a dedicated top-level guardrail, a `Flash Lite 2.5` prompt profile, and extra few-shot coverage for lover/family/master-disciple dialogue, modern profanity, and urban money reads.
-- **[Codex][Prompt]** Added internet-slang categories (`reaction`, `praise`, `censored_profanity`, `insult`, `behavior`) plus new map entries for `666`, `太6了`, `草泥马`, `千只草泥马`, `千只草泥马奔腾而过`, `尼玛`, `绷不住了`, `离谱`, `逆天`, `乱七八糟`, and `一脸懵逼`.
+- **[Codex][Prompt]** Added internet-slang categories (`reaction`, `praise`, `censored_profanity`, `insult`, `behavior`) plus new map entries for `666`, `太6了`, `草泥马`, `千只草泥马`, `千只草泥马奔腾 mà không lo bị chặn bởi Safety Filter.`, `尼玛`, `绷不住了`, `离谱`, `逆天`, `乱七八糟`, and `一脸懵逼`.
 - **[Codex][Test]** Added regression coverage for grouped slang hints, profanity cleanup, meme-variant slang, and modern urban currency formatting.
 
 ### Changed
+- **[Safety][Prompt]** Implemented "Academic Shield" — proactive academic framing in the default system instruction. Reduces `PROHIBITED_CONTENT` blocks for adult/harem/urban novels with profanity by signaling a research/literary translation context from the first attempt.
+- **[Codex][Prompt]** Built an internet-slang taxonomy plus dynamic grouped prompt hints for Chinese web slang (`666`, `草泥马`, `绷不住了`, `乱七八糟`, `一脸懵逼`, etc.) so the translator stops falling back to literal Hán-Việt or read-aloud meme nonsense.
+- **[Codex][Prompt]** Hardened profanity handling toward abbreviated urban slang (`ĐM`, `đệt`, `đệch`, `vãi lol`, `vãi cứt`) and added a final sweep fix for malformed outputs like `Ta con mẹ nó`, `Ngươi con mẹ nó`, and `địt bố mày`.
+- **[Codex][Prompt]** Reworked urban-currency guidance to remove `vạn tệ` / `ức` wording and force modern numeric reads like `500 nghìn tệ`, `100 triệu tệ`, and `5 tỷ tệ`.
 - `lib/gemini/constants.ts` — **[Safety]** Updated default `customInstruction` template with academic framing and hư cấu (fiction) context.
-- `lib/gemini/constants.ts` — **[Codex]** expanded prompt rules/few-shots for pronouns, profanity, and đô thị money formatting; `CURRENCY_RULE` now bans `vạn tệ`, `ức`, and `nghìn vạn tệ`.
-- `lib/gemini/idioms.ts` — **[Codex]** replaced the flat slang list with a typed taxonomy and broader internet-slang coverage.
-- `lib/gemini/rules/assembler.ts` — **[Codex]** now groups only matching slang into pragmatic blocks (`REACTION`, `HYPE`, `MEME TỤC`, `INSULT`, `BEHAVIOR`) before merging them into the system prompt.
-- `lib/gemini/batch/prompt.ts` — **[Codex]** batch translation now receives the same dynamic slang hints as single-chapter translation.
-
-### Fixed
-- **[Codex][Prompt]** Prevented literal garbage such as `Ta dựa vào`, `Ta con mẹ nó`, `Ngươi con mẹ nó`, `Ngươi thằng điên này`, `sáu sáu sáu`, `thảo nê mã`, and `ngàn con thảo nê mã`.
-- **[Codex][Post]** `lib/gemini/text/casing.ts` now normalizes malformed direct profanity into short forms, including `địt bố/mẹ mày -> ĐM`.
-- **[Codex][Consistency]** Reduced đô thị money drift where one novel could alternate between `50 tỷ`, `500 tỷ`, `50 ức`, and `50 vạn tệ` for the same magnitude family.
 
 ## [2.15.2] - 2026-04-26
 
 ### Top Impact
-- **[Codex][Prompt]** Wired modern slang hints into dynamic prompt assembly and added few-shot examples for `我靠`, `卧槽`, `装逼` to prevent literal outputs like "Ta dựa vào!".
+- **[Codex][Prompt]** Strengthened pronoun lock so `我/你` stay `Ta/Ngươi` even in lover, family, sibling, or master-disciple contexts unless the original sentence explicitly contains a dedicated kinship/title form.
+- **[Codex][Prompt]** Added a hard `PRONOUN LOCK` block at the top of the translation prompt and expanded few-shot coverage for dialogue pronouns plus `我靠` slang variants (`!` and `.`).
+- **[Codex][Prompt]** Added a dedicated `Flash Lite 2.5` prompt profile with shorter core rules and a trimmed few-shot pack, activated automatically when the selected model is `gemini-2.5-flash-lite`.
+- **[Codex][Prompt]** Added few-shot examples for modern Chinese web slang (`我靠`, `卧槽`, `装逼`) to prevent literal outputs like "Ta dựa vào!" and force natural Vietnamese exclamations/behavioral slang.
 - **[Safety]** Soft-retry mechanism for PROHIBITED_CONTENT blocks — wraps system instruction with Vietnamese academic framing to bypass input-level false positives.
-- **[Safety]** Full safety ratings now embedded directly in error messages (PromptRatings, CandRatings, response keys) — visible in UI overlay without DevTools.
-- **[Utils]** `strip-boilerplate.ts` — shared module with 15+ regex patterns to strip Chinese web novel navigation, UI controls, genre tags, disclaimers, page-break prompts, and site watermarks.
-- **[Service]** `clean.service.ts` — bulk scan/clean boilerplate from all chapters in a workspace with progress tracking.
-- **[UI]** ✂️ "Xóa rác web" button in Action Hub — one-click bulk clean boilerplate from `content_original` in database.
 
 ### Added
 - **[Codex][Prompt]** Strengthened pronoun lock so `我/你` stay `Ta/Ngươi` even in lover, family, sibling, or master-disciple contexts unless the original sentence explicitly contains a dedicated kinship/title form.
 - **[Codex][Prompt]** Added a hard `PRONOUN LOCK` block at the top of the translation prompt and expanded few-shot coverage for dialogue pronouns plus `我靠` slang variants (`!` and `.`).
 - **[Codex][Prompt]** Added a dedicated `Flash Lite 2.5` prompt profile with shorter core rules and a trimmed few-shot pack, activated automatically when the selected model is `gemini-2.5-flash-lite`.
-- **[Codex][Prompt]** Added few-shot examples for modern Chinese web slang (`我靠`, `卧槽`, `装逼`) so the translator treats them as natural exclamations/behavioral slang instead of literal Hán-Việt or word-by-word phrases.
+- **[Codex][Prompt]** Added few-shot examples for modern Chinese web slang (`我靠`, `卧槽`, `装逼`) to prevent literal outputs like "Ta dựa vào!" and force natural Vietnamese exclamations/behavioral slang.
 - **[Safety]** Soft-retry mechanism for PROHIBITED_CONTENT blocks — wraps system instruction with Vietnamese academic framing to bypass input-level false positives.
 - **[Safety]** Full safety ratings now embedded directly in error messages (PromptRatings, CandRatings, response keys) — visible in UI overlay without DevTools.
-- **[Utils]** `strip-boilerplate.ts` — shared module with 15+ regex patterns to strip Chinese web novel navigation, UI controls, genre tags, disclaimers, page-break prompts, and site watermarks.
-- **[Service]** `clean.service.ts` — bulk scan/clean boilerplate from all chapters in a workspace with progress tracking.
-- **[UI]** ✂️ "Xóa rác web" button in Action Hub — one-click bulk clean boilerplate from `content_original` in database.
 
 ### Changed
-- `lib/gemini/constants.ts` — **[Codex]** introduced `lite` prompt profile selection for `gemini-2.5-flash-lite`.
-- `lib/gemini/translate.ts` — **[Codex]** routes single-chapter translation prompt building by selected model profile.
-- `lib/gemini/batch/prompt.ts` — **[Codex]** accepts model-aware prompt profile selection for batch translation.
-- `lib/gemini/rules/assembler.ts` — **[Codex]** injects `MODERN_SLANG_MAP` hints only when matching slang appears in the source text.
-- `lib/gemini/idioms.ts` — **[Codex]** expanded modern slang map with `我靠`, `我去`, `他妈的`, `牛逼`.
-- `lib/gemini/constants.ts` — **[Codex]** added slang few-shot samples and explicit bans for literal outputs such as "Ta dựa vào!".
-- `lib/utils/strip-boilerplate.ts` — NEW: shared boilerplate stripping module
-- `lib/services/clean.service.ts` — NEW: bulk workspace clean service
-- `lib/gemini/translate.ts` — boilerplate strip + safety soft-retry + diagnostic embedding
-- `lib/gemini/client.ts` — type cast fix + raw response debug logging
-- `lib/gemini/adaptive-tokens.ts` — finishReason UNKNOWN fix
-- `components/workspace/shared/ChapterListHeader.tsx` — ✂️ clean button
+- `lib/gemini/constants.ts` — **[Codex]** moved pronoun mapping into a dedicated top-level lock block and expanded dialogue/slang few-shots
+- `__tests__/prompt-profile.test.ts` — **[Codex]** added regression coverage for pronoun lock and `我靠` variant examples
+- `__tests__/prompt-profile.test.ts` — **[Codex]** added regression coverage for full vs lite prompt selection
+- `lib/gemini/constants.ts` — **[Codex]** introduced `lite` prompt profile selection for `gemini-2.5-flash-lite`
+- `lib/gemini/rules/assembler.ts` — **[Codex]** routes prompt profile by model and turns off two ineffective Vietnamese-keyword heuristics
+- `lib/gemini/translate.ts` — **[Codex]** routes single translation prompt selection by model
 
 ### Fixed
-- **[Codex][Prompt]** Turned off two ineffective dynamic heuristics that were matching Vietnamese keywords against Chinese source text, and left explicit notes so they can be rewritten properly later.
+- **[Codex][Prompt]** Turned off two ineffective dynamic heuristics that were matching Vietnamese keywords against Chinese source text, and left explicit notes for a future Chinese-keyword rewrite.
 - **[Codex][Audit]** Expanded web boilerplate stripping to cover simplified and traditional Chinese TXT junk (`首页`, `下一页`, `请记住本书首发域名`, `手机版阅读网址`, `笔趣阁`, recommendation/bookmark prompts) with regression tests.
 - **[Codex][Fix]** "Xóa rác web" Action Hub button now queries chapters by the correct Dexie index `workspaceId` and preserves string workspace IDs instead of coercing them to numbers.
 - **[Safety]** `adaptive-tokens.ts` — empty candidate responses now correctly report `finishReason: "UNKNOWN"` instead of falsely masking as `"STOP"`.
@@ -210,36 +196,3 @@
 - **[Translator]** `[HARD LIMIT]` ẩn chủ ngữ quá cứng → mờ nhân vật scene đông người. Nới thành "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ nghĩa".
 - **[Translator]** `IDIOM_RULE` dead code — export nhưng không dùng `ALL_RULES`. Comment DEPRECATED.
 - **[Translator]** Đại từ đầu câu viết thường (hắn/nàng/ngươi). Tách rule: "GIỮA CÂU viết thường / ĐẦU CÂU BẮT BUỘC hoa".
-
-## [2.10.0] - 2026-03-22
-
-### Top Impact
-- **[Intelligence]** Name Consistency Audit — Full post-translation scanner detecting inconsistent character name translations (zero API cost, pure string processing + HanViet lookup).
-- **[Intelligence]** `name-audit.extraction.ts` — Phase 1: Vietnamese + Chinese name extraction with paragraph alignment and cross-referencing via VietPhrase + HanViet repos.
-- **[Intelligence]** `name-audit.clustering.ts` — Phase 2: Fuzzy name clustering using Chinese cross-refs first, then source ref matching, then Levenshtein distance.
-- **[Intelligence]** `name-audit.autofix.ts` — Phase 4: Auto-fix engine creates Correction rules (Luyện Văn) + sweeps all translated chapters + saves undo snapshot.
-- **[UI]** `NameAuditModule.tsx` — Main Intelligence Hub module with chapter range selector, scan progress bar, filter tabs (All/Inconsistent/Confirmed), similarity threshold slider.
-
-### Added
-- **[Intelligence]** Name Consistency Audit — Full post-translation scanner detecting inconsistent character name translations (zero API cost, pure string processing + HanViet lookup).
-- **[Intelligence]** `name-audit.extraction.ts` — Phase 1: Vietnamese + Chinese name extraction with paragraph alignment and cross-referencing via VietPhrase + HanViet repos.
-- **[Intelligence]** `name-audit.clustering.ts` — Phase 2: Fuzzy name clustering using Chinese cross-refs first, then source ref matching, then Levenshtein distance.
-- **[Intelligence]** `name-audit.autofix.ts` — Phase 4: Auto-fix engine creates Correction rules (Luyện Văn) + sweeps all translated chapters + saves undo snapshot.
-- **[UI]** `NameAuditModule.tsx` — Main Intelligence Hub module with chapter range selector, scan progress bar, filter tabs (All/Inconsistent/Confirmed), similarity threshold slider.
-- **[UI]** `NameClusterCard.tsx` — Cluster card with proportional frequency bars, radio canonical selection, source ref look-back (VietPhrase + Chinese + Vietnamese), "Convert" chapter button.
-
-### Changed
-- **[Intelligence]** Refactored monolithic `name-audit.service.ts` into 4 modules: extraction, clustering, autofix, orchestrator.
-- **[UI]** Intelligence Hub — added "Name Audit" tab with `Users` icon.
-- `lib/services/name-audit.types.ts` — Shared types (SourceParagraphRef, NameCluster, NameVariant, NameAuditReport, NameFixSelection, NameFixResult)
-- `lib/services/name-audit.extraction.ts` — NEW (Phase 1)
-- `lib/services/name-audit.clustering.ts` — NEW (Phase 2) + ambiguity guard
-- `lib/services/name-audit.autofix.ts` — NEW (Phase 4) + override logic + global snapshot
-
-### Fixed
-- **[Intelligence]** Dictionary cold-start — `SyllableRepository` and `VietPhraseRepository` not loaded before Name Audit scan/convert. Cold start returned raw Chinese text instead of HanViet/VietPhrase.
-- **[Intelligence]** SourceRef ambiguity — paragraphs with multiple Chinese names caused false cluster merges. Now skipped when >1 name found.
-- **[Intelligence]** Stale Correction rules — re-auditing with a different canonical silently skipped the new rule. Now updates existing rule when `to` differs.
-- **[Intelligence]** Undo scope mismatch — snapshot was workspace-scoped but sweep was global. Snapshot now captures all translated chapters.
-- **[Corrections]** `sweepSingleRule()` now also corrects `title_translated`, matching the main Luyện Văn flow and preventing "body fixed, title stale".
-- **[UI]** Fix result label: "chương" → "lượt cập nhật" to avoid inflated count when 1 chapter is updated by multiple rules.

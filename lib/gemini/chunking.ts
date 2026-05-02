@@ -195,7 +195,7 @@ export async function translateWithChunking(
                     // 🛡️ CONTINUITY: Only the first chunk should handle the title
                     let chunkInstruction = customInstruction;
                     if (index > 0) {
-                        const continuityNote = "\n[CHÚ Ý: Đây là đoạn nối tiếp, KHÔNG dịch lại tiêu đề, KHÔNG thêm giải thích, chỉ dịch tiếp nội dung].";
+                        const continuityNote = "\n[CHÚ Ý: Đây là đoạn nối tiếp của cùng một chương. GIỮ NGUYÊN khóa xưng hô đã áp dụng từ trước: 我=Ta, 你=Ngươi, 他=Hắn, 她=Nàng, 它=Nó. CẤM dùng tôi, cô, cô ấy, anh, em, bạn, mình, cậu. KHÔNG suy diễn quan hệ hiện đại. KHÔNG dịch lại tiêu đề, KHÔNG thêm giải thích, chỉ dịch tiếp nội dung.]";
                         chunkInstruction = (customInstruction || "") + continuityNote;
                     }
 

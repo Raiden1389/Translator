@@ -95,7 +95,7 @@ export const translateChapter = async (
         });
 
         // 3. Build System Instruction
-        const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction, text);
+        const fullInstruction = assembleSystemInstruction(analysis, glossaryContext, customInstruction, text, aiModel as string);
         onLog({
             timestamp: new Date(),
             message: '🤖 Đang gửi yêu cầu đến AI...',

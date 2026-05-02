@@ -96,6 +96,7 @@ export async function translateBatch(
       const { systemInstruction: chunkSI, userPrompt } = await buildBatchPrompt(chunk, {
         customPrompt: customPrompt || '', // FIX: Use original customPrompt
         workspaceId,
+        model: aiModel,
       });
 
       onLog(`📦 Chunk ${i + 1} prompt size: ${userPrompt.length} chars`);
@@ -148,7 +149,8 @@ export async function translateBatch(
     const { buildBatchPrompt } = await import('./batch');
     return await buildBatchPrompt(originalChapters, {
       workspaceId,
-      customPrompt: customPrompt // Ensure customPrompt is used
+      customPrompt: customPrompt, // Ensure customPrompt is used
+      model: aiModel,
     });
   })();
 
