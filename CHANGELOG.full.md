@@ -7,21 +7,34 @@
 
 ## [2.16.0] - 2026-05-02
 
-**Top Impact**: Proactive "Academic Shield" framing for safety bypass • Codex prompt slang hardening • PROHIBITED_CONTENT diagnostic hardening • Urban currency numeric normalization.
+**Top Impact**: Proactive "Academic Shield" framing for safety bypass • Codex prompt slang hardening • PROHIBITED_CONTENT diagnostic hardening • Urban currency numeric normalization • Codex unified post-processing across single/batch/chunking • FinalSweep boilerplate & typo hardening.
 
-- **[Safety][Prompt]** Implemented "Academic Shield" — proactive academic framing in the default system instruction. Reduces `PROHIBITED_CONTENT` blocks for adult/harem/urban novels with profanity by signaling a research/literary translation context from the first attempt.
-- **[Codex][Prompt]** Built an internet-slang taxonomy plus dynamic grouped prompt hints for Chinese web slang (`666`, `草泥马`, `绷不住了`, `乱七八糟`, `一脸懵逼`, etc.) so the translator stops falling back to literal Hán-Việt or read-aloud meme nonsense.
-- **[Codex][Prompt]** Hardened profanity handling toward abbreviated urban slang (`ĐM`, `đệt`, `đệch`, `vãi lol`, `vãi cứt`) and added a final sweep fix for malformed outputs like `Ta con mẹ nó`, `Ngươi con mẹ nó`, and `địt bố mày`.
-- **[Codex][Prompt]** Reworked urban-currency guidance to remove `vạn tệ` / `ức` wording and force modern numeric reads like `500 nghìn tệ`, `100 triệu tệ`, and `5 tỷ tệ`.
+- **[Gemini][Safety][Prompt]** Implemented "Academic Shield" — proactive academic framing in the default system instruction. Reduces `PROHIBITED_CONTENT` blocks for adult/harem/urban novels with profanity by signaling a research/literary translation context from the first attempt.
+- **[Gemini][Codex][Prompt]** Built an internet-slang taxonomy plus dynamic grouped prompt hints for Chinese web slang (`666`, `草泥马`, `绷不住了`, `乱七八糟`, `一脸懵逼`, etc.) so the translator stops falling back to literal Hán-Việt or read-aloud meme nonsense.
+- **[Gemini][Codex][Prompt]** Hardened profanity handling toward abbreviated urban slang (`ĐM`, `đệt`, `đệch`, `vãi lol`, `vãi cứt`) and added a final sweep fix for malformed outputs like `Ta con mẹ nó`, `Ngươi con mẹ nó`, and `địt bố mày`.
+- **[Gemini][Codex][Prompt]** Reworked urban-currency guidance to remove `vạn tệ` / `ức` wording and force modern numeric reads like `500 nghìn tệ`, `100 triệu tệ`, and `5 tỷ tệ`.
+- **[Gemini][Codex][Post]** Unified post-processing so batch chapters now go through the same cleanup pipeline as single-chapter translation, while chunking stops re-sweeping titles with the heavy body pass.
+- **[Opus][Fix]** Added Vietnamese boilerplate nav strip to `finalSweep` — auto-removes `Chương trước Mục lục Chương sau` and variants that leak through from web novel sources into translated output.
+- **[Opus][Fix]** Added AI output typo correction `Đầu óã` → `Đầu óc` to `finalSweep` — catches known Gemini character corruption in Vietnamese diacritics.
 
 ### Added
-- **[Safety][Prompt]** Proactive Academic Framing: default system instruction now identifies content as "published Chinese web novel" for "literary research and archival purposes" to decrease false-positive safety triggers from the first attempt.
-- **[Codex][Prompt]** Added `PRONOUN LOCK` as a dedicated top-level guardrail, a `Flash Lite 2.5` prompt profile, and extra few-shot coverage for lover/family/master-disciple dialogue, modern profanity, and urban money reads.
-- **[Codex][Prompt]** Added internet-slang categories (`reaction`, `praise`, `censored_profanity`, `insult`, `behavior`) plus new map entries for `666`, `太6了`, `草泥马`, `千只草泥马`, `千只草泥马奔腾 mà không lo bị chặn bởi Safety Filter.`, `尼玛`, `绷不住了`, `离谱`, `逆天`, `乱七八糟`, and `一脸懵逼`.
-- **[Codex][Test]** Added regression coverage for grouped slang hints, profanity cleanup, meme-variant slang, and modern urban currency formatting.
+- **[Gemini][Safety][Prompt]** Proactive Academic Framing: default system instruction now identifies content as "published Chinese web novel" for "literary research and archival purposes" to decrease false-positive safety triggers from the first attempt.
+- **[Gemini][Codex][Prompt]** Added `PRONOUN LOCK` as a dedicated top-level guardrail, a `Flash Lite 2.5` prompt profile, and extra few-shot coverage for lover/family/master-disciple dialogue, modern profanity, and urban money reads.
+- **[Gemini][Codex][Prompt]** Added internet-slang categories (`reaction`, `praise`, `censored_profanity`, `insult`, `behavior`) plus new map entries for `666`, `太6了`, `草泥马`, `千只草泥马`, `千只草泥马奔腾而过`, `尼玛`, `绷不住了`, `离谱`, `逆天`, `乱七八糟`, and `一脸懵逼`.
+- **[Gemini][Codex][Test]** Added regression coverage for grouped slang hints, profanity cleanup, meme-variant slang, and modern urban currency formatting.
+- **[Gemini][Codex][Test]** Added post-processing regression coverage so batch routing, title normalization, and body cleanup stay locked to the shared pipeline.
+- **[Opus][Sweep]** `finalSweep` now strips Vietnamese navigation boilerplate (`Chương trước`, `Mục lục`, `Chương sau`) that survives translation from web novel sources.
+- **[Opus][Sweep]** `finalSweep` now auto-corrects `óã` → `óc` diacritic corruption in AI output.
 
 ### Changed
-- `lib/gemini/constants.ts` — **[Safety]** Updated default `customInstruction` template with academic framing and hư cấu (fiction) context.
+- `lib/gemini/constants.ts` — **[Gemini][Safety]** Updated default `customInstruction` template with academic framing and hư cấu (fiction) context.
+- `lib/gemini/translation/post-processor.ts` — **[Gemini][Codex][Post]** extracted shared post-processing options so both single and batch flows finalize title/body through one path.
+- `lib/gemini/batch-api.ts` — **[Gemini][Codex][Post]** batch parsing now immediately runs shared post-processing for each returned chapter before handing results back to the UI.
+- `lib/gemini/chunking.ts` — **[Gemini][Codex][Post]** removed redundant heavy `finalSweep` passes on non-chunked responses and stopped applying body-grade cleanup to titles after chunk merge.
+- `components/workspace/hooks/useBatchOrchestrator.ts` — **[Gemini][Codex][Post]** batch UI save path now trusts already-processed chapter output instead of re-normalizing title/corrections in a second pass.
+- `lib/gemini/text/casing.ts` — **[Opus][Sweep]** Added Vietnamese boilerplate nav strip and AI typo correction to `finalSweep`.
+- `__tests__/post-processor.test.ts` — **[Gemini][Codex][Test]** added regression coverage for shared title/body post-processing behavior.
+- `__tests__/batch-postprocess.test.ts` — **[Gemini][Codex][Test]** added regression coverage that batch output is routed through the shared post-processing pipeline.
 
 ---
 

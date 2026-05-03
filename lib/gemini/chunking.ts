@@ -156,9 +156,6 @@ export async function translateWithChunking(
                 text,
                 onLog,
                 (res) => {
-                    // ABSOLUTE FINAL SWEEP: Quét cửa lúc đi ra
-                    res.translatedText = finalSweep(res.translatedText);
-                    if (res.translatedTitle) res.translatedTitle = finalSweep(res.translatedTitle);
                     res.wasChunked = false; // No chunking happened
                     resolve(res);
                 },
@@ -219,11 +216,10 @@ export async function translateWithChunking(
         const results = await Promise.all(promises);
 
         let translatedText = results.map(r => r.translatedText).join('\n\n');
-        // ABSOLUTE FINAL SWEEP: Quét cửa lúc đi ra
+        // One final body-only sweep after merge to repair chunk-boundary artifacts.
         translatedText = finalSweep(translatedText);
 
         let translatedTitle = results.length > 0 ? results[0].translatedTitle : undefined;
-        if (translatedTitle) translatedTitle = finalSweep(translatedTitle);
 
         let totalTerms = 0;
         let totalChars = 0;

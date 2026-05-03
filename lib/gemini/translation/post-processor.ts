@@ -3,10 +3,28 @@
  * Handles corrections, validation, and final cleanup
  */
 
-import { db, DictionaryEntry } from "../../db";
+import { db, DictionaryEntry, CorrectionEntry } from "../../db";
 import { TranslationResult } from "../types";
 import { finalSweep } from "../contentProcessor";
 import { normalizeTitleCase } from "../../utils/title-normalizer";
+import { normalizeChapterTitle } from "../../utils/chapter-title-normalizer";
+
+export interface PostProcessingOptions {
+    originalTitle?: string;
+    corrections?: CorrectionEntry[];
+}
+
+function finalizeTitle(title: string, originalTitle?: string): string {
+    if (!title.trim()) {
+        return originalTitle
+            ? normalizeChapterTitle("", originalTitle)
+            : "Chương: (Tiêu đề chưa xác định)";
+    }
+
+    return originalTitle
+        ? normalizeChapterTitle(title, originalTitle)
+        : normalizeTitleCase(title);
+}
 
 /**
  * Apply post-processing to translation result
@@ -20,7 +38,8 @@ import { normalizeTitleCase } from "../../utils/title-normalizer";
 export async function applyPostProcessing(
     parsed: TranslationResult,
     workspaceId: string,
-    relevantDict: DictionaryEntry[]
+    relevantDict: DictionaryEntry[],
+    options: PostProcessingOptions = {}
 ): Promise<TranslationResult> {
     // 🔥 AUTO-FIX: Nếu Title còn chữ Hán → Tự động fix bằng translateTitleOnly
     if (parsed.translatedTitle && /[\u4e00-\u9fff]/.test(parsed.translatedTitle)) {
@@ -45,15 +64,8 @@ export async function applyPostProcessing(
         }
     }
 
-    // 🔧 NORMALIZE: Fix ALL CAPS / Title Case titles
-    // Uses normalizeTitleCase() — single source of truth with complete Vietnamese char class
-    if (parsed.translatedTitle) {
-        parsed.translatedTitle = normalizeTitleCase(parsed.translatedTitle);
-    }
-
-
     // Apply Auto-Corrections (Universal Logic: NFC + LongestFirst + CasePreserve)
-    const corrections = await db.corrections.where('workspaceId').equals(workspaceId).toArray();
+    const corrections = options.corrections ?? await db.corrections.where('workspaceId').equals(workspaceId).toArray();
     if (corrections.length > 0) {
         const { applyAllCorrections } = await import("../contentProcessor");
         parsed.translatedText = applyAllCorrections(parsed.translatedText, corrections);
@@ -68,12 +80,13 @@ export async function applyPostProcessing(
         // Title: light cleanup only — no glossary enforce, no structure repair, no idiom strip
         const { normalizeVietnameseContent } = await import("../contentProcessor");
         const { scrubAIChatter } = await import("../contentProcessor");
-        parsed.translatedTitle = scrubAIChatter(normalizeVietnameseContent(parsed.translatedTitle));
+        const cleanedTitle = scrubAIChatter(normalizeVietnameseContent(parsed.translatedTitle));
+        parsed.translatedTitle = finalizeTitle(cleanedTitle, options.originalTitle);
     }
 
     // 🛡️ FALLBACK: Nếu mọi nỗ lực parse đều thất bại, không để trống title
     if (!parsed.translatedTitle || parsed.translatedTitle.trim() === "") {
-        parsed.translatedTitle = "Chương: (Tiêu đề chưa xác định)";
+        parsed.translatedTitle = finalizeTitle("", options.originalTitle);
     }
 
     // 🔍 QUALITY CHECK: Detect leftover Chinese in body (common with non-thinking mode)

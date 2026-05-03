@@ -9,6 +9,9 @@ import { withAdaptiveTokens } from "./adaptive-tokens";
 import { extractResponseText } from "./contentProcessor";
 import { parseBatchResponse } from "./batch/parser";
 import { buildThinkingConfig } from "./thinking-config";
+import { buildGlossary } from "./translation/glossary-builder";
+import { applyPostProcessing } from "./translation/post-processor";
+import { db } from "@/lib/db";
 import type { Chapter } from "@/lib/db";
 import type { GeminiResponse } from "../schemas/gemini-response.schema";
 
@@ -21,6 +24,36 @@ export interface BatchTranslationResult {
     outputTokens: number;
     thinkingTokens: number;
   };
+}
+
+export async function postProcessBatchChapters(
+  chapters: Chapter[],
+  workspaceId: string
+): Promise<Chapter[]> {
+  const corrections = await db.corrections.where("workspaceId").equals(workspaceId).toArray();
+
+  return await Promise.all(chapters.map(async (chapter) => {
+    const originalText = chapter.content_original || "";
+    const { relevantDict } = await buildGlossary(workspaceId, originalText);
+    const processed = await applyPostProcessing(
+      {
+        translatedTitle: chapter.title_translated,
+        translatedText: chapter.content_translated || ""
+      },
+      workspaceId,
+      relevantDict,
+      {
+        originalTitle: chapter.title,
+        corrections
+      }
+    );
+
+    return {
+      ...chapter,
+      title_translated: processed.translatedTitle,
+      content_translated: processed.translatedText
+    };
+  }));
 }
 
 export async function translateBatch(
@@ -102,7 +135,7 @@ export async function translateBatch(
       onLog(`📦 Chunk ${i + 1} prompt size: ${userPrompt.length} chars`);
 
       // Call API for this chunk
-      return await translateBatchSingle(userPrompt, chunk, aiModel, onLog, enableThinking, thinkingLevel, chunkSI);
+      return await translateBatchSingle(userPrompt, chunk, aiModel, workspaceId, onLog, enableThinking, thinkingLevel, chunkSI);
     });
 
     // Wait for all chunks to complete
@@ -142,7 +175,7 @@ export async function translateBatch(
   // Single batch call (no chunking)
   // If systemInstruction not provided, build it (fallback)
   if (systemInstruction) {
-    return await translateBatchSingle(batchPrompt, originalChapters, aiModel, onLog, enableThinking, thinkingLevel, systemInstruction);
+    return await translateBatchSingle(batchPrompt, originalChapters, aiModel, workspaceId, onLog, enableThinking, thinkingLevel, systemInstruction);
   }
 
   const { systemInstruction: builtSystem, userPrompt } = await (async () => {
@@ -154,13 +187,14 @@ export async function translateBatch(
     });
   })();
 
-  return await translateBatchSingle(userPrompt, originalChapters, aiModel, onLog, enableThinking, thinkingLevel, builtSystem);
+  return await translateBatchSingle(userPrompt, originalChapters, aiModel, workspaceId, onLog, enableThinking, thinkingLevel, builtSystem);
 }
 
 async function translateBatchSingle(
   batchPrompt: string,
   originalChapters: Chapter[],
   aiModel: string,
+  workspaceId: string,
   onLog: (msg: string) => void,
   enableThinking?: boolean,
   thinkingLevel?: "minimal" | "low" | "medium" | "high",
@@ -223,6 +257,7 @@ async function translateBatchSingle(
   // Parse batch response
   onLog(`📝 Parsing batch response...`);
   const parsed = parseBatchResponse(rawText, originalChapters);
+  const processedChapters = await postProcessBatchChapters(parsed.chapters, workspaceId);
 
   // Calculate stats
   const metadata = rawResult.usageMetadata || {};
@@ -237,7 +272,7 @@ async function translateBatchSingle(
   onLog(`✅ Batch translation complete! [${stats.inputTokens}i + ${stats.outputTokens}o = ${stats.totalTokens}t]`);
 
   return {
-    chapters: parsed.chapters,
+    chapters: processedChapters,
     stats
   };
 }

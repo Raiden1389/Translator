@@ -125,14 +125,18 @@ export const WESTERN_NAME_RULE = `- [TÊN TÂY]: Khi gặp tên phương Tây ph
   + Nếu không chắc chắn tên gốc → Giữ phiên âm Latin hóa nhất quán, KHÔNG ghi chú, KHÔNG dùng Hán tự.
   + Tên Tây PHẢI NHẤT QUÁN xuyên suốt: Đã dùng "Jack" thì TUYỆT ĐỐI không đổi thành "Jeck", "Giắc", hay "Trắc".
   + Phân biệt: Tên Hán thật sự (李明, 张三) → Phiên âm Hán Việt bình thường (Lý Minh, Trương Tam).`;
+export const NATURAL_VIET_RULE = `- [THUẦN VIỆT]: Ưu tiên từ thuần Việt tự nhiên, TRÁNH dùng từ Hán Việt cứng nhắc khi có từ thay thế phổ thông.
+  + SAI → ĐÚNG: kiên tin → tin chắc, cảm thụ → cảm nhận, kiên nghị → cương quyết, bốc hỏa → nổi điên, rơi lệ → rơi nước mắt, siêu quần → xuất chúng, ngưng trọng → nghiêm trọng
+  + NGOẠI LỆ: Giữ Hán Việt nếu là thuật ngữ võ công, danh xưng, hoặc thành ngữ 4 chữ (VD: thiên hạ vô song, vương bá chi khí).`;
 export const ALL_RULES = [
   TOP_BLACKLIST, BATTLE_RULE, EMOTION_RULE, DIALOGUE_RULE,
   VOICE_RULE, IDIOM_SYSTEM_RULE, PROFANITY_RULE, CURRENCY_RULE,
-  CONSISTENCY_RULE, WESTERN_NAME_RULE, FLOW_RULE
+  CONSISTENCY_RULE, WESTERN_NAME_RULE, FLOW_RULE, NATURAL_VIET_RULE
 ];
 export const LITE_RULES = [
   TOP_BLACKLIST, DIALOGUE_RULE, IDIOM_SYSTEM_RULE,
-  PROFANITY_RULE, CURRENCY_RULE, CONSISTENCY_RULE, WESTERN_NAME_RULE
+  PROFANITY_RULE, CURRENCY_RULE, CONSISTENCY_RULE, WESTERN_NAME_RULE,
+  NATURAL_VIET_RULE
 ];
 
 /**

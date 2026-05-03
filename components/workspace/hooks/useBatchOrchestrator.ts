@@ -9,8 +9,6 @@ import { useCallback } from "react";
 import { db } from "@/lib/db";
 import { migrateModelId } from "@/lib/ai-models";
 import type { Chapter, CorrectionEntry, DictionaryEntry } from "@/lib/db";
-import { normalizeChapterTitle } from "@/lib/utils/chapter-title-normalizer";
-import { applyCorrectionsToChapter } from "@/lib/services/corrections.service";
 import type { UseTranslationQueueReturn } from "./useTranslationQueue";
 import type { UseTranslationProgressReturn } from "./useTranslationProgress";
 
@@ -37,8 +35,8 @@ export function useBatchOrchestrator(
     chaptersToTranslate: Chapter[],
     workspaceId: string,
     config: BatchTranslateConfig,
-    glossary: readonly DictionaryEntry[],
-    corrections: CorrectionEntry[]
+    _glossary: readonly DictionaryEntry[],
+    _corrections: CorrectionEntry[]
   ): Promise<void> => {
     console.log(`⚡ [BATCH MODE] ${chaptersToTranslate.length} chapters → batches of ${config.batchSize}`);
 
@@ -106,22 +104,13 @@ export function useBatchOrchestrator(
             thinking: Math.floor((result.stats.thinkingTokens || 0) / batch.length)
           };
 
-          // Normalize title (single source of truth)
-          const finalTitle = normalizeChapterTitle(
-            translatedChapter.title_translated || originalChapter.title || "",
-            originalChapter.title || ""
-          );
-
           await db.chapters.update(originalChapter.id!, {
             content_translated: translatedChapter.content_translated,
-            title_translated: finalTitle,
+            title_translated: translatedChapter.title_translated || originalChapter.title,
             status: 'translated',
             lastTranslatedAt: new Date(),
             stats: { tokens: perChapterTokens }
           });
-
-          // Auto-apply corrections (silent)
-          await applyCorrectionsToChapter(originalChapter.id!, corrections);
 
           queue.updateStatus(originalChapter.id!, 'done');
           progress.updateChapterProgress(originalChapter.id!, {

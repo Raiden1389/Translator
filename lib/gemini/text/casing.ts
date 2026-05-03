@@ -111,11 +111,52 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
         return '[' + firstChar.toLocaleUpperCase('vi-VN');
     });
 
-    // 4. Structure Repair & Idiom Cleaning
     cleaned = repairSentenceStructure(cleaned);
     cleaned = repairUnmatchedQuotes(cleaned);
     cleaned = cleanIdiomExplanations(cleaned);
     cleaned = cleanupMalformedProfanity(cleaned);
+
+    // 5. Vietnamese boilerplate nav strip (post-translation leftovers)
+    cleaned = cleaned
+        .replace(/Chương trước\s*Mục lục\s*Chương sau/g, '')
+        .replace(/Chương trước\s*Chương sau/g, '')
+        .replace(/Mục lục\s*Chương sau/g, '')
+        .replace(/Chương trước\s*Mục lục/g, '');
+
+    // 6. Known AI output typo corrections
+    cleaned = cleaned
+        .replace(/[Đđ]ầu óã/g, (m) => m[0] === 'Đ' ? 'Đầu óc' : 'đầu óc');
+
+    // 7. Hán Việt cứng → Thuần Việt (chỉ những từ KHÔNG phổ thông)
+    const hanVietMap: [RegExp, string][] = [
+        [/\bkiên tin\b/gi, 'tin chắc'],
+        [/\bkiên nghị\b/gi, 'cương quyết'],
+        [/\bcảm thụ\b/gi, 'cảm nhận'],
+        [/\brơi lệ\b/gi, 'rơi nước mắt'],
+        [/\bbốc hỏa\b/gi, 'nổi điên'],
+        [/\bsiêu quần\b/gi, 'xuất chúng'],
+        [/\bngưng trọng\b/gi, 'nghiêm nghị'],
+        [/\bbi thương\b/gi, 'đau buồn'],
+        [/\bhoan hỉ\b/gi, 'vui mừng'],
+        [/\bai thương\b/gi, 'đau lòng'],
+        [/\bkinh hồn\b/gi, 'kinh hoàng'],
+        [/\bbi phẫn\b/gi, 'uất ức'],
+        [/\bphẫn hận\b/gi, 'căm hận'],
+        [/\bsầu muộn\b/gi, 'buồn bã'],
+        [/\bnghi hoặc\b/gi, 'nghi ngờ'],
+        [/\bsảng khoái\b/gi, 'sướng khoái'],
+        [/\btrầm mặc\b/gi, 'im lặng'],
+        [/\bnộ hỏa\b/gi, 'lửa giận'],
+    ];
+    for (const [pattern, replacement] of hanVietMap) {
+        cleaned = cleaned.replace(pattern, (match) => {
+            // Preserve original casing: if first char is uppercase, capitalize replacement
+            if (match[0] === match[0].toUpperCase()) {
+                return replacement[0].toUpperCase() + replacement.slice(1);
+            }
+            return replacement;
+        });
+    }
 
     return cleaned
         .replace(/\[\s+/g, '[')
