@@ -7,7 +7,7 @@
 
 ## [2.16.0] - 2026-05-02
 
-**Top Impact**: Proactive "Academic Shield" framing for safety bypass • Codex prompt slang hardening • PROHIBITED_CONTENT diagnostic hardening • Urban currency numeric normalization • Codex unified post-processing across single/batch/chunking • FinalSweep boilerplate & typo hardening.
+**Top Impact**: Proactive "Academic Shield" framing for safety bypass • Codex prompt slang hardening • PROHIBITED_CONTENT diagnostic hardening • Urban currency numeric normalization • Codex unified post-processing across single/batch/chunking • FinalSweep boilerplate & typo hardening • Hán Việt cứng → Thuần Việt naturalizer (prompt + post-processing).
 
 - **[Gemini][Safety][Prompt]** Implemented "Academic Shield" — proactive academic framing in the default system instruction. Reduces `PROHIBITED_CONTENT` blocks for adult/harem/urban novels with profanity by signaling a research/literary translation context from the first attempt.
 - **[Gemini][Codex][Prompt]** Built an internet-slang taxonomy plus dynamic grouped prompt hints for Chinese web slang (`666`, `草泥马`, `绷不住了`, `乱七八糟`, `一脸懵逼`, etc.) so the translator stops falling back to literal Hán-Việt or read-aloud meme nonsense.
@@ -16,6 +16,8 @@
 - **[Gemini][Codex][Post]** Unified post-processing so batch chapters now go through the same cleanup pipeline as single-chapter translation, while chunking stops re-sweeping titles with the heavy body pass.
 - **[Opus][Fix]** Added Vietnamese boilerplate nav strip to `finalSweep` — auto-removes `Chương trước Mục lục Chương sau` and variants that leak through from web novel sources into translated output.
 - **[Opus][Fix]** Added AI output typo correction `Đầu óã` → `Đầu óc` to `finalSweep` — catches known Gemini character corruption in Vietnamese diacritics.
+- **[Opus][Prompt]** Added `NATURAL_VIET_RULE` to system instruction — tells AI to prefer natural Vietnamese over stiff Hán Việt compounds (kiên tin → tin chắc, siêu quần → xuất chúng, etc.) with exception for martial arts terms and 4-char idioms.
+- **[Opus][Sweep]** Added `hanVietMap` (18 entries) to `finalSweep` — post-processing safety net that auto-replaces stiff Hán Việt compounds (bi thương → đau buồn, ngưng trọng → nghiêm nghị, hoan hỉ → vui mừng, etc.) with case-preservation.
 
 ### Added
 - **[Gemini][Safety][Prompt]** Proactive Academic Framing: default system instruction now identifies content as "published Chinese web novel" for "literary research and archival purposes" to decrease false-positive safety triggers from the first attempt.
@@ -25,6 +27,8 @@
 - **[Gemini][Codex][Test]** Added post-processing regression coverage so batch routing, title normalization, and body cleanup stay locked to the shared pipeline.
 - **[Opus][Sweep]** `finalSweep` now strips Vietnamese navigation boilerplate (`Chương trước`, `Mục lục`, `Chương sau`) that survives translation from web novel sources.
 - **[Opus][Sweep]** `finalSweep` now auto-corrects `óã` → `óc` diacritic corruption in AI output.
+- **[Opus][Prompt]** `NATURAL_VIET_RULE` added to both `ALL_RULES` and `LITE_RULES` — instructs AI to avoid stiff Hán Việt when natural Vietnamese equivalents exist.
+- **[Opus][Sweep]** `hanVietMap` with 18 Hán Việt → Thuần Việt replacements added to `finalSweep` as a post-processing safety net.
 
 ### Changed
 - `lib/gemini/constants.ts` — **[Gemini][Safety]** Updated default `customInstruction` template with academic framing and hư cấu (fiction) context.
@@ -32,7 +36,8 @@
 - `lib/gemini/batch-api.ts` — **[Gemini][Codex][Post]** batch parsing now immediately runs shared post-processing for each returned chapter before handing results back to the UI.
 - `lib/gemini/chunking.ts` — **[Gemini][Codex][Post]** removed redundant heavy `finalSweep` passes on non-chunked responses and stopped applying body-grade cleanup to titles after chunk merge.
 - `components/workspace/hooks/useBatchOrchestrator.ts` — **[Gemini][Codex][Post]** batch UI save path now trusts already-processed chapter output instead of re-normalizing title/corrections in a second pass.
-- `lib/gemini/text/casing.ts` — **[Opus][Sweep]** Added Vietnamese boilerplate nav strip and AI typo correction to `finalSweep`.
+- `lib/gemini/text/casing.ts` — **[Opus][Sweep]** Added Vietnamese boilerplate nav strip, AI typo correction, and `hanVietMap` (18 entries) to `finalSweep`.
+- `lib/gemini/constants.ts` — **[Opus][Prompt]** Added `NATURAL_VIET_RULE` and included in both `ALL_RULES` and `LITE_RULES`.
 - `__tests__/post-processor.test.ts` — **[Gemini][Codex][Test]** added regression coverage for shared title/body post-processing behavior.
 - `__tests__/batch-postprocess.test.ts` — **[Gemini][Codex][Test]** added regression coverage that batch output is routed through the shared post-processing pipeline.
 

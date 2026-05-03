@@ -6,7 +6,6 @@
 - **[Gemini][Codex][Prompt]** Hardened profanity handling toward abbreviated urban slang (`ĐM`, `đệt`, `đệch`, `vãi lol`, `vãi cứt`) and added a final sweep fix for malformed outputs like `Ta con mẹ nó`, `Ngươi con mẹ nó`, and `địt bố mày`.
 - **[Gemini][Codex][Prompt]** Reworked urban-currency guidance to remove `vạn tệ` / `ức` wording and force modern numeric reads like `500 nghìn tệ`, `100 triệu tệ`, and `5 tỷ tệ`.
 - **[Gemini][Codex][Post]** Unified post-processing so batch chapters now go through the same cleanup pipeline as single-chapter translation, while chunking stops re-sweeping titles with the heavy body pass.
-- **[Opus][Fix]** Added Vietnamese boilerplate nav strip to `finalSweep` — auto-removes `Chương trước Mục lục Chương sau` and variants that leak through from web novel sources into translated output.
 
 ### Added
 - **[Gemini][Safety][Prompt]** Proactive Academic Framing: default system instruction now identifies content as "published Chinese web novel" for "literary research and archival purposes" to decrease false-positive safety triggers from the first attempt.
@@ -15,7 +14,6 @@
 - **[Gemini][Codex][Test]** Added regression coverage for grouped slang hints, profanity cleanup, meme-variant slang, and modern urban currency formatting.
 - **[Gemini][Codex][Test]** Added post-processing regression coverage so batch routing, title normalization, and body cleanup stay locked to the shared pipeline.
 - **[Opus][Sweep]** `finalSweep` now strips Vietnamese navigation boilerplate (`Chương trước`, `Mục lục`, `Chương sau`) that survives translation from web novel sources.
-- **[Opus][Sweep]** `finalSweep` now auto-corrects `óã` → `óc` diacritic corruption in AI output.
 
 ### Changed
 - **[Gemini][Safety][Prompt]** Implemented "Academic Shield" — proactive academic framing in the default system instruction. Reduces `PROHIBITED_CONTENT` blocks for adult/harem/urban novels with profanity by signaling a research/literary translation context from the first attempt.
@@ -24,15 +22,6 @@
 - **[Gemini][Codex][Prompt]** Reworked urban-currency guidance to remove `vạn tệ` / `ức` wording and force modern numeric reads like `500 nghìn tệ`, `100 triệu tệ`, and `5 tỷ tệ`.
 - **[Gemini][Codex][Post]** Unified post-processing so batch chapters now go through the same cleanup pipeline as single-chapter translation, while chunking stops re-sweeping titles with the heavy body pass.
 - **[Opus][Fix]** Added Vietnamese boilerplate nav strip to `finalSweep` — auto-removes `Chương trước Mục lục Chương sau` and variants that leak through from web novel sources into translated output.
-- **[Opus][Fix]** Added AI output typo correction `Đầu óã` → `Đầu óc` to `finalSweep` — catches known Gemini character corruption in Vietnamese diacritics.
-
-### Files Modified
-- `lib/gemini/translation/post-processor.ts` — **[Gemini][Codex][Post]** extracted shared post-processing options so both single and batch flows finalize title/body through one path.
-- `lib/gemini/batch-api.ts` — **[Gemini][Codex][Post]** batch parsing now immediately runs shared post-processing for each returned chapter before handing results back to the UI.
-- `lib/gemini/chunking.ts` — **[Gemini][Codex][Post]** removed redundant heavy `finalSweep` passes on non-chunked responses and stopped applying body-grade cleanup to titles after chunk merge.
-- `components/workspace/hooks/useBatchOrchestrator.ts` — **[Gemini][Codex][Post]** batch UI save path now trusts already-processed chapter output instead of re-normalizing title/corrections in a second pass.
-- `__tests__/post-processor.test.ts` — **[Gemini][Codex][Test]** added regression coverage for shared title/body post-processing behavior.
-- `__tests__/batch-postprocess.test.ts` — **[Gemini][Codex][Test]** added regression coverage that batch output is routed through the shared post-processing pipeline.
 
 ## [2.15.2] - 2026-04-26
 
