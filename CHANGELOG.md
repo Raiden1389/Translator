@@ -1,3 +1,34 @@
+## [2.16.2] - 2026-05-04
+
+### Top Impact
+- **[Intelligence][Codex][Name Audit]** Rebuilt `name audit` around workspace-safe fixes, `reviewing` chapter coverage, source-ref-backed Chinese↔Vietnamese matching, and actionable cluster ranking so the tool surfaces real mistranslation candidates instead of noisy capitalized phrases.
+
+### Added
+- **[Intelligence][Codex][Name Audit]** Added source-ref-driven cross-reference scoring that can keep linking localized Vietnamese variants back to the right Chinese name even when the final wording is not a close Han-Viet spelling.
+- **[Intelligence][Codex][Name Audit]** Added cluster actionability signals (`actionabilityScore`, chapter spread, source evidence count) so low-signal singleton noise stays out of the main audit list.
+- **[Intelligence][Codex][Test]** Added regression coverage for workspace-scoped auto-fix, `reviewing` chapter scan coverage, localized-name cross-ref, and typo clustering priority.
+
+### Changed
+- `lib/services/name-audit.service.ts` — **[Intelligence][Codex][Name Audit]** scan now includes `reviewing` chapters with translated content and merges paragraph-alignment cross-ref with source-ref evidence.
+- `lib/services/name-audit.clustering.ts` — **[Intelligence][Codex][Name Audit]** clustering now scores typo similarity, chapter overlap, Chinese source evidence, and Unicode-normalized variants before deciding whether a cluster is worth surfacing.
+- `components/workspace/intelligence/hooks/useNameAudit.ts` — **[Intelligence][Codex][Name Audit]** main UI now prioritizes actionable clusters instead of flooding the list with low-confidence singletons.
+- `components/workspace/intelligence/NameClusterCard.tsx` — **[Intelligence][Codex][Name Audit]** cards now show context from multiple variants so users can see why a cluster was grouped.
+
+## [2.16.1] - 2026-05-04
+
+### Top Impact
+- **[Gemini][Codex][Post]** Added silent automatic post-processing for literal slang, legacy money units, and narrow pronoun drift so common bad outputs are fixed before save without retrying or interrupting the flow.
+
+### Added
+- **[Gemini][Codex][Post]** Added automatic literal slang normalization in `finalSweep` for bad reads such as `sáu sáu sáu`, `thảo nê mã`, `ngàn con thảo nê mã`, and `ta dựa vào`.
+- **[Gemini][Codex][Post]** Added automatic money normalization for legacy units like `vạn tệ`, `ức tệ`, `nghìn vạn tệ`, and `trăm triệu tệ` into the đô thị format (`nghìn / triệu / tỷ tệ`).
+- **[Gemini][Codex][Post]** Added a narrow pronoun-drift fixer that silently pulls obvious `tôi/mình/cô/em/bạn/cậu` slips back toward `Ta/Ngươi` inside archaic dialogue.
+- **[Gemini][Codex][Test]** Added regression coverage for silent post-processing of slang literals, money units, and narrow pronoun drift.
+
+### Changed
+- `lib/gemini/text/casing.ts` — **[Gemini][Codex][Post]** `finalSweep` now runs deterministic silent normalizers for literal internet slang, modern currency formatting, and narrow pronoun drift before save.
+- `__tests__/final-slang-cleanup.test.ts` — **[Gemini][Codex][Test]** expanded regression coverage to lock the new automatic post-processing behavior.
+
 ## [2.16.0] - 2026-05-02
 
 ### Top Impact

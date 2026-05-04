@@ -52,7 +52,7 @@ export async function applyNameFixes(
         if (snapshot) return snapshot;
 
         const translatedChapters = await db.chapters
-            .filter(c => !!c.content_translated)
+            .filter(c => c.workspaceId === workspaceId && !!c.content_translated)
             .toArray();
 
         snapshot = translatedChapters.map(c => ({
@@ -119,7 +119,7 @@ export async function applyNameFixes(
             original: fix.from.normalize("NFC"),
             replacement: fix.to.normalize("NFC"),
         };
-        const affected = await sweepSingleRule(sweepRule);
+        const affected = await sweepSingleRule(sweepRule, undefined, workspaceId);
         totalChaptersFixed += affected;
 
         if (affected > 0 && !historySaved && currentSnapshot && currentSnapshot.length > 0) {

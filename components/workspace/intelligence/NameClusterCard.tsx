@@ -152,12 +152,17 @@ export function NameClusterCard({
                     </div>
 
                     {/* Context samples */}
-                    {cluster.variants[0]?.contexts.length > 0 && (
+                    {cluster.variants.some(variant => variant.contexts.length > 0) && (
                         <div className="text-xs text-muted-foreground space-y-0.5 pt-1 border-t border-border/20">
                             <span className="font-semibold text-[10px] uppercase tracking-wider">Ngữ cảnh</span>
-                            {cluster.variants[0].contexts.slice(0, 2).map((ctx, i) => (
-                                <p key={i} className="italic truncate">&ldquo;{ctx}&rdquo;</p>
-                            ))}
+                            {cluster.variants.slice(0, 3).map((variant) =>
+                                variant.contexts[0] ? (
+                                    <p key={variant.name} className="italic truncate">
+                                        <span className="not-italic font-medium text-foreground">{variant.name}:</span>{" "}
+                                        &ldquo;{variant.contexts[0]}&rdquo;
+                                    </p>
+                                ) : null
+                            )}
                         </div>
                     )}
 

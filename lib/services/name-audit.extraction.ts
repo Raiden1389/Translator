@@ -352,7 +352,7 @@ export function buildCrossRefFromAligned(
  * Check if a HanViet conversion is similar enough to a Vietnamese name.
  * "Chu Nam" vs "Cư Nam" → similar (edit distance small relative to length)
  */
-function isSimilarHanViet(hanViet: string, vietName: string): boolean {
+export function isSimilarHanViet(hanViet: string, vietName: string): boolean {
     const hv = hanViet.toLowerCase();
     const vn = vietName.toLowerCase();
 

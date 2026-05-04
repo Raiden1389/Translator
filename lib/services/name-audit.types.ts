@@ -61,6 +61,10 @@ export interface NameCluster {
     totalOccurrences: number;             // Sum of all variants
     isInconsistent: boolean;              // true if variants.length > 1
     confidence: number;                   // 0-1 (1 = confirmed by Chinese cross-ref)
+    actionabilityScore: number;           // 0-1 (higher = worth surfacing to user)
+    isActionable: boolean;                // Hide low-signal noise from the main UI
+    chapterSpread: number;                // Unique chapter count across all variants
+    sourceEvidenceCount: number;          // Number of sourceRefs backing this cluster
 }
 
 /** A single variant within a cluster */

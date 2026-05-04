@@ -114,10 +114,15 @@ export async function applyCorrectionsToChapters(
  */
 export async function sweepSingleRule(
     rule: Partial<CorrectionEntry>,
-    excludeChapterId?: number
+    excludeChapterId?: number,
+    workspaceId?: string,
 ): Promise<number> {
     const allChapters = await db.chapters
-        .filter(c => !!c.content_translated && c.id !== excludeChapterId)
+        .filter(c =>
+            !!c.content_translated &&
+            c.id !== excludeChapterId &&
+            (!workspaceId || c.workspaceId === workspaceId)
+        )
         .toArray();
 
     if (!allChapters.length) return 0;

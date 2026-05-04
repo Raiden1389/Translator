@@ -324,7 +324,8 @@ describe('clusterSimilarNames', () => {
         expect(clusters.length).toBe(1);
         expect(clusters[0].variants.length).toBe(1);
         expect(clusters[0].isInconsistent).toBe(false);
-        expect(clusters[0].confidence).toBe(0.5);
+        expect(clusters[0].confidence).toBeLessThan(0.5);
+        expect(clusters[0].isActionable).toBe(false);
     });
 
     it('should NOT cluster very different names', () => {
@@ -354,6 +355,40 @@ describe('clusterSimilarNames', () => {
         // 'Abc Def' standalone → consistent
         expect(clusters[0].isInconsistent).toBe(true);
         expect(clusters[1].isInconsistent).toBe(false);
+    });
+
+    it('should prefer source-backed typo clusters over noisy standalone names', () => {
+        const result = makeScanResult({
+            vietnameseNames: [
+                {
+                    name: 'Cư Nam',
+                    count: 9,
+                    chapters: [1, 2],
+                    contexts: ['Cư Nam bước vào.'],
+                    sourceRefs: [{ chapterOrder: 1, paragraphIndex: 0, vietnameseParagraph: 'Cư Nam bước vào.', chineseParagraph: '朱南走了。' }],
+                },
+                {
+                    name: 'Cừ Nam',
+                    count: 3,
+                    chapters: [2],
+                    contexts: ['Cừ Nam quay lại.'],
+                    sourceRefs: [{ chapterOrder: 2, paragraphIndex: 0, vietnameseParagraph: 'Cừ Nam quay lại.', chineseParagraph: '朱南回头。' }],
+                },
+                { name: 'Đại Thiếu Gia', count: 1, chapters: [1], contexts: ['Đại Thiếu Gia nhíu mày.'], sourceRefs: [] },
+            ],
+            crossRefMap: [{
+                chineseName: '朱南',
+                hanViet: 'Chu Nam',
+                vietnameseVariants: ['Cư Nam'],
+            }],
+        });
+
+        const clusters = clusterSimilarNames(result);
+
+        expect(clusters[0].variants.map(v => v.name)).toEqual(['Cư Nam', 'Cừ Nam']);
+        expect(clusters[0].isActionable).toBe(true);
+        expect(clusters.at(-1)?.variants[0].name).toBe('Đại Thiếu Gia');
+        expect(clusters.at(-1)?.isActionable).toBe(false);
     });
 });
 

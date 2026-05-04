@@ -14,12 +14,14 @@ import type {
     AlignedParagraph,
     NameScanResult,
     SourceParagraphRef,
+    CrossRefEntry,
 } from "./name-audit.types";
 import {
     extractVietnameseNamesFromText,
     extractChineseNamesFromText,
     alignParagraphs,
     buildCrossRefFromAligned,
+    isSimilarHanViet,
     splitParagraphs,
 } from "./name-audit.extraction";
 
@@ -40,6 +42,97 @@ export {
 export {
     applyNameFixes,
 } from "./name-audit.autofix";
+
+function chapterOverlapRatio(a: number[], b: number[]): number {
+    if (!a.length || !b.length) return 0;
+    const bSet = new Set(b);
+    const overlap = a.filter(ch => bSet.has(ch)).length;
+    return overlap / Math.min(a.length, b.length);
+}
+
+function mergeCrossRefEntries(...entryLists: CrossRefEntry[][]): CrossRefEntry[] {
+    const merged = new Map<string, { hanViet: string; variants: Set<string> }>();
+
+    for (const entryList of entryLists) {
+        for (const entry of entryList) {
+            const existing = merged.get(entry.chineseName) ?? {
+                hanViet: entry.hanViet,
+                variants: new Set<string>(),
+            };
+            for (const variant of entry.vietnameseVariants) {
+                existing.variants.add(variant);
+            }
+            merged.set(entry.chineseName, existing);
+        }
+    }
+
+    return Array.from(merged.entries()).map(([chineseName, value]) => ({
+        chineseName,
+        hanViet: value.hanViet,
+        vietnameseVariants: Array.from(value.variants),
+    }));
+}
+
+function buildCrossRefFromSourceRefs(
+    vietnameseNames: VietnameseNameOccurrence[],
+    chineseNames: ChineseNameOccurrence[],
+    repo: SyllableRepository,
+): CrossRefEntry[] {
+    const chineseByName = new Map(chineseNames.map(name => [name.name, name]));
+    const chineseToViet = new Map<string, Set<string>>();
+
+    for (const vietName of vietnameseNames) {
+        const scores = new Map<string, number>();
+
+        for (const ref of vietName.sourceRefs) {
+            if (!ref.chineseParagraph) continue;
+
+            const localCandidates = Array.from(
+                extractChineseNamesFromText(ref.chineseParagraph, ref.chapterOrder).keys(),
+            );
+            if (!localCandidates.length) continue;
+
+            for (const candidate of localCandidates) {
+                const chineseData = chineseByName.get(candidate);
+                const overlapScore = chineseData
+                    ? chapterOverlapRatio(vietName.chapters, chineseData.chapters) * 2
+                    : 0;
+                const hanViet = repo.toHanViet(candidate);
+                const similarHanViet = isSimilarHanViet(hanViet, vietName.name);
+                const directRefScore = localCandidates.length === 1 ? 4 : 0;
+                const similarityScore = similarHanViet ? 2.5 : 0;
+                const phraseEchoScore = ref.chineseVietPhrase?.toLowerCase().includes(vietName.name.toLowerCase()) ? 0.5 : 0;
+                const nextScore =
+                    (scores.get(candidate) ?? 0) +
+                    directRefScore +
+                    overlapScore +
+                    similarityScore +
+                    phraseEchoScore;
+
+                scores.set(candidate, nextScore);
+            }
+        }
+
+        const ranked = Array.from(scores.entries()).sort((a, b) => b[1] - a[1]);
+        const best = ranked[0];
+        const runnerUp = ranked[1];
+        if (!best) continue;
+
+        const strongEnough = best[1] >= 4;
+        const sufficientlyAhead = !runnerUp || best[1] - runnerUp[1] >= 1.5;
+        if (!strongEnough || !sufficientlyAhead) continue;
+
+        const existing = chineseToViet.get(best[0]) ?? new Set<string>();
+        existing.add(vietName.name);
+        chineseToViet.set(best[0], existing);
+    }
+
+    return Array.from(chineseToViet.entries()).map(([chineseName, variants]) => ({
+        chineseName,
+        hanViet: repo.toHanViet(chineseName),
+        vietnameseVariants: Array.from(variants),
+    }));
+}
 
 // ────────────────────────────────────────────────────
 // FULL SCAN ORCHESTRATOR
@@ -65,7 +158,10 @@ export async function scanWorkspaceNames(
     let chapters = await db.chapters
         .where("workspaceId")
         .equals(workspaceId)
-        .filter(c => c.status === "translated" && !!c.content_translated)
+        .filter(c =>
+            (c.status === "translated" || c.status === "reviewing") &&
+            !!c.content_translated
+        )
         .toArray();
 
     // Apply chapter range filter
@@ -178,14 +274,14 @@ export async function scanWorkspaceNames(
         }
     }
 
-    // 3. Build cross-reference (paragraph-based)
+    // 3. Build cross-reference candidates (paragraph-based + source-ref evidence)
     const allAligned: AlignedParagraph[] = [];
     for (const chapter of chapters) {
         if (chapter.content_original && chapter.content_translated) {
             allAligned.push(...alignParagraphs(chapter.content_original, chapter.content_translated));
         }
     }
-    const crossRefMap = buildCrossRefFromAligned(allAligned, repo);
+    const alignedCrossRefMap = buildCrossRefFromAligned(allAligned, repo);
 
     // 4. Convert maps to sorted arrays
     const vietnameseNames: VietnameseNameOccurrence[] = Array.from(globalVietNames.entries())
@@ -207,6 +303,9 @@ export async function scanWorkspaceNames(
         }))
         .filter(n => n.count >= 2)
         .sort((a, b) => b.count - a.count);
+
+    const sourceRefCrossRefMap = buildCrossRefFromSourceRefs(vietnameseNames, chineseNames, repo);
+    const crossRefMap = mergeCrossRefEntries(alignedCrossRefMap, sourceRefCrossRefMap);
 
     const scanDurationMs = Math.round(performance.now() - startTime);
 
