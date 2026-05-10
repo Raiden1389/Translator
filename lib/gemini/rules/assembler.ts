@@ -75,7 +75,7 @@ export function buildDynamicSlangHints(text: string): string {
         .filter(Boolean)
         .join("\n");
 
-    return `\nLƯU Ý INTERNET SLANG / KHẨU NGỮ HIỆN ĐẠI CHO ĐOẠN NÀY (BẮT BUỘC ÁP DỤNG):\n${grouped}`;
+    return `\nLƯU Ý INTERNET SLANG / KHẨU NGỮ HIỆN ĐẠI CHO ĐOẠN NÀY (BẮT BUỘC ÁP DỤNG):\n- CẤM ghép đại từ cổ với slang hiện đại thành các kiểu ngu như "Ta đệch", "Ngươi đệch", "Ta vãi", "Ngươi vãi".\n${grouped}`;
 }
 
 export function assembleSystemInstruction(

@@ -101,10 +101,12 @@ export const DIALOGUE_RULE = `- HỘI THOẠI: Giống người NÓI, không gi�
 export const PROFANITY_RULE = `- [CHỬI THỀ / SLANG]: 我靠 / 我操 / 卧槽 / 妈的 / 他妈的 / 我他妈 / 你他妈 / 操你妈 / 傻逼 là cảm thán, trợ từ chửi, hoặc câu mắng trực diện.
   + Dịch theo CHỨC NĂNG câu: cảm thán/mắng tục -> ưu tiên slang ngắn kiểu "ĐM", "đệt", "đệch", "vãi lol", "vái nhái", "vãi cứt"; mắng người -> "đồ ngu", "đồ điên", "khốn kiếp".
   + CẤM dịch tách từng chữ hoặc ghép máy móc với đại từ.
-  + CẤM các dạng ngu ngơ như: "Ta con mẹ nó", "Ngươi con mẹ nó", "Ngươi thằng điên này".
+  + CẤM ghép đại từ cổ với trợ từ chửi hiện đại thành các dạng quái dị như: "Ta đệch", "Ngươi đệch", "Ta vãi", "Ngươi vãi".
+  + CẤM các dạng ngu ngơ như: "Ta con mẹ nó", "Ngươi con mẹ nó", "Ngươi thằng điên này", "Ngươi đệch bị bệnh".
   + Với các câu chửi trực diện kiểu "địt mẹ mày", "địt bố mày" -> ưu tiên rút gọn thành "ĐM".
   + ĐƯỢC PHÉP giữ viết tắt/biến thể tục đời thực nếu hợp giọng truyện, không cần làm sạch thành văn viết lịch sự.
   + CẤM tự chế chửi thân nhân sai nghĩa như "địt bố mày" nếu nguyên văn không hề nhắm vào "bố".`;
+export const NO_LEFTOVER_HAN_RULE = `- [CẤM SÓT HÁN TỰ]: Bản dịch cuối tuyệt đối không được còn chữ Hán hoặc cụm nửa Hán nửa Việt. CẤM các dạng như "腾 ra một tay", "倒是 nguyện ý", "nhập赘", "简直 là". Nếu gặp cụm chưa chắc, phải dịch trọn nghĩa sang tiếng Việt rồi mới xuất ra.`;
 export const CURRENCY_RULE = `- TIỀN TỆ: Thống nhất dùng đơn vị "tệ". Không dùng "đồng".
   + TRUYỆN ĐÔ THỊ: Ưu tiên cách đọc hiện đại, dễ nuốt: "nghìn tệ / triệu tệ / tỷ tệ".
   + CẤM dùng "vạn tệ", "ức", "ức tệ", "nghìn vạn tệ".
@@ -130,12 +132,12 @@ export const NATURAL_VIET_RULE = `- [THUẦN VIỆT]: Ưu tiên từ thuần Vi�
   + NGOẠI LỆ: Giữ Hán Việt nếu là thuật ngữ võ công, danh xưng, hoặc thành ngữ 4 chữ (VD: thiên hạ vô song, vương bá chi khí).`;
 export const ALL_RULES = [
   TOP_BLACKLIST, BATTLE_RULE, EMOTION_RULE, DIALOGUE_RULE,
-  VOICE_RULE, IDIOM_SYSTEM_RULE, PROFANITY_RULE, CURRENCY_RULE,
+  VOICE_RULE, IDIOM_SYSTEM_RULE, PROFANITY_RULE, NO_LEFTOVER_HAN_RULE, CURRENCY_RULE,
   CONSISTENCY_RULE, WESTERN_NAME_RULE, FLOW_RULE, NATURAL_VIET_RULE
 ];
 export const LITE_RULES = [
   TOP_BLACKLIST, DIALOGUE_RULE, IDIOM_SYSTEM_RULE,
-  PROFANITY_RULE, CURRENCY_RULE, CONSISTENCY_RULE, WESTERN_NAME_RULE,
+  PROFANITY_RULE, NO_LEFTOVER_HAN_RULE, CURRENCY_RULE, CONSISTENCY_RULE, WESTERN_NAME_RULE,
   NATURAL_VIET_RULE
 ];
 
@@ -270,13 +272,13 @@ SAI: "Ngươi trang bức cái gì?", "Ngươi giả bộ bức gì?"
 <example_10 type="khau_ngu_chui_chen_cau">
 Gốc: "我他妈真服了。"
 Dịch: "Đệt, ta thật sự chịu rồi."
-SAI: "Ta con mẹ nó thật phục rồi.", "Ta hắn mẹ nó chịu rồi."
+SAI: "Ta con mẹ nó thật phục rồi.", "Ta hắn mẹ nó chịu rồi.", "Ta đệch thật phục rồi."
 </example_10>
 
 <example_11 type="khau_ngu_chui_nham_vao_nguoi_doi_dien">
 Gốc: "你他妈疯了吧？"
 Dịch: "Đệch, ngươi điên rồi à?"
-SAI: "Ngươi con mẹ nó điên rồi à?", "Ngươi thằng điên này?"
+SAI: "Ngươi con mẹ nó điên rồi à?", "Ngươi thằng điên này?", "Ngươi đệch điên rồi à?"
 </example_11>
 
 <example_12 type="khau_ngu_chui_truc_dien">
@@ -290,6 +292,30 @@ Gốc: "你个傻逼。"
 Dịch: "Đồ ngu."
 SAI: "Ngươi thằng điên này.", "Ngươi đồ ngốc bức."
 </example_13>
+
+<example_13b type="khau_ngu_benh_tat">
+Gốc: "你他妈有病吧？"
+Dịch: "ĐM, ngươi có bệnh à?"
+SAI: "Ngươi đệch bị bệnh à?", "Ngươi con mẹ nó có bệnh à?", "Ngươi đệch có bệnh à?"
+</example_13b>
+
+<example_13c type="khau_ngu_cam_than_1p">
+Gốc: "我靠，这他妈也行？"
+Dịch: "Đệt, thế mà cũng được à?"
+SAI: "Ta đệch, thế mà cũng được à?", "Ta vãi, thế mà cũng được à?"
+</example_13c>
+
+<example_13d type="cam_sot_han_tu_action">
+Gốc: "陆程文腾出一只手，一掌拍了出去。"
+Dịch: "Lục Trình Văn rút ra một tay, dốc sức đánh ra một chưởng."
+SAI: "Lục Trình Văn腾 ra một tay..."
+</example_13d>
+
+<example_13e type="cam_nua_han_nua_viet">
+Gốc: "我不会入赘。老夫倒是愿意成全你们。"
+Dịch: "Ta sẽ không ở rể. Lão phu ngược lại nguyện ý tác thành cho các ngươi."
+SAI: "Ta sẽ không nhập赘. Lão phu倒是 nguyện ý..."
+</example_13e>
 
 <example_14 type="tien_te_do_thi_1">
 Gốc: "这辆车五十万。"
@@ -375,7 +401,7 @@ SAI: "Ta dựa!", "Ta dựa vào!", "Ta kháo!"
 <example_6 type="profanity_compact">
 Gốc: "你他妈疯了吧？"
 Dịch: "Đệch, ngươi điên rồi à?"
-SAI: "Ngươi con mẹ nó điên rồi à?", "Ngươi thằng điên này?"
+SAI: "Ngươi con mẹ nó điên rồi à?", "Ngươi thằng điên này?", "Ngươi đệch điên rồi à?"
 </example_6>
 
 <example_7 type="direct_insult_compact">
@@ -383,6 +409,18 @@ Gốc: "你个傻逼。"
 Dịch: "Đồ ngu."
 SAI: "Ngươi thằng điên này.", "Ngươi đồ ngốc bức."
 </example_7>
+
+<example_7b type="slang_bad_mix_block">
+Gốc: "我靠，这他妈也行？"
+Dịch: "Đệt, thế mà cũng được à?"
+SAI: "Ta đệch, thế mà cũng được à?", "Ta vãi, thế mà cũng được à?"
+</example_7b>
+
+<example_7c type="no_leftover_han">
+Gốc: "我不会入赘。"
+Dịch: "Ta sẽ không ở rể."
+SAI: "Ta sẽ không nhập赘."
+</example_7c>
 
 <example_8 type="currency_compact">
 Gốc: "这辆车五十万，公司估值五十亿。"

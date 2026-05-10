@@ -10,11 +10,89 @@ function cleanupMalformedProfanity(text: string): string {
             const replacement = pronoun[0] === pronoun[0].toUpperCase() ? "Đệt" : "đệt";
             return `${replacement}${punctuation || ""}`;
         })
+        .replace(/\b([Tt]a|[Nn]gươi)\s+(đệch|đệt|vãi|vkl|vl)\b(?:\s+(bị bệnh|có bệnh))?(?=([!?.,…]|\s|$))/gu, (_, pronoun: string, slang: string, sickness?: string, tail?: string) => {
+            const isUpper = pronoun[0] === pronoun[0].toUpperCase();
+            if (sickness) {
+                return `${isUpper ? "ĐM" : "đm"}, ${isUpper ? "ngươi" : "ngươi"} ${sickness}${tail && /[!?.,…]/.test(tail) ? tail : ""}`;
+            }
+            if (slang.toLowerCase() === "vãi") {
+                return `${isUpper ? "Vãi" : "vãi"}${tail && /[!?.,…]/.test(tail) ? tail : ""}`;
+            }
+            return `${isUpper ? "Đệt" : "đệt"}${tail && /[!?.,…]/.test(tail) ? tail : ""}`;
+        })
         .replace(/([Nn]gươi|[Tt]a)\s+thằng\s+điên\s+này(?=[\s!?.,…]|$)([!?.,…]*)/gu, (_, pronoun: string, punctuation: string) => {
             const replacement = pronoun[0] === pronoun[0].toUpperCase() ? "Đồ điên" : "đồ điên";
             return `${replacement}${punctuation || ""}`;
         })
         .replace(/địt (bố|mẹ) mày/giu, () => "ĐM");
+}
+
+function formatCompactNumber(value: number): string {
+    const rounded = Number(value.toFixed(2));
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toString();
+}
+
+function formatModernCurrency(amountTe: number): string {
+    if (!Number.isFinite(amountTe) || amountTe <= 0) return `${amountTe} tệ`;
+    if (amountTe >= 1_000_000_000) return `${formatCompactNumber(amountTe / 1_000_000_000)} tỷ tệ`;
+    if (amountTe >= 1_000_000) return `${formatCompactNumber(amountTe / 1_000_000)} triệu tệ`;
+    if (amountTe >= 1_000) return `${formatCompactNumber(amountTe / 1_000)} nghìn tệ`;
+    return `${formatCompactNumber(amountTe)} tệ`;
+}
+
+function parseLooseNumber(raw: string): number {
+    return Number(raw.replace(/,/g, '.'));
+}
+
+function normalizeCurrencyStyles(text: string): string {
+    const convertUnit = (multiplier: number) => (_: string, rawValue: string) => {
+        const amount = parseLooseNumber(rawValue);
+        if (!Number.isFinite(amount)) return rawValue;
+        return formatModernCurrency(amount * multiplier);
+    };
+
+    return text
+        .replace(/(?<!\d)(\d+(?:[.,]\d+)?)\s*nghìn vạn tệ(?=[\s!?.,…]|$)/giu, convertUnit(10_000_000))
+        .replace(/(?<!\d)(\d+(?:[.,]\d+)?)\s*vạn tệ(?=[\s!?.,…]|$)/giu, convertUnit(10_000))
+        .replace(/(?<!\d)(\d+(?:[.,]\d+)?)\s*ức(?:\s*tệ)?(?=[\s!?.,…]|$)/giu, convertUnit(100_000_000))
+        .replace(/(?<!\d)(\d+(?:[.,]\d+)?)\s*trăm triệu tệ(?=[\s!?.,…]|$)/giu, convertUnit(100_000_000));
+}
+
+function normalizeLiteralInternetSlang(text: string): string {
+    return text
+        .replace(/(?<![\p{L}])ta dựa vào(?=[\s!?.,…]|$)/giu, match => match[0] === match[0].toUpperCase() ? "Đệt" : "đệt")
+        .replace(/(?<![\p{L}])ta\s+đệch(?=[\s!?.,…]|$)/giu, match => match[0] === match[0].toUpperCase() ? "Đệt" : "đệt")
+        .replace(/(?<![\p{L}])ngươi\s+đệch(?=\s+(?:bị bệnh|có bệnh)\b)/giu, "ĐM, ngươi")
+        .replace(/(?<![\p{L}])ngươi\s+đệch(?=[\s!?.,…]|$)/giu, "Đệch")
+        .replace(/(?<![\p{L}])ta\s+vãi(?=[\s!?.,…]|$)/giu, match => match[0] === match[0].toUpperCase() ? "Vãi" : "vãi")
+        .replace(/(?<![\p{L}])ngươi\s+vãi(?=[\s!?.,…]|$)/giu, "Vãi")
+        .replace(/(?<![\p{L}])sáu sáu sáu(?=[\s!?.,…]|$)/giu, match => match[0] === match[0].toUpperCase() ? "Đỉnh vkl" : "đỉnh vkl")
+        .replace(/(?<![\p{L}])(?:ngàn|nghìn|thiên)\s+(?:con|chỉ)\s+thảo nê mã(?=[\s!?.,…]|$)/giu, match => match[0] === match[0].toUpperCase() ? "Một đàn ĐM" : "một đàn ĐM")
+        .replace(/(?<![\p{L}])thảo nê mã(?=[\s!?.,…]|$)/giu, "ĐM");
+}
+
+function normalizePronounDriftSegment(segment: string): string {
+    const hasTa = /\bTa\b/u.test(segment);
+    const hasNguoi = /\bNgươi\b/u.test(segment);
+
+    if (!hasTa && !hasNguoi) {
+        return segment;
+    }
+
+    let normalized = segment.replace(/\b(tôi|mình)\b/gu, "ta");
+
+    if (hasTa) {
+        normalized = normalized.replace(
+            /(?<![\p{L}])(cô|em|bạn|cậu)(?=\s+(đừng|đi|ngồi|nghe|biết|thấy|nói|làm|mà|rồi|nữa|chứ|à|ư|hả)(?![\p{L}]))/giu,
+            "ngươi"
+        );
+    }
+
+    return normalized;
+}
+
+function normalizePronounDrift(text: string): string {
+    return text.replace(/[^\n.!?]+(?:[.!?]+|$)/gu, segment => normalizePronounDriftSegment(segment));
 }
 
 /**
@@ -29,9 +107,6 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
 
     // 1.5. Remove consecutive duplicate paragraphs (AI stuttering)
     cleaned = deduplicateConsecutiveParagraphs(cleaned);
-
-    // 1.6. Normalize quote styles to Vietnamese standard
-    cleaned = normalizeQuoteStyles(cleaned);
 
     // 2. Recursive cleanup to ensure no double brackets survive
     let prev = "";
@@ -59,6 +134,10 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
         }));
         cleaned = applyAllCorrections(cleaned, glossaryRules);
     }
+
+    // 2.6. Normalize quote styles AFTER glossary enforcement
+    // CJK brackets 「」『』 may wrap untranslated source text — glossary replaces it first
+    cleaned = normalizeQuoteStyles(cleaned);
 
     // 3. Smart Capitalization Logic
     const hardcoded = [
@@ -114,6 +193,9 @@ export function finalSweep(text: string, glossary: DictionaryEntry[] = []): stri
     cleaned = repairSentenceStructure(cleaned);
     cleaned = repairUnmatchedQuotes(cleaned);
     cleaned = cleanIdiomExplanations(cleaned);
+    cleaned = normalizeLiteralInternetSlang(cleaned);
+    cleaned = normalizeCurrencyStyles(cleaned);
+    cleaned = normalizePronounDrift(cleaned);
     cleaned = cleanupMalformedProfanity(cleaned);
 
     // 5. Vietnamese boilerplate nav strip (post-translation leftovers)

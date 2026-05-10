@@ -8,6 +8,7 @@ import { TranslationResult } from "../types";
 import { finalSweep } from "../contentProcessor";
 import { normalizeTitleCase } from "../../utils/title-normalizer";
 import { normalizeChapterTitle } from "../../utils/chapter-title-normalizer";
+import { sanitizeTranslatedContent } from "../../utils/text-sanitizer";
 
 export interface PostProcessingOptions {
     originalTitle?: string;
@@ -41,6 +42,12 @@ export async function applyPostProcessing(
     relevantDict: DictionaryEntry[],
     options: PostProcessingOptions = {}
 ): Promise<TranslationResult> {
+    // 0. Strip HTML artifacts from AI output (batch mode safety net)
+    parsed.translatedText = sanitizeTranslatedContent(parsed.translatedText);
+    if (parsed.translatedTitle) {
+        parsed.translatedTitle = sanitizeTranslatedContent(parsed.translatedTitle);
+    }
+
     // 🔥 AUTO-FIX: Nếu Title còn chữ Hán → Tự động fix bằng translateTitleOnly
     if (parsed.translatedTitle && /[\u4e00-\u9fff]/.test(parsed.translatedTitle)) {
         console.warn(`⚠️ [POST-PROCESSOR] Title contains Chinese characters: "${parsed.translatedTitle}" - Auto-fixing...`);

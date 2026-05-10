@@ -30,6 +30,9 @@ describe('prompt profiles', () => {
         expect(full).toContain('Hôm nay nàng ăn diện rất kỹ, ta nhìn nàng một cái, trong lòng cũng có chút bất ngờ.');
         expect(full).toContain('Cô ấy hôm nay ăn diện rất kỹ, tôi nhìn cô ấy...');
         expect(full).toContain('Đệt! Thế mà cũng được à? Vãi thật.');
+        expect(full).toContain('[CẤM SÓT HÁN TỰ]');
+        expect(full).toContain('"腾 ra một tay"');
+        expect(full).toContain('Ta sẽ không ở rể.');
         expect(full).toContain('CẤM dùng "vạn tệ", "ức", "ức tệ", "nghìn vạn tệ".');
         expect(full).toContain('1万 -> 10 nghìn tệ');
         expect(full).toContain('50万 -> 500 nghìn tệ');
@@ -39,6 +42,8 @@ describe('prompt profiles', () => {
         expect(lite).toContain('[CHỬI THỀ / SLANG]');
         expect(lite).toContain('Đệch, ngươi điên rồi à?');
         expect(lite).toContain('Đồ ngu.');
+        expect(lite).toContain('[CẤM SÓT HÁN TỰ]');
+        expect(lite).toContain('Ta sẽ không ở rể.');
         expect(lite).toContain('Chiếc xe này giá 500 nghìn tệ, công ty được định giá 5 tỷ tệ.');
         expect(lite).toContain('Ta cũng do dì giới thiệu đến. Ngươi ngồi đi, chúng ta từ từ nói chuyện.');
         expect(lite).toContain('Tôi cũng do dì giới thiệu đến. Cô ngồi đi...');
@@ -67,6 +72,7 @@ describe('prompt profiles', () => {
         expect(hints).toContain('你他妈');
         expect(hints).toContain('操你妈');
         expect(hints).toContain('傻逼');
+        expect(hints).toContain('CẤM ghép đại từ cổ với slang hiện đại');
         expect(hints).toContain('CẤM dịch từng chữ/Hán Việt');
         expect(hints).toContain('SLANG CHỬI LÁCH / MEME TỤC');
         expect(hints).toContain('SLANG CHỬI TRỰC DIỆN');
@@ -76,8 +82,14 @@ describe('prompt profiles', () => {
         const full = buildSystemInstruction(undefined, undefined, false, 'full');
 
         expect(full).toContain('"ĐM", "đệt", "đệch", "vãi lol", "vái nhái", "vãi cứt"');
+        expect(full).toContain('CẤM ghép đại từ cổ với trợ từ chửi hiện đại');
+        expect(full).toContain('"Ta đệch"');
+        expect(full).toContain('"Ngươi đệch"');
         expect(full).toContain('Đệt! Chuyện này cũng quá vô lý rồi đấy?');
         expect(full).toContain('Vãi lol, thế mà cũng thắng được à?');
+        expect(full).toContain('ĐM, ngươi có bệnh à?');
+        expect(full).toContain('Đệt, thế mà cũng được à?');
+        expect(full).toContain('Lão phu倒是 nguyện ý...');
     });
 
     it('forces modern urban currency style without van or uc', () => {
