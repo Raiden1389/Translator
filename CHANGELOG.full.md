@@ -5,6 +5,35 @@
 
 ---
 
+## [2.16.4] - 2026-05-10
+
+**Top Impact**: Vertex AI Phase 1 is now a dedicated release — the app can switch providers cleanly, refresh models through the official SDK, show `Vertex AI` explicitly in runtime UI, and default to Singapore routing so translation latency returns to roughly `15s/chapter` in real-world use instead of the earlier slow global path.
+
+### Added
+- **[Vertex][Codex][AI]** Added Phase 1 `Vertex AI` Express Mode support with a dedicated provider selector, separate `Vertex AI API Key` storage, provider-aware quick translation config, per-provider runtime summaries, and a `Vertex AI` health-check flow.
+- **[Vertex][Codex][Tooling]** Added `scripts/vertex-latency-check.ps1` so Vertex network latency can be tested directly from PowerShell outside the app when diagnosing slow runs.
+
+### Changed
+- `lib/services/ai-service.ts` — **[Vertex][Codex][AI]** model refresh now uses the official `@google/genai` SDK in `vertexai` mode before falling back to the app's static Gemini list, making Vertex model discovery more faithful to Google Cloud behavior.
+- `lib/gemini/client.ts` — **[Vertex][Codex][AI]** request payloads now use valid Vertex roles, dispatch by provider, and route Vertex traffic through the `asia-southeast1` regional endpoint by default.
+- `src-tauri/src/gemini.rs` — **[Vertex][Codex][AI]** the native bridge now exposes Vertex request/model-list commands and defaults regional traffic to `asia-southeast1` for lower latency from Vietnam.
+- `lib/ai-provider.ts`, `components/workspace/hooks/useAISettings.ts`, `lib/repositories/settings.ts` — **[Vertex][Codex][AI]** provider state and API keys are now stored separately so switching between Gemini and Vertex does not overwrite credentials.
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `components/layout/StatusBar.tsx` — **[Vertex][Codex][AI]** settings, quick translation config, and dashboard status now surface the active provider clearly so `Vertex AI` runs are visible end-to-end.
+
+## [2.16.3] - 2026-05-06
+
+**Top Impact**: Codex slang prompt hardening — blocked broken archaic-pronoun slang mixes like `Ta đệch` / `Ngươi đệch` at the prompt layer, backed by new few-shots and a narrow final-sweep safety net.
+
+### Added
+- **[Gemini][Codex][Prompt]** Added explicit anti-pattern guardrails that ban archaic pronoun + modern slang mashups such as `Ta đệch`, `Ngươi đệch`, `Ta vãi`, and `Ngươi vãi`.
+- **[Gemini][Codex][Prompt]** Added new few-shot slang cases for `你他妈有病吧` and `我靠，这他妈也行？` so direct abuse and first-person reactions resolve to compact Vietnamese slang instead of half-converted junk.
+- **[Gemini][Codex][Test]** Added regression coverage for the new slang anti-pattern guardrails and final-sweep cleanup of `ta/ngươi + slang` mixtures.
+
+### Changed
+- `lib/gemini/constants.ts` — **[Gemini][Codex][Prompt]** profanity rules and few-shots now explicitly ban archaic-pronoun slang mashups and reinforce compact outputs like `ĐM`, `đệt`, and `đồ ngu`.
+- `lib/gemini/idioms.ts` — **[Gemini][Codex][Prompt]** modern slang hints now prioritize compact reaction outputs and annotate the bad `Ta/Ngươi + slang` forms to avoid.
+- `lib/gemini/rules/assembler.ts` — **[Gemini][Codex][Prompt]** dynamic slang hints now inject a direct warning against archaic-pronoun slang mashups whenever internet slang is detected.
+- `lib/gemini/text/casing.ts` — **[Gemini][Codex][Post]** final sweep now silently rewrites narrow bad mixes like `Ta đệch`, `Ngươi đệch`, and `Ngươi vãi` without touching unrelated prose.
 ## [2.16.2] - 2026-05-04
 
 **Top Impact**: Post-processing pipeline audit Phase 1 — removed dead code, closed HTML sanitization gap in batch mode, fixed destructive CJK quote normalization order.

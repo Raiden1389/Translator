@@ -1,5 +1,7 @@
 use std::env;
 
+const DEFAULT_VERTEX_LOCATION: &str = "asia-southeast1";
+
 #[tauri::command]
 pub async fn native_gemini_request(
     payload: String,
@@ -22,6 +24,36 @@ pub async fn native_gemini_request(
         .map_err(|e| e.to_string())?;
 
     res.text().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn native_vertex_request(
+    payload: String,
+    model: String,
+    api_key: String,
+) -> Result<String, String> {
+    let url = format!(
+        "https://{}-aiplatform.googleapis.com/v1/publishers/google/models/{}:generateContent?key={}",
+        DEFAULT_VERTEX_LOCATION, model, api_key
+    );
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let status = res.status();
+    let body = res.text().await.map_err(|e| e.to_string())?;
+
+    if !status.is_success() {
+        return Err(format!("HTTP_ERROR:{}:{}", status.as_u16(), body));
+    }
+
+    Ok(body)
 }
 
 #[tauri::command]
@@ -67,6 +99,34 @@ pub async fn native_list_models(api_key: String) -> Result<String, String> {
     let client = reqwest::Client::new();
     let res = client.get(url).send().await.map_err(|e| e.to_string())?;
     res.text().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn native_list_vertex_models(api_key: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let urls = [
+        format!(
+            "https://{}-aiplatform.googleapis.com/v1beta1/publishers/google/models?key={}",
+            DEFAULT_VERTEX_LOCATION,
+            api_key
+        ),
+    ];
+
+    let mut last_error: Option<String> = None;
+
+    for url in urls {
+        let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
+        let status = res.status();
+        let body = res.text().await.map_err(|e| e.to_string())?;
+
+        if status.is_success() {
+            return Ok(body);
+        }
+
+        last_error = Some(format!("HTTP_ERROR:{}:{}", status.as_u16(), body));
+    }
+
+    Err(last_error.unwrap_or_else(|| "Không thể lấy danh sách Vertex models".to_string()))
 }
 
 #[tauri::command]

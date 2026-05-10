@@ -10,7 +10,7 @@ export const settingsRepo = {
     async saveAISettings(primaryKey: string, poolKeys: string, model: string): Promise<void> {
         await db.transaction('rw', db.settings, async () => {
             await db.settings.bulkPut([
-                { key: "apiKeyPrimary", value: primaryKey },
+                { key: "geminiApiKey", value: primaryKey },
                 { key: "apiKeyPool", value: poolKeys },
                 { key: "aiModel", value: model }
             ])

@@ -32,10 +32,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Gemini API
             gemini::native_gemini_request,
+            gemini::native_vertex_request,
             gemini::native_gemini_oauth_request,
             gemini::native_gemini_create_cache,
             gemini::native_gemini_delete_cache,
             gemini::native_list_models,
+            gemini::native_list_vertex_models,
             gemini::get_gemini_key,
             // TTS & Auth
             tts::edge_tts_speak,

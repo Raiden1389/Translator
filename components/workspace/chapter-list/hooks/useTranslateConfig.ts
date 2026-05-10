@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "@/lib/db";
 import { DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
+import { DEFAULT_AI_PROVIDER, type AIProvider, normalizeAIProvider } from "@/lib/ai-provider";
 import { toast } from "sonner";
 
 // =============================================================================
@@ -25,6 +26,7 @@ export interface TranslationConfig {
 }
 
 export interface TranslationSettingsManual {
+  provider?: AIProvider;
   apiKey: string;
   model: string;
 }
@@ -51,7 +53,7 @@ export const DEFAULT_TRANSLATION_CONFIG: TranslationConfig = {
 
 export function useTranslateConfig(open: boolean) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [currentSettings, setCurrentSettings] = useState<TranslationSettingsManual>({ apiKey: "", model: DEFAULT_MODEL });
+  const [currentSettings, setCurrentSettings] = useState<TranslationSettingsManual>({ provider: DEFAULT_AI_PROVIDER, apiKey: "", model: DEFAULT_MODEL });
   const [translateConfig, setTranslateConfig] = useState<TranslationConfig>({
     ...DEFAULT_TRANSLATION_CONFIG,
     enableChunking: false,
@@ -71,7 +73,10 @@ export function useTranslateConfig(open: boolean) {
     if (!open) return;
 
     const load = async () => {
-      const key = await db.settings.get("apiKeyPrimary");
+      const provider = normalizeAIProvider((await db.settings.get("aiProvider"))?.value);
+      const geminiKey = await db.settings.get("geminiApiKey");
+      const legacyGeminiKey = await db.settings.get("apiKeyPrimary");
+      const vertexKey = await db.settings.get("vertexApiKey");
       const model = await db.settings.get("aiModel");
       const lastPrompt = await db.settings.get("lastCustomPrompt");
       const lastConcurrency = await db.settings.get("lastMaxConcurrency");
@@ -87,7 +92,10 @@ export function useTranslateConfig(open: boolean) {
       const prompts = await db.prompts.toArray();
 
       setCurrentSettings({
-        apiKey: (key?.value as string) || "",
+        provider,
+        apiKey: provider === "vertex"
+          ? ((vertexKey?.value as string) || "")
+          : ((geminiKey?.value as string) || (legacyGeminiKey?.value as string) || ""),
         model: migrateModelId((model?.value as string) || DEFAULT_MODEL)
       });
 
@@ -121,7 +129,11 @@ export function useTranslateConfig(open: boolean) {
 
   const saveSettings = useCallback(async () => {
     try {
-      await db.settings.put({ key: "apiKeyPrimary", value: currentSettings.apiKey });
+      const provider = currentSettings.provider || DEFAULT_AI_PROVIDER;
+      await db.settings.put({
+        key: provider === "vertex" ? "vertexApiKey" : "geminiApiKey",
+        value: currentSettings.apiKey
+      });
       await db.settings.put({ key: "aiModel", value: currentSettings.model });
 
       if (isMounted.current) {

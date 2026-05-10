@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { AI_MODELS, migrateModelId } from "../ai-models";
 import { safeParseGeminiResponse, GeminiResponse } from "../schemas/gemini-response.schema";
+import { DEFAULT_VERTEX_LOCATION, normalizeAIProvider } from "../ai-provider";
 
 /**
  * Record API usage metadata to IndexedDB
@@ -47,7 +48,7 @@ export async function recordUsage(modelId: string, usage: { promptTokenCount?: n
  * Get all available API keys (primary + pool)
  */
 export const getAvailableKeys = async (): Promise<string[]> => {
-    const primaryKey = await db.settings.get("apiKeyPrimary");
+    const primaryKey = await db.settings.get("geminiApiKey") ?? await db.settings.get("apiKeyPrimary");
     const poolKeys = await db.settings.get("apiKeyPool");
     const keys: string[] = [];
     if (primaryKey?.value) keys.push(primaryKey.value as string);
@@ -59,6 +60,72 @@ export const getAvailableKeys = async (): Promise<string[]> => {
 };
 
 import { invoke } from "@tauri-apps/api/core";
+
+async function getVertexKey(): Promise<string | null> {
+    const vertexKey = await db.settings.get("vertexApiKey");
+    const value = vertexKey?.value;
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function buildPayload(params: {
+    systemInstruction?: string,
+    prompt: string,
+    generationConfig?: {
+        temperature?: number;
+        topP?: number;
+        maxOutputTokens?: number;
+        responseMimeType?: string;
+        thinkingConfig?: {
+            thinkingBudget?: number;
+            thinking_level?: string;
+        };
+    }
+}): string {
+    const payloadObj: Record<string, unknown> = {
+        contents: [{ role: "user", parts: [{ text: params.prompt }] }],
+    };
+
+    if (params.systemInstruction) {
+        payloadObj.systemInstruction = { role: "system", parts: [{ text: params.systemInstruction }] };
+    }
+
+    if (params.generationConfig) {
+        payloadObj.generationConfig = params.generationConfig;
+    } else {
+        payloadObj.generationConfig = {
+            temperature: 0.2,
+            topP: 0.95,
+            maxOutputTokens: 4096,
+            responseMimeType: "text/plain",
+        };
+    }
+
+    payloadObj.safetySettings = [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+    ];
+
+    return JSON.stringify(payloadObj);
+}
+
+function validateGeminiLikeResponse<T = GeminiResponse>(rawResponse: unknown): T {
+    const validationResult = safeParseGeminiResponse(rawResponse);
+
+    if (!validationResult.success) {
+        console.error("[Gemini API] Response validation failed:", validationResult.error);
+        console.error("[Gemini API] Raw response (first 2000 chars):", JSON.stringify(rawResponse).slice(0, 2000));
+        throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
+    }
+
+    const validated = validationResult.data;
+    if (validated.error) {
+        throw new Error(validated.error.message || "Gemini API Error");
+    }
+
+    return validated as T;
+}
 
 /**
  * Execute a Gemini request using the NATIVE bridge (Key stays in Rust)
@@ -82,37 +149,10 @@ export async function withKeyRotation<T = GeminiResponse>(
     },
     onLog?: (message: string) => void
 ): Promise<T> {
+    const providerSetting = await db.settings.get("aiProvider");
+    const provider = normalizeAIProvider(providerSetting?.value);
     const keys = await getAvailableKeys();
-
-    const payloadObj: Record<string, unknown> = {
-        contents: [{ parts: [{ text: params.prompt }] }],
-    };
-
-    if (params.systemInstruction) {
-        payloadObj.systemInstruction = { parts: [{ text: params.systemInstruction }] };
-    }
-
-    if (params.generationConfig) {
-        payloadObj.generationConfig = params.generationConfig;
-    } else {
-        payloadObj.generationConfig = {
-            temperature: 0.2,
-            topP: 0.95,
-            maxOutputTokens: 4096,
-            responseMimeType: "text/plain",
-        };
-    }
-
-    // Safety settings: BLOCK_NONE for novel translation
-    // Matches working config from ai-fiction-game (BLOCK_NONE proven, OFF/CIVIC_INTEGRITY may cause rejection)
-    payloadObj.safetySettings = [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-    ];
-
-    const payload = JSON.stringify(payloadObj);
+    const payload = buildPayload(params);
     let lastError: Error | null = null;
 
     // Build Key Queue: Primary settings keys first, then undefined (backend env) as extreme fallback
@@ -122,6 +162,48 @@ export async function withKeyRotation<T = GeminiResponse>(
     // Environment Check: Are we in Tauri?
     // @ts-expect-error - window internals check
     const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+
+    if (provider === "vertex") {
+        const vertexKey = await getVertexKey();
+        if (!vertexKey) {
+            throw new Error("Thiếu Vertex AI API key. Vào Cài đặt AI để thêm key.");
+        }
+
+        try {
+            if (onLog) onLog(`🔑 Auth: Vertex API Key`);
+            if (onLog) onLog(`🚀 Gọi Vertex AI: ${params.model.trim()}`);
+
+            let rawResponse: unknown;
+            if (isTauri) {
+                const responseText = await invoke<string>("native_vertex_request", {
+                    payload,
+                    model: params.model.trim(),
+                    apiKey: vertexKey
+                });
+                rawResponse = JSON.parse(responseText);
+            } else {
+                const url = `https://${DEFAULT_VERTEX_LOCATION}-aiplatform.googleapis.com/v1/publishers/google/models/${params.model.trim()}:generateContent?key=${vertexKey}`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || res.statusText);
+                }
+
+                rawResponse = await res.json();
+            }
+
+            return validateGeminiLikeResponse<T>(rawResponse);
+        } catch (error: unknown) {
+            const errMatch = error instanceof Error ? error : new Error(String(error));
+            if (onLog) onLog(`Thất bại Vertex AI: ${errMatch.message}`);
+            throw errMatch;
+        }
+    }
 
     // Check OAuth preference
     let preferOAuth = false;
@@ -286,21 +368,7 @@ export async function withKeyRotation<T = GeminiResponse>(
                         console.error(`${'='.repeat(60)}\n`);
                     }
 
-                    const validationResult = safeParseGeminiResponse(rawResponse);
-
-                    if (!validationResult.success) {
-                        console.error("[Gemini API] Response validation failed:", validationResult.error);
-                        console.error("[Gemini API] Raw response (first 2000 chars):", JSON.stringify(rawResponse).slice(0, 2000));
-                        throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
-                    }
-
-                    const validated = validationResult.data;
-
-                    if (validated.error) {
-                        throw new Error(validated.error.message || "Gemini API Error");
-                    }
-
-                    return validated as T;
+                    return validateGeminiLikeResponse<T>(rawResponse);
 
                 } catch (requestError) {
                     const elapsed = ((Date.now() - requestStart) / 1000).toFixed(1);
@@ -381,28 +449,16 @@ export async function withKeyRotation<T = GeminiResponse>(
                 console.error(`${'='.repeat(60)}\n`);
             }
 
-            // ✅ Validate response with Zod
-            const validationResult = safeParseGeminiResponse(rawResponse);
-
-            if (!validationResult.success) {
-                console.error("[Gemini API] Response validation failed:", validationResult.error);
-                console.error("[Gemini API] Raw response (first 2000 chars):", JSON.stringify(rawResponse).slice(0, 2000));
-                throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
-            }
-
-            const validated = validationResult.data;
-
-            // Check for API errors
-            if (validated.error) {
-                const msg = validated.error.message || "Gemini API Error";
+            try {
+                return validateGeminiLikeResponse<T>(rawResponse);
+            } catch (validationError) {
+                const msg = validationError instanceof Error ? validationError.message : "Gemini API Error";
                 // Don't log error here if we have more keys to try
                 if (i === keyQueue.length - 1) {
                     if (onLog) onLog(`Lỗi: ${msg}`);
                 }
                 throw new Error(msg);
             }
-
-            return validated as T;
 
         } catch (error: unknown) {
             const errMatch = error instanceof Error ? error : new Error(String(error));

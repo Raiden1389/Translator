@@ -1,3 +1,33 @@
+## [2.16.4] - 2026-05-10
+
+### Top Impact
+- **[Vertex][Codex][AI]** Added a dedicated `Vertex AI` release with provider-aware settings, per-provider runtime summaries, SDK-backed model refresh, and a Singapore-first default route that brings chapter translation back down to roughly `15s/chapter` in real use.
+
+### Added
+- **[Vertex][Codex][AI]** Added Phase 1 `Vertex AI` Express Mode support with a dedicated provider selector, separate `Vertex AI API Key` storage, provider-aware quick translation config, and an explicit `Vertex AI` dashboard/runtime summary.
+- **[Vertex][Codex][Tooling]** Added a `vertex-latency-check.ps1` script so network latency can be verified outside the app when diagnosing slow Vertex runs.
+
+### Changed
+- `lib/services/ai-service.ts` — **[Vertex][Codex][AI]** model refresh now uses the official `@google/genai` SDK in `vertexai` mode before falling back to the static app model list.
+- `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `lib/ai-provider.ts` — **[Vertex][Codex][AI]** Vertex requests now default to the `asia-southeast1` regional path instead of a generic route, restoring expected translation latency for Vietnam-based use.
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `components/layout/StatusBar.tsx` — **[Vertex][Codex][AI]** settings, quick translation config, and dashboard status now show the active provider clearly so `Vertex AI` runs are visible end-to-end.
+
+## [2.16.3] - 2026-05-06
+
+### Top Impact
+- **[Gemini][Codex][Prompt]** Tightened slang prompt rules, few-shot coverage, and final-sweep cleanup so broken mixes like `Ta đệch`, `Ngươi đệch`, and `Ngươi đệch bị bệnh` are pushed out of the translator before they leak into chapters.
+
+### Added
+- **[Gemini][Codex][Prompt]** Added explicit anti-pattern guardrails that ban mixing archaic pronouns with modern slang fillers such as `Ta đệch`, `Ngươi đệch`, `Ta vãi`, and `Ngươi vãi`.
+- **[Gemini][Codex][Prompt]** Added new few-shot slang cases for `你他妈有病吧` and `我靠，这他妈也行？` so direct abuse and first-person reactions resolve to natural compact Vietnamese slang instead of half-converted garbage.
+- **[Gemini][Codex][Test]** Added regression coverage for the new slang anti-pattern guardrails and final-sweep cleanup of `ta/ngươi + slang` mixtures.
+
+### Changed
+- `lib/gemini/constants.ts` — **[Gemini][Codex][Prompt]** profanity rules and few-shots now explicitly ban archaic-pronoun slang mashups and reinforce compact outputs like `ĐM`, `đệt`, and `đồ ngu`.
+- `lib/gemini/idioms.ts` — **[Gemini][Codex][Prompt]** modern slang hints now prioritize compact reaction outputs and annotate the bad `Ta/Ngươi + slang` forms to avoid.
+- `lib/gemini/rules/assembler.ts` — **[Gemini][Codex][Prompt]** dynamic slang hints now inject a direct warning against archaic-pronoun slang mashups whenever internet slang is detected.
+- `lib/gemini/text/casing.ts` — **[Gemini][Codex][Post]** final sweep now silently rewrites narrow bad mixes like `Ta đệch`, `Ngươi đệch`, and `Ngươi vãi` without touching unrelated prose.
+
 ## [2.16.2] - 2026-05-04
 
 ### Top Impact

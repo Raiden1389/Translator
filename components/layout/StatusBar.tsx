@@ -6,10 +6,13 @@ import packageJson from "@/package.json";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { toast } from "sonner";
+import { getAIProviderStatusLabel, normalizeAIProvider } from "@/lib/ai-provider";
 
 export function StatusBar() {
     // 1. Fetch AI Engine from settings
+    const aiProviderSetting = useLiveQuery(() => db.settings.get("aiProvider"));
     const aiModelSetting = useLiveQuery(() => db.settings.get("aiModel"));
+    const currentProvider = normalizeAIProvider(aiProviderSetting?.value);
     const currentModel = (aiModelSetting?.value as string) || "Gemini 2.0 Flash";
 
     // 2. Fetch Global Stats
@@ -52,7 +55,9 @@ export function StatusBar() {
 
                 <div className="flex items-center gap-1.5 text-primary/60 hover:text-primary transition-colors cursor-default">
                     <Cpu className="w-3 h-3" />
-                    <span className="font-black uppercase tracking-tighter">{currentModel}</span>
+                    <span className="font-black uppercase tracking-tighter">
+                        {getAIProviderStatusLabel(currentProvider)} · {currentModel}
+                    </span>
                 </div>
             </div>
 

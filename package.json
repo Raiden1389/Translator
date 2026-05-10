@@ -1,6 +1,6 @@
 {
   "name": "raiden-ai-translator",
-  "version": "2.16.0",
+  "version": "2.16.4",
   "private": true,
   "scripts": {
     "//": "=========================",

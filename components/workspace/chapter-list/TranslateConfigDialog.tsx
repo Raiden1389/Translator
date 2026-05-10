@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Edit, X, Save, ChevronDown, Zap, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
+import { DEFAULT_AI_PROVIDER, getAIProviderLabel, type AIProvider, normalizeAIProvider } from "@/lib/ai-provider";
 import { toast } from "sonner";
 
 interface TranslateConfigDialogProps {
@@ -36,6 +37,7 @@ interface TranslationConfig {
 }
 
 interface TranslationSettingsManual {
+    provider?: AIProvider;
     apiKey: string;
     model: string;
 }
@@ -66,7 +68,7 @@ function maskKeyTail(key: string) {
 
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const [currentSettings, setCurrentSettings] = useState({ apiKey: "", model: DEFAULT_MODEL });
+    const [currentSettings, setCurrentSettings] = useState<TranslationSettingsManual>({ provider: DEFAULT_AI_PROVIDER, apiKey: "", model: DEFAULT_MODEL });
     const [translateConfig, setTranslateConfig] = useState<TranslationConfig>({
         customPrompt: "",
         autoExtract: false,
@@ -99,7 +101,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         if (!open) return;
 
         const load = async () => {
-            const key = await db.settings.get("apiKeyPrimary");
+            const provider = normalizeAIProvider((await db.settings.get("aiProvider"))?.value);
+            const geminiKey = await db.settings.get("geminiApiKey");
+            const legacyGeminiKey = await db.settings.get("apiKeyPrimary");
+            const vertexKey = await db.settings.get("vertexApiKey");
             const model = await db.settings.get("aiModel");
             const lastPrompt = await db.settings.get("lastCustomPrompt");
             const lastConcurrency = await db.settings.get("lastMaxConcurrency");
@@ -115,7 +120,10 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
             const prompts = await db.prompts.toArray();
 
             setCurrentSettings({
-                apiKey: (key?.value as string) || "",
+                provider,
+                apiKey: provider === "vertex"
+                    ? ((vertexKey?.value as string) || "")
+                    : ((geminiKey?.value as string) || (legacyGeminiKey?.value as string) || ""),
                 model: migrateModelId((model?.value as string) || DEFAULT_MODEL)
             });
 
@@ -141,7 +149,11 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
 
     const saveSettings = async () => {
         try {
-            await db.settings.put({ key: "apiKeyPrimary", value: currentSettings.apiKey });
+            const provider = currentSettings.provider || DEFAULT_AI_PROVIDER;
+            await db.settings.put({
+                key: provider === "vertex" ? "vertexApiKey" : "geminiApiKey",
+                value: currentSettings.apiKey
+            });
             await db.settings.put({ key: "aiModel", value: currentSettings.model });
 
             if (isMounted.current) {
@@ -197,12 +209,27 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                     {/* Active Config Display */}
                     <div className={`p-3 rounded-xl border flex justify-between items-center text-sm transition-colors ${currentSettings.model === 'antigravity-bridge' ? 'bg-primary/10 border-primary/30' : 'bg-muted/30 border-border'}`}>
                         <div>
-                            <div className="text-[10px] text-muted-foreground uppercase font-black tracking-wider mb-1">Active AI Model</div>
+                            <div className="text-[10px] text-muted-foreground uppercase font-black tracking-wider mb-1">Active AI Runtime</div>
+                            <div className="text-[11px] text-muted-foreground mb-1">
+                                Provider: <span className="font-semibold text-foreground">{getAIProviderLabel(currentSettings.provider || DEFAULT_AI_PROVIDER)}</span>
+                            </div>
                             <div className={`font-mono font-bold ${currentSettings.model === 'antigravity-bridge' ? 'text-primary animate-pulse' : 'text-primary'}`}>
                                 {currentSettings.model === 'antigravity-bridge' ? '🤖 Antigravity Bridge' : currentSettings.model}
                             </div>
+                            <div className="text-[11px] text-muted-foreground mt-1">
+                                Thinking: <span className="font-semibold text-foreground">
+                                    {currentSettings.model.includes('gemini-3')
+                                        ? `Level ${translateConfig.thinkingLevel}`
+                                        : (translateConfig.enableThinking ? "Bật" : "Tắt")}
+                                </span>
+                            </div>
                             {currentSettings.model === 'antigravity-bridge' && (
                                 <div className="text-[10px] text-primary/70 font-medium italic mt-1">Sử dụng Quota của Antigravity Agent. Không tốn API Key.</div>
+                            )}
+                            {currentSettings.model !== 'antigravity-bridge' && (
+                                <div className="text-[10px] text-primary/70 font-medium italic mt-1">
+                                    Lần dịch này sẽ chạy qua {getAIProviderLabel(currentSettings.provider || DEFAULT_AI_PROVIDER)}.
+                                </div>
                             )}
                         </div>
                         <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => setSettingsOpen(true)}>
@@ -219,8 +246,19 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                             </h4>
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label className="text-sm font-medium">API Key (Gemini)</Label>
-                                    <Input value={currentSettings.apiKey} onChange={(e) => setCurrentSettings({ ...currentSettings, apiKey: e.target.value })} type="password" placeholder="AIza..." className="bg-background border-border" />
+                                    <Label className="text-sm font-medium">
+                                        {currentSettings.provider === "vertex" ? "API Key (Vertex AI)" : "API Key (Gemini)"}
+                                    </Label>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Provider hiện tại: <span className="font-semibold text-foreground">{getAIProviderLabel(currentSettings.provider || DEFAULT_AI_PROVIDER)}</span>
+                                    </p>
+                                    <Input
+                                        value={currentSettings.apiKey}
+                                        onChange={(e) => setCurrentSettings({ ...currentSettings, apiKey: e.target.value })}
+                                        type="password"
+                                        placeholder="AIza..."
+                                        className="bg-background border-border"
+                                    />
                                     {currentSettings.apiKey && (
                                         <p className="text-[11px] text-muted-foreground font-mono">
                                             Đang dùng: <span className="font-bold text-foreground">{maskKeyTail(currentSettings.apiKey)}</span>

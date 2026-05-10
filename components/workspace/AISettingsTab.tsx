@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAISettings } from "./hooks/useAISettings";
+import { getAIProviderLabel } from "@/lib/ai-provider";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GeminiOAuthSettings } from "@/components/settings/GeminiOAuthSettings";
@@ -28,16 +29,19 @@ export default function AISettingsTab() {
 
     const { state, actions } = useAISettings();
     const {
-        primaryKey, poolKeys, model, availableModels,
+        provider, primaryKey, vertexKey, poolKeys, model, availableModels,
         isLoadingModels, isSaving, checkingKeys, keyStatuses,
         isBackendKeyLoading
     } = state;
 
     const {
-        setPrimaryKey, setPoolKeys, setModel,
+        setProvider, setPrimaryKey, setVertexKey, setPoolKeys, setModel,
         handleSaveAll, handleLoadFromBackend, handleFetchModels,
         handleCheckAllKeys
     } = actions;
+    const isVertexProvider = provider === "vertex";
+    const activePrimaryKey = isVertexProvider ? vertexKey : primaryKey;
+    const providerLabel = getAIProviderLabel(provider);
     const activePoolKeys = poolKeys.split(/[\n,;]+/).map((key) => key.trim()).filter((key) => key.length > 10);
 
     return (
@@ -61,37 +65,63 @@ export default function AISettingsTab() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="space-y-3">
+                            <Label className="text-xs font-bold text-foreground/70 uppercase">AI Provider</Label>
+                            <Select value={provider} onValueChange={(value) => setProvider(value as "gemini" | "vertex")}>
+                                <SelectTrigger className="bg-muted/30 border-border/50 h-10 font-bold">
+                                    <SelectValue placeholder="Chọn Provider" />
+                                </SelectTrigger>
+                                <SelectContent className="backdrop-blur-xl">
+                                    <SelectGroup>
+                                        <SelectItem value="gemini">Gemini API</SelectItem>
+                                        <SelectItem value="vertex">Vertex AI</SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-[10px] text-muted-foreground italic">
+                                Provider hiện tại: {providerLabel}
+                            </p>
+                        </div>
+
+                        <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs font-bold text-foreground/70 uppercase">Google Gemini API Key</Label>
+                                <Label className="text-xs font-bold text-foreground/70 uppercase">
+                                    {isVertexProvider ? "Vertex AI API Key" : "Google Gemini API Key"}
+                                </Label>
                                 <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-bold">Encrypted</span>
                             </div>
                             <div className="flex gap-2">
                                 <div className="relative flex-1 group">
                                     <Input
                                         type="password"
-                                        placeholder="AIzaSy... (Dán key của bạn vào đây)"
-                                        value={primaryKey}
-                                        onChange={(e) => setPrimaryKey(e.target.value)}
+                                        placeholder={isVertexProvider
+                                            ? "AIzaSy... hoặc Google Cloud API Key cho Vertex Express Mode"
+                                            : "AIzaSy... (Dán key của bạn vào đây)"}
+                                        value={activePrimaryKey}
+                                        onChange={(e) => isVertexProvider ? setVertexKey(e.target.value) : setPrimaryKey(e.target.value)}
                                         className="bg-muted/30 border-border/50 h-10 px-4 focus-visible:ring-primary focus-visible:bg-muted/50 transition-all font-mono"
                                     />
-                                    {!primaryKey && (
+                                    {!activePrimaryKey && (
                                         <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                                             <span className="text-[10px] text-destructive font-bold animate-pulse">Chưa có key</span>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                            {primaryKey && (
+                            {activePrimaryKey && (
                                 <p className="text-[11px] text-muted-foreground font-mono">
-                                    Đang dùng: <span className="font-bold text-foreground">{maskKeyTail(primaryKey)}</span>
+                                    Đang dùng: <span className="font-bold text-foreground">{maskKeyTail(activePrimaryKey)}</span>
                                 </p>
                             )}
-                            <p className="text-[10px] text-muted-foreground italic">Phím tắt: Bấm Refresh bên dưới để cập nhật danh sách model sau khi dán key.</p>
+                            <p className="text-[10px] text-muted-foreground italic">
+                                {isVertexProvider
+                                    ? "Phase 1 dùng Vertex AI Express Mode bằng API key. Bấm Refresh để lấy danh sách model từ Vertex."
+                                    : "Phím tắt: Bấm Refresh bên dưới để cập nhật danh sách model sau khi dán key."}
+                            </p>
                         </div>
 
                         <div className="space-y-3 pt-2 border-t border-border/50">
                             <Label className="text-xs font-bold text-foreground/70 uppercase flex items-center gap-2">
-                                Mô hình ngôn ngữ
+                                Mô hình AI
                                 {isLoadingModels && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
                             </Label>
                             <div className="flex gap-2">
@@ -117,20 +147,67 @@ export default function AISettingsTab() {
                                             variant="outline"
                                             size="icon"
                                             onClick={handleFetchModels}
-                                            disabled={!primaryKey || isLoadingModels}
+                                            disabled={!activePrimaryKey || isLoadingModels}
                                             className="h-10 w-10 border-border/50 hover:bg-muted"
                                         >
                                             <RefreshCw className={cn("h-4 w-4", isLoadingModels && "animate-spin")} />
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>Lấy danh sách Model mới nhất từ Key này</TooltipContent>
+                                    <TooltipContent>Lấy danh sách Model mới nhất từ provider hiện tại</TooltipContent>
                                 </Tooltip>
                             </div>
                         </div>
+
+                        {isVertexProvider && (
+                            <div className="pt-2">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleCheckAllKeys}
+                                            disabled={checkingKeys || !activePrimaryKey}
+                                            className="w-full h-10 border-border/50 hover:bg-muted font-bold text-xs"
+                                        >
+                                            {checkingKeys ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                                            Kiểm tra Vertex API Key
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Kiểm tra trạng thái của Vertex API key hiện tại</TooltipContent>
+                                </Tooltip>
+
+                                {keyStatuses.length > 0 && (
+                                    <div className="mt-4 grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto p-2 custom-scrollbar">
+                                        {keyStatuses.map((k, i) => (
+                                            <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/20 border border-border/30 hover:bg-muted/40 transition-colors">
+                                                <div className="flex items-center gap-2 truncate pr-2">
+                                                    <div className={cn("h-2 w-2 rounded-full shrink-0",
+                                                        k.status === 'valid' ? "bg-emerald-500" :
+                                                            k.status === 'invalid' ? "bg-rose-500" :
+                                                                "bg-amber-500 animate-pulse"
+                                                    )} />
+                                                    <span className="font-mono text-[10px] text-muted-foreground truncate">{maskKeyTail(k.key)}</span>
+                                                </div>
+                                                <div className="shrink-0">
+                                                    {k.status === 'valid' ? (
+                                                        <span className="text-emerald-500 font-bold text-[10px]">{k.ms}ms</span>
+                                                    ) : k.status === 'invalid' ? (
+                                                        <span className="text-rose-500 font-bold text-[10px]">FAILED</span>
+                                                    ) : (
+                                                        <span className="text-amber-500 text-[10px] animate-pulse">...</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
                 {/* SECTION: Key Pool */}
+                {!isVertexProvider && (
                 <Card className="border-none shadow-xl overflow-hidden bg-card">
                     <CardHeader className="pb-4">
                         <div className="flex items-center justify-between">
@@ -217,9 +294,10 @@ export default function AISettingsTab() {
                         </div>
                     </CardContent>
                 </Card>
+                )}
 
                 {/* SECTION: OAuth Authentication */}
-                <GeminiOAuthSettings />
+                {!isVertexProvider && <GeminiOAuthSettings />}
 
                 {/* SECTION: Storage Settings Group */}
                 <div className="bg-white/40 dark:bg-black/20 border border-black/[0.05] dark:border-white/[0.05] rounded-xl overflow-hidden shadow-xs">
@@ -230,12 +308,12 @@ export default function AISettingsTab() {
                 <div className="flex justify-end gap-3 pt-4 mt-2">
                     <Button
                         onClick={handleLoadFromBackend}
-                        disabled={isBackendKeyLoading}
+                        disabled={isBackendKeyLoading || isVertexProvider}
                         variant="outline"
                         className="h-8 px-4 rounded-md border-black/10 bg-white/50 hover:bg-white text-black hover:text-black dark:text-white dark:hover:text-white transition-all text-[13px] font-medium"
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isBackendKeyLoading && "animate-spin")} />
-                        Nạp từ .env
+                        {isVertexProvider ? "Chỉ hỗ trợ Gemini .env" : "Nạp từ .env"}
                     </Button>
 
                     <Button
