@@ -55,6 +55,7 @@ interface ChapterListProps {
 }
 
 export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: ChapterListProps) {
+    const LIST_TOP_OFFSET_PX = 96;
     const workspace = useLiveQuery(() => db.workspaces.get(workspaceId), [workspaceId]);
     const chapters = useLiveQuery(
         () => db.chapters.where("[workspaceId+order]").between([workspaceId, Dexie.minKey], [workspaceId, Dexie.maxKey]).toArray(),
@@ -65,9 +66,9 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
     const [filterStatus, setFilterStatus] = usePersistedState<"all" | "draft" | "translated">(`workspace-${workspaceId}-filter`, "all");
     const [currentPage, setCurrentPageRaw] = useState(1);
     const listContainerRef = useRef<HTMLDivElement>(null);
+    const pendingScrollResetRef = useRef(false);
     const setCurrentPage = useCallback((page: number) => {
         setCurrentPageRaw(page);
-        listContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, []);
     const [itemsPerPage, setItemsPerPage] = usePersistedState(`workspace-${workspaceId}-perPage`, 50);
     const [sortOrder, setSortOrder] = usePersistedState<"asc" | "desc">(`workspace-${workspaceId}-sortOrder`, "asc");
@@ -200,6 +201,17 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
         return filtered.slice(start, start + itemsPerPage);
     }, [filtered, currentPage, itemsPerPage]);
 
+    useEffect(() => {
+        if (!pendingScrollResetRef.current) return;
+
+        pendingScrollResetRef.current = false;
+        const anchor = listContainerRef.current;
+        if (!anchor || typeof window === "undefined") return;
+
+        const top = Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - LIST_TOP_OFFSET_PX);
+        window.scrollTo({ top, behavior: "smooth" });
+    }, [currentPage]);
+
 
     // Reset to page 1 when filters change
     useEffect(() => {
@@ -285,7 +297,10 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
                 filterStatus={filterStatus}
                 setFilterStatus={setFilterStatus}
                 currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
+                setCurrentPage={(page) => {
+                    pendingScrollResetRef.current = true;
+                    setCurrentPage(page);
+                }}
                 totalPages={totalPages}
                 itemsPerPage={itemsPerPage}
                 setItemsPerPage={setItemsPerPage}
@@ -312,6 +327,7 @@ export function ChapterList({ workspaceId, onShowScanResults, onTranslate }: Cha
             {/* Main Content */}
             <div ref={listContainerRef}>
                 <ChapterListContent
+                    currentPage={currentPage}
                     viewMode={viewMode}
                     currentChapters={currentChapters}
                     selectedChapters={selectedChapters}

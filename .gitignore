@@ -29,6 +29,7 @@ src-tauri/bundle
 .DS_Store
 *.pem
 *.log
+gen-lang-client-*.json
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
@@ -65,3 +66,4 @@ CHANGELOG.md.bak
 # Lint reports (generated artifacts)
 lint-*.json
 .gitnexus
+.agent/knowledge/.last-web-build

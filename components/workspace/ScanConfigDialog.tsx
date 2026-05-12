@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, User, MapPin, Zap, Users, Sparkles } from 'lucide-react';
+import { X, User, MapPin, Zap, Users, Package, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EntityType } from '@/lib/services/ai-ner.service';
 
@@ -53,6 +53,15 @@ const SELECTION_ITEMS = [
         border: 'border-primary/20',
         iconColor: 'text-primary',
     },
+    {
+        id: EntityType.Item,
+        label: 'Vật phẩm / Pháp bảo',
+        icon: Package,
+        color: 'rose',
+        bg: 'bg-rose-50/50',
+        border: 'border-rose-200',
+        iconColor: 'text-rose-500',
+    },
 ] as const;
 
 export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDialogProps) {
@@ -60,7 +69,8 @@ export function ScanConfigDialog({ open, onOpenChange, onStart }: ScanConfigDial
         EntityType.Person,
         EntityType.Location,
         EntityType.Skill,
-        EntityType.Organization
+        EntityType.Organization,
+        EntityType.Item
     ]);
 
     const toggle = (type: EntityType) => {

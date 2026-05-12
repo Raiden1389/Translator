@@ -1,25 +1,77 @@
+## [2.17.0] - 2026-05-12
+
+### Top Impact
+- **[Vertex][Codex][Phase 2]** Thêm auth mode `Service Account (Full Vertex)` song song với `API Key (Express Mode)` trong settings, refresh model, health-check, cấu hình dịch nhanh, và request runtime.
+- **[Vertex][AI NER]** Đã chặn `Gemini 3` trong AI NER trên Vertex (cả Express và Service Account) để tránh lỗi crash do Structured JSON Output chưa ổn định (trả về content rỗng). App giờ tự hạ về `gemini-2.5-flash` kèm thông báo progress cho người dùng.
+- **[Vertex][Codex][Native]** Thêm native bridge ký JWT từ `Service Account JSON`, đổi lấy OAuth access token, rồi gọi full Vertex endpoint theo dạng `projects/{project}/locations/{location}/publishers/google/models/...`.
+- **[Vertex][Codex][Automation]** App giờ tự dò `Service Account JSON` trong repo/thư mục app, tự điền path cùng `project_id`, và có fallback mặc định `gen-lang-client-0688183488` để test nhanh mà không cần nhập tay.
+- **[GitNexus][Fix]** Khắc phục lỗi `EOF / ECOMPROMISED` của GitNexus MCP bằng cách dọn sạch npx cache và npm integrity cache, giúp khôi phục kết nối code intelligence.
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/hooks/useAISettings.ts`, `lib/ai-provider.ts` — **[Vertex][Codex][UX]** Settings Vertex giờ phân tách rõ `Express` và `Full Vertex`, hiển thị path JSON thay vì che như password, có dropdown `Vertex Location` (`Global`, `Asia`, `US`, `Europe`), và mặc định gợi ý region theo model.
+- `lib/services/ai-service.ts`, `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `src-tauri/src/lib.rs` — **[Vertex][Codex][Runtime]** Luồng request/check-key/fetch-model giờ dispatch theo auth mode, để `Gemini 3` chỉ mở ở `Full Vertex` còn `Express Mode` tiếp tục bị chặn ở những model Google chưa support.
+
+### Added
+- **[Vertex][Codex][Phase 2]** Thêm auth mode `Service Account (Full Vertex)` song song với `API Key (Express Mode)` trong settings, refresh model, health-check, cấu hình dịch nhanh, và request runtime.
+- **[Vertex][Codex][Native]** Thêm native bridge ký JWT từ `Service Account JSON`, đổi lấy OAuth access token, rồi gọi full Vertex endpoint theo dạng `projects/{project}/locations/{location}/publishers/google/models/...`.
+- **[Vertex][Codex][Automation]** App giờ tự dò `Service Account JSON` trong repo/thư mục app, tự điền path cùng `project_id`, và có fallback mặc định `gen-lang-client-0688183488` để test nhanh mà không cần nhập tay.
+
+### Changed
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/hooks/useAISettings.ts`, `lib/ai-provider.ts` — **[Vertex][Codex][UX]** Settings Vertex giờ phân tách rõ `Express` và `Full Vertex`, hiển thị path JSON thay vì che như password, có dropdown `Vertex Location` (`Global`, `Asia`, `US`, `Europe`), và mặc định gợi ý region theo model.
+- `lib/services/ai-service.ts`, `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `src-tauri/src/lib.rs` — **[Vertex][Codex][Runtime]** Luồng request/check-key/fetch-model giờ dispatch theo auth mode, để `Gemini 3` chỉ mở ở `Full Vertex` còn `Express Mode` tiếp tục bị chặn ở những model Google chưa support.
+- `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `lib/services/ai-ner.service.ts` — **[Vertex][Codex][AI NER]** Cấu hình dịch nhanh và AI quét thuật ngữ giờ hiểu `vertexAuthMode`, dùng đúng credential tương ứng, và tiếp tục sanitize model theo provider/auth mode để tránh gọi sai flow.
+- `lib/services/ai-ner.service.ts`, `components/workspace/editor/hooks/useAIExtraction.ts`, `components/workspace/ScanConfigDialog.tsx` — **[Vertex][Codex][AI NER]** Luồng scan Vertex giờ tách thành 2 pass (`vét thực thể gốc` → `chuẩn hóa thuật ngữ Việt`), thêm loại `Item`, giảm lọc trùng quá tay, và chặn nhân vật đã có trong `persona` theo cả chữ Hán lẫn tên Việt để hạn chế case chương mới vẫn hiện lại tên main.
+- `components/workspace/hooks/useTranslationProgress.ts`, `components/workspace/hooks/useSingleOrchestrator.ts`, `components/workspace/hooks/useBatchOrchestrator.ts` — **[Vertex][Codex][Cost]** Popup progress giờ tính `Total Cost` theo đúng `translationModel` của từng chapter dựa trên bảng giá model hiện hành thay vì hardcode giá cũ của Gemini 2.5 Flash.
+
+### Fixed
+- `lib/services/ai-ner.service.ts` — **[Vertex][AI NER]** `resolveNERModel` giờ chủ động chặn dòng `gemini-3` trên Vertex, fallback về `gemini-2.5-flash` để đảm bảo kết quả quét thuật ngữ luôn là JSON hợp lệ.
+- **[GitNexus][Tooling]** Xử lý triệt để lỗi kẹt folder `node_modules\gitnexus\vendor` trên Windows bằng quy trình clear npx cache sạch.
+- **[Vertex][Codex][Setup]** Không còn bắt người dùng phải dán lại `project_id` hay đường dẫn JSON thủ công trong phần lớn ca dùng desktop nếu file service-account đã nằm ngay trong repo.
+- **[Security][Codex][Git]** Thêm ignore cho `gen-lang-client-*.json` để giảm rủi ro stage nhầm Service Account JSON vào git.
+- **[UX][Codex][Chapter List]** Khi đổi trang trong `Chapter List`, viewport giờ tự cuộn về đầu danh sách của page mới thay vì giữ nguyên vị trí scroll cũ ở cuối page trước, giúp case pagination lớn như `500 chương / page` chuyển từ chap `1000` sang `1001` đúng nhịp hơn.
+- `components/workspace/chapter-list/hooks/useCorrections.ts` — **[Sync][Codex][Cloud]** `Apply cải chính` giờ đánh dấu `lastTranslatedAt` và auto `pushDelta()` khi có token cloud, nên bản đã cải chính được đẩy lên cloud ngay thay vì chỉ sửa local.
+
+### Changed
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/hooks/useAISettings.ts`, `lib/ai-provider.ts` — **[Vertex][Codex][UX]** Settings Vertex giờ phân tách rõ `Express` và `Full Vertex`, hiển thị path JSON thay vì che như password, có dropdown `Vertex Location` (`Global`, `Asia`, `US`, `Europe`), và mặc định gợi ý region theo model.
+- `lib/services/ai-service.ts`, `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `src-tauri/src/lib.rs` — **[Vertex][Codex][Runtime]** Luồng request/check-key/fetch-model giờ dispatch theo auth mode, để `Gemini 3` chỉ mở ở `Full Vertex` còn `Express Mode` tiếp tục bị chặn ở những model Google chưa support.
+- `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `lib/services/ai-ner.service.ts` — **[Vertex][Codex][AI NER]** Cấu hình dịch nhanh và AI quét thuật ngữ giờ hiểu `vertexAuthMode`, dùng đúng credential tương ứng, và tiếp tục sanitize model theo provider/auth mode để tránh gọi sai flow.
+
+### Fixed
+- **[Vertex][Codex][Setup]** Không còn bắt người dùng phải dán lại `project_id` hay đường dẫn JSON thủ công trong phần lớn ca dùng desktop nếu file service-account đã nằm ngay trong repo.
+- **[Security][Codex][Git]** Thêm ignore cho `gen-lang-client-*.json` để giảm rủi ro stage nhầm Service Account JSON vào git.
+- **[UX][Codex][Chapter List]** Khi đổi trang trong `Chapter List`, viewport giờ tự cuộn về đầu danh sách của page mới thay vì giữ nguyên vị trí scroll cũ ở cuối page trước, giúp case pagination lớn như `500 chương / page` chuyển từ chap `1000` sang `1001` đúng nhịp hơn.
+
 ## [2.16.4] - 2026-05-10
 
 ### Top Impact
-- **[Vertex][Codex][AI]** Added a dedicated `Vertex AI` release with provider-aware settings, per-provider runtime summaries, SDK-backed model refresh, and a Singapore-first default route that brings chapter translation back down to roughly `15s/chapter` in real use.
+- **[Vertex][Codex][AI]** Thêm hỗ trợ `Vertex AI` Express Mode giai đoạn 1 với bộ chọn provider riêng, lưu `Vertex AI API Key` tách biệt, cấu hình dịch nhanh nhận biết provider, tóm tắt runtime theo provider, và luồng health-check riêng cho `Vertex AI`.
+- **[Vertex][Codex][Tooling]** Thêm `scripts/vertex-latency-check.ps1` để test trực tiếp độ trễ mạng Vertex từ PowerShell bên ngoài app khi cần chẩn đoán các ca chạy chậm.
+- `lib/services/ai-service.ts` — **[Vertex][Codex][AI]** Refresh model giờ dùng SDK chính thức `@google/genai` ở chế độ `vertexai` trước khi fallback về danh sách Gemini tĩnh của app, giúp việc dò model trên Vertex bám sát hành vi thật của Google Cloud hơn.
+- `lib/gemini/client.ts` — **[Vertex][Codex][AI]** Payload request giờ dùng role hợp lệ cho Vertex, dispatch theo provider, và mặc định route traffic Vertex qua regional endpoint `asia-southeast1`.
+- `src-tauri/src/gemini.rs` — **[Vertex][Codex][AI]** Native bridge giờ expose command request/model-list cho Vertex và mặc định traffic regional qua `asia-southeast1` để giảm độ trễ từ Việt Nam.
 
 ### Added
-- **[Vertex][Codex][AI]** Added Phase 1 `Vertex AI` Express Mode support with a dedicated provider selector, separate `Vertex AI API Key` storage, provider-aware quick translation config, and an explicit `Vertex AI` dashboard/runtime summary.
-- **[Vertex][Codex][Tooling]** Added a `vertex-latency-check.ps1` script so network latency can be verified outside the app when diagnosing slow Vertex runs.
+- **[Vertex][Codex][AI]** Thêm hỗ trợ `Vertex AI` Express Mode giai đoạn 1 với bộ chọn provider riêng, lưu `Vertex AI API Key` tách biệt, cấu hình dịch nhanh nhận biết provider, tóm tắt runtime theo provider, và luồng health-check riêng cho `Vertex AI`.
+- **[Vertex][Codex][Tooling]** Thêm `scripts/vertex-latency-check.ps1` để test trực tiếp độ trễ mạng Vertex từ PowerShell bên ngoài app khi cần chẩn đoán các ca chạy chậm.
 
 ### Changed
-- `lib/services/ai-service.ts` — **[Vertex][Codex][AI]** model refresh now uses the official `@google/genai` SDK in `vertexai` mode before falling back to the static app model list.
-- `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `lib/ai-provider.ts` — **[Vertex][Codex][AI]** Vertex requests now default to the `asia-southeast1` regional path instead of a generic route, restoring expected translation latency for Vietnam-based use.
-- `components/workspace/AISettingsTab.tsx`, `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `components/layout/StatusBar.tsx` — **[Vertex][Codex][AI]** settings, quick translation config, and dashboard status now show the active provider clearly so `Vertex AI` runs are visible end-to-end.
+- `lib/services/ai-service.ts` — **[Vertex][Codex][AI]** Refresh model giờ dùng SDK chính thức `@google/genai` ở chế độ `vertexai` trước khi fallback về danh sách Gemini tĩnh của app, giúp việc dò model trên Vertex bám sát hành vi thật của Google Cloud hơn.
+- `lib/gemini/client.ts` — **[Vertex][Codex][AI]** Payload request giờ dùng role hợp lệ cho Vertex, dispatch theo provider, và mặc định route traffic Vertex qua regional endpoint `asia-southeast1`.
+- `src-tauri/src/gemini.rs` — **[Vertex][Codex][AI]** Native bridge giờ expose command request/model-list cho Vertex và mặc định traffic regional qua `asia-southeast1` để giảm độ trễ từ Việt Nam.
+- `lib/ai-provider.ts`, `components/workspace/hooks/useAISettings.ts`, `lib/repositories/settings.ts` — **[Vertex][Codex][AI]** Trạng thái provider và API key giờ được lưu tách biệt để chuyển qua lại giữa Gemini và Vertex không ghi đè mất credential của nhau.
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `components/layout/StatusBar.tsx` — **[Vertex][Codex][AI]** Settings, cấu hình dịch nhanh, và dashboard status giờ hiển thị rõ provider đang hoạt động để luồng `Vertex AI` nhìn xuyên suốt từ đầu đến cuối.
+- `lib/services/ai-ner.service.ts`, `lib/gemini/client.ts` — **[Vertex][Codex][AI NER]** AI quét thuật ngữ giờ tự phát hiện case `Vertex Singapore + gemini-2.5-flash-lite` không hợp nhau, fallback sang `gemini-2.5-flash`, ép structured JSON output, hiện preview raw response để debug, và tự sửa các response lỗi kiểu `object` / `truncated-array` để vẫn cứu được thuật ngữ mới thật sự.
 
 ## [2.16.3] - 2026-05-06
 
 ### Top Impact
-- **[Gemini][Codex][Prompt]** Tightened slang prompt rules, few-shot coverage, and final-sweep cleanup so broken mixes like `Ta đệch`, `Ngươi đệch`, and `Ngươi đệch bị bệnh` are pushed out of the translator before they leak into chapters.
+- **[Gemini][Codex][Prompt]** Added explicit anti-pattern guardrails that ban archaic pronoun + modern slang mashups such as `Ta đệch`, `Ngươi đệch`, `Ta vãi`, and `Ngươi vãi`.
+- **[Gemini][Codex][Prompt]** Added new few-shot slang cases for `你他妈有病吧` and `我靠，这他妈也行？` so direct abuse and first-person reactions resolve to compact Vietnamese slang instead of half-converted junk.
+- **[Gemini][Codex][Test]** Added regression coverage for the new slang anti-pattern guardrails and final-sweep cleanup of `ta/ngươi + slang` mixtures.
+- `lib/gemini/constants.ts` — **[Gemini][Codex][Prompt]** profanity rules and few-shots now explicitly ban archaic-pronoun slang mashups and reinforce compact outputs like `ĐM`, `đệt`, and `đồ ngu`.
+- `lib/gemini/idioms.ts` — **[Gemini][Codex][Prompt]** modern slang hints now prioritize compact reaction outputs and annotate the bad `Ta/Ngươi + slang` forms to avoid.
 
 ### Added
-- **[Gemini][Codex][Prompt]** Added explicit anti-pattern guardrails that ban mixing archaic pronouns with modern slang fillers such as `Ta đệch`, `Ngươi đệch`, `Ta vãi`, and `Ngươi vãi`.
-- **[Gemini][Codex][Prompt]** Added new few-shot slang cases for `你他妈有病吧` and `我靠，这他妈也行？` so direct abuse and first-person reactions resolve to natural compact Vietnamese slang instead of half-converted garbage.
+- **[Gemini][Codex][Prompt]** Added explicit anti-pattern guardrails that ban archaic pronoun + modern slang mashups such as `Ta đệch`, `Ngươi đệch`, `Ta vãi`, and `Ngươi vãi`.
+- **[Gemini][Codex][Prompt]** Added new few-shot slang cases for `你他妈有病吧` and `我靠，这他妈也行？` so direct abuse and first-person reactions resolve to compact Vietnamese slang instead of half-converted junk.
 - **[Gemini][Codex][Test]** Added regression coverage for the new slang anti-pattern guardrails and final-sweep cleanup of `ta/ngươi + slang` mixtures.
 
 ### Changed
@@ -31,23 +83,37 @@
 ## [2.16.2] - 2026-05-04
 
 ### Top Impact
-- **[Intelligence][Codex][Name Audit]** Rebuilt `name audit` around workspace-safe fixes, `reviewing` chapter coverage, source-ref-backed Chinese↔Vietnamese matching, and actionable cluster ranking so the tool surfaces real mistranslation candidates instead of noisy capitalized phrases.
+- **[Intelligence][Codex][Name Audit]** Rebuilt `name audit` around workspace-safe fixes, `reviewing` chapter coverage, source-ref-backed Chinese↔Vietnamese matching, and actionable cluster ranking so the audit surfaces real name mismatches instead of noisy uppercase phrases.
+- **[Cleanup][Dead Code]** Deleted `lib/fix-brackets.ts` and `components/workspace/FixBracketsButton.tsx` — duplicate `normalizeVietnameseContent` copy with broken counter (always returned `fixed: 0`), unused component with zero imports.
+- **[Intelligence][Codex][Name Audit]** Added source-ref-driven cross-reference scoring that can still bind localized Vietnamese names back to the right Chinese source even when the chosen translation is not a close Han-Viet spelling.
+- **[Intelligence][Codex][Name Audit]** Added cluster actionability signals (`actionabilityScore`, chapter spread, source evidence count) so the main audit list emphasizes likely mistranslations instead of low-signal singleton noise.
+- **[Intelligence][Codex][Test]** Added regression coverage for workspace-scoped name auto-fix, `reviewing` chapter scan coverage, localized-name cross-ref, and typo-cluster prioritization.
 
 ### Added
-- **[Intelligence][Codex][Name Audit]** Added source-ref-driven cross-reference scoring that can keep linking localized Vietnamese variants back to the right Chinese name even when the final wording is not a close Han-Viet spelling.
-- **[Intelligence][Codex][Name Audit]** Added cluster actionability signals (`actionabilityScore`, chapter spread, source evidence count) so low-signal singleton noise stays out of the main audit list.
-- **[Intelligence][Codex][Test]** Added regression coverage for workspace-scoped auto-fix, `reviewing` chapter scan coverage, localized-name cross-ref, and typo clustering priority.
+- **[Intelligence][Codex][Name Audit]** Added source-ref-driven cross-reference scoring that can still bind localized Vietnamese names back to the right Chinese source even when the chosen translation is not a close Han-Viet spelling.
+- **[Intelligence][Codex][Name Audit]** Added cluster actionability signals (`actionabilityScore`, chapter spread, source evidence count) so the main audit list emphasizes likely mistranslations instead of low-signal singleton noise.
+- **[Intelligence][Codex][Test]** Added regression coverage for workspace-scoped name auto-fix, `reviewing` chapter scan coverage, localized-name cross-ref, and typo-cluster prioritization.
 
 ### Changed
+- **[Intelligence][Codex][Name Audit]** Rebuilt `name audit` around workspace-safe fixes, `reviewing` chapter coverage, source-ref-backed Chinese↔Vietnamese matching, and actionable cluster ranking so the audit surfaces real name mismatches instead of noisy uppercase phrases.
+- **[Cleanup][Dead Code]** Deleted `lib/fix-brackets.ts` and `components/workspace/FixBracketsButton.tsx` — duplicate `normalizeVietnameseContent` copy with broken counter (always returned `fixed: 0`), unused component with zero imports.
 - `lib/services/name-audit.service.ts` — **[Intelligence][Codex][Name Audit]** scan now includes `reviewing` chapters with translated content and merges paragraph-alignment cross-ref with source-ref evidence.
 - `lib/services/name-audit.clustering.ts` — **[Intelligence][Codex][Name Audit]** clustering now scores typo similarity, chapter overlap, Chinese source evidence, and Unicode-normalized variants before deciding whether a cluster is worth surfacing.
-- `components/workspace/intelligence/hooks/useNameAudit.ts` — **[Intelligence][Codex][Name Audit]** main UI now prioritizes actionable clusters instead of flooding the list with low-confidence singletons.
-- `components/workspace/intelligence/NameClusterCard.tsx` — **[Intelligence][Codex][Name Audit]** cards now show context from multiple variants so users can see why a cluster was grouped.
+- `lib/services/name-audit.autofix.ts` — **[Intelligence][Codex][Name Audit]** apply-fix snapshots and correction sweeps are now scoped to the active workspace only.
+- `lib/services/corrections.service.ts` — **[Intelligence][Codex][Name Audit]** `sweepSingleRule()` accepts an optional workspace filter so global correction sweeps can stay inside the intended novel.
+
+### Fixed
+- **[Gemini][Post][Batch]** Added `sanitizeTranslatedContent` as Step 0 in `applyPostProcessing` — batch mode was missing HTML artifact stripping that single mode had via `useSingleOrchestrator`. Both pipelines now sanitize consistently.
+- **[Gemini][Post][Order]** Moved `normalizeQuoteStyles` from step 1.6 → step 2.6 (after glossary enforcement) — CJK corner brackets `「」『』` were being destructively converted to curly quotes before glossary had a chance to replace the Chinese text they wrapped.
 
 ## [2.16.1] - 2026-05-04
 
 ### Top Impact
 - **[Gemini][Codex][Post]** Added silent automatic post-processing for literal slang, legacy money units, and narrow pronoun drift so common bad outputs are fixed before save without retrying or interrupting the flow.
+- **[Gemini][Codex][Post]** Added automatic literal slang normalization in `finalSweep` for bad reads such as `sáu sáu sáu`, `thảo nê mã`, `ngàn con thảo nê mã`, and `ta dựa vào`.
+- **[Gemini][Codex][Post]** Added automatic money normalization for legacy units like `vạn tệ`, `ức tệ`, `nghìn vạn tệ`, and `trăm triệu tệ` into the đô thị format (`nghìn / triệu / tỷ tệ`).
+- **[Gemini][Codex][Post]** Added a narrow pronoun-drift fixer that silently pulls obvious `tôi/mình/cô/em/bạn/cậu` slips back toward `Ta/Ngươi` inside archaic dialogue.
+- **[Gemini][Codex][Test]** Added regression coverage for silent post-processing of slang literals, money units, and narrow pronoun drift.
 
 ### Added
 - **[Gemini][Codex][Post]** Added automatic literal slang normalization in `finalSweep` for bad reads such as `sáu sáu sáu`, `thảo nê mã`, `ngàn con thảo nê mã`, and `ta dựa vào`.
@@ -56,6 +122,7 @@
 - **[Gemini][Codex][Test]** Added regression coverage for silent post-processing of slang literals, money units, and narrow pronoun drift.
 
 ### Changed
+- **[Gemini][Codex][Post]** Added silent automatic post-processing for literal slang, legacy money units, and narrow pronoun drift so common bad outputs are fixed before save without retrying or interrupting the flow.
 - `lib/gemini/text/casing.ts` — **[Gemini][Codex][Post]** `finalSweep` now runs deterministic silent normalizers for literal internet slang, modern currency formatting, and narrow pronoun drift before save.
 - `__tests__/final-slang-cleanup.test.ts` — **[Gemini][Codex][Test]** expanded regression coverage to lock the new automatic post-processing behavior.
 
@@ -145,118 +212,3 @@
 - **[Bridge]** Missing detection: `exportedOrders` is now populated in the Antigravity export path, so missing chapters are detected correctly.
 - **[Bridge]** QA hard fixes now apply only to chapters that actually imported and passed workspace validation.
 - **[Workflow]** Restored full `/dich` bridge contract after regression to an incomplete short prompt that omitted JSON contract, QA report, and done sentinel requirements.
-
-## [2.15.0] - 2026-04-21
-
-### Top Impact
-- **[OAuth]** Browser Header Mimicry: Implemented `User-Agent` (Chrome/124) in both Rust and Frontend paths to reduce bot-detection surface.
-- **[Observability]** Enhanced 429 Logging: Processing overlay now explicitly reports "🚨 429 Rate Limited!" when Google triggers throttling.
-- **[Gemini]** Proper Name Protection: Updated system prompt and loosed normalization regex (`TITLE_CASE_RE`) to ensure character names (e.g., "Dương Quân Bác") are NOT lowercased in chapter titles.
-- **[OAuth]** Precise Wait Times: `RateLimiter` now returns exact remaining milliseconds in the current window instead of a hardcoded 60s delay.
-- **[OAuth]** Migration Stale Counters: Fixed a bug in `resetExpiredCounters` where missing window start timestamps in legacy data caused permanent request blocking until a manual cache clear.
-
-### Added
-- **[OAuth]** Browser Header Mimicry: Implemented `User-Agent` (Chrome/124) in both Rust and Frontend paths to reduce bot-detection surface.
-- **[Observability]** Enhanced 429 Logging: Processing overlay now explicitly reports "🚨 429 Rate Limited!" when Google triggers throttling.
-
-### Changed
-- **[Gemini]** Proper Name Protection: Updated system prompt and loosed normalization regex (`TITLE_CASE_RE`) to ensure character names (e.g., "Dương Quân Bác") are NOT lowercased in chapter titles.
-- **[OAuth]** Precise Wait Times: `RateLimiter` now returns exact remaining milliseconds in the current window instead of a hardcoded 60s delay.
-- `src-tauri/src/gemini.rs` — HTTP error surfacing + User-Agent
-- `lib/gemini/client.ts` — Auto-retry loop + 429/401 handling + User-Agent
-- `lib/gemini/rate-limiter.ts` — Precise wait logic + migration reset fix
-- `lib/gemini/constants.ts` — Prompt rule update for titles
-
-### Fixed
-- **[OAuth]** Migration Stale Counters: Fixed a bug in `resetExpiredCounters` where missing window start timestamps in legacy data caused permanent request blocking until a manual cache clear.
-- **[Auth]** OAuth 429 Handling: Rust backend now correctly surfaces HTTP 429 status codes to the frontend orchestrator for retry processing.
-
-## [2.14.0] - 2026-04-16
-
-### Top Impact
-- **[Gemini]** Native OAuth 2.0 flow via Tauri/Rust to bypass CORS "Failed to fetch" errors.
-- **[Auth]** Combined `exchange_code_native` command for unified token + user info retrieval.
-- **[UI]** Detailed OAuth indicators in Max Ping panel (Delay, Quota, Response Time).
-- **[Performance]** Optimized `rate-limiter.ts` for Ultra subscribers: 3s delay → 0.3s.
-- **[Performance]** RPM increased to 30; Burst cooldown reduced to 5s.
-
-### Added
-- **[Gemini]** Native OAuth 2.0 flow via Tauri/Rust to bypass CORS "Failed to fetch" errors.
-- **[Auth]** Combined `exchange_code_native` command for unified token + user info retrieval.
-- **[UI]** Detailed OAuth indicators in Max Ping panel (Delay, Quota, Response Time).
-
-### Changed
-- **[Performance]** Optimized `rate-limiter.ts` for Ultra subscribers: 3s delay → 0.3s.
-- **[Performance]** RPM increased to 30; Burst cooldown reduced to 5s.
-
-## [2.12.0] - 2026-03-28
-
-### Top Impact
-- **[Translator]** `XƯNG HÔ` Rule Expansion: Full 10 pairs of Chinese pronouns (我/你/他/她/它/我们/你们/他们/她们/它们) mapped to Vietnamese equivalents with context-aware flexibility (e.g., 她=Nàng/Cô ấy).
-- **[AI]** `SOFT_WRAPPER_VERB_BLOCKLIST` — Danh sách chặn 50+ động từ/tính từ phổ biến để lọc rác cho Term Audit.
-- **[AI]** Term Audit Filter: Strip trailing punctuation (,, ;, ., !, ?) khỏi các term trích xuất.
-- **[AI]** Term Audit Extractor: Loại bỏ quantifiers (loạt/mấy/vài) và demonstratives (này/kia) tự động.
-- **[Build]** `SYSTEM_VERSION` → `v3.4` (Core rules updated).
-
-### Added
-- **[Translator]** `XƯNG HÔ` Rule Expansion: Full 10 pairs of Chinese pronouns (我/你/他/她/它/我们/你们/他们/她们/它们) mapped to Vietnamese equivalents with context-aware flexibility (e.g., 她=Nàng/Cô ấy).
-- **[AI]** `SOFT_WRAPPER_VERB_BLOCKLIST` — Danh sách chặn 50+ động từ/tính từ phổ biến để lọc rác cho Term Audit.
-- **[AI]** Term Audit Filter: Strip trailing punctuation (,, ;, ., !, ?) khỏi các term trích xuất.
-- **[AI]** Term Audit Extractor: Loại bỏ quantifiers (loạt/mấy/vài) và demonstratives (này/kia) tự động.
-
-### Changed
-- **[Build]** `SYSTEM_VERSION` → `v3.4` (Core rules updated).
-- **[AI]** Term Audit Engine: Yield-to-main thread pattern during scan to prevent UI freeze on large chapter blocks.
-- **[Build]** `package.json`, `tauri.conf.json` — 2.11.0 → 2.12.0.
-- **Shelved Term Audit**: Tính năng hiện đang để **OFF** mặc định (`featureFlags.termAudit = false`) do extractor vẫn còn sinh noise với truyện hiện đại. Cần tuning theo genre trong tương lai.
-
-### Fixed
-- **[AI]** Term Audit extraction noise: Fixed "soft wrapper" over-detection by enforcing 1st content token check against blocklist.
-
-## [2.11.0] - 2026-03-24
-
-### Top Impact
-- **[AI]** `term-audit.types.ts` — Types: `TermCluster`, `TermOccurrence`, `ClusterMode` (`auto`, `review`, `protected-related`), `TermAuditReport`, `TermFixResult`
-- **[AI]** `term-audit.extraction.ts` — Anchor-first extractor: hard anchors (giả, sư, tông, môn, phái…) + soft wrappers (người, kẻ, tên) với validity guard
-- **[AI]** `term-audit.normalization.ts` — NFC, ascii-fold, generic head stripping → stable `rootHint`
-- **[AI]** `term-audit.clustering.ts` — Bucket-based greedy merge: score (edit-distance + shared-prefix + set-overlap) ≥ 0.72 = merge; Review Zone 0.60–0.71; canonical guard chống chain-merge
-- **[AI]** `term-audit.autofix.ts` — Tạo CorrectionEntry → `sweepSingleRule()`; 3 guards: confirmed, variants ≥ 2, scanRunId match
-
-### Added
-- **[AI]** `term-audit.types.ts` — Types: `TermCluster`, `TermOccurrence`, `ClusterMode` (`auto`, `review`, `protected-related`), `TermAuditReport`, `TermFixResult`
-- **[AI]** `term-audit.extraction.ts` — Anchor-first extractor: hard anchors (giả, sư, tông, môn, phái…) + soft wrappers (người, kẻ, tên) với validity guard
-- **[AI]** `term-audit.normalization.ts` — NFC, ascii-fold, generic head stripping → stable `rootHint`
-- **[AI]** `term-audit.clustering.ts` — Bucket-based greedy merge: score (edit-distance + shared-prefix + set-overlap) ≥ 0.72 = merge; Review Zone 0.60–0.71; canonical guard chống chain-merge
-- **[AI]** `term-audit.autofix.ts` — Tạo CorrectionEntry → `sweepSingleRule()`; 3 guards: confirmed, variants ≥ 2, scanRunId match
-- **[AI]** `term-audit.service.ts` — Orchestrator: extract → cluster → enrich (Glossary/Correction lookup)
-
-### Changed
-- **[Build]** `featureFlags.ts` — +`termAudit: false` (off-switch)
-- **[UI]** `IntelligenceHub.tsx` — +ScanSearch icon, +TermAuditModule import, +termAudit ModuleType
-- Anchor-first extraction tránh n-gram rác • No auto-merge ở Review Zone • scanRunId guard reset confirm khi rescan • Protected terms → chỉ show, không merge • Reuse sweepSingleRule từ corrections.service.ts
-- `lib/featureFlags.ts`, `components/workspace/intelligence/IntelligenceHub.tsx`
-- `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` — 2.10.1 → 2.11.0
-
-## [2.10.1] - 2026-03-23
-
-### Top Impact
-- **[Translator]** Batch prompt gọi `buildSystemInstruction()` không truyền `isBatch=true` → "CẤM JSON" conflict với JSON output yêu cầu. Flash output không ổn định.
-- **[Translator]** `CURRENCY_RULE`: 万→nghìn tệ SAI 10x. Sửa thành 万→vạn tệ (mười nghìn) + đầy đủ 千万, 亿.
-- **[Translator]** `WESTERN_NAME_RULE` fallback "ghi chú" mâu thuẫn CẤM Hán tự + CẤM giải thích. Sửa: "giữ phiên âm Latin hóa, KHÔNG ghi chú".
-- **[Translator]** `[HARD LIMIT]` ẩn chủ ngữ quá cứng → mờ nhân vật scene đông người. Nới thành "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ nghĩa".
-- **[Translator]** `IDIOM_RULE` dead code — export nhưng không dùng `ALL_RULES`. Comment DEPRECATED.
-
-### Changed
-- **[Translator]** Thêm rule `[VIẾT HOA]`: Sentence case cho text `[]` với ví dụ SAI/ĐÚNG.
-- **[Translator]** `FLOW_RULE`: "Tuyệt đối không..." → "Ưu tiên tránh..., ĐƯỢC PHÉP nếu cần rõ nghĩa".
-- `lib/gemini/batch/prompt.ts` — `isBatch=true`
-- `lib/gemini/constants.ts` — 5 rule fixes + [VIẾT HOA]
-- `lib/gemini/text/casing.ts` — capitalize `[]` post-process (step 3.5)
-
-### Fixed
-- **[Translator]** Batch prompt gọi `buildSystemInstruction()` không truyền `isBatch=true` → "CẤM JSON" conflict với JSON output yêu cầu. Flash output không ổn định.
-- **[Translator]** `CURRENCY_RULE`: 万→nghìn tệ SAI 10x. Sửa thành 万→vạn tệ (mười nghìn) + đầy đủ 千万, 亿.
-- **[Translator]** `WESTERN_NAME_RULE` fallback "ghi chú" mâu thuẫn CẤM Hán tự + CẤM giải thích. Sửa: "giữ phiên âm Latin hóa, KHÔNG ghi chú".
-- **[Translator]** `[HARD LIMIT]` ẩn chủ ngữ quá cứng → mờ nhân vật scene đông người. Nới thành "NÊN hạn chế, ĐƯỢC PHÉP nếu cần rõ nghĩa".
-- **[Translator]** `IDIOM_RULE` dead code — export nhưng không dùng `ALL_RULES`. Comment DEPRECATED.
-- **[Translator]** Đại từ đầu câu viết thường (hắn/nàng/ngươi). Tách rule: "GIỮA CÂU viết thường / ĐẦU CÂU BẮT BUỘC hoa".

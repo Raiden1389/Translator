@@ -1,6 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getErrorMessage } from "@/lib/types";
-import { DEFAULT_VERTEX_LOCATION, type AIProvider, normalizeAIProvider } from "@/lib/ai-provider";
+import {
+    DEFAULT_VERTEX_LOCATION,
+    type AIProvider,
+    type VertexAuthMode,
+    normalizeAIProvider,
+    normalizeVertexAuthMode
+} from "@/lib/ai-provider";
 import { AI_MODELS } from "@/lib/ai-models";
 import { GoogleGenAI } from "@google/genai";
 
@@ -19,6 +25,29 @@ function getVertexFallbackModels(): { value: string, label: string }[] {
     return AI_MODELS
         .filter((m) => m.value !== "antigravity-bridge")
         .map((m) => ({ value: m.value, label: m.label }));
+}
+
+export interface VertexServiceAccountOptions {
+    serviceAccountPath?: string;
+    projectId?: string;
+    location?: string;
+}
+
+export interface VertexProviderCheckOptions {
+    key: string;
+    model: string;
+    vertexAuthMode?: VertexAuthMode;
+    vertexProjectId?: string;
+    vertexLocation?: string;
+    vertexServiceAccountPath?: string;
+}
+
+export interface FetchVertexModelsOptions {
+    authMode?: VertexAuthMode;
+    apiKey?: string;
+    serviceAccountPath?: string;
+    projectId?: string;
+    location?: string;
 }
 
 export async function checkGeminiKey(key: string, model: string = "gemini-1.5-flash"): Promise<KeyStatus> {
@@ -71,18 +100,30 @@ export async function fetchGeminiModels(key: string): Promise<{ value: string, l
     }
 }
 
-export async function checkVertexKey(key: string, model: string = "gemini-2.5-flash"): Promise<KeyStatus> {
+export async function checkVertexKey(
+    key: string,
+    model: string = "gemini-2.5-flash",
+    options: VertexServiceAccountOptions = {}
+): Promise<KeyStatus> {
     const start = Date.now();
     try {
         const payload = JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: "hi" }] }]
         });
 
-        const result = await invoke<string>("native_vertex_request", {
-            payload,
-            model,
-            apiKey: key
-        });
+        const result = options.serviceAccountPath
+            ? await invoke<string>("native_vertex_service_account_request", {
+                payload,
+                model,
+                serviceAccountPath: options.serviceAccountPath,
+                projectId: options.projectId,
+                location: options.location,
+            })
+            : await invoke<string>("native_vertex_request", {
+                payload,
+                model,
+                apiKey: key
+            });
 
         const parsed = JSON.parse(result);
         if (parsed.candidates || parsed.usageMetadata) {
@@ -100,12 +141,44 @@ export async function checkVertexKey(key: string, model: string = "gemini-2.5-fl
     }
 }
 
-export async function fetchVertexModels(key: string): Promise<{ value: string, label: string }[]> {
+export async function fetchVertexModels(options: FetchVertexModelsOptions): Promise<{ value: string, label: string }[]> {
     try {
+        const authMode = normalizeVertexAuthMode(options.authMode);
+
+        if (authMode === "serviceAccount") {
+            const result = await invoke<string>("native_list_vertex_models_service_account", {
+                serviceAccountPath: options.serviceAccountPath,
+                projectId: options.projectId,
+                location: options.location || DEFAULT_VERTEX_LOCATION,
+            });
+            const data = JSON.parse(result);
+            const rawModels = Array.isArray(data.publisherModels)
+                ? data.publisherModels
+                : Array.isArray(data.models)
+                    ? data.models
+                    : [];
+
+            const models = rawModels
+                .map((m: { name?: string; displayName?: string }) => {
+                    const normalizedId = normalizeModelName(m.name || "");
+                    return {
+                        value: normalizedId,
+                        label: m.displayName ? `${m.displayName} (${normalizedId})` : normalizedId
+                    };
+                })
+                .filter((m: { value: string }) => m.value.includes("gemini"));
+
+            if (models.length > 0) {
+                return Array.from(new Map<string, { value: string, label: string }>(models.map((m: { value: string, label: string }) => [m.value, m])).values());
+            }
+
+            return getVertexFallbackModels();
+        }
+
         const ai = new GoogleGenAI({
             vertexai: true,
-            apiKey: key,
-            location: DEFAULT_VERTEX_LOCATION,
+            apiKey: options.apiKey,
+            location: options.location || DEFAULT_VERTEX_LOCATION,
             apiVersion: "v1",
         });
 
@@ -160,8 +233,18 @@ export async function fetchVertexModels(key: string): Promise<{ value: string, l
     }
 }
 
-export async function checkProviderKey(provider: AIProvider, key: string, model: string): Promise<KeyStatus> {
+export async function checkProviderKey(provider: AIProvider, options: VertexProviderCheckOptions): Promise<KeyStatus> {
     return normalizeAIProvider(provider) === "vertex"
-        ? checkVertexKey(key, model)
-        : checkGeminiKey(key, model);
+        ? checkVertexKey(
+            options.key,
+            options.model,
+            options.vertexAuthMode === "serviceAccount"
+                ? {
+                    serviceAccountPath: options.vertexServiceAccountPath,
+                    projectId: options.vertexProjectId,
+                    location: options.vertexLocation,
+                }
+                : {}
+        )
+        : checkGeminiKey(options.key, options.model);
 }

@@ -57,6 +57,7 @@ export function useSingleOrchestrator(
         chapterId: chapter.id!,
         order: chapter.order,
         title: chapter.title,
+        translationModel: config.model,
         status: 'processing',
       });
 
@@ -181,6 +182,7 @@ export function useSingleOrchestrator(
         queue.updateStatus(chapter.id!, 'done');
         progress.updateChapterProgress(chapter.id!, {
           status: 'done',
+          translationModel: config.model,
           termsUsed,
           charactersUsed,
           tokens: result.stats?.tokens ? {

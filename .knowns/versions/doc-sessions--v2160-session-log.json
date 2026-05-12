@@ -1,0 +1,45 @@
+{
+  "docPath": "sessions/v2160-session-log",
+  "currentVersion": 1,
+  "versions": [
+    {
+      "id": "v1",
+      "docPath": "sessions/v2160-session-log",
+      "version": 1,
+      "timestamp": "2026-05-03T14:18:24.1000698Z",
+      "changes": [
+        {
+          "field": "title",
+          "oldValue": null,
+          "newValue": "v2.16.0 Session Log"
+        },
+        {
+          "field": "description",
+          "oldValue": null,
+          "newValue": "Session log for v2.16.0 release"
+        },
+        {
+          "field": "tags",
+          "oldValue": null,
+          "newValue": [
+            "v2.16.0",
+            "opus",
+            "safety",
+            "naturalizer"
+          ]
+        }
+      ],
+      "snapshot": {
+        "content": "## 2026-05-03: v2.16.0 — Academic Shield + Thuần Việt Naturalizer\n\n### Changes by Agent:\n**[Gemini]:**\n- Academic Shield — proactive academic framing in system instruction to bypass PROHIBITED_CONTENT\n- Codex slang taxonomy (666, 草泥马, 绷不住了...), profanity hardening, currency modernization\n\n**[Opus]:**\n- `NATURAL_VIET_RULE` prompt rule — ưu tiên thuần Việt, tránh Hán Việt cứng\n- `hanVietMap` 18 entries in `finalSweep` — post-processing safety net\n- Boilerplate strip (Chương trước/Mục lục/Chương sau)\n- Typo fix (Đầu óã → Đầu óc)\n\n### Quality Scores:\n- Ch.401 (post-fix): 8.5/10 | Ch.402: 9/10 | Ch.243 (old): 7.5/10\n\n### Convention:\n- CHANGELOG entries tagged with `[Gemini]`, `[Opus]`, `[Codex]` to track which agent made changes",
+        "description": "Session log for v2.16.0 release",
+        "tags": [
+          "v2.16.0",
+          "opus",
+          "safety",
+          "naturalizer"
+        ],
+        "title": "v2.16.0 Session Log"
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import { useAiQueueStats } from "../../hooks/useAiQueueStatus";
 type AiQueueStats = ReturnType<typeof useAiQueueStats>;
 
 interface ChapterListContentProps {
+  currentPage: number;
   viewMode: "grid" | "table";
   currentChapters: Chapter[];
   selectedChapters: number[];
@@ -26,6 +27,7 @@ interface ChapterListContentProps {
 }
 
 export function ChapterListContent({
+  currentPage,
   viewMode,
   currentChapters,
   selectedChapters,
@@ -46,6 +48,7 @@ export function ChapterListContent({
     <ErrorBoundary>
       {viewMode === "grid" ? (
         <ChapterCardGrid
+          currentPage={currentPage}
           chapters={currentChapters}
           selectedChapters={selectedChapters}
           queueState={queueState}
@@ -58,6 +61,7 @@ export function ChapterListContent({
         />
       ) : (
         <ChapterTable
+          currentPage={currentPage}
           chapters={currentChapters}
           selectedChapters={selectedChapters}
           queueState={queueState}

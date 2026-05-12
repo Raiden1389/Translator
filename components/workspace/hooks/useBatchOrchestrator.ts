@@ -115,6 +115,7 @@ export function useBatchOrchestrator(
           queue.updateStatus(originalChapter.id!, 'done');
           progress.updateChapterProgress(originalChapter.id!, {
             status: 'done',
+            translationModel: aiModel,
             tokens: perChapterTokens
           });
         }

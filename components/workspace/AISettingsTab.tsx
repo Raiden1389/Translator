@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAISettings } from "./hooks/useAISettings";
-import { getAIProviderLabel } from "@/lib/ai-provider";
+import { getAIProviderLabel, getVertexAuthModeLabel, VERTEX_LOCATION_OPTIONS } from "@/lib/ai-provider";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GeminiOAuthSettings } from "@/components/settings/GeminiOAuthSettings";
@@ -29,18 +29,21 @@ export default function AISettingsTab() {
 
     const { state, actions } = useAISettings();
     const {
-        provider, primaryKey, vertexKey, poolKeys, model, availableModels,
+        provider, primaryKey, vertexKey, vertexAuthMode, vertexServiceAccountPath, vertexProjectId, vertexLocation, poolKeys, model, availableModels,
         isLoadingModels, isSaving, checkingKeys, keyStatuses,
         isBackendKeyLoading
     } = state;
 
     const {
-        setProvider, setPrimaryKey, setVertexKey, setPoolKeys, setModel,
+        setProvider, setPrimaryKey, setVertexKey, setVertexAuthMode, setVertexServiceAccountPath, setVertexProjectId, setVertexLocation, setPoolKeys, setModel,
         handleSaveAll, handleLoadFromBackend, handleFetchModels,
         handleCheckAllKeys
     } = actions;
     const isVertexProvider = provider === "vertex";
-    const activePrimaryKey = isVertexProvider ? vertexKey : primaryKey;
+    const isVertexServiceAccount = isVertexProvider && vertexAuthMode === "serviceAccount";
+    const activePrimaryKey = isVertexProvider
+        ? (isVertexServiceAccount ? vertexServiceAccountPath : vertexKey)
+        : primaryKey;
     const providerLabel = getAIProviderLabel(provider);
     const activePoolKeys = poolKeys.split(/[\n,;]+/).map((key) => key.trim()).filter((key) => key.length > 10);
 
@@ -82,22 +85,48 @@ export default function AISettingsTab() {
                             </p>
                         </div>
 
+                        {isVertexProvider && (
+                            <div className="space-y-3">
+                                <Label className="text-xs font-bold text-foreground/70 uppercase">Vertex Auth Mode</Label>
+                                <Select value={vertexAuthMode} onValueChange={(value) => setVertexAuthMode(value as "apiKey" | "serviceAccount")}>
+                                    <SelectTrigger className="bg-muted/30 border-border/50 h-10 font-bold">
+                                        <SelectValue placeholder="Chọn kiểu xác thực Vertex" />
+                                    </SelectTrigger>
+                                    <SelectContent className="backdrop-blur-xl">
+                                        <SelectGroup>
+                                            <SelectItem value="apiKey">API Key (Express Mode)</SelectItem>
+                                            <SelectItem value="serviceAccount">Service Account (Full Vertex)</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[10px] text-muted-foreground italic">
+                                    Chế độ hiện tại: {getVertexAuthModeLabel(vertexAuthMode)}
+                                </p>
+                            </div>
+                        )}
+
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <Label className="text-xs font-bold text-foreground/70 uppercase">
-                                    {isVertexProvider ? "Vertex AI API Key" : "Google Gemini API Key"}
+                                    {isVertexProvider
+                                        ? (isVertexServiceAccount ? "Service Account JSON Path" : "Vertex AI API Key")
+                                        : "Google Gemini API Key"}
                                 </Label>
                                 <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-bold">Encrypted</span>
                             </div>
                             <div className="flex gap-2">
                                 <div className="relative flex-1 group">
                                     <Input
-                                        type="password"
+                                        type={isVertexServiceAccount ? "text" : "password"}
                                         placeholder={isVertexProvider
-                                            ? "AIzaSy... hoặc Google Cloud API Key cho Vertex Express Mode"
+                                            ? (isVertexServiceAccount
+                                                ? "C:\\...\\service-account.json"
+                                                : "AIzaSy... hoặc Google Cloud API Key cho Vertex Express Mode")
                                             : "AIzaSy... (Dán key của bạn vào đây)"}
                                         value={activePrimaryKey}
-                                        onChange={(e) => isVertexProvider ? setVertexKey(e.target.value) : setPrimaryKey(e.target.value)}
+                                        onChange={(e) => isVertexProvider
+                                            ? (isVertexServiceAccount ? setVertexServiceAccountPath(e.target.value) : setVertexKey(e.target.value))
+                                            : setPrimaryKey(e.target.value)}
                                         className="bg-muted/30 border-border/50 h-10 px-4 focus-visible:ring-primary focus-visible:bg-muted/50 transition-all font-mono"
                                     />
                                     {!activePrimaryKey && (
@@ -107,17 +136,53 @@ export default function AISettingsTab() {
                                     )}
                                 </div>
                             </div>
-                            {activePrimaryKey && (
-                                <p className="text-[11px] text-muted-foreground font-mono">
-                                    Đang dùng: <span className="font-bold text-foreground">{maskKeyTail(activePrimaryKey)}</span>
-                                </p>
-                            )}
                             <p className="text-[10px] text-muted-foreground italic">
                                 {isVertexProvider
-                                    ? "Phase 1 dùng Vertex AI Express Mode bằng API key. Bấm Refresh để lấy danh sách model từ Vertex."
+                                    ? (isVertexServiceAccount
+                                        ? "Phase 2A dùng Full Vertex bằng Service Account JSON. Có thể mở Gemini 3 qua global/project flow."
+                                        : "Phase 1 dùng Vertex AI Express Mode bằng API key. Bấm Refresh để lấy danh sách model từ Vertex.")
                                     : "Phím tắt: Bấm Refresh bên dưới để cập nhật danh sách model sau khi dán key."}
                             </p>
+                            {isVertexProvider && !isVertexServiceAccount && (
+                                <p className="text-[10px] text-amber-600/80 italic">
+                                    Gemini 3 Preview hiện chưa mở cho flow Vertex API key/Express Mode của app này, nên danh sách model Vertex sẽ ẩn các model Gemini 3 để tránh lỗi 404.
+                                </p>
+                            )}
                         </div>
+
+                        {isVertexServiceAccount && (
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-foreground/70 uppercase">Project ID</Label>
+                                    <Input
+                                        value={vertexProjectId}
+                                        onChange={(e) => setVertexProjectId(e.target.value)}
+                                        placeholder="my-gcp-project"
+                                        className="bg-muted/30 border-border/50 h-10 px-4"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-foreground/70 uppercase">Vertex Location</Label>
+                                    <Select value={vertexLocation} onValueChange={setVertexLocation}>
+                                        <SelectTrigger className="bg-muted/30 border-border/50 h-10 font-bold">
+                                            <SelectValue placeholder="Chọn location Vertex" />
+                                        </SelectTrigger>
+                                        <SelectContent className="backdrop-blur-xl">
+                                            <SelectGroup>
+                                                {VERTEX_LOCATION_OPTIONS.map((location) => (
+                                                    <SelectItem key={location.value} value={location.value}>
+                                                        {location.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-muted-foreground italic">
+                                        Gemini 3 nên dùng Global; Gemini 2.5 Flash mặc định hợp với Asia (Singapore).
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-3 pt-2 border-t border-border/50">
                             <Label className="text-xs font-bold text-foreground/70 uppercase flex items-center gap-2">
@@ -170,10 +235,14 @@ export default function AISettingsTab() {
                                             className="w-full h-10 border-border/50 hover:bg-muted font-bold text-xs"
                                         >
                                             {checkingKeys ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                                            Kiểm tra Vertex API Key
+                                            {isVertexServiceAccount ? "Kiểm tra Service Account" : "Kiểm tra Vertex API Key"}
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>Kiểm tra trạng thái của Vertex API key hiện tại</TooltipContent>
+                                    <TooltipContent>
+                                        {isVertexServiceAccount
+                                            ? "Kiểm tra Service Account hiện tại có gọi được Vertex AI không"
+                                            : "Kiểm tra trạng thái của Vertex API key hiện tại"}
+                                    </TooltipContent>
                                 </Tooltip>
 
                                 {keyStatuses.length > 0 && (

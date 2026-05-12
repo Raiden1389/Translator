@@ -5,20 +5,46 @@
 
 ---
 
-## [2.16.4] - 2026-05-10
+## [2.17.0] - 2026-05-12
 
-**Top Impact**: Vertex AI Phase 1 is now a dedicated release — the app can switch providers cleanly, refresh models through the official SDK, show `Vertex AI` explicitly in runtime UI, and default to Singapore routing so translation latency returns to roughly `15s/chapter` in real-world use instead of the earlier slow global path.
+**Top Impact**: Vertex AI bước sang giai đoạn 2 với `Service Account (Full Vertex)` ngay trong app desktop. Đồng thời khắc phục lỗi crash AI NER trên Vertex bằng cách chặn `Gemini 3` (Preview) và fallback thông minh về `gemini-2.5-flash`. Hệ thống code intelligence GitNexus cũng được khôi phục hoàn toàn sau sự cố kẹt cache npm trên Windows.
 
 ### Added
-- **[Vertex][Codex][AI]** Added Phase 1 `Vertex AI` Express Mode support with a dedicated provider selector, separate `Vertex AI API Key` storage, provider-aware quick translation config, per-provider runtime summaries, and a `Vertex AI` health-check flow.
-- **[Vertex][Codex][Tooling]** Added `scripts/vertex-latency-check.ps1` so Vertex network latency can be tested directly from PowerShell outside the app when diagnosing slow runs.
+- **[Vertex][Codex][Phase 2]** Thêm auth mode `Service Account (Full Vertex)` song song với `API Key (Express Mode)` trong settings, refresh model, health-check, cấu hình dịch nhanh, và request runtime.
+- **[Vertex][Codex][Native]** Thêm native bridge ký JWT từ `Service Account JSON`, đổi lấy OAuth access token, rồi gọi full Vertex endpoint theo dạng `projects/{project}/locations/{location}/publishers/google/models/...`.
+- **[Vertex][Codex][Automation]** App giờ tự dò `Service Account JSON` trong repo/thư mục app, tự điền path cùng `project_id`, và có fallback mặc định `gen-lang-client-0688183488` để test nhanh mà không cần nhập tay.
 
 ### Changed
-- `lib/services/ai-service.ts` — **[Vertex][Codex][AI]** model refresh now uses the official `@google/genai` SDK in `vertexai` mode before falling back to the app's static Gemini list, making Vertex model discovery more faithful to Google Cloud behavior.
-- `lib/gemini/client.ts` — **[Vertex][Codex][AI]** request payloads now use valid Vertex roles, dispatch by provider, and route Vertex traffic through the `asia-southeast1` regional endpoint by default.
-- `src-tauri/src/gemini.rs` — **[Vertex][Codex][AI]** the native bridge now exposes Vertex request/model-list commands and defaults regional traffic to `asia-southeast1` for lower latency from Vietnam.
-- `lib/ai-provider.ts`, `components/workspace/hooks/useAISettings.ts`, `lib/repositories/settings.ts` — **[Vertex][Codex][AI]** provider state and API keys are now stored separately so switching between Gemini and Vertex does not overwrite credentials.
-- `components/workspace/AISettingsTab.tsx`, `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `components/layout/StatusBar.tsx` — **[Vertex][Codex][AI]** settings, quick translation config, and dashboard status now surface the active provider clearly so `Vertex AI` runs are visible end-to-end.
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/hooks/useAISettings.ts`, `lib/ai-provider.ts` — **[Vertex][Codex][UX]** Settings Vertex giờ phân tách rõ `Express` và `Full Vertex`, hiển thị path JSON thay vì che như password, có dropdown `Vertex Location` (`Global`, `Asia`, `US`, `Europe`), và mặc định gợi ý region theo model.
+- `lib/services/ai-service.ts`, `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `src-tauri/src/lib.rs` — **[Vertex][Codex][Runtime]** Luồng request/check-key/fetch-model giờ dispatch theo auth mode, để `Gemini 3` chỉ mở ở `Full Vertex` còn `Express Mode` tiếp tục bị chặn ở những model Google chưa support.
+- `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `lib/services/ai-ner.service.ts` — **[Vertex][Codex][AI NER]** Cấu hình dịch nhanh và AI quét thuật ngữ giờ hiểu `vertexAuthMode`, dùng đúng credential tương ứng, và tiếp tục sanitize model theo provider/auth mode để tránh gọi sai flow.
+- `lib/services/ai-ner.service.ts`, `components/workspace/editor/hooks/useAIExtraction.ts`, `components/workspace/ScanConfigDialog.tsx` — **[Vertex][Codex][AI NER]** Luồng scan Vertex giờ tách thành 2 pass (`vét thực thể gốc` → `chuẩn hóa thuật ngữ Việt`), thêm loại `Item`, giảm lọc trùng quá tay, và chặn nhân vật đã có trong `persona` theo cả chữ Hán lẫn tên Việt để hạn chế case chương mới vẫn hiện lại tên main.
+- `components/workspace/hooks/useTranslationProgress.ts`, `components/workspace/hooks/useSingleOrchestrator.ts`, `components/workspace/hooks/useBatchOrchestrator.ts` — **[Vertex][Codex][Cost]** Popup progress giờ tính `Total Cost` theo đúng `translationModel` của từng chapter dựa trên bảng giá model hiện hành thay vì hardcode giá cũ của Gemini 2.5 Flash.
+
+### Fixed
+- `lib/services/ai-ner.service.ts` — **[Vertex][AI NER]** `resolveNERModel` giờ chủ động chặn dòng `gemini-3` trên Vertex, fallback về `gemini-2.5-flash` để đảm bảo kết quả quét thuật ngữ luôn là JSON hợp lệ.
+- **[GitNexus][Tooling]** Xử lý triệt để lỗi kẹt folder `node_modules\gitnexus\vendor` trên Windows bằng quy trình clear npx cache sạch.
+- **[Vertex][Codex][Setup]** Không còn bắt người dùng phải dán lại `project_id` hay đường dẫn JSON thủ công trong phần lớn ca dùng desktop nếu file service-account đã nằm ngay trong repo.
+- **[Security][Codex][Git]** Thêm ignore cho `gen-lang-client-*.json` để giảm rủi ro stage nhầm Service Account JSON vào git.
+- **[UX][Codex][Chapter List]** Khi đổi trang trong `Chapter List`, viewport giờ tự cuộn về đầu danh sách của page mới thay vì giữ nguyên vị trí scroll cũ ở cuối page trước, giúp case pagination lớn như `500 chương / page` chuyển từ chap `1000` sang `1001` đúng nhịp hơn.
+- `components/workspace/chapter-list/hooks/useCorrections.ts` — **[Sync][Codex][Cloud]** `Apply cải chính` giờ đánh dấu `lastTranslatedAt` và auto `pushDelta()` khi có token cloud, nên bản đã cải chính được đẩy lên cloud ngay thay vì chỉ sửa local.
+
+## [2.16.4] - 2026-05-10
+
+**Top Impact**: Vertex AI giai đoạn 1 giờ là một bản phát hành riêng — app có thể chuyển provider gọn gàng, refresh model qua SDK chính thức, hiển thị `Vertex AI` rõ ràng trong runtime UI, và mặc định route qua Singapore để tốc độ dịch quay về khoảng `15s/chapter` trong thực tế thay vì bị chậm bởi đường global trước đó.
+
+### Added
+- **[Vertex][Codex][AI]** Thêm hỗ trợ `Vertex AI` Express Mode giai đoạn 1 với bộ chọn provider riêng, lưu `Vertex AI API Key` tách biệt, cấu hình dịch nhanh nhận biết provider, tóm tắt runtime theo provider, và luồng health-check riêng cho `Vertex AI`.
+- **[Vertex][Codex][Tooling]** Thêm `scripts/vertex-latency-check.ps1` để test trực tiếp độ trễ mạng Vertex từ PowerShell bên ngoài app khi cần chẩn đoán các ca chạy chậm.
+
+### Changed
+- `lib/services/ai-service.ts` — **[Vertex][Codex][AI]** Refresh model giờ dùng SDK chính thức `@google/genai` ở chế độ `vertexai` trước khi fallback về danh sách Gemini tĩnh của app, giúp việc dò model trên Vertex bám sát hành vi thật của Google Cloud hơn.
+- `lib/gemini/client.ts` — **[Vertex][Codex][AI]** Payload request giờ dùng role hợp lệ cho Vertex, dispatch theo provider, và mặc định route traffic Vertex qua regional endpoint `asia-southeast1`.
+- `src-tauri/src/gemini.rs` — **[Vertex][Codex][AI]** Native bridge giờ expose command request/model-list cho Vertex và mặc định traffic regional qua `asia-southeast1` để giảm độ trễ từ Việt Nam.
+- `lib/ai-provider.ts`, `components/workspace/hooks/useAISettings.ts`, `lib/repositories/settings.ts` — **[Vertex][Codex][AI]** Trạng thái provider và API key giờ được lưu tách biệt để chuyển qua lại giữa Gemini và Vertex không ghi đè mất credential của nhau.
+- `components/workspace/AISettingsTab.tsx`, `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `components/layout/StatusBar.tsx` — **[Vertex][Codex][AI]** Settings, cấu hình dịch nhanh, và dashboard status giờ hiển thị rõ provider đang hoạt động để luồng `Vertex AI` nhìn xuyên suốt từ đầu đến cuối.
+- `lib/services/ai-ner.service.ts`, `lib/gemini/client.ts` — **[Vertex][Codex][AI NER]** AI quét thuật ngữ giờ tự phát hiện case `Vertex Singapore + gemini-2.5-flash-lite` không hợp nhau, fallback sang `gemini-2.5-flash`, ép structured JSON output, hiện preview raw response để debug, và tự sửa các response lỗi kiểu `object` / `truncated-array` để vẫn cứu được thuật ngữ mới thật sự.
+- `lib/ai-provider.ts`, `lib/gemini/client.ts`, `src-tauri/src/gemini.rs` — **[Vertex][Codex][Routing]** `Gemini 3` trên Vertex giờ tự chuyển sang endpoint `global` thay vì cố đi qua `asia-southeast1`, tránh lỗi `Publisher Model ... not found` khi đổi model dịch sang `gemini-3-flash-preview`.
 
 ## [2.16.3] - 2026-05-06
 

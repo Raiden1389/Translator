@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { ChapterCard } from "./ChapterCard";
 import { FileUp } from "lucide-react";
 import { db, type Chapter } from "@/lib/db";
@@ -20,6 +20,7 @@ import {
 import { AlertTriangle } from "lucide-react";
 
 interface ChapterCardGridProps {
+    currentPage: number;
     chapters: Chapter[];
     selectedChapters: number[];
     queueState: AiQueueState; // Not used in grid view, but required for consistency
@@ -33,6 +34,7 @@ interface ChapterCardGridProps {
 }
 
 export const ChapterCardGrid = React.memo(function ChapterCardGrid({
+    currentPage,
     chapters,
     selectedChapters,
     onSelect,
@@ -52,6 +54,11 @@ export const ChapterCardGrid = React.memo(function ChapterCardGrid({
         estimateSize: () => 110, // Cards are roughly this height
         overscan: 5,
     });
+
+    useEffect(() => {
+        if (!parentRef.current) return;
+        parentRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }, [currentPage]);
 
     const selectedSet = React.useMemo(() => new Set(selectedChapters), [selectedChapters]);
 

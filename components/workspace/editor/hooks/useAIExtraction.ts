@@ -14,6 +14,28 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
     const [pendingTerms, setPendingTerms] = useState<ExtractedTerm[]>([]);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
 
+    const splitAIExtractError = (message: string): { title: string; detail?: string } => {
+        const normalized = message.replace(/\s+/g, " ").trim();
+        const rawIndex = normalized.indexOf("| raw:");
+        const previewIndex = normalized.indexOf("| preview:");
+        const splitIndex = rawIndex !== -1 ? rawIndex : previewIndex;
+
+        if (splitIndex === -1) {
+            return {
+                title: normalized.slice(0, 160),
+                detail: normalized.length > 160 ? normalized.slice(160) : undefined,
+            };
+        }
+
+        return {
+            title: normalized.slice(0, splitIndex).trim(),
+            detail: normalized.slice(splitIndex + 1).trim(),
+        };
+    };
+
+    const normalizeLookupKey = (value: string | undefined | null): string =>
+        (value || "").normalize("NFC").trim().toLowerCase().replace(/\s+/g, " ");
+
     const handleAIExtractChapter = async (content_original: string, allowedTypes?: string[]) => {
         if (!content_original) return;
         setIsAIExtracting(true);
@@ -25,7 +47,7 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
             // Convert string types to EntityType enum
             const typesToScan: EntityType[] = allowedTypes
                 ? allowedTypes.map(t => t as EntityType)
-                : [EntityType.Person, EntityType.Location, EntityType.Organization, EntityType.Skill];
+                : [EntityType.Person, EntityType.Location, EntityType.Organization, EntityType.Skill, EntityType.Item];
 
             const rawResults = await extractEntities(content_original, workspaceId, {
                 allowedTypes: typesToScan,
@@ -33,11 +55,20 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
             });
 
             if (rawResults.length > 0) {
-                const existingOriginals = new Set(dictEntries?.map(d => d.original) || []);
+                const personEntries = (dictEntries || []).filter(d => d.type === 'name' || d.type === 'character');
+                const personOriginals = new Set(personEntries.map(d => normalizeLookupKey(d.original)));
+                const personTranslated = new Set(personEntries.map(d => normalizeLookupKey(d.translated)));
+                const existingOriginals = new Set((dictEntries || []).map(d => normalizeLookupKey(d.original)));
+
+                const isExistingPerson = (entity: { chinese?: string; original?: string }) => {
+                    const chineseKey = normalizeLookupKey(entity.chinese);
+                    const translatedKey = normalizeLookupKey(entity.original);
+                    return personOriginals.has(chineseKey) || personTranslated.has(translatedKey);
+                };
 
                 // Split and FILTER rawResults (Remove existing entries)
                 const newCharacters: ExtractedCharacter[] = rawResults
-                    .filter(e => e.type === EntityType.Person && !existingOriginals.has(e.chinese || e.original))
+                    .filter(e => e.type === EntityType.Person && !isExistingPerson(e))
                     .map(e => ({
                         original: e.chinese || e.original,
                         translated: e.original,
@@ -49,13 +80,14 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
                     }));
 
                 const newTerms: ExtractedTerm[] = rawResults
-                    .filter(e => e.type !== EntityType.Person && !existingOriginals.has(e.chinese || e.original))
+                    .filter(e => e.type !== EntityType.Person && !existingOriginals.has(normalizeLookupKey(e.chinese || e.original)))
                     .map(e => ({
                         original: e.chinese || e.original,
                         translated: e.original,
                         type: e.type === EntityType.Location ? 'location' :
                             e.type === EntityType.Organization ? 'organization' :
-                                e.type === EntityType.Skill ? 'skill' : 'other',
+                                e.type === EntityType.Skill ? 'skill' :
+                                    e.type === EntityType.Item ? 'item' : 'other',
                         description: e.context || 'Thuật ngữ mới',
                         isExisting: false
                     }));
@@ -77,7 +109,12 @@ export function useAIExtraction(workspaceId: string, dictEntries: DictionaryEntr
         } catch (e: unknown) {
             console.error(e);
             const msg = e instanceof Error ? e.message : String(e);
-            toast.error("Lỗi khi quét AI: " + msg, { id: toastId });
+            const { title, detail } = splitAIExtractError(msg);
+            toast.error(`Lỗi khi quét AI: ${title}`, {
+                id: toastId,
+                description: detail,
+                duration: 12000,
+            });
         } finally {
             setIsAIExtracting(false);
         }

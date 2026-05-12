@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { AI_MODELS, migrateModelId } from "../ai-models";
 import { safeParseGeminiResponse, GeminiResponse } from "../schemas/gemini-response.schema";
-import { DEFAULT_VERTEX_LOCATION, normalizeAIProvider } from "../ai-provider";
+import { getVertexLocationForModel, normalizeAIProvider, normalizeVertexAuthMode } from "../ai-provider";
 
 /**
  * Record API usage metadata to IndexedDB
@@ -67,6 +67,27 @@ async function getVertexKey(): Promise<string | null> {
     return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+async function getVertexServiceAccountConfig(): Promise<{
+    authMode: "apiKey" | "serviceAccount";
+    serviceAccountPath: string | null;
+    projectId: string | null;
+    location: string | null;
+}> {
+    const [authModeSetting, pathSetting, projectSetting, locationSetting] = await Promise.all([
+        db.settings.get("vertexAuthMode"),
+        db.settings.get("vertexServiceAccountPath"),
+        db.settings.get("vertexProjectId"),
+        db.settings.get("vertexLocation"),
+    ]);
+
+    return {
+        authMode: normalizeVertexAuthMode(authModeSetting?.value),
+        serviceAccountPath: typeof pathSetting?.value === "string" && pathSetting.value.trim() ? pathSetting.value.trim() : null,
+        projectId: typeof projectSetting?.value === "string" && projectSetting.value.trim() ? projectSetting.value.trim() : null,
+        location: typeof locationSetting?.value === "string" && locationSetting.value.trim() ? locationSetting.value.trim() : null,
+    };
+}
+
 function buildPayload(params: {
     systemInstruction?: string,
     prompt: string,
@@ -75,6 +96,7 @@ function buildPayload(params: {
         topP?: number;
         maxOutputTokens?: number;
         responseMimeType?: string;
+        responseSchema?: unknown;
         thinkingConfig?: {
             thinkingBudget?: number;
             thinking_level?: string;
@@ -114,9 +136,10 @@ function validateGeminiLikeResponse<T = GeminiResponse>(rawResponse: unknown): T
     const validationResult = safeParseGeminiResponse(rawResponse);
 
     if (!validationResult.success) {
+        const responseSummary = summarizeInvalidGeminiResponse(rawResponse);
         console.error("[Gemini API] Response validation failed:", validationResult.error);
         console.error("[Gemini API] Raw response (first 2000 chars):", JSON.stringify(rawResponse).slice(0, 2000));
-        throw new Error(`Invalid Gemini API response: ${validationResult.error}`);
+        throw new Error(`Invalid Gemini API response: ${validationResult.error}${responseSummary ? ` | raw: ${responseSummary}` : ""}`);
     }
 
     const validated = validationResult.data;
@@ -125,6 +148,50 @@ function validateGeminiLikeResponse<T = GeminiResponse>(rawResponse: unknown): T
     }
 
     return validated as T;
+}
+
+function summarizeInvalidGeminiResponse(rawResponse: unknown): string {
+    if (rawResponse === null || rawResponse === undefined) {
+        return "response rỗng";
+    }
+
+    if (typeof rawResponse !== "object") {
+        return String(rawResponse).slice(0, 240);
+    }
+
+    const record = rawResponse as Record<string, unknown>;
+    const keys = Object.keys(record);
+    const candidate0 = Array.isArray(record.candidates) ? record.candidates[0] : undefined;
+    const candidateContent = candidate0 && typeof candidate0 === "object"
+        ? (candidate0 as Record<string, unknown>).content
+        : undefined;
+
+    const summary: string[] = [];
+    if (keys.length > 0) {
+        summary.push(`keys=${keys.join(",")}`);
+    }
+
+    if (candidateContent !== undefined) {
+        try {
+            summary.push(`candidate0.content=${JSON.stringify(candidateContent).slice(0, 180)}`);
+        } catch {
+            summary.push("candidate0.content=[unserializable]");
+        }
+    } else if (candidate0 !== undefined) {
+        try {
+            summary.push(`candidate0=${JSON.stringify(candidate0).slice(0, 180)}`);
+        } catch {
+            summary.push("candidate0=[unserializable]");
+        }
+    } else {
+        try {
+            summary.push(`body=${JSON.stringify(rawResponse).slice(0, 180)}`);
+        } catch {
+            summary.push("body=[unserializable]");
+        }
+    }
+
+    return summary.join(" | ");
 }
 
 /**
@@ -141,6 +208,7 @@ export async function withKeyRotation<T = GeminiResponse>(
             topP?: number;
             maxOutputTokens?: number;
             responseMimeType?: string;
+            responseSchema?: unknown;
             thinkingConfig?: {
                 thinkingBudget?: number;  // Gemini 2.5: -1 = dynamic, 0 = disabled
                 thinking_level?: string;  // Gemini 3.0: "minimal" | "low" | "medium" | "high"
@@ -164,25 +232,46 @@ export async function withKeyRotation<T = GeminiResponse>(
     const isTauri = typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
 
     if (provider === "vertex") {
-        const vertexKey = await getVertexKey();
-        if (!vertexKey) {
+        const vertexConfig = await getVertexServiceAccountConfig();
+        const vertexLocation = vertexConfig.location || getVertexLocationForModel(params.model.trim());
+        const isServiceAccount = vertexConfig.authMode === "serviceAccount";
+        const vertexKey = isServiceAccount ? null : await getVertexKey();
+
+        if (isServiceAccount && !vertexConfig.serviceAccountPath) {
+            throw new Error("Thiếu đường dẫn Service Account JSON. Vào Cài đặt AI để thêm file JSON.");
+        }
+
+        if (!isServiceAccount && !vertexKey) {
             throw new Error("Thiếu Vertex AI API key. Vào Cài đặt AI để thêm key.");
         }
 
         try {
-            if (onLog) onLog(`🔑 Auth: Vertex API Key`);
-            if (onLog) onLog(`🚀 Gọi Vertex AI: ${params.model.trim()}`);
+            if (onLog) onLog(isServiceAccount ? `🔐 Auth: Vertex Service Account` : `🔑 Auth: Vertex API Key`);
+            if (onLog) onLog(`🚀 Gọi Vertex AI: ${params.model.trim()} @ ${vertexLocation}`);
 
             let rawResponse: unknown;
             if (isTauri) {
-                const responseText = await invoke<string>("native_vertex_request", {
-                    payload,
-                    model: params.model.trim(),
-                    apiKey: vertexKey
-                });
+                const responseText = isServiceAccount
+                    ? await invoke<string>("native_vertex_service_account_request", {
+                        payload,
+                        model: params.model.trim(),
+                        location: vertexLocation,
+                        serviceAccountPath: vertexConfig.serviceAccountPath,
+                        projectId: vertexConfig.projectId,
+                    })
+                    : await invoke<string>("native_vertex_request", {
+                        payload,
+                        model: params.model.trim(),
+                        location: vertexLocation,
+                        apiKey: vertexKey
+                    });
                 rawResponse = JSON.parse(responseText);
             } else {
-                const url = `https://${DEFAULT_VERTEX_LOCATION}-aiplatform.googleapis.com/v1/publishers/google/models/${params.model.trim()}:generateContent?key=${vertexKey}`;
+                if (isServiceAccount) {
+                    throw new Error("Vertex Service Account chỉ hỗ trợ trong app desktop/Tauri.");
+                }
+
+                const url = `https://${vertexLocation}-aiplatform.googleapis.com/v1/publishers/google/models/${params.model.trim()}:generateContent?key=${vertexKey}`;
                 const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

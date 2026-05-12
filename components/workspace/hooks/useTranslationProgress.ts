@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { AI_MODELS, migrateModelId } from '@/lib/ai-models';
 
 /**
  * Translation Log Entry
@@ -25,6 +26,7 @@ export interface ChapterProgress {
     chapterId: number;
     order: number;
     title: string;
+    translationModel?: string;
     status: 'pending' | 'processing' | 'done' | 'error';
     startTime?: number;
     endTime?: number;
@@ -255,12 +257,18 @@ export function useTranslationProgress(): UseTranslationProgressReturn {
         const totalOutputTokens = chapters.reduce((sum, c) => sum + (c.tokens?.output || 0), 0);
         const totalThinkingTokens = chapters.reduce((sum, c) => sum + (c.tokens?.thinking || 0), 0);
 
-        // Cost calculation (Gemini 2.5 Flash pricing)
-        // Input: $0.075 per 1M tokens, Output: $0.30 per 1M tokens, Thinking: FREE ($0)
-        const inputCost = (totalInputTokens / 1_000_000) * 0.075;
-        const outputCost = (totalOutputTokens / 1_000_000) * 0.30;
-        const thinkingCost = 0; // Thinking tokens are FREE in Gemini 2.5 Flash
-        const totalCost = inputCost + outputCost + thinkingCost;
+        let totalCost = 0;
+        for (const chapter of chapters) {
+            if (!chapter.tokens) continue;
+            const modelId = migrateModelId(chapter.translationModel || 'gemini-2.5-flash');
+            const modelInfo = AI_MODELS.find(m => m.value === modelId) || AI_MODELS[0];
+            const inputTokens = chapter.tokens.input || 0;
+            const outputTokens = chapter.tokens.output || 0;
+            const thinkingTokens = chapter.tokens.thinking || 0;
+
+            totalCost += ((inputTokens * (modelInfo.inputPrice || 0)) / 1_000_000)
+                + (((outputTokens + thinkingTokens) * (modelInfo.outputPrice || 0)) / 1_000_000);
+        }
 
         const totalChunks = chapters.reduce((sum, c) => sum + (c.chunks || 0), 0);
 

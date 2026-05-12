@@ -45,6 +45,7 @@ export function useCorrections({ workspaceId, selectedChapters, setHistoryOpen }
             await db.chapters.update(chapter.id!, {
               content_translated: newContent,
               title_translated: newTitle || chapter.title_translated,
+              lastTranslatedAt: new Date(),
               updatedAt: new Date()
             });
             updatedCount++;
@@ -73,6 +74,17 @@ export function useCorrections({ workspaceId, selectedChapters, setHistoryOpen }
             onClick: () => setHistoryOpen(true)
           }
         });
+
+        import("@/lib/sync/cloud-sync").then(({ hasToken, pushDelta }) => {
+          if (!hasToken()) return;
+          pushDelta(workspaceId).then(result => {
+            if (result.sizeKB === 0) return;
+            toast.success(`☁️ Đã sync ${result.delta ? "+" + result.chapterCount : result.chapterCount} chương lên cloud`);
+          }).catch(error => {
+            console.warn("[CloudSync] Auto-push after corrections failed:", error);
+            toast.warning("Đã sửa local, nhưng auto sync cloud chưa thành công.");
+          });
+        }).catch(() => { /* cloud-sync module not available */ });
       } else {
         toast.info("Không có thay đổi nào cần áp dụng.", { id: "applying-corrections" });
       }

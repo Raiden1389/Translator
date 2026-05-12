@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, Book, ArrowUp, ArrowDown } from "lucide-react";
@@ -23,6 +23,7 @@ import {
 import { AlertTriangle } from "lucide-react";
 
 interface ChapterTableProps {
+    currentPage: number;
     chapters: Chapter[];
     selectedChapters: number[];
     queueState: AiQueueState;
@@ -47,6 +48,7 @@ interface ChapterTableProps {
 
 export const ChapterTable = React.memo(function ChapterTable(props: ChapterTableProps) {
     const {
+        currentPage,
         chapters, selectedChapters, queueState, setSelectedChapters, onSelect,
         onSelectPage, onSelectGlobal, onDeselectAll,
         onRead, onInspect, onRetranslate, onClearTranslation, onApplyCorrections,
@@ -73,6 +75,11 @@ export const ChapterTable = React.memo(function ChapterTable(props: ChapterTable
         estimateSize: () => 52,
         overscan: 10,
     });
+
+    useEffect(() => {
+        if (!parentRef.current) return;
+        parentRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }, [currentPage]);
 
     return (
         <div className="border border-border bg-muted/40 overflow-hidden flex flex-col h-[75vh] shadow-sm rounded-xl transition-all duration-500">

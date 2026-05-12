@@ -11,6 +11,7 @@ export const EntityTypeSchema = z.enum([
   'Location',
   'Organization',
   'Skill',
+  'Item',
   'Unknown'
 ]);
 

@@ -9,7 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Edit, X, Save, ChevronDown, Zap, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { AI_MODELS, DEFAULT_MODEL, migrateModelId } from "@/lib/ai-models";
-import { DEFAULT_AI_PROVIDER, getAIProviderLabel, type AIProvider, normalizeAIProvider } from "@/lib/ai-provider";
+import { DEFAULT_AI_PROVIDER, DEFAULT_VERTEX_AUTH_MODE, filterModelsForProvider, getAIProviderLabel, normalizeAIProvider, normalizeVertexAuthMode, sanitizeModelForProvider, type AIProvider, type VertexAuthMode } from "@/lib/ai-provider";
 import { toast } from "sonner";
 
 interface TranslateConfigDialogProps {
@@ -38,6 +38,7 @@ interface TranslationConfig {
 
 interface TranslationSettingsManual {
     provider?: AIProvider;
+    vertexAuthMode?: VertexAuthMode;
     apiKey: string;
     model: string;
 }
@@ -68,7 +69,7 @@ function maskKeyTail(key: string) {
 
 export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onStart }: TranslateConfigDialogProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const [currentSettings, setCurrentSettings] = useState<TranslationSettingsManual>({ provider: DEFAULT_AI_PROVIDER, apiKey: "", model: DEFAULT_MODEL });
+    const [currentSettings, setCurrentSettings] = useState<TranslationSettingsManual>({ provider: DEFAULT_AI_PROVIDER, vertexAuthMode: DEFAULT_VERTEX_AUTH_MODE, apiKey: "", model: DEFAULT_MODEL });
     const [translateConfig, setTranslateConfig] = useState<TranslationConfig>({
         customPrompt: "",
         autoExtract: false,
@@ -88,6 +89,11 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [promptExpanded, setPromptExpanded] = useState(false);
     const isMounted = useRef(true);
+    const modelOptions = filterModelsForProvider(
+        currentSettings.provider || DEFAULT_AI_PROVIDER,
+        AI_MODELS,
+        currentSettings.vertexAuthMode || DEFAULT_VERTEX_AUTH_MODE
+    );
 
     // Cleanup on unmount
     useEffect(() => {
@@ -102,9 +108,11 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
 
         const load = async () => {
             const provider = normalizeAIProvider((await db.settings.get("aiProvider"))?.value);
+            const vertexAuthMode = normalizeVertexAuthMode((await db.settings.get("vertexAuthMode"))?.value);
             const geminiKey = await db.settings.get("geminiApiKey");
             const legacyGeminiKey = await db.settings.get("apiKeyPrimary");
             const vertexKey = await db.settings.get("vertexApiKey");
+            const vertexServiceAccountPath = await db.settings.get("vertexServiceAccountPath");
             const model = await db.settings.get("aiModel");
             const lastPrompt = await db.settings.get("lastCustomPrompt");
             const lastConcurrency = await db.settings.get("lastMaxConcurrency");
@@ -121,10 +129,13 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
 
             setCurrentSettings({
                 provider,
+                vertexAuthMode,
                 apiKey: provider === "vertex"
-                    ? ((vertexKey?.value as string) || "")
+                    ? (vertexAuthMode === "serviceAccount"
+                        ? ((vertexServiceAccountPath?.value as string) || "")
+                        : ((vertexKey?.value as string) || ""))
                     : ((geminiKey?.value as string) || (legacyGeminiKey?.value as string) || ""),
-                model: migrateModelId((model?.value as string) || DEFAULT_MODEL)
+                model: sanitizeModelForProvider(provider, migrateModelId((model?.value as string) || DEFAULT_MODEL), vertexAuthMode)
             });
 
             setTranslateConfig(prev => ({
@@ -151,10 +162,12 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
         try {
             const provider = currentSettings.provider || DEFAULT_AI_PROVIDER;
             await db.settings.put({
-                key: provider === "vertex" ? "vertexApiKey" : "geminiApiKey",
+                key: provider === "vertex"
+                    ? ((currentSettings.vertexAuthMode || DEFAULT_VERTEX_AUTH_MODE) === "serviceAccount" ? "vertexServiceAccountPath" : "vertexApiKey")
+                    : "geminiApiKey",
                 value: currentSettings.apiKey
             });
-            await db.settings.put({ key: "aiModel", value: currentSettings.model });
+            await db.settings.put({ key: "aiModel", value: sanitizeModelForProvider(provider, currentSettings.model, currentSettings.vertexAuthMode || DEFAULT_VERTEX_AUTH_MODE) });
 
             if (isMounted.current) {
                 toast.success("Đã lưu cấu hình AI!");
@@ -247,7 +260,9 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">
-                                        {currentSettings.provider === "vertex" ? "API Key (Vertex AI)" : "API Key (Gemini)"}
+                                        {currentSettings.provider === "vertex"
+                                            ? (currentSettings.vertexAuthMode === "serviceAccount" ? "Service Account JSON Path" : "API Key (Vertex AI)")
+                                            : "API Key (Gemini)"}
                                     </Label>
                                     <p className="text-[11px] text-muted-foreground">
                                         Provider hiện tại: <span className="font-semibold text-foreground">{getAIProviderLabel(currentSettings.provider || DEFAULT_AI_PROVIDER)}</span>
@@ -268,8 +283,13 @@ export function TranslateConfigDialog({ open, onOpenChange, selectedCount, onSta
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">AI Model</Label>
                                     <select value={currentSettings.model} onChange={(e) => setCurrentSettings({ ...currentSettings, model: e.target.value })} className="w-full h-10 px-3 rounded-md bg-background border border-border text-sm focus:ring-2 focus:ring-primary outline-none">
-                                        {AI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                                        {modelOptions.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                                     </select>
+                                    {currentSettings.provider === "vertex" && currentSettings.vertexAuthMode !== "serviceAccount" && (
+                                        <p className="text-[11px] text-amber-600/80">
+                                            Vertex API key/Express Mode trong app hiện chỉ mở các model Vertex tương thích. `Gemini 3 Preview` đang bị ẩn để tránh lỗi `Publisher Model not found`.
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border">
                                     <div className="space-y-0.5">
