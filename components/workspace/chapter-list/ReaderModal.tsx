@@ -143,7 +143,11 @@ export function ReaderModal({
         if (!chapter) return;
         const timer = setTimeout(async () => {
             if (editContent !== chapter.content_translated) {
-                await db.chapters.update(chapterId, { content_translated: editContent });
+                await db.chapters.update(chapterId, {
+                    content_translated: editContent,
+                    lastTranslatedAt: new Date(),
+                    updatedAt: new Date(),
+                });
             }
         }, 1000);
         return () => clearTimeout(timer);

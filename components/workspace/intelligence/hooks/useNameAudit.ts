@@ -91,10 +91,11 @@ export function useNameAudit(workspaceId: string) {
         });
     }, []);
 
-    // Main UI only surfaces actionable clusters by default; low-signal singletons stay out of the way.
+    // Surface all inconsistent clusters. `isActionable` is useful for sorting,
+    // but hiding every low-evidence inconsistency makes the audit look empty on small ranges.
     const visibleClusters = report?.clusters.filter(c =>
         !dismissedClusters.has(c.id) &&
-        (c.isActionable || confirmedFixes.has(c.id))
+        (c.isInconsistent || c.isActionable || confirmedFixes.has(c.id))
     ) ?? [];
     const confirmedCount = confirmedFixes.size;
     const pendingInconsistent = visibleClusters.filter(c => c.isInconsistent && !confirmedFixes.has(c.id)).length;

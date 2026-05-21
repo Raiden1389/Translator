@@ -1,11 +1,21 @@
+## [2.17.1] - 2026-05-12
+
+### Top Impact
+- `lib/services/ai-ner.types.ts`, `lib/services/ai-ner.parse.ts`, `lib/services/ai-ner.prompt.ts`, `lib/services/ai-ner.runtime.ts`, `lib/services/ai-ner.filter.ts`, `lib/services/ai-ner.gemini.ts`, `lib/services/ai-ner.vertex.ts` — **[AI NER][Refactor]** Tách các phần lõi của luồng quét thuật ngữ thành module riêng, tránh nhồi provider/runtime logic vào một service lớn.
+- `lib/services/ai-ner.service.ts` — **[AI NER][Refactor]** Thu gọn thành orchestrator mỏng cho `extractEntities()` và `extractEntitiesBatch()`, giữ nguyên hành vi quét nhưng giảm độ rối khi bảo trì Gemini/Vertex.
+
+### Added
+- `lib/services/ai-ner.types.ts`, `lib/services/ai-ner.parse.ts`, `lib/services/ai-ner.prompt.ts`, `lib/services/ai-ner.runtime.ts`, `lib/services/ai-ner.filter.ts`, `lib/services/ai-ner.gemini.ts`, `lib/services/ai-ner.vertex.ts` — **[AI NER][Refactor]** Tách các phần lõi của luồng quét thuật ngữ thành module riêng, tránh nhồi provider/runtime logic vào một service lớn.
+
+### Changed
+- `lib/services/ai-ner.service.ts` — **[AI NER][Refactor]** Thu gọn thành orchestrator mỏng cho `extractEntities()` và `extractEntitiesBatch()`, giữ nguyên hành vi quét nhưng giảm độ rối khi bảo trì Gemini/Vertex.
+
 ## [2.17.0] - 2026-05-12
 
 ### Top Impact
 - **[Vertex][Codex][Phase 2]** Thêm auth mode `Service Account (Full Vertex)` song song với `API Key (Express Mode)` trong settings, refresh model, health-check, cấu hình dịch nhanh, và request runtime.
-- **[Vertex][AI NER]** Đã chặn `Gemini 3` trong AI NER trên Vertex (cả Express và Service Account) để tránh lỗi crash do Structured JSON Output chưa ổn định (trả về content rỗng). App giờ tự hạ về `gemini-2.5-flash` kèm thông báo progress cho người dùng.
 - **[Vertex][Codex][Native]** Thêm native bridge ký JWT từ `Service Account JSON`, đổi lấy OAuth access token, rồi gọi full Vertex endpoint theo dạng `projects/{project}/locations/{location}/publishers/google/models/...`.
 - **[Vertex][Codex][Automation]** App giờ tự dò `Service Account JSON` trong repo/thư mục app, tự điền path cùng `project_id`, và có fallback mặc định `gen-lang-client-0688183488` để test nhanh mà không cần nhập tay.
-- **[GitNexus][Fix]** Khắc phục lỗi `EOF / ECOMPROMISED` của GitNexus MCP bằng cách dọn sạch npx cache và npm integrity cache, giúp khôi phục kết nối code intelligence.
 - `components/workspace/AISettingsTab.tsx`, `components/workspace/hooks/useAISettings.ts`, `lib/ai-provider.ts` — **[Vertex][Codex][UX]** Settings Vertex giờ phân tách rõ `Express` và `Full Vertex`, hiển thị path JSON thay vì che như password, có dropdown `Vertex Location` (`Global`, `Asia`, `US`, `Europe`), và mặc định gợi ý region theo model.
 - `lib/services/ai-service.ts`, `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `src-tauri/src/lib.rs` — **[Vertex][Codex][Runtime]** Luồng request/check-key/fetch-model giờ dispatch theo auth mode, để `Gemini 3` chỉ mở ở `Full Vertex` còn `Express Mode` tiếp tục bị chặn ở những model Google chưa support.
 
@@ -28,16 +38,6 @@
 - **[Security][Codex][Git]** Thêm ignore cho `gen-lang-client-*.json` để giảm rủi ro stage nhầm Service Account JSON vào git.
 - **[UX][Codex][Chapter List]** Khi đổi trang trong `Chapter List`, viewport giờ tự cuộn về đầu danh sách của page mới thay vì giữ nguyên vị trí scroll cũ ở cuối page trước, giúp case pagination lớn như `500 chương / page` chuyển từ chap `1000` sang `1001` đúng nhịp hơn.
 - `components/workspace/chapter-list/hooks/useCorrections.ts` — **[Sync][Codex][Cloud]** `Apply cải chính` giờ đánh dấu `lastTranslatedAt` và auto `pushDelta()` khi có token cloud, nên bản đã cải chính được đẩy lên cloud ngay thay vì chỉ sửa local.
-
-### Changed
-- `components/workspace/AISettingsTab.tsx`, `components/workspace/hooks/useAISettings.ts`, `lib/ai-provider.ts` — **[Vertex][Codex][UX]** Settings Vertex giờ phân tách rõ `Express` và `Full Vertex`, hiển thị path JSON thay vì che như password, có dropdown `Vertex Location` (`Global`, `Asia`, `US`, `Europe`), và mặc định gợi ý region theo model.
-- `lib/services/ai-service.ts`, `lib/gemini/client.ts`, `src-tauri/src/gemini.rs`, `src-tauri/src/lib.rs` — **[Vertex][Codex][Runtime]** Luồng request/check-key/fetch-model giờ dispatch theo auth mode, để `Gemini 3` chỉ mở ở `Full Vertex` còn `Express Mode` tiếp tục bị chặn ở những model Google chưa support.
-- `components/workspace/chapter-list/TranslateConfigDialog.tsx`, `lib/services/ai-ner.service.ts` — **[Vertex][Codex][AI NER]** Cấu hình dịch nhanh và AI quét thuật ngữ giờ hiểu `vertexAuthMode`, dùng đúng credential tương ứng, và tiếp tục sanitize model theo provider/auth mode để tránh gọi sai flow.
-
-### Fixed
-- **[Vertex][Codex][Setup]** Không còn bắt người dùng phải dán lại `project_id` hay đường dẫn JSON thủ công trong phần lớn ca dùng desktop nếu file service-account đã nằm ngay trong repo.
-- **[Security][Codex][Git]** Thêm ignore cho `gen-lang-client-*.json` để giảm rủi ro stage nhầm Service Account JSON vào git.
-- **[UX][Codex][Chapter List]** Khi đổi trang trong `Chapter List`, viewport giờ tự cuộn về đầu danh sách của page mới thay vì giữ nguyên vị trí scroll cũ ở cuối page trước, giúp case pagination lớn như `500 chương / page` chuyển từ chap `1000` sang `1001` đúng nhịp hơn.
 
 ## [2.16.4] - 2026-05-10
 
@@ -183,32 +183,3 @@
 - **[Safety]** `adaptive-tokens.ts` — empty candidate responses now correctly report `finishReason: "UNKNOWN"` instead of falsely masking as `"STOP"`.
 - **[Build]** `client.ts` — fixed TypeScript type error where `rawResponse` (typed `unknown`) was accessed without proper `Record<string, unknown>` cast.
 - **[Safety]** Reverted safety settings to `BLOCK_NONE` for 4 core categories; removed `HARM_CATEGORY_CIVIC_INTEGRITY` which may cause API rejection in Gemini 2.5 Flash.
-
-## [2.15.1] - 2026-04-25
-
-### Top Impact
-- **[Bridge]** Missing-chapter re-export is now wired from the Bridge dialog to `exportMissingOnly()`, preserving glossary, corrections, prompt, and temperature from the original export context.
-- **[Translator]** `chinese-vietnamese-translator` now includes Translation Mode, Convert Kill List, Before Output Rewrite Pass, and 10 grounded Chinese→Vietnamese few-shot examples.
-- **[Workflow]** `/dich` Self-QA now explicitly checks Convert Kill List patterns and records hard/soft findings.
-- **[Bridge]** `pollJobProgress()` now treats `done_{jobId}.json` as the only completion signal. Outbox count is progress only, preventing premature import before QA is written.
-- **[Bridge]** Outbox discovery and cleanup now use exact filename matching instead of broad `startsWith()` checks.
-
-### Added
-- **[Bridge]** Missing-chapter re-export is now wired from the Bridge dialog to `exportMissingOnly()`, preserving glossary, corrections, prompt, and temperature from the original export context.
-- **[Translator]** `chinese-vietnamese-translator` now includes Translation Mode, Convert Kill List, Before Output Rewrite Pass, and 10 grounded Chinese→Vietnamese few-shot examples.
-- **[Workflow]** `/dich` Self-QA now explicitly checks Convert Kill List patterns and records hard/soft findings.
-
-### Changed
-- **[Bridge]** `pollJobProgress()` now treats `done_{jobId}.json` as the only completion signal. Outbox count is progress only, preventing premature import before QA is written.
-- **[Bridge]** Outbox discovery and cleanup now use exact filename matching instead of broad `startsWith()` checks.
-- **[Bridge]** Partial `done` sentinel chapter lists are surfaced to the orchestrator so partial jobs can import and report missing chapters.
-- **[Workflow]** `/dich` now requires Translation Mode → Few-Shot internalization → Before Output Rewrite Pass → Quality Gate before writing every outbox file.
-- **[Build]** Version bumped to `2.15.1` across `package.json`, `package-lock.json`, `tauri.conf.json`, `tauri.fast.conf.json`, `Cargo.toml`, and `Cargo.lock`.
-- `.agent/workflows/dich.md` — restored bridge contract + quality-over-token translation flow
-
-### Fixed
-- **[Bridge]** Early auto-import race: the app could import as soon as all `out_*.json` files appeared, skipping `qa_{jobId}.json` and losing QA hard fixes.
-- **[Bridge]** Workspace safety: flat outbox imports now verify `chapter.workspaceId === currentWorkspaceId` before updating DB records.
-- **[Bridge]** Missing detection: `exportedOrders` is now populated in the Antigravity export path, so missing chapters are detected correctly.
-- **[Bridge]** QA hard fixes now apply only to chapters that actually imported and passed workspace validation.
-- **[Workflow]** Restored full `/dich` bridge contract after regression to an incomplete short prompt that omitted JSON contract, QA report, and done sentinel requirements.

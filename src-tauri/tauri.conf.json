@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' tauri://localhost localhost:3000; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com https://accounts.google.com https://www.69shuba.com https://69shuba.com https://www.69xinshu.com https://69xinshu.com https://raidenhub.xyz http://localhost:*; frame-src https://accounts.google.com;"
+      "csp": "default-src 'self' tauri://localhost localhost:3000; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com https://accounts.google.com https://www.69shuba.com https://69shuba.com https://www.69xinshu.com https://69xinshu.com https://raidenhub.xyz http://localhost:*; frame-src https://accounts.google.com;"
     }
   },
   "bundle": {

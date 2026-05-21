@@ -1,4 +1,5 @@
 import { db, type Workspace, type Chapter, type DictionaryEntry, type CorrectionEntry } from "./db";
+import { safeParseJSONImport } from "./schemas/json-import.schema";
 
 // Export workspace data to JSON
 export async function exportWorkspace(workspaceId: string): Promise<Blob> {
@@ -117,16 +118,7 @@ export async function appendChaptersFromJSON(
     workspaceId: string,
     file: File
 ): Promise<{ added: number; skipped: number }> {
-    const text = await file.text();
-    const rawData = JSON.parse(text);
-
-    // Support both crawler JSON format and translator backup format
-    const chapters: { title: string; content: string; content_original?: string; order?: number }[] =
-        rawData.chapters || [];
-
-    if (chapters.length === 0) {
-        throw new Error('File JSON không có chapters nào');
-    }
+    const { chapters } = await parseCrawlerJsonFile(file);
 
     // Get existing orders in this workspace
     const existingChapters = await db.chapters
@@ -174,6 +166,137 @@ export async function appendChaptersFromJSON(
     }
 
     return { added, skipped };
+}
+
+/**
+ * Update only chapters whose source title/content changed in a crawler JSON export.
+ * If an updated chapter already has a translation, the stale translation is removed.
+ * Returns counts for UI feedback.
+ */
+export async function updateChangedChaptersFromJSON(
+    workspaceId: string,
+    file: File
+): Promise<{ updated: number; skipped: number; clearedTranslations: number }> {
+    const { chapters } = await parseCrawlerJsonFile(file);
+
+    const existingChapters = await db.chapters
+        .where('workspaceId')
+        .equals(workspaceId)
+        .toArray();
+
+    const existingByOrder = new Map(existingChapters.map(ch => [ch.order, ch]));
+
+    let updated = 0;
+    let skipped = 0;
+    let clearedTranslations = 0;
+
+    await db.transaction('rw', db.chapters, db.workspaces, async () => {
+        for (const [index, ch] of chapters.entries()) {
+            const order = ch.order ?? (index + 1);
+            const existing = existingByOrder.get(order);
+
+            if (!existing) {
+                skipped++;
+                continue;
+            }
+
+            const normalizedTitle = normalizeImportText(ch.title || '');
+            const normalizedContent = normalizeImportText(ch.content || ch.content_original || '');
+            const existingTitle = normalizeImportText(existing.title || '');
+            const existingContent = normalizeImportText(existing.content_original || '');
+
+            const titleChanged = normalizeComparableSource(normalizedTitle) !== normalizeComparableSource(existingTitle);
+            const contentChanged = normalizeComparableSource(normalizedContent) !== normalizeComparableSource(existingContent);
+
+            if (!titleChanged && !contentChanged) {
+                skipped++;
+                continue;
+            }
+
+            const hadTranslation = !!(existing.content_translated?.trim() || existing.title_translated?.trim());
+
+            await db.chapters.update(existing.id!, {
+                title: ch.title,
+                content_original: normalizedContent,
+                content_translated: undefined,
+                title_translated: undefined,
+                wordCountOriginal: normalizedContent.length,
+                wordCountTranslated: undefined,
+                status: 'draft',
+                lastTranslatedAt: undefined,
+                translationModel: undefined,
+                translationDurationMs: undefined,
+                inspectionResults: undefined,
+                updatedAt: new Date(),
+            });
+
+            updated++;
+            if (hadTranslation) {
+                clearedTranslations++;
+            }
+        }
+
+        if (updated > 0) {
+            await db.workspaces.update(workspaceId, { updatedAt: new Date() });
+        }
+    });
+
+    return { updated, skipped, clearedTranslations };
+}
+
+async function parseCrawlerJsonFile(file: File): Promise<{
+    chapters: { title: string; content?: string; content_original?: string; order?: number }[];
+}> {
+    const text = await file.text();
+    const rawData = JSON.parse(text);
+    const parsed = safeParseJSONImport(rawData);
+
+    if (!parsed.success) {
+        throw new Error(parsed.error);
+    }
+
+    const chapters = parsed.data.chapters;
+    if (chapters.length === 0) {
+        throw new Error('File JSON không có chapters nào');
+    }
+
+    return { chapters };
+}
+
+function normalizeImportText(value: string): string {
+    return value
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\r\n/g, '\n')
+        .trim();
+}
+
+function decodeBasicEntities(value: string): string {
+    return value
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#(\d+);/g, (_, code) => {
+            const num = Number(code);
+            return Number.isFinite(num) ? String.fromCharCode(num) : '';
+        });
+}
+
+function normalizeComparableSource(value: string): string {
+    return decodeBasicEntities(value)
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+/g, '')
+        .replace(/\n+/g, '\n')
+        .trim();
 }
 
 

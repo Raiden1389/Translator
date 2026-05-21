@@ -5,6 +5,16 @@
 
 ---
 
+## [2.17.1] - 2026-05-12
+
+**Top Impact**: AI NER được tách module lại cho gọn: service chính chỉ còn điều phối quét thuật ngữ, còn type, prompt, parser, runtime, filter, Gemini flow và Vertex flow nằm riêng để dễ bảo trì.
+
+### Added
+- `lib/services/ai-ner.types.ts`, `lib/services/ai-ner.parse.ts`, `lib/services/ai-ner.prompt.ts`, `lib/services/ai-ner.runtime.ts`, `lib/services/ai-ner.filter.ts`, `lib/services/ai-ner.gemini.ts`, `lib/services/ai-ner.vertex.ts` — **[AI NER][Refactor]** Tách các phần lõi của luồng quét thuật ngữ thành module riêng, tránh nhồi provider/runtime logic vào một service lớn.
+
+### Changed
+- `lib/services/ai-ner.service.ts` — **[AI NER][Refactor]** Thu gọn thành orchestrator mỏng cho `extractEntities()` và `extractEntitiesBatch()`, giữ nguyên hành vi quét nhưng giảm độ rối khi bảo trì Gemini/Vertex.
+
 ## [2.17.0] - 2026-05-12
 
 **Top Impact**: Vertex AI bước sang giai đoạn 2 với `Service Account (Full Vertex)` ngay trong app desktop. Đồng thời khắc phục lỗi crash AI NER trên Vertex bằng cách chặn `Gemini 3` (Preview) và fallback thông minh về `gemini-2.5-flash`. Hệ thống code intelligence GitNexus cũng được khôi phục hoàn toàn sau sự cố kẹt cache npm trên Windows.

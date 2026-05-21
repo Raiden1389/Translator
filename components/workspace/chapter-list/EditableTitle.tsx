@@ -38,6 +38,7 @@ export function EditableTitle({ id, title_translated, onRead }: EditableTitlePro
     try {
       await db.chapters.update(id, {
         title_translated: trimmedValue,
+        lastTranslatedAt: new Date(),
         updatedAt: new Date()
       });
 

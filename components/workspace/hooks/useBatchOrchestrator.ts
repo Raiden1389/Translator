@@ -38,6 +38,9 @@ export function useBatchOrchestrator(
     _glossary: readonly DictionaryEntry[],
     _corrections: CorrectionEntry[]
   ): Promise<void> => {
+    void _glossary;
+    void _corrections;
+
     console.log(`⚡ [BATCH MODE] ${chaptersToTranslate.length} chapters → batches of ${config.batchSize}`);
 
     const { createSmartBatches, buildBatchPrompt } = await import('@/lib/gemini/batch');
@@ -92,9 +95,20 @@ export function useBatchOrchestrator(
         console.log(`✅ [BATCH ${i + 1}] API returned ${result.chapters.length} chapters`);
 
         // Save translated chapters to DB
-        for (let j = 0; j < result.chapters.length; j++) {
-          const translatedChapter = result.chapters[j];
+        for (let j = 0; j < batch.length; j++) {
           const originalChapter = batch[j];
+          const translatedChapter = result.chapters[j];
+
+          if (!translatedChapter) {
+            const message = `Batch ${i + 1}/${batches.length} trả thiếu chương ${originalChapter.order}`;
+            queue.updateStatus(originalChapter.id!, 'error', message);
+            progress.updateChapterProgress(originalChapter.id!, {
+              status: 'error',
+              error: message,
+              translationModel: aiModel,
+            });
+            continue;
+          }
 
           // Calculate per-chapter tokens (evenly distributed)
           const perChapterTokens = {
@@ -124,8 +138,15 @@ export function useBatchOrchestrator(
 
       } catch (error) {
         console.error(`❌ [BATCH ${i + 1}] API failed:`, error);
-        console.log(`⚠️ [BATCH ${i + 1}] Falling back to single-chapter mode`);
-        // TODO: Implement fallback to single-chapter mode
+        const message = error instanceof Error ? error.message : String(error);
+        batch.forEach(chapter => {
+          queue.updateStatus(chapter.id!, 'error', message);
+          progress.updateChapterProgress(chapter.id!, { status: 'error', error: message });
+        });
+        progress.addNotification({
+          message: `⚠️ Batch ${i + 1}/${batches.length} lỗi, đã bỏ khóa ${batch.length} chương để có thể dịch tiếp`,
+          type: 'error'
+        });
       }
     }
   }, [queue, progress]);
